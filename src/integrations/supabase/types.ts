@@ -1,0 +1,540 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
+export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.1"
+  }
+  public: {
+    Tables: {
+      articles: {
+        Row: {
+          abstract: string | null
+          author_id: string
+          certificate_url: string | null
+          created_at: string | null
+          document_url: string | null
+          id: string
+          keywords: string[] | null
+          reference_number: string
+          review_report_url: string | null
+          status: Database["public"]["Enums"]["article_status"] | null
+          submission_date: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          abstract?: string | null
+          author_id: string
+          certificate_url?: string | null
+          created_at?: string | null
+          document_url?: string | null
+          id?: string
+          keywords?: string[] | null
+          reference_number: string
+          review_report_url?: string | null
+          status?: Database["public"]["Enums"]["article_status"] | null
+          submission_date?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          abstract?: string | null
+          author_id?: string
+          certificate_url?: string | null
+          created_at?: string | null
+          document_url?: string | null
+          id?: string
+          keywords?: string[] | null
+          reference_number?: string
+          review_report_url?: string | null
+          status?: Database["public"]["Enums"]["article_status"] | null
+          submission_date?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "articles_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      co_author_certificates: {
+        Row: {
+          amount_paid: number | null
+          article_id: string
+          certificate_url: string | null
+          co_author_id: string
+          created_at: string | null
+          currency: Database["public"]["Enums"]["currency_type"] | null
+          id: string
+          payment_id: string | null
+          payment_status:
+            | Database["public"]["Enums"]["coauthor_payment_status"]
+            | null
+        }
+        Insert: {
+          amount_paid?: number | null
+          article_id: string
+          certificate_url?: string | null
+          co_author_id: string
+          created_at?: string | null
+          currency?: Database["public"]["Enums"]["currency_type"] | null
+          id?: string
+          payment_id?: string | null
+          payment_status?:
+            | Database["public"]["Enums"]["coauthor_payment_status"]
+            | null
+        }
+        Update: {
+          amount_paid?: number | null
+          article_id?: string
+          certificate_url?: string | null
+          co_author_id?: string
+          created_at?: string | null
+          currency?: Database["public"]["Enums"]["currency_type"] | null
+          id?: string
+          payment_id?: string | null
+          payment_status?:
+            | Database["public"]["Enums"]["coauthor_payment_status"]
+            | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "co_author_certificates_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "co_author_certificates_co_author_id_fkey"
+            columns: ["co_author_id"]
+            isOneToOne: false
+            referencedRelation: "co_authors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      co_authors: {
+        Row: {
+          affiliation: string | null
+          article_id: string
+          created_at: string | null
+          email: string
+          id: string
+          name: string
+        }
+        Insert: {
+          affiliation?: string | null
+          article_id: string
+          created_at?: string | null
+          email: string
+          id?: string
+          name: string
+        }
+        Update: {
+          affiliation?: string | null
+          article_id?: string
+          created_at?: string | null
+          email?: string
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "co_authors_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      discount_codes: {
+        Row: {
+          code: string
+          created_at: string | null
+          created_by: string | null
+          currency: Database["public"]["Enums"]["discount_currency"]
+          discount_type: Database["public"]["Enums"]["discount_type"]
+          discount_value: number
+          end_date: string
+          id: string
+          is_active: boolean | null
+          start_date: string
+          usage_limit: number | null
+          used_count: number | null
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          created_by?: string | null
+          currency: Database["public"]["Enums"]["discount_currency"]
+          discount_type: Database["public"]["Enums"]["discount_type"]
+          discount_value: number
+          end_date: string
+          id?: string
+          is_active?: boolean | null
+          start_date: string
+          usage_limit?: number | null
+          used_count?: number | null
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          created_by?: string | null
+          currency?: Database["public"]["Enums"]["discount_currency"]
+          discount_type?: Database["public"]["Enums"]["discount_type"]
+          discount_value?: number
+          end_date?: string
+          id?: string
+          is_active?: boolean | null
+          start_date?: string
+          usage_limit?: number | null
+          used_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discount_codes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payments: {
+        Row: {
+          amount: number
+          article_ids: string[]
+          created_at: string | null
+          currency: Database["public"]["Enums"]["currency_type"]
+          discount_amount: number | null
+          discount_code: string | null
+          final_amount: number
+          id: string
+          payment_gateway: Database["public"]["Enums"]["payment_gateway"]
+          payment_status: Database["public"]["Enums"]["payment_status"] | null
+          transaction_id: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          article_ids: string[]
+          created_at?: string | null
+          currency: Database["public"]["Enums"]["currency_type"]
+          discount_amount?: number | null
+          discount_code?: string | null
+          final_amount: number
+          id?: string
+          payment_gateway: Database["public"]["Enums"]["payment_gateway"]
+          payment_status?: Database["public"]["Enums"]["payment_status"] | null
+          transaction_id?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          article_ids?: string[]
+          created_at?: string | null
+          currency?: Database["public"]["Enums"]["currency_type"]
+          discount_amount?: number | null
+          discount_code?: string | null
+          final_amount?: number
+          id?: string
+          payment_gateway?: Database["public"]["Enums"]["payment_gateway"]
+          payment_status?: Database["public"]["Enums"]["payment_status"] | null
+          transaction_id?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          affiliation: string | null
+          country: string | null
+          created_at: string | null
+          email: string
+          full_name: string
+          id: string
+          is_indian: boolean | null
+        }
+        Insert: {
+          affiliation?: string | null
+          country?: string | null
+          created_at?: string | null
+          email: string
+          full_name: string
+          id: string
+          is_indian?: boolean | null
+        }
+        Update: {
+          affiliation?: string | null
+          country?: string | null
+          created_at?: string | null
+          email?: string
+          full_name?: string
+          id?: string
+          is_indian?: boolean | null
+        }
+        Relationships: []
+      }
+      publication_fees: {
+        Row: {
+          id: string
+          indian_coauthor_fee: number | null
+          indian_fee: number | null
+          international_coauthor_fee: number | null
+          international_fee: number | null
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          id?: string
+          indian_coauthor_fee?: number | null
+          indian_fee?: number | null
+          international_coauthor_fee?: number | null
+          international_fee?: number | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          id?: string
+          indian_coauthor_fee?: number | null
+          indian_fee?: number | null
+          international_coauthor_fee?: number | null
+          international_fee?: number | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "publication_fees_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["user_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role?: Database["public"]["Enums"]["user_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["user_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      get_user_role: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["user_role"]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["user_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+    }
+    Enums: {
+      article_status:
+        | "submitted"
+        | "under_review"
+        | "pending_fee"
+        | "paid"
+        | "payment_under_review"
+        | "failed_payment"
+        | "published"
+        | "rejected"
+      coauthor_payment_status: "pending" | "paid" | "failed"
+      currency_type: "INR" | "USD"
+      discount_currency: "INR" | "USD" | "BOTH"
+      discount_type: "percentage" | "fixed"
+      payment_gateway: "razorpay" | "paypal"
+      payment_status: "pending" | "success" | "failed" | "under_review"
+      user_role: "author" | "admin"
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+}
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {
+      article_status: [
+        "submitted",
+        "under_review",
+        "pending_fee",
+        "paid",
+        "payment_under_review",
+        "failed_payment",
+        "published",
+        "rejected",
+      ],
+      coauthor_payment_status: ["pending", "paid", "failed"],
+      currency_type: ["INR", "USD"],
+      discount_currency: ["INR", "USD", "BOTH"],
+      discount_type: ["percentage", "fixed"],
+      payment_gateway: ["razorpay", "paypal"],
+      payment_status: ["pending", "success", "failed", "under_review"],
+      user_role: ["author", "admin"],
+    },
+  },
+} as const
