@@ -29,10 +29,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .from('user_roles')
       .select('role')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
     
     if (data) {
       setUserRole(data.role as UserRole);
+    } else {
+      // Default to author if no role found
+      setUserRole('author');
     }
   };
 
@@ -41,7 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .from('profiles')
       .select('is_indian')
       .eq('id', userId)
-      .single();
+      .maybeSingle();
     
     if (data) {
       setIsIndian(data.is_indian || false);
@@ -111,37 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error };
     }
 
-    if (data.user) {
-      // Create profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: data.user.id,
-          email,
-          full_name: fullName,
-          country,
-          is_indian: isIndianUser,
-          affiliation,
-        });
-
-      if (profileError) {
-        console.error('Profile creation error:', profileError);
-        return { error: profileError };
-      }
-
-      // Create user role (default to author)
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: data.user.id,
-          role: 'author'
-        });
-
-      if (roleError) {
-        console.error('Role creation error:', roleError);
-      }
-    }
-
+    // Profile and role are automatically created by database trigger
     return { error: null };
   };
 
