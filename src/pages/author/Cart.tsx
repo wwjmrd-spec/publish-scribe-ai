@@ -104,14 +104,25 @@ export default function Cart() {
   };
 
   const applyDiscountCode = async () => {
-    if (!discountCode.trim()) return;
+    const trimmedCode = discountCode.trim().toUpperCase();
+    
+    // Input validation: alphanumeric only, 4-20 characters
+    const DISCOUNT_CODE_REGEX = /^[A-Z0-9]{4,20}$/;
+    if (!trimmedCode || !DISCOUNT_CODE_REGEX.test(trimmedCode)) {
+      toast({
+        title: 'Invalid format',
+        description: 'Discount code must be 4-20 alphanumeric characters',
+        variant: 'destructive',
+      });
+      return;
+    }
     
     setApplyingDiscount(true);
     try {
       const { data, error } = await supabase
         .from('discount_codes')
         .select('*')
-        .eq('code', discountCode.toUpperCase())
+        .eq('code', trimmedCode)
         .eq('is_active', true)
         .single();
 
