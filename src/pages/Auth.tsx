@@ -84,11 +84,8 @@ export default function Auth() {
 
         const { error } = await signUp(email, password, fullName, country, affiliation);
         if (error) {
-          if (error.message.includes('already registered')) {
-            setError('This email is already registered. Please sign in instead.');
-          } else {
-            setError(error.message);
-          }
+          // Use generic error message to prevent user enumeration
+          setError('Unable to complete registration. Please check your details and try again.');
         } else {
           toast({
             title: 'Account created!',
@@ -105,13 +102,8 @@ export default function Auth() {
 
         const { error } = await signIn(email, password);
         if (error) {
-          if (error.message.includes('Invalid login credentials')) {
-            setError('Invalid email or password. Please try again.');
-          } else if (error.message.includes('Email not confirmed')) {
-            setError('Please verify your email before signing in.');
-          } else {
-            setError(error.message);
-          }
+          // Use generic error message to prevent user enumeration
+          setError('Invalid credentials. Please check your email and password.');
         }
       }
     } catch (err) {
