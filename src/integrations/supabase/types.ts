@@ -14,6 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      article_reviews: {
+        Row: {
+          article_id: string
+          content_score: number | null
+          detailed_feedback: Json | null
+          grammar_score: number | null
+          id: string
+          overall_score: number | null
+          plagiarism_score: number | null
+          review_type: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          summary: string | null
+        }
+        Insert: {
+          article_id: string
+          content_score?: number | null
+          detailed_feedback?: Json | null
+          grammar_score?: number | null
+          id?: string
+          overall_score?: number | null
+          plagiarism_score?: number | null
+          review_type?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          summary?: string | null
+        }
+        Update: {
+          article_id?: string
+          content_score?: number | null
+          detailed_feedback?: Json | null
+          grammar_score?: number | null
+          id?: string
+          overall_score?: number | null
+          plagiarism_score?: number | null
+          review_type?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          summary?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "article_reviews_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "article_reviews_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       articles: {
         Row: {
           abstract: string | null
@@ -22,13 +79,17 @@ export type Database = {
           created_at: string | null
           document_url: string | null
           id: string
+          issue: string | null
           keywords: string[] | null
+          page_number: string | null
+          publication_year: string | null
           reference_number: string
           review_report_url: string | null
           status: Database["public"]["Enums"]["article_status"] | null
           submission_date: string | null
           title: string
           updated_at: string | null
+          volume: string | null
         }
         Insert: {
           abstract?: string | null
@@ -37,13 +98,17 @@ export type Database = {
           created_at?: string | null
           document_url?: string | null
           id?: string
+          issue?: string | null
           keywords?: string[] | null
+          page_number?: string | null
+          publication_year?: string | null
           reference_number: string
           review_report_url?: string | null
           status?: Database["public"]["Enums"]["article_status"] | null
           submission_date?: string | null
           title: string
           updated_at?: string | null
+          volume?: string | null
         }
         Update: {
           abstract?: string | null
@@ -52,13 +117,17 @@ export type Database = {
           created_at?: string | null
           document_url?: string | null
           id?: string
+          issue?: string | null
           keywords?: string[] | null
+          page_number?: string | null
+          publication_year?: string | null
           reference_number?: string
           review_report_url?: string | null
           status?: Database["public"]["Enums"]["article_status"] | null
           submission_date?: string | null
           title?: string
           updated_at?: string | null
+          volume?: string | null
         }
         Relationships: [
           {

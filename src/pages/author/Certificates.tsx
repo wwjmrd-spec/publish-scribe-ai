@@ -5,8 +5,9 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { GlassCard } from '@/components/layout/GlassCard';
 import { Button } from '@/components/ui/button';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import {
   Award,
   Download,
@@ -63,13 +64,32 @@ export default function Certificates() {
     ? 500
     : 10;
 
-  const handleDownloadCertificate = async (certificateUrl: string) => {
-    // TODO: Implement certificate download
-    console.log('Downloading:', certificateUrl);
+  const downloadMutation = useMutation({
+    mutationFn: async ({ articleId, fileType }: { articleId: string; fileType: string }) => {
+      const response = await supabase.functions.invoke('get-document-url', {
+        body: { articleId, fileType },
+      });
+
+      if (response.error) throw new Error(response.error.message);
+      return response.data;
+    },
+    onSuccess: (data) => {
+      if (data.url) {
+        window.open(data.url, '_blank');
+      }
+    },
+    onError: (error) => {
+      toast.error('Failed to download: ' + error.message);
+    },
+  });
+
+  const handleDownloadCertificate = async (articleId: string) => {
+    downloadMutation.mutate({ articleId, fileType: 'certificate' });
   };
 
   const handlePayCoAuthorCertificate = async (coAuthorId: string, articleId: string) => {
     // TODO: Implement co-author certificate payment
+    toast.info('Co-author certificate payment coming soon');
     console.log('Paying for co-author:', coAuthorId, articleId);
   };
 
@@ -135,6 +155,28 @@ export default function Certificates() {
                     <span className="status-published">Published</span>
                   </div>
 
+                  {/* Publication Details */}
+                  {article.volume && (
+                    <div className="grid grid-cols-4 gap-4 p-4 rounded-lg bg-[hsl(var(--glass-bg))] mb-4">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Volume</p>
+                        <p className="font-medium">{article.volume}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Issue</p>
+                        <p className="font-medium">{article.issue}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Pages</p>
+                        <p className="font-medium">{article.page_number}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Year</p>
+                        <p className="font-medium">{article.publication_year}</p>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Main Certificate */}
                   <div className="p-4 rounded-lg bg-[hsl(var(--glass-bg))] mb-4">
                     <div className="flex items-center justify-between">
@@ -149,13 +191,14 @@ export default function Certificates() {
                       </div>
                       <Button
                         variant="outline"
-                        onClick={() =>
-                          article.certificate_url &&
-                          handleDownloadCertificate(article.certificate_url)
-                        }
-                        disabled={!article.certificate_url}
+                        onClick={() => handleDownloadCertificate(article.id)}
+                        disabled={!article.certificate_url || downloadMutation.isPending}
                       >
-                        <Download className="w-4 h-4 mr-2" />
+                        {downloadMutation.isPending ? (
+                          <GlassSpinner size="sm" className="mr-2" />
+                        ) : (
+                          <Download className="w-4 h-4 mr-2" />
+                        )}
                         Download
                       </Button>
                     </div>
@@ -192,7 +235,7 @@ export default function Certificates() {
                                   size="sm"
                                   onClick={() =>
                                     certificate.certificate_url &&
-                                    handleDownloadCertificate(certificate.certificate_url)
+                                    window.open(certificate.certificate_url, '_blank')
                                   }
                                 >
                                   <Download className="w-4 h-4 mr-1" />

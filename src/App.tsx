@@ -17,6 +17,7 @@ import AdminArticles from "./pages/admin/AdminArticles";
 import AdminAuthors from "./pages/admin/AdminAuthors";
 import AdminDiscounts from "./pages/admin/AdminDiscounts";
 import AdminFees from "./pages/admin/AdminFees";
+import AdminAIReview from "./pages/admin/AdminAIReview";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -112,6 +113,14 @@ const App = () => (
               element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <AdminFees />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/ai-review" 
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminAIReview />
                 </ProtectedRoute>
               } 
             />
