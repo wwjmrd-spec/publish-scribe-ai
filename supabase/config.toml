@@ -1,1 +1,13 @@
 project_id = "myjbbbytbzzzsaaiohrz"
+
+[functions.send-email]
+verify_jwt = false
+
+[functions.create-razorpay-order]
+verify_jwt = false
+
+[functions.create-paypal-order]
+verify_jwt = false
+
+[functions.verify-payment]
+verify_jwt = false
