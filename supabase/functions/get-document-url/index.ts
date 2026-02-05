@@ -79,24 +79,19 @@ serve(async (req) => {
     let bucket: string = "documents";
 
     if (fileType === "document") {
-      // Extract file path from document_url
-      if (article.document_url) {
-        // The document_url might be a full URL or just a path
-        const urlParts = article.document_url.split("/");
-        filePath = urlParts[urlParts.length - 1]; // Get filename
-      }
+      // document_url stores the storage path directly (e.g., "user-id/file-id.docx")
+      filePath = article.document_url || null;
     } else if (fileType === "certificate") {
       bucket = "certificates";
+      // certificate_url may be a signed URL or just a filename
       if (article.certificate_url) {
+        // Extract just the filename from certificate URL
         const urlParts = article.certificate_url.split("/");
-        filePath = urlParts[urlParts.length - 1];
+        filePath = urlParts[urlParts.length - 1].split("?")[0]; // Remove query params
       }
     } else if (fileType === "review_report") {
       bucket = "review-reports";
-      if (article.review_report_url) {
-        const urlParts = article.review_report_url.split("/");
-        filePath = urlParts[urlParts.length - 1];
-      }
+      filePath = article.review_report_url || null;
     }
 
     if (!filePath) {
