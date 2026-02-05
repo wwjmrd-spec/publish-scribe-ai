@@ -13,6 +13,10 @@ import MyArticles from "./pages/author/MyArticles";
 import Cart from "./pages/author/Cart";
 import Certificates from "./pages/author/Certificates";
 import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminArticles from "./pages/admin/AdminArticles";
+import AdminAuthors from "./pages/admin/AdminAuthors";
+import AdminDiscounts from "./pages/admin/AdminDiscounts";
+import AdminFees from "./pages/admin/AdminFees";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -76,6 +80,38 @@ const App = () => (
               element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <AdminDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/articles" 
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminArticles />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/authors" 
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminAuthors />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/discounts" 
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminDiscounts />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/fees" 
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminFees />
                 </ProtectedRoute>
               } 
             />
