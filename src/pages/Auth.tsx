@@ -5,10 +5,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { GlassCard } from '@/components/layout/GlassCard';
-import { PageLayout } from '@/components/layout/PageLayout';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
-import { FileText, Mail, Lock, User, Building, Globe, ArrowRight, AlertCircle } from 'lucide-react';
+import { FileText, Mail, Lock, User, Building, Globe, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
 
@@ -84,7 +82,6 @@ export default function Auth() {
 
         const { error } = await signUp(email, password, fullName, country, affiliation);
         if (error) {
-          // Use generic error message to prevent user enumeration
           setError('Unable to complete registration. Please check your details and try again.');
         } else {
           toast({
@@ -102,7 +99,6 @@ export default function Auth() {
 
         const { error } = await signIn(email, password);
         if (error) {
-          // Use generic error message to prevent user enumeration
           setError('Invalid credentials. Please check your email and password.');
         }
       }
@@ -114,59 +110,41 @@ export default function Auth() {
   };
 
   return (
-    <PageLayout className="flex items-center justify-center min-h-screen p-4">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5 }}
-        className="w-full max-w-md"
-      >
-        {/* Logo */}
-        <div className="text-center mb-8">
+    <div className="min-h-screen flex">
+      {/* Left Side - Form */}
+      <div className="w-full lg:w-1/2 bg-background flex flex-col justify-center px-8 sm:px-12 lg:px-16 xl:px-24">
+        <div className="w-full max-w-md mx-auto">
+          {/* Logo */}
           <motion.div
-            initial={{ y: -20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className="inline-flex items-center gap-3"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="flex items-center gap-3 mb-12"
           >
-            <div className="w-14 h-14 rounded-2xl gradient-primary flex items-center justify-center glow-cyan">
-              <FileText className="w-7 h-7 text-primary-foreground" />
+            <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center">
+              <FileText className="w-5 h-5 text-primary-foreground" />
             </div>
-            <div className="text-left">
-              <h1 className="font-display font-bold text-2xl gradient-text">
-                PubPortal
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                Article Publication Portal
-              </p>
-            </div>
+            <span className="font-display font-bold text-xl text-foreground">
+              PubPortal
+            </span>
           </motion.div>
-        </div>
 
-        <GlassCard className="p-8">
-          {/* Tabs */}
-          <div className="flex mb-8 p-1 rounded-lg bg-[hsl(var(--glass-bg))]">
-            <button
-              onClick={() => { setIsSignUp(false); setError(null); }}
-              className={`flex-1 py-2 rounded-md font-medium transition-all duration-300 ${
-                !isSignUp 
-                  ? 'bg-primary text-primary-foreground shadow-lg' 
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Sign In
-            </button>
-            <button
-              onClick={() => { setIsSignUp(true); setError(null); }}
-              className={`flex-1 py-2 rounded-md font-medium transition-all duration-300 ${
-                isSignUp 
-                  ? 'bg-primary text-primary-foreground shadow-lg' 
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Sign Up
-            </button>
-          </div>
+          {/* Header */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="mb-8"
+          >
+            <h1 className="text-3xl font-bold text-foreground mb-2">
+              {isSignUp ? 'Create an account' : 'Welcome back!'}
+            </h1>
+            <p className="text-muted-foreground">
+              {isSignUp 
+                ? 'Sign up to start publishing your articles' 
+                : 'Log in to your PubPortal account'}
+            </p>
+          </motion.div>
 
           {/* Error Message */}
           <AnimatePresence>
@@ -183,64 +161,77 @@ export default function Auth() {
             )}
           </AnimatePresence>
 
+          {/* Divider */}
+          <div className="relative mb-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-border"></div>
+            </div>
+          </div>
+
           {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <motion.form
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            onSubmit={handleSubmit}
+            className="space-y-5"
+          >
             <AnimatePresence mode="wait">
               {isSignUp && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="space-y-5"
+                  className="space-y-5 overflow-hidden"
                 >
                   <div className="space-y-2">
-                    <Label htmlFor="fullName" className="text-sm text-foreground/80">
+                    <Label htmlFor="fullName" className="text-sm font-medium text-foreground">
                       Full Name
                     </Label>
                     <div className="relative">
-                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                       <Input
                         id="fullName"
                         type="text"
-                        placeholder="John Doe"
+                        placeholder="Enter your full name"
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
-                        className="glass-input pl-11"
+                        className="pl-10 h-11 bg-muted/50 border-border focus:border-primary"
                       />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="country" className="text-sm text-foreground/80">
+                      <Label htmlFor="country" className="text-sm font-medium text-foreground">
                         Country
                       </Label>
                       <div className="relative">
-                        <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                        <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                         <Input
                           id="country"
                           type="text"
-                          placeholder="India"
+                          placeholder="Country"
                           value={country}
                           onChange={(e) => setCountry(e.target.value)}
-                          className="glass-input pl-11"
+                          className="pl-10 h-11 bg-muted/50 border-border focus:border-primary"
                         />
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="affiliation" className="text-sm text-foreground/80">
+                      <Label htmlFor="affiliation" className="text-sm font-medium text-foreground">
                         Affiliation
                       </Label>
                       <div className="relative">
-                        <Building className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                        <Building className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                         <Input
                           id="affiliation"
                           type="text"
                           placeholder="University"
                           value={affiliation}
                           onChange={(e) => setAffiliation(e.target.value)}
-                          className="glass-input pl-11"
+                          className="pl-10 h-11 bg-muted/50 border-border focus:border-primary"
                         />
                       </div>
                     </div>
@@ -250,63 +241,170 @@ export default function Auth() {
             </AnimatePresence>
 
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm text-foreground/80">
-                Email Address
+              <Label htmlFor="email" className="text-sm font-medium text-foreground">
+                Email
               </Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   id="email"
                   type="email"
-                  placeholder="you@example.com"
+                  placeholder="Enter your email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="glass-input pl-11"
+                  className="pl-10 h-11 bg-muted/50 border-border focus:border-primary"
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm text-foreground/80">
-                Password
-              </Label>
+              <div className="flex justify-between items-center">
+                <Label htmlFor="password" className="text-sm font-medium text-foreground">
+                  Password
+                </Label>
+                {!isSignUp && (
+                  <button
+                    type="button"
+                    className="text-sm text-primary hover:text-primary/80 transition-colors"
+                  >
+                    Forgot your password?
+                  </button>
+                )}
+              </div>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   id="password"
                   type="password"
-                  placeholder="••••••••"
+                  placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="glass-input pl-11"
+                  className="pl-10 h-11 bg-muted/50 border-border focus:border-primary"
                 />
               </div>
             </div>
 
             <Button
               type="submit"
-              size="lg"
               disabled={loading}
-              className="w-full gradient-primary hover:shadow-[0_0_30px_hsl(var(--primary)/0.5)] transition-all duration-300"
+              className="w-full h-11 bg-foreground text-background hover:bg-foreground/90 font-medium"
             >
               {loading ? (
                 <GlassSpinner size="sm" />
               ) : (
-                <>
-                  {isSignUp ? 'Create Account' : 'Sign In'}
-                  <ArrowRight className="w-5 h-5 ml-2" />
-                </>
+                isSignUp ? 'Sign up' : 'Login'
               )}
             </Button>
-          </form>
+          </motion.form>
+
+          {/* Toggle Sign Up / Sign In */}
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="mt-8 text-center text-sm text-muted-foreground"
+          >
+            {isSignUp ? "Already have an account? " : "Don't have an account? "}
+            <button
+              type="button"
+              onClick={() => { setIsSignUp(!isSignUp); setError(null); }}
+              className="text-primary hover:text-primary/80 font-medium underline underline-offset-4 transition-colors"
+            >
+              {isSignUp ? 'Log in' : 'Sign up'}
+            </button>
+          </motion.p>
 
           {isSignUp && (
-            <p className="mt-6 text-center text-sm text-muted-foreground">
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.4 }}
+              className="mt-4 text-center text-xs text-muted-foreground"
+            >
               By signing up, you agree to our Terms of Service and Privacy Policy.
-            </p>
+            </motion.p>
           )}
-        </GlassCard>
-      </motion.div>
-    </PageLayout>
+        </div>
+      </div>
+
+      {/* Right Side - Gradient Illustration */}
+      <div className="hidden lg:block lg:w-1/2 relative overflow-hidden">
+        {/* Gradient Background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--primary)/0.3)] via-[hsl(var(--accent)/0.5)] to-[hsl(200,80%,70%)]">
+          {/* Animated Blobs */}
+          <motion.div
+            animate={{
+              scale: [1, 1.2, 1],
+              x: [0, 30, 0],
+              y: [0, -20, 0],
+            }}
+            transition={{
+              duration: 8,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+            className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-[hsl(var(--primary)/0.4)] blur-3xl"
+          />
+          <motion.div
+            animate={{
+              scale: [1.2, 1, 1.2],
+              x: [0, -40, 0],
+              y: [0, 30, 0],
+            }}
+            transition={{
+              duration: 10,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+            className="absolute bottom-1/4 right-1/4 w-80 h-80 rounded-full bg-[hsl(220,80%,60%/0.5)] blur-3xl"
+          />
+          <motion.div
+            animate={{
+              scale: [1, 1.3, 1],
+              x: [0, 20, 0],
+              y: [0, 40, 0],
+            }}
+            transition={{
+              duration: 12,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+            className="absolute top-1/2 right-1/3 w-64 h-64 rounded-full bg-[hsl(var(--accent)/0.3)] blur-3xl"
+          />
+        </div>
+
+        {/* Chat Input Mockup */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.5 }}
+          className="absolute bottom-1/3 right-12 left-12"
+        >
+          <div className="bg-white/20 backdrop-blur-xl rounded-2xl p-4 shadow-2xl border border-white/30">
+            <div className="flex items-center gap-3">
+              <div className="flex-1 text-white/70 text-sm">
+                How do I submit my research article?
+              </div>
+              <div className="w-8 h-8 rounded-full bg-white/30 flex items-center justify-center">
+                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                </svg>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Floating Elements */}
+        <motion.div
+          animate={{ y: [0, -10, 0] }}
+          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute top-1/4 right-1/4"
+        >
+          <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center">
+            <FileText className="w-8 h-8 text-white" />
+          </div>
+        </motion.div>
+      </div>
+    </div>
   );
 }
