@@ -60,6 +60,10 @@ const baseStyles = `
     text-align: center;
     margin-bottom: 32px;
   }
+  .logo img {
+    max-width: 200px;
+    height: auto;
+  }
   .logo-text {
     font-size: 28px;
     font-weight: bold;
@@ -203,7 +207,7 @@ const getPasswordResetTemplate = (resetUrl: string, userName: string = "there"):
 <body>
   <div class="container">
     <div class="logo">
-      <p class="logo-text">WWJMRD</p>
+      <img src="https://myjbbbytbzzzsaaiohrz.supabase.co/storage/v1/object/public/email-assets/logo.png?v=1" alt="WWJMRD Logo" width="200" />
     </div>
     
     <h1>Reset Your Password</h1>
@@ -241,7 +245,7 @@ const getEmailVerificationTemplate = (verifyUrl: string, userName: string = "the
 <body>
   <div class="container">
     <div class="logo">
-      <p class="logo-text">WWJMRD</p>
+      <img src="https://myjbbbytbzzzsaaiohrz.supabase.co/storage/v1/object/public/email-assets/logo.png?v=1" alt="WWJMRD Logo" width="200" />
     </div>
     
     <h1>Verify Your Email</h1>
@@ -289,7 +293,7 @@ const getWelcomeTemplate = (loginUrl: string, userName: string = "there"): strin
 <body>
   <div class="container">
     <div class="logo">
-      <p class="logo-text">WWJMRD</p>
+      <img src="https://myjbbbytbzzzsaaiohrz.supabase.co/storage/v1/object/public/email-assets/logo.png?v=1" alt="WWJMRD Logo" width="200" />
     </div>
     
     <h1>Welcome to WWJMRD! 🎉</h1>
@@ -324,7 +328,7 @@ const getArticleSubmissionTemplate = (data: EmailRequest["data"], isAdmin: boole
 <body>
   <div class="container">
     <div class="logo">
-      <p class="logo-text">WWJMRD</p>
+      <img src="https://myjbbbytbzzzsaaiohrz.supabase.co/storage/v1/object/public/email-assets/logo.png?v=1" alt="WWJMRD Logo" width="200" />
     </div>
     
     <h1>${isAdmin ? 'New Article Submitted' : 'Article Submitted Successfully'} 📄</h1>
@@ -403,7 +407,7 @@ const getPaymentConfirmationTemplate = (data: EmailRequest["data"], isAdmin: boo
 <body>
   <div class="container">
     <div class="logo">
-      <p class="logo-text">WWJMRD</p>
+      <img src="https://myjbbbytbzzzsaaiohrz.supabase.co/storage/v1/object/public/email-assets/logo.png?v=1" alt="WWJMRD Logo" width="200" />
     </div>
     
     <h1>${isAdmin ? 'Payment Received' : 'Payment Successful'} ✅</h1>
