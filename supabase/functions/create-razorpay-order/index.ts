@@ -42,7 +42,7 @@ serve(async (req) => {
 
     console.log('Creating Razorpay order for user:', user.id);
 
-    const { articleIds, amount, discountCode, discountAmount } = await req.json();
+    const { articleIds, amount, discountCode, discountAmount, currency } = await req.json();
 
     if (!articleIds || !Array.isArray(articleIds) || articleIds.length === 0) {
       throw new Error('No articles selected');
@@ -52,10 +52,15 @@ serve(async (req) => {
       throw new Error('Invalid amount');
     }
 
-    const finalAmount = amount - (discountAmount || 0);
-    const amountInPaise = Math.round(finalAmount * 100);
+    if (!currency || !['INR', 'USD'].includes(currency)) {
+      throw new Error('Invalid currency');
+    }
 
-    console.log('Order details:', { articleIds, amount, discountAmount, finalAmount, amountInPaise });
+    const finalAmount = amount - (discountAmount || 0);
+    // Razorpay uses smallest currency unit (paise for INR, cents for USD)
+    const amountInSmallestUnit = Math.round(finalAmount * 100);
+
+    console.log('Order details:', { articleIds, amount, discountAmount, finalAmount, amountInSmallestUnit, currency });
 
     // Create Razorpay order
     const razorpayAuth = btoa(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`);
@@ -67,8 +72,8 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        amount: amountInPaise,
-        currency: 'INR',
+        amount: amountInSmallestUnit,
+        currency: currency,
         receipt: `rcpt_${Date.now()}`,
         notes: {
           user_id: user.id,
@@ -102,7 +107,7 @@ serve(async (req) => {
         discount_code: discountCode || null,
         discount_amount: discountAmount || 0,
         final_amount: finalAmount,
-        currency: 'INR',
+        currency: currency,
         payment_gateway: 'razorpay',
         payment_status: 'pending',
         transaction_id: orderData.id,
@@ -120,8 +125,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         orderId: orderData.id,
-        amount: amountInPaise,
-        currency: 'INR',
+        amount: amountInSmallestUnit,
+        currency: currency,
         keyId: RAZORPAY_KEY_ID,
         paymentId: payment.id,
       }),

@@ -5,6 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 interface PaymentData {
   articleIds: string[];
   amount: number;
+  currency: 'INR' | 'USD';
   discountCode?: string;
   discountAmount?: number;
 }
@@ -29,23 +30,12 @@ export function usePayment() {
     return data;
   };
 
-  const createPayPalOrder = async (paymentData: PaymentData) => {
-    const { data, error } = await supabase.functions.invoke('create-paypal-order', {
-      body: paymentData,
-    });
-
-    if (error) throw new Error(error.message);
-    if (data.error) throw new Error(data.error);
-    return data;
-  };
-
   const verifyPayment = async (verificationData: {
-    gateway: 'razorpay' | 'paypal';
+    gateway: 'razorpay';
     paymentId: string;
-    razorpayOrderId?: string;
-    razorpayPaymentId?: string;
-    razorpaySignature?: string;
-    paypalOrderId?: string;
+    razorpayOrderId: string;
+    razorpayPaymentId: string;
+    razorpaySignature: string;
   }) => {
     const { data, error } = await supabase.functions.invoke('verify-payment', {
       body: verificationData,
@@ -131,70 +121,8 @@ export function usePayment() {
     }
   };
 
-  const processPayPalPayment = async (
-    paymentData: PaymentData,
-    onSuccess: () => void
-  ) => {
-    setIsProcessing(true);
-
-    try {
-      const orderData = await createPayPalOrder(paymentData);
-
-      // Store payment info for verification after redirect
-      sessionStorage.setItem('paypal_payment', JSON.stringify({
-        paymentId: orderData.paymentId,
-        orderId: orderData.orderId,
-      }));
-
-      // Redirect to PayPal
-      window.location.href = orderData.approvalUrl;
-    } catch (error) {
-      console.error('PayPal error:', error);
-      setIsProcessing(false);
-      throw error;
-    }
-  };
-
-  const handlePayPalReturn = async (orderId: string, onSuccess: () => void) => {
-    setIsProcessing(true);
-
-    try {
-      const storedPayment = sessionStorage.getItem('paypal_payment');
-      if (!storedPayment) {
-        throw new Error('Payment session not found');
-      }
-
-      const { paymentId } = JSON.parse(storedPayment);
-
-      await verifyPayment({
-        gateway: 'paypal',
-        paymentId,
-        paypalOrderId: orderId,
-      });
-
-      sessionStorage.removeItem('paypal_payment');
-
-      toast({
-        title: 'Payment successful!',
-        description: 'Your article fees have been paid successfully.',
-      });
-      onSuccess();
-    } catch (error) {
-      console.error('PayPal verification failed:', error);
-      toast({
-        title: 'Payment verification failed',
-        description: 'Please contact support if amount was deducted.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
   return {
     isProcessing,
     processRazorpayPayment,
-    processPayPalPayment,
-    handlePayPalReturn,
   };
 }
