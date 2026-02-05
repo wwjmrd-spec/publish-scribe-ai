@@ -9,7 +9,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-type EmailTemplate = "password-reset" | "email-verification" | "welcome" | "custom";
+type EmailTemplate = "password-reset" | "email-verification" | "welcome" | "article-submission" | "payment-confirmation" | "custom";
 
 interface EmailRequest {
   to: string;
@@ -19,6 +19,23 @@ interface EmailRequest {
     verifyUrl?: string;
     loginUrl?: string;
     userName?: string;
+    // Article submission
+    articleTitle?: string;
+    referenceNumber?: string;
+    authorName?: string;
+    authorEmail?: string;
+    submissionDate?: string;
+    coAuthors?: string[];
+    // Payment confirmation
+    paymentId?: string;
+    amount?: number;
+    currency?: string;
+    articleTitles?: string[];
+    transactionId?: string;
+    paymentDate?: string;
+    discountCode?: string;
+    discountAmount?: number;
+    finalAmount?: number;
   };
   // For custom template
   subject?: string;
@@ -115,31 +132,62 @@ const baseStyles = `
     line-height: 24px;
     margin: 4px 0;
   }
-  .step-number {
-    background-color: #00d4ff;
-    color: #0d1528;
-    border-radius: 50%;
-    width: 28px;
-    height: 28px;
-    font-size: 14px;
-    font-weight: 600;
-    text-align: center;
-    line-height: 28px;
-    display: inline-block;
-    margin-right: 12px;
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   }
-  .step-heading {
-    color: #ffffff;
-    font-size: 16px;
-    font-weight: 600;
-    margin: 0 0 4px;
-  }
-  .step-description {
+  .info-label {
     color: #9ca3af;
     font-size: 14px;
-    line-height: 20px;
-    margin: 0 0 16px;
-    padding-left: 40px;
+  }
+  .info-value {
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .invoice-header {
+    background-color: rgba(0, 212, 255, 0.1);
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  .invoice-number {
+    color: #00d4ff;
+    font-size: 14px;
+    margin: 0;
+  }
+  .amount-large {
+    color: #ffffff;
+    font-size: 36px;
+    font-weight: 700;
+    margin: 8px 0;
+  }
+  .status-badge {
+    display: inline-block;
+    background-color: #10b981;
+    color: #ffffff;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .article-list {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    padding: 16px;
+    margin: 16px 0;
+  }
+  .article-item {
+    color: #d1d5db;
+    font-size: 14px;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  }
+  .article-item:last-child {
+    border-bottom: none;
   }
 `;
 
@@ -155,14 +203,14 @@ const getPasswordResetTemplate = (resetUrl: string, userName: string = "there"):
 <body>
   <div class="container">
     <div class="logo">
-      <p class="logo-text">PubPortal</p>
+      <p class="logo-text">WWJMRD</p>
     </div>
     
     <h1>Reset Your Password</h1>
     
     <p>Hi ${userName},</p>
     
-    <p>We received a request to reset your password for your PubPortal account. Click the button below to set a new password:</p>
+    <p>We received a request to reset your password for your WWJMRD account. Click the button below to set a new password:</p>
     
     <div class="button-container">
       <a href="${resetUrl}" class="button">Reset Password</a>
@@ -175,7 +223,7 @@ const getPasswordResetTemplate = (resetUrl: string, userName: string = "there"):
     
     <p class="footer-text">This link will expire in 1 hour for security reasons. If you didn't request a password reset, you can safely ignore this email.</p>
     
-    <p class="footer">© ${new Date().getFullYear()} PubPortal. All rights reserved.</p>
+    <p class="footer">© ${new Date().getFullYear()} WWJMRD. All rights reserved.</p>
   </div>
 </body>
 </html>
@@ -193,14 +241,14 @@ const getEmailVerificationTemplate = (verifyUrl: string, userName: string = "the
 <body>
   <div class="container">
     <div class="logo">
-      <p class="logo-text">PubPortal</p>
+      <p class="logo-text">WWJMRD</p>
     </div>
     
     <h1>Verify Your Email</h1>
     
     <p>Hi ${userName},</p>
     
-    <p>Welcome to PubPortal! Please verify your email address to get started with publishing your research articles.</p>
+    <p>Welcome to WWJMRD! Please verify your email address to get started with publishing your research articles.</p>
     
     <div class="button-container">
       <a href="${verifyUrl}" class="button">Verify Email Address</a>
@@ -212,7 +260,7 @@ const getEmailVerificationTemplate = (verifyUrl: string, userName: string = "the
     <hr>
     
     <div class="features-box">
-      <p class="features-title">What you can do with PubPortal:</p>
+      <p class="features-title">What you can do with WWJMRD:</p>
       <p class="feature-item">📝 Submit research articles for publication</p>
       <p class="feature-item">📊 Track your submission status</p>
       <p class="feature-item">🏆 Receive publication certificates</p>
@@ -221,9 +269,9 @@ const getEmailVerificationTemplate = (verifyUrl: string, userName: string = "the
     
     <hr>
     
-    <p class="footer-text">This link will expire in 24 hours. If you didn't create an account with PubPortal, you can safely ignore this email.</p>
+    <p class="footer-text">This link will expire in 24 hours. If you didn't create an account with WWJMRD, you can safely ignore this email.</p>
     
-    <p class="footer">© ${new Date().getFullYear()} PubPortal. All rights reserved.</p>
+    <p class="footer">© ${new Date().getFullYear()} WWJMRD. All rights reserved.</p>
   </div>
 </body>
 </html>
@@ -235,20 +283,20 @@ const getWelcomeTemplate = (loginUrl: string, userName: string = "there"): strin
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Welcome to PubPortal</title>
+  <title>Welcome to WWJMRD</title>
   <style>${baseStyles}</style>
 </head>
 <body>
   <div class="container">
     <div class="logo">
-      <p class="logo-text">PubPortal</p>
+      <p class="logo-text">WWJMRD</p>
     </div>
     
-    <h1>Welcome to PubPortal! 🎉</h1>
+    <h1>Welcome to WWJMRD! 🎉</h1>
     
     <p>Hi ${userName},</p>
     
-    <p>Congratulations! Your email has been verified and your PubPortal account is now active. You're ready to start submitting your research articles for publication.</p>
+    <p>Congratulations! Your email has been verified and your WWJMRD account is now active. You're ready to start submitting your research articles for publication.</p>
     
     <div class="button-container">
       <a href="${loginUrl}" class="button">Go to Dashboard</a>
@@ -256,22 +304,175 @@ const getWelcomeTemplate = (loginUrl: string, userName: string = "there"): strin
     
     <hr>
     
-    <p class="features-title">Getting Started:</p>
+    <p class="footer-text">If you have any questions, don't hesitate to reach out to our support team at info@wwjmrd.com.</p>
     
-    <p><span class="step-number">1</span><strong class="step-heading">Submit Your Article</strong></p>
-    <p class="step-description">Navigate to "Submit Article" and upload your research paper with title, abstract, and keywords.</p>
+    <p class="footer">© ${new Date().getFullYear()} WWJMRD. All rights reserved.</p>
+  </div>
+</body>
+</html>
+`;
+
+const getArticleSubmissionTemplate = (data: EmailRequest["data"], isAdmin: boolean = false): string => `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Article Submission ${isAdmin ? 'Notification' : 'Confirmation'}</title>
+  <style>${baseStyles}</style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">
+      <p class="logo-text">WWJMRD</p>
+    </div>
     
-    <p><span class="step-number">2</span><strong class="step-heading">Track Your Submission</strong></p>
-    <p class="step-description">Monitor your article's progress through review in "My Articles" section.</p>
+    <h1>${isAdmin ? 'New Article Submitted' : 'Article Submitted Successfully'} 📄</h1>
     
-    <p><span class="step-number">3</span><strong class="step-heading">Get Published</strong></p>
-    <p class="step-description">Once approved, complete the publication fee and receive your official certificate.</p>
+    <p>${isAdmin ? 'A new article has been submitted for review.' : `Hi ${data?.authorName || 'Author'},`}</p>
+    
+    ${isAdmin ? '' : '<p>Thank you for submitting your article to WWJMRD. Your submission has been received and is now under review.</p>'}
+    
+    <div class="features-box">
+      <p class="features-title">Submission Details:</p>
+      <div class="info-row">
+        <span class="info-label">Reference Number</span>
+        <span class="info-value">${data?.referenceNumber || 'N/A'}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Title</span>
+        <span class="info-value">${data?.articleTitle || 'N/A'}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Author</span>
+        <span class="info-value">${data?.authorName || 'N/A'}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Email</span>
+        <span class="info-value">${data?.authorEmail || 'N/A'}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Submission Date</span>
+        <span class="info-value">${data?.submissionDate || new Date().toLocaleDateString()}</span>
+      </div>
+      ${data?.coAuthors && data.coAuthors.length > 0 ? `
+      <div class="info-row">
+        <span class="info-label">Co-Authors</span>
+        <span class="info-value">${data.coAuthors.join(', ')}</span>
+      </div>
+      ` : ''}
+    </div>
+    
+    ${isAdmin ? `
+    <div class="button-container">
+      <a href="https://wwjmrdai.lovable.app/admin/articles" class="button">Review Article</a>
+    </div>
+    ` : `
+    <p>What happens next:</p>
+    <div class="features-box">
+      <p class="feature-item">1️⃣ Your article will be reviewed by our editorial team</p>
+      <p class="feature-item">2️⃣ You'll receive feedback and status updates via email</p>
+      <p class="feature-item">3️⃣ Once approved, you can complete the publication fee</p>
+      <p class="feature-item">4️⃣ After payment, you'll receive your publication certificate</p>
+    </div>
+    
+    <div class="button-container">
+      <a href="https://wwjmrdai.lovable.app/author/articles" class="button">Track Your Article</a>
+    </div>
+    `}
     
     <hr>
     
-    <p class="footer-text">If you have any questions, don't hesitate to reach out to our support team.</p>
+    <p class="footer-text">If you have any questions, contact us at info@wwjmrd.com</p>
     
-    <p class="footer">© ${new Date().getFullYear()} PubPortal. All rights reserved.</p>
+    <p class="footer">© ${new Date().getFullYear()} WWJMRD. All rights reserved.</p>
+  </div>
+</body>
+</html>
+`;
+
+const getPaymentConfirmationTemplate = (data: EmailRequest["data"], isAdmin: boolean = false): string => `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Payment ${isAdmin ? 'Notification' : 'Confirmation'}</title>
+  <style>${baseStyles}</style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">
+      <p class="logo-text">WWJMRD</p>
+    </div>
+    
+    <h1>${isAdmin ? 'Payment Received' : 'Payment Successful'} ✅</h1>
+    
+    <div class="invoice-header">
+      <p class="invoice-number">Invoice #${data?.paymentId || 'N/A'}</p>
+      <p class="amount-large">${data?.currency === 'INR' ? '₹' : '$'}${data?.finalAmount?.toFixed(2) || data?.amount?.toFixed(2) || '0.00'}</p>
+      <span class="status-badge">PAID</span>
+    </div>
+    
+    <p>${isAdmin ? `Payment received from ${data?.authorName || 'Author'} (${data?.authorEmail || 'N/A'}).` : `Hi ${data?.authorName || 'Author'},`}</p>
+    
+    ${isAdmin ? '' : '<p>Thank you for your payment! Your publication fee has been processed successfully.</p>'}
+    
+    <div class="features-box">
+      <p class="features-title">Payment Details:</p>
+      <div class="info-row">
+        <span class="info-label">Transaction ID</span>
+        <span class="info-value">${data?.transactionId || 'N/A'}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Payment Date</span>
+        <span class="info-value">${data?.paymentDate || new Date().toLocaleDateString()}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Original Amount</span>
+        <span class="info-value">${data?.currency === 'INR' ? '₹' : '$'}${data?.amount?.toFixed(2) || '0.00'}</span>
+      </div>
+      ${data?.discountCode ? `
+      <div class="info-row">
+        <span class="info-label">Discount (${data.discountCode})</span>
+        <span class="info-value">-${data?.currency === 'INR' ? '₹' : '$'}${data?.discountAmount?.toFixed(2) || '0.00'}</span>
+      </div>
+      ` : ''}
+      <div class="info-row">
+        <span class="info-label">Total Paid</span>
+        <span class="info-value" style="color: #10b981; font-weight: 700;">${data?.currency === 'INR' ? '₹' : '$'}${data?.finalAmount?.toFixed(2) || data?.amount?.toFixed(2) || '0.00'}</span>
+      </div>
+    </div>
+    
+    ${data?.articleTitles && data.articleTitles.length > 0 ? `
+    <div class="article-list">
+      <p class="features-title">Articles:</p>
+      ${data.articleTitles.map(title => `<div class="article-item">📄 ${title}</div>`).join('')}
+    </div>
+    ` : ''}
+    
+    ${isAdmin ? `
+    <div class="button-container">
+      <a href="https://wwjmrdai.lovable.app/admin/articles" class="button">View Articles</a>
+    </div>
+    ` : `
+    <p>What happens next:</p>
+    <div class="features-box">
+      <p class="feature-item">✅ Your payment has been confirmed</p>
+      <p class="feature-item">📋 Your article will be processed for publication</p>
+      <p class="feature-item">📜 You'll receive your publication certificate soon</p>
+    </div>
+    
+    <div class="button-container">
+      <a href="https://wwjmrdai.lovable.app/author/certificates" class="button">View Certificates</a>
+    </div>
+    `}
+    
+    <hr>
+    
+    <p class="footer-text">This email serves as your payment receipt. For any queries, contact us at info@wwjmrd.com</p>
+    
+    <p class="footer">© ${new Date().getFullYear()} WWJMRD. All rights reserved.</p>
   </div>
 </body>
 </html>
@@ -279,25 +480,42 @@ const getWelcomeTemplate = (loginUrl: string, userName: string = "there"): strin
 
 const getEmailContent = (
   template: EmailTemplate,
-  data: EmailRequest["data"]
+  data: EmailRequest["data"],
+  isAdmin: boolean = false
 ): { subject: string; html: string } => {
   switch (template) {
     case "password-reset":
       return {
-        subject: "Reset Your PubPortal Password",
+        subject: "Reset Your WWJMRD Password",
         html: getPasswordResetTemplate(data?.resetUrl || "", data?.userName),
       };
 
     case "email-verification":
       return {
-        subject: "Verify Your PubPortal Email",
+        subject: "Verify Your WWJMRD Email",
         html: getEmailVerificationTemplate(data?.verifyUrl || "", data?.userName),
       };
 
     case "welcome":
       return {
-        subject: "Welcome to PubPortal! 🎉",
+        subject: "Welcome to WWJMRD! 🎉",
         html: getWelcomeTemplate(data?.loginUrl || "", data?.userName),
+      };
+
+    case "article-submission":
+      return {
+        subject: isAdmin 
+          ? `New Article Submitted: ${data?.referenceNumber || 'N/A'}` 
+          : `Article Submitted Successfully - ${data?.referenceNumber || 'Ref'}`,
+        html: getArticleSubmissionTemplate(data, isAdmin),
+      };
+
+    case "payment-confirmation":
+      return {
+        subject: isAdmin 
+          ? `Payment Received: ${data?.currency === 'INR' ? '₹' : '$'}${data?.finalAmount?.toFixed(2) || data?.amount?.toFixed(2)}` 
+          : `Payment Confirmation - Invoice #${data?.paymentId || 'N/A'}`,
+        html: getPaymentConfirmationTemplate(data, isAdmin),
       };
 
     default:
@@ -312,8 +530,8 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const body: EmailRequest = await req.json();
-    const { to, template, data, subject, html, from } = body;
+    const body: EmailRequest & { isAdmin?: boolean } = await req.json();
+    const { to, template, data, subject, html, from, isAdmin } = body;
 
     // Validate required fields
     if (!to) {
@@ -338,17 +556,17 @@ const handler = async (req: Request): Promise<Response> => {
       emailHtml = html;
     } else if (template) {
       // Use predefined template
-      const content = getEmailContent(template, data);
+      const content = getEmailContent(template, data, isAdmin);
       emailSubject = content.subject;
       emailHtml = content.html;
     } else {
       throw new Error("Missing required field: template");
     }
 
-    console.log(`Sending ${template} email to: ${to}, subject: ${emailSubject}`);
+    console.log(`Sending ${template} email to: ${to}, subject: ${emailSubject}, isAdmin: ${isAdmin}`);
 
     const emailResponse = await resend.emails.send({
-      from: from || "PubPortal <noreply@resend.dev>", // Replace with your verified domain
+      from: from || "WWJMRD <info@wwjmrd.com>",
       to: [to],
       subject: emailSubject,
       html: emailHtml,

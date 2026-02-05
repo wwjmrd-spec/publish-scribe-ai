@@ -195,12 +195,6 @@ serve(async (req) => {
 
     // Update discount code usage if applicable
     if (payment.discount_code) {
-      await serviceClient
-        .from('discount_codes')
-        .update({ used_count: serviceClient.rpc('increment_used_count') })
-        .eq('code', payment.discount_code);
-      
-      // Alternative: increment manually
       const { data: discountData } = await serviceClient
         .from('discount_codes')
         .select('used_count')
@@ -213,6 +207,75 @@ serve(async (req) => {
           .update({ used_count: (discountData.used_count || 0) + 1 })
           .eq('code', payment.discount_code);
       }
+    }
+
+    // Fetch user profile and article titles for email
+    const { data: userProfile } = await serviceClient
+      .from('profiles')
+      .select('full_name, email')
+      .eq('id', user.id)
+      .single();
+
+    const { data: articles } = await serviceClient
+      .from('articles')
+      .select('title')
+      .in('id', payment.article_ids);
+
+    const articleTitles = articles?.map(a => a.title) || [];
+
+    // Send payment confirmation emails
+    const emailData = {
+      paymentId: payment.id,
+      amount: payment.amount,
+      currency: payment.currency,
+      finalAmount: payment.final_amount,
+      discountCode: payment.discount_code,
+      discountAmount: payment.discount_amount,
+      transactionId: transactionDetails,
+      paymentDate: new Date().toLocaleDateString(),
+      authorName: userProfile?.full_name || user.email?.split('@')[0] || 'Author',
+      authorEmail: userProfile?.email || user.email,
+      articleTitles,
+    };
+
+    // Send to author
+    try {
+      await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}`,
+        },
+        body: JSON.stringify({
+          to: userProfile?.email || user.email,
+          template: 'payment-confirmation',
+          data: emailData,
+          isAdmin: false,
+        }),
+      });
+      console.log('Payment confirmation email sent to author');
+    } catch (emailError) {
+      console.error('Failed to send author payment email:', emailError);
+    }
+
+    // Send to admin
+    try {
+      await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}`,
+        },
+        body: JSON.stringify({
+          to: 'info@wwjmrd.com',
+          template: 'payment-confirmation',
+          data: emailData,
+          isAdmin: true,
+        }),
+      });
+      console.log('Payment confirmation email sent to admin');
+    } catch (emailError) {
+      console.error('Failed to send admin payment email:', emailError);
     }
 
     return new Response(
