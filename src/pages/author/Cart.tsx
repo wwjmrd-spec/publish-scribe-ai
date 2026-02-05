@@ -1,6 +1,5 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { GlassCard } from '@/components/layout/GlassCard';
@@ -27,10 +26,9 @@ export default function Cart() {
   const { user, isIndian } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [searchParams, setSearchParams] = useSearchParams();
 
   const { isLoaded: razorpayLoaded } = useRazorpay();
-  const { isProcessing, processRazorpayPayment, processPayPalPayment, handlePayPalReturn } = usePayment();
+  const { isProcessing, processRazorpayPayment } = usePayment();
 
   const [selectedArticles, setSelectedArticles] = useState<string[]>([]);
   const [discountCode, setDiscountCode] = useState('');
@@ -43,30 +41,6 @@ export default function Cart() {
 
   const currency = isIndian ? 'INR' : 'USD';
   const currencySymbol = isIndian ? '₹' : '$';
-
-  // Handle PayPal return
-  useEffect(() => {
-    const success = searchParams.get('success');
-    const cancelled = searchParams.get('cancelled');
-    const token = searchParams.get('token');
-
-    if (success === 'true' && token) {
-      handlePayPalReturn(token, () => {
-        queryClient.invalidateQueries({ queryKey: ['pending-articles'] });
-        setSelectedArticles([]);
-        setAppliedDiscount(null);
-        setDiscountCode('');
-      });
-      // Clear URL params
-      setSearchParams({});
-    } else if (cancelled === 'true') {
-      toast({
-        title: 'Payment cancelled',
-        description: 'You can try again when ready.',
-      });
-      setSearchParams({});
-    }
-  }, [searchParams, handlePayPalReturn, queryClient, setSearchParams, toast]);
 
   const { data: pendingArticles, isLoading: articlesLoading } = useQuery({
     queryKey: ['pending-articles', user?.id],
@@ -237,42 +211,34 @@ export default function Cart() {
       return;
     }
 
+    if (!razorpayLoaded) {
+      toast({
+        title: 'Loading payment gateway',
+        description: 'Please wait a moment and try again.',
+      });
+      return;
+    }
+
     const paymentData = {
       articleIds: selectedArticles,
       amount: subtotal,
+      currency: currency as 'INR' | 'USD',
       discountCode: appliedDiscount?.code,
       discountAmount: discountAmountValue,
     };
 
     try {
-      if (isIndian) {
-        if (!razorpayLoaded) {
-          toast({
-            title: 'Loading payment gateway',
-            description: 'Please wait a moment and try again.',
-          });
-          return;
-        }
-
-        await processRazorpayPayment(
-          paymentData,
-          user?.email || '',
-          user?.user_metadata?.full_name || user?.email || '',
-          () => {
-            queryClient.invalidateQueries({ queryKey: ['pending-articles'] });
-            setSelectedArticles([]);
-            setAppliedDiscount(null);
-            setDiscountCode('');
-          }
-        );
-      } else {
-        await processPayPalPayment(paymentData, () => {
+      await processRazorpayPayment(
+        paymentData,
+        user?.email || '',
+        user?.user_metadata?.full_name || user?.email || '',
+        () => {
           queryClient.invalidateQueries({ queryKey: ['pending-articles'] });
           setSelectedArticles([]);
           setAppliedDiscount(null);
           setDiscountCode('');
-        });
-      }
+        }
+      );
     } catch (error) {
       console.error('Payment error:', error);
       toast({
@@ -467,13 +433,13 @@ export default function Cart() {
                     ) : (
                       <>
                         <CreditCard className="w-5 h-5 mr-2" />
-                        Pay with {isIndian ? 'Razorpay' : 'PayPal'}
+                        Pay with Razorpay
                       </>
                     )}
                   </Button>
 
                   <p className="text-xs text-center text-muted-foreground">
-                    Secure payment powered by {isIndian ? 'Razorpay' : 'PayPal'}
+                    Secure payment powered by Razorpay
                   </p>
                 </div>
               </GlassCard>
