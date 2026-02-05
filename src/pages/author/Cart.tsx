@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { GlassCard } from '@/components/layout/GlassCard';
@@ -8,21 +9,28 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import { useToast } from '@/hooks/use-toast';
-import { useQuery } from '@tanstack/react-query';
+import { useRazorpay } from '@/hooks/useRazorpay';
+import { usePayment } from '@/hooks/usePayment';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import {
   ShoppingCart,
   FileText,
   Tag,
-  CheckCircle,
   AlertCircle,
   CreditCard,
   Trash2,
+  Loader2,
 } from 'lucide-react';
 
 export default function Cart() {
   const { user, isIndian } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const { isLoaded: razorpayLoaded } = useRazorpay();
+  const { isProcessing, processRazorpayPayment, processPayPalPayment, handlePayPalReturn } = usePayment();
 
   const [selectedArticles, setSelectedArticles] = useState<string[]>([]);
   const [discountCode, setDiscountCode] = useState('');
@@ -35,6 +43,30 @@ export default function Cart() {
 
   const currency = isIndian ? 'INR' : 'USD';
   const currencySymbol = isIndian ? '₹' : '$';
+
+  // Handle PayPal return
+  useEffect(() => {
+    const success = searchParams.get('success');
+    const cancelled = searchParams.get('cancelled');
+    const token = searchParams.get('token');
+
+    if (success === 'true' && token) {
+      handlePayPalReturn(token, () => {
+        queryClient.invalidateQueries({ queryKey: ['pending-articles'] });
+        setSelectedArticles([]);
+        setAppliedDiscount(null);
+        setDiscountCode('');
+      });
+      // Clear URL params
+      setSearchParams({});
+    } else if (cancelled === 'true') {
+      toast({
+        title: 'Payment cancelled',
+        description: 'You can try again when ready.',
+      });
+      setSearchParams({});
+    }
+  }, [searchParams, handlePayPalReturn, queryClient, setSearchParams, toast]);
 
   const { data: pendingArticles, isLoading: articlesLoading } = useQuery({
     queryKey: ['pending-articles', user?.id],
@@ -75,7 +107,7 @@ export default function Cart() {
     return selectedArticles.length * feePerArticle;
   }, [selectedArticles.length, feePerArticle]);
 
-  const discountAmount = useMemo(() => {
+  const discountAmountValue = useMemo(() => {
     if (!appliedDiscount) return 0;
     if (appliedDiscount.type === 'percentage') {
       return (subtotal * appliedDiscount.value) / 100;
@@ -83,7 +115,7 @@ export default function Cart() {
     return Math.min(appliedDiscount.value, subtotal);
   }, [appliedDiscount, subtotal]);
 
-  const total = subtotal - discountAmount;
+  const total = subtotal - discountAmountValue;
 
   const toggleArticle = (articleId: string) => {
     setSelectedArticles((prev) =>
@@ -106,7 +138,6 @@ export default function Cart() {
   const applyDiscountCode = async () => {
     const trimmedCode = discountCode.trim().toUpperCase();
     
-    // Input validation: alphanumeric only, 4-20 characters
     const DISCOUNT_CODE_REGEX = /^[A-Z0-9]{4,20}$/;
     if (!trimmedCode || !DISCOUNT_CODE_REGEX.test(trimmedCode)) {
       toast({
@@ -136,7 +167,6 @@ export default function Cart() {
         return;
       }
 
-      // Check validity dates
       const now = new Date();
       const startDate = new Date(data.start_date);
       const endDate = new Date(data.end_date);
@@ -151,7 +181,6 @@ export default function Cart() {
         return;
       }
 
-      // Check currency compatibility
       if (data.currency !== 'BOTH' && data.currency !== currency) {
         toast({
           title: 'Invalid currency',
@@ -162,7 +191,6 @@ export default function Cart() {
         return;
       }
 
-      // Check usage limit
       if (data.usage_limit && data.used_count >= data.usage_limit) {
         toast({
           title: 'Discount limit reached',
@@ -209,11 +237,50 @@ export default function Cart() {
       return;
     }
 
-    // TODO: Implement Razorpay/PayPal payment
-    toast({
-      title: 'Payment integration coming soon',
-      description: 'Payment gateway integration is in development',
-    });
+    const paymentData = {
+      articleIds: selectedArticles,
+      amount: subtotal,
+      discountCode: appliedDiscount?.code,
+      discountAmount: discountAmountValue,
+    };
+
+    try {
+      if (isIndian) {
+        if (!razorpayLoaded) {
+          toast({
+            title: 'Loading payment gateway',
+            description: 'Please wait a moment and try again.',
+          });
+          return;
+        }
+
+        await processRazorpayPayment(
+          paymentData,
+          user?.email || '',
+          user?.user_metadata?.full_name || user?.email || '',
+          () => {
+            queryClient.invalidateQueries({ queryKey: ['pending-articles'] });
+            setSelectedArticles([]);
+            setAppliedDiscount(null);
+            setDiscountCode('');
+          }
+        );
+      } else {
+        await processPayPalPayment(paymentData, () => {
+          queryClient.invalidateQueries({ queryKey: ['pending-articles'] });
+          setSelectedArticles([]);
+          setAppliedDiscount(null);
+          setDiscountCode('');
+        });
+      }
+    } catch (error) {
+      console.error('Payment error:', error);
+      toast({
+        title: 'Payment failed',
+        description: error instanceof Error ? error.message : 'An error occurred',
+        variant: 'destructive',
+      });
+    }
   };
 
   if (articlesLoading) {
@@ -322,8 +389,8 @@ export default function Cart() {
                       Discount Code
                     </label>
                     {appliedDiscount ? (
-                      <div className="flex items-center gap-2 p-3 rounded-lg bg-green-500/10 border border-green-500/30">
-                        <Tag className="w-4 h-4 text-green-500" />
+                      <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+                        <Tag className="w-4 h-4 text-emerald-500" />
                         <span className="flex-1 font-mono font-medium">
                           {appliedDiscount.code}
                         </span>
@@ -371,9 +438,9 @@ export default function Cart() {
                     </div>
 
                     {appliedDiscount && (
-                      <div className="flex justify-between text-sm text-green-500">
+                      <div className="flex justify-between text-sm text-emerald-500">
                         <span>Discount</span>
-                        <span>-{currencySymbol}{discountAmount.toLocaleString()}</span>
+                        <span>-{currencySymbol}{discountAmountValue.toLocaleString()}</span>
                       </div>
                     )}
 
@@ -389,11 +456,20 @@ export default function Cart() {
                   <Button
                     className="w-full gradient-primary hover:shadow-[0_0_30px_hsl(var(--primary)/0.5)]"
                     size="lg"
-                    disabled={selectedArticles.length === 0}
+                    disabled={selectedArticles.length === 0 || isProcessing}
                     onClick={handlePayment}
                   >
-                    <CreditCard className="w-5 h-5 mr-2" />
-                    Pay with {isIndian ? 'Razorpay' : 'PayPal'}
+                    {isProcessing ? (
+                      <>
+                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <CreditCard className="w-5 h-5 mr-2" />
+                        Pay with {isIndian ? 'Razorpay' : 'PayPal'}
+                      </>
+                    )}
                   </Button>
 
                   <p className="text-xs text-center text-muted-foreground">
