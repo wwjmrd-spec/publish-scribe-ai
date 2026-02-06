@@ -1,6 +1,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCart } from '@/contexts/CartContext';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { GlassCard } from '@/components/layout/GlassCard';
 import { Button } from '@/components/ui/button';
@@ -9,21 +11,20 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useSubscription } from '@/hooks/useSubscription';
-import { useCoAuthorCertPayment } from '@/hooks/useCoAuthorCertPayment';
-import { useRazorpay } from '@/hooks/useRazorpay';
 import {
   Award,
   Download,
   FileText,
   Users,
   Sparkles,
+  ShoppingCart,
 } from 'lucide-react';
 
 export default function Certificates() {
   const { user, isIndian } = useAuth();
   const { subscription, isLoading: subLoading } = useSubscription();
-  const { isProcessing: isPaymentProcessing, processingCoAuthorId, payForCoAuthorCertificate } = useCoAuthorCertPayment();
-  const { isLoaded: razorpayLoaded } = useRazorpay();
+  const { addItem, hasItem } = useCart();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const currencySymbol = isIndian ? '₹' : '$';
 
@@ -154,15 +155,26 @@ export default function Certificates() {
     }
   };
 
-  const handlePayCoAuthorCertificate = async (coAuthorId: string, articleId: string) => {
-    await payForCoAuthorCertificate(
+  const handleAddCertToCart = (coAuthorId: string, coAuthorName: string, articleId: string, articleTitle: string) => {
+    const cartItemId = `cert_${coAuthorId}`;
+    if (hasItem(cartItemId)) {
+      toast.info('Already in cart');
+      navigate('/author/cart');
+      return;
+    }
+
+    addItem({
+      id: cartItemId,
+      type: 'coauthor_certificate',
+      label: `Co-Author Certificate: ${coAuthorName}`,
+      description: `For: ${articleTitle}`,
+      amount: coAuthorFee,
       coAuthorId,
       articleId,
-      coAuthorFee,
-      isIndian ? 'INR' : 'USD',
-      user?.email || '',
-      user?.user_metadata?.full_name || user?.email || ''
-    );
+    });
+
+    toast.success('Co-author certificate added to cart!');
+    navigate('/author/cart');
   };
 
   const handleFreeCoAuthorCertificate = async (coAuthorId: string, articleId: string) => {
@@ -299,6 +311,7 @@ export default function Certificates() {
                           const isPaid = certificate?.payment_status === 'paid';
                           const isProWithFreeQuota = subscription.plan === 'pro' && subscription.canCreateCoauthorCert;
                           const isGeneratingThis = freeGenerateMutation.isPending && freeGenerateMutation.variables?.coAuthorId === coAuthor.id;
+                          const isInCart = hasItem(`cert_${coAuthor.id}`);
 
                           return (
                             <div
@@ -345,14 +358,18 @@ export default function Certificates() {
                                   size="sm"
                                   className="gradient-primary"
                                   onClick={() =>
-                                    handlePayCoAuthorCertificate(coAuthor.id, article.id)
+                                    handleAddCertToCart(coAuthor.id, coAuthor.name, article.id, article.title)
                                   }
-                                  disabled={isPaymentProcessing && processingCoAuthorId === coAuthor.id}
+                                  disabled={isInCart}
                                 >
-                                  {isPaymentProcessing && processingCoAuthorId === coAuthor.id ? (
-                                    <GlassSpinner size="sm" className="mr-1" />
-                                  ) : null}
-                                  Pay {currencySymbol}{coAuthorFee}
+                                  {isInCart ? (
+                                    <>In Cart</>
+                                  ) : (
+                                    <>
+                                      <ShoppingCart className="w-4 h-4 mr-1" />
+                                      Add to Cart — {currencySymbol}{coAuthorFee}
+                                    </>
+                                  )}
                                 </Button>
                               )}
                             </div>
