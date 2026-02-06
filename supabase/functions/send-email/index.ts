@@ -20,7 +20,7 @@ function escapeHtml(unsafe: string): string {
     .replace(/'/g, '&#039;');
 }
 
-type EmailTemplate = "password-reset" | "email-verification" | "welcome" | "article-submission" | "payment-confirmation" | "custom";
+type EmailTemplate = "password-reset" | "email-verification" | "welcome" | "article-submission" | "payment-confirmation" | "referral-reward" | "custom";
 
 interface EmailRequest {
   to: string;
@@ -47,6 +47,12 @@ interface EmailRequest {
     discountCode?: string;
     discountAmount?: number;
     finalAmount?: number;
+    // Referral reward
+    referrerName?: string;
+    referredName?: string;
+    referredEmail?: string;
+    bonusDownloads?: number;
+    rewardType?: 'referrer' | 'referred';
   };
   // For custom template
   subject?: string;
@@ -493,6 +499,66 @@ const getPaymentConfirmationTemplate = (data: EmailRequest["data"], isAdmin: boo
 </html>
 `;
 
+const getReferralRewardTemplate = (data: EmailRequest["data"]): string => {
+  const isReferrer = data?.rewardType === 'referrer';
+  
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${isReferrer ? 'Referral Reward Earned!' : 'Your Referral Helped Someone!'}</title>
+  <style>${baseStyles}</style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">
+      <img src="https://myjbbbytbzzzsaaiohrz.supabase.co/storage/v1/object/public/email-assets/logo.png?v=1" alt="WWJMRD Logo" width="200" />
+    </div>
+    
+    <h1>${isReferrer ? 'Referral Reward Earned! 🎉' : 'Congratulations on Your Publication! 🎉'}</h1>
+    
+    <p>Hi ${escapeHtml(isReferrer ? (data?.referrerName || 'Author') : (data?.referredName || 'Author'))},</p>
+    
+    ${isReferrer ? `
+    <p>Great news! Your referred author <strong>${escapeHtml(data?.referredName || 'an author')}</strong> just got their article published on WWJMRD.</p>
+    
+    <div class="invoice-header" style="background-color: rgba(168, 85, 247, 0.15);">
+      <p style="color: #a855f7; font-size: 14px; margin: 0;">REWARD EARNED</p>
+      <p class="amount-large" style="color: #a855f7;">+${data?.bonusDownloads || 2}</p>
+      <p style="color: #d1d5db; font-size: 14px; margin: 0;">Bonus Review Report Downloads</p>
+    </div>
+    
+    <p>These bonus downloads have been automatically added to your account. You can use them to download AI review reports for your articles.</p>
+    ` : `
+    <p>Your article <strong>"${escapeHtml(data?.articleTitle || '')}"</strong> has been published on WWJMRD!</p>
+    
+    <p>Thanks to your publication, the author who referred you (<strong>${escapeHtml(data?.referrerName || 'your referrer')}</strong>) has also earned bonus review report downloads as a reward.</p>
+    `}
+    
+    <div class="features-box">
+      <p class="features-title">Keep Earning Rewards:</p>
+      <p class="feature-item">🔗 Share your unique referral code with other researchers</p>
+      <p class="feature-item">📝 When they sign up and get published, you earn <strong>+2 bonus downloads</strong></p>
+      <p class="feature-item">🏆 There's no limit to how many rewards you can earn!</p>
+    </div>
+    
+    <div class="button-container">
+      <a href="https://wwjmrdai.lovable.app/author/rewards" class="button">${isReferrer ? 'View Your Rewards' : 'View Your Referral Code'}</a>
+    </div>
+    
+    <hr>
+    
+    <p class="footer-text">Keep sharing your referral code to earn more rewards. For any questions, contact us at info@wwjmrd.com</p>
+    
+    <p class="footer">© ${new Date().getFullYear()} WWJMRD. All rights reserved.</p>
+  </div>
+</body>
+</html>
+`;
+};
+
 const getEmailContent = (
   template: EmailTemplate,
   data: EmailRequest["data"],
@@ -531,6 +597,14 @@ const getEmailContent = (
           ? `Payment Received: ${data?.currency === 'INR' ? '₹' : '$'}${data?.finalAmount?.toFixed(2) || data?.amount?.toFixed(2)}` 
           : `Payment Confirmation - Invoice #${data?.paymentId || 'N/A'}`,
         html: getPaymentConfirmationTemplate(data, isAdmin),
+      };
+
+    case "referral-reward":
+      return {
+        subject: data?.rewardType === 'referrer' 
+          ? 'You Earned a Referral Reward! 🎉 +2 Bonus Downloads'
+          : 'Your Article Was Published & Your Referrer Was Rewarded! 🎉',
+        html: getReferralRewardTemplate(data),
       };
 
     default:
