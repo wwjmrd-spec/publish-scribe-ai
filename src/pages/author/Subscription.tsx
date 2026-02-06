@@ -206,14 +206,13 @@ export default function Subscription() {
                 <h2 className="font-display text-2xl font-bold">Free</h2>
                 <p className="text-3xl font-bold mt-2">
                   {currencySymbol}0
-                  <span className="text-sm font-normal text-muted-foreground">/month</span>
                 </p>
               </div>
 
               <ul className="space-y-3 mb-6">
                 <li className="flex items-center gap-3 text-sm">
                   <Check className="w-4 h-4 text-green-500 shrink-0" />
-                  <span>2 review report downloads/month</span>
+                  <span>2 review report downloads (total)</span>
                 </li>
                 <li className="flex items-center gap-3 text-sm">
                   <X className="w-4 h-4 text-red-500 shrink-0" />

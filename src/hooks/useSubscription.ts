@@ -14,9 +14,9 @@ export interface SubscriptionInfo {
   canCreateCoauthorCert: boolean;
 }
 
-const FREE_REVIEW_LIMIT = 2;
-const PRO_REVIEW_LIMIT = 5;
-const PRO_COAUTHOR_LIMIT = 4;
+const FREE_REVIEW_LIMIT = 2; // lifetime, not monthly
+const PRO_REVIEW_LIMIT = 5; // per month
+const PRO_COAUTHOR_LIMIT = 4; // per month
 
 function getCurrentMonth() {
   const now = new Date();
@@ -57,6 +57,7 @@ export function useSubscription() {
     enabled: !!user?.id,
   });
 
+  // Current month usage (for Pro plan monthly limits)
   const { data: usage, isLoading: usageLoading } = useQuery({
     queryKey: ['plan-usage', user?.id, currentMonth],
     queryFn: async () => {
@@ -73,27 +74,53 @@ export function useSubscription() {
     enabled: !!user?.id,
   });
 
-  const plan = subscription?.plan_type === 'pro' ? 'pro' : 'free';
-  const reviewReportsUsed = usage?.review_reports_used ?? 0;
-  const coauthorCertsUsed = usage?.coauthor_certs_used ?? 0;
-  const reviewReportsLimit = plan === 'pro' ? PRO_REVIEW_LIMIT : FREE_REVIEW_LIMIT;
-  const coauthorCertsLimit = plan === 'pro' ? PRO_COAUTHOR_LIMIT : 0;
+  // Lifetime usage (for Free plan total limits)
+  const { data: lifetimeUsage, isLoading: lifetimeLoading } = useQuery({
+    queryKey: ['plan-usage-lifetime', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('plan_usage')
+        .select('review_reports_used, coauthor_certs_used')
+        .eq('user_id', user!.id);
+
+      if (error) throw error;
+      return {
+        review_reports_used: (data || []).reduce((sum, row) => sum + (row.review_reports_used || 0), 0),
+        coauthor_certs_used: (data || []).reduce((sum, row) => sum + (row.coauthor_certs_used || 0), 0),
+      };
+    },
+    enabled: !!user?.id,
+  });
+
+  const isPro = subscription?.plan_type === 'pro';
+  const plan = isPro ? 'pro' : 'free';
+
+  // For Pro: use current month usage; For Free: use lifetime usage
+  const reviewReportsUsed = isPro
+    ? (usage?.review_reports_used ?? 0)
+    : (lifetimeUsage?.review_reports_used ?? 0);
+  const coauthorCertsUsed = isPro
+    ? (usage?.coauthor_certs_used ?? 0)
+    : (lifetimeUsage?.coauthor_certs_used ?? 0);
+
+  const reviewReportsLimit = isPro ? PRO_REVIEW_LIMIT : FREE_REVIEW_LIMIT;
+  const coauthorCertsLimit = isPro ? PRO_COAUTHOR_LIMIT : 0;
 
   const info: SubscriptionInfo = {
     plan,
-    isActive: plan === 'pro' && !!subscription?.is_active,
+    isActive: isPro && !!subscription?.is_active,
     expiresAt: subscription?.expires_at ?? null,
     reviewReportsUsed,
     reviewReportsLimit,
     coauthorCertsUsed,
     coauthorCertsLimit,
     canDownloadReport: reviewReportsUsed < reviewReportsLimit,
-    canCreateCoauthorCert: plan === 'pro' && coauthorCertsUsed < coauthorCertsLimit,
+    canCreateCoauthorCert: isPro && coauthorCertsUsed < coauthorCertsLimit,
   };
 
   return {
     subscription: info,
-    isLoading: subLoading || usageLoading,
+    isLoading: subLoading || usageLoading || lifetimeLoading,
     currentMonth,
   };
 }
