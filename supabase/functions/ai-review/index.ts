@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import mammoth from "https://esm.sh/mammoth@1.6.0";
+import { jsPDF } from "https://esm.sh/jspdf@2.5.2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -38,118 +39,379 @@ async function extractDocxText(supabase: any, documentUrl: string): Promise<stri
   }
 }
 
-function generateReviewReportHtml(article: any, reviewData: any, authorName: string): string {
+function generateReviewReportPdf(article: any, reviewData: any, authorName: string): ArrayBuffer {
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 20;
+  const contentWidth = pageWidth - margin * 2;
+  let y = margin;
+
   const now = new Date().toLocaleDateString("en-GB", {
     day: "2-digit", month: "long", year: "numeric",
   });
 
-  const recLabel = (reviewData.detailedFeedback?.recommendation || "").replace(/_/g, " ");
-  const recColor = recLabel === "accept" ? "#27ae60"
-    : recLabel.includes("minor") ? "#f39c12"
-    : recLabel.includes("major") ? "#e67e22"
-    : "#e74c3c";
+  // Colors
+  const primaryBlue = [41, 98, 168] as [number, number, number];
+  const darkText = [44, 62, 80] as [number, number, number];
+  const grayText = [100, 100, 100] as [number, number, number];
+  const lightGray = [240, 244, 248] as [number, number, number];
+  const white = [255, 255, 255] as [number, number, number];
+  const greenColor = [39, 174, 96] as [number, number, number];
+  const yellowColor = [243, 156, 18] as [number, number, number];
+  const redColor = [231, 76, 60] as [number, number, number];
 
-  const listItems = (arr: string[] | undefined) =>
-    arr?.map((s: string) => `<li>${s}</li>`).join("") || "";
+  function getScoreColor(score: number): [number, number, number] {
+    if (score >= 80) return greenColor;
+    if (score >= 60) return yellowColor;
+    return redColor;
+  }
 
-  return `<!DOCTYPE html>
-<html><head><meta charset="UTF-8">
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap');
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Open Sans', sans-serif; background: #f5f7fa; padding: 30px; }
-  .report { max-width: 800px; margin: auto; background: white; border: 2px solid #2c3e50; padding: 40px; }
-  .header { text-align: center; border-bottom: 2px solid #3498db; padding-bottom: 20px; margin-bottom: 25px; }
-  .header h1 { font-size: 22px; color: #2c3e50; }
-  .header .journal { font-size: 13px; color: #666; margin-top: 5px; }
-  .header .date { font-size: 12px; color: #999; margin-top: 5px; }
-  .meta { margin-bottom: 25px; }
-  .meta table { width: 100%; border-collapse: collapse; }
-  .meta td { padding: 8px 12px; border: 1px solid #ddd; font-size: 13px; }
-  .meta td:first-child { font-weight: 600; background: #f8f9fa; width: 30%; }
-  .scores { display: flex; gap: 15px; margin: 25px 0; flex-wrap: wrap; }
-  .score-box { flex: 1; min-width: 120px; text-align: center; padding: 15px; border-radius: 8px; border: 1px solid #ddd; }
-  .score-box .label { font-size: 12px; color: #666; margin-bottom: 5px; }
-  .score-box .value { font-size: 28px; font-weight: 700; }
-  .score-green .value { color: #27ae60; }
-  .score-yellow .value { color: #f39c12; }
-  .score-red .value { color: #e74c3c; }
-  .recommendation { text-align: center; margin: 20px 0; padding: 12px; border-radius: 8px; font-weight: 700; font-size: 16px; text-transform: uppercase; }
-  .section { margin: 20px 0; }
-  .section h3 { font-size: 15px; color: #2c3e50; border-left: 4px solid #3498db; padding-left: 10px; margin-bottom: 10px; }
-  .section p, .section li { font-size: 13px; color: #444; line-height: 1.7; }
-  .section ul { padding-left: 20px; }
-  .section .sub { font-weight: 600; margin: 8px 0 4px; color: #555; font-size: 13px; }
-  .summary { background: #f0f4f8; padding: 15px; border-radius: 8px; font-size: 13px; color: #333; line-height: 1.7; margin: 20px 0; }
-  .footer { text-align: center; margin-top: 30px; padding-top: 15px; border-top: 1px solid #ddd; font-size: 11px; color: #999; }
-</style></head><body>
-<div class="report">
-  <div class="header">
-    <h1>AI Review Report</h1>
-    <div class="journal">World Wide Journal of Multidisciplinary Research and Development</div>
-    <div class="date">Generated on ${now}</div>
-  </div>
+  function checkPageBreak(requiredSpace: number) {
+    if (y + requiredSpace > pageHeight - 25) {
+      doc.addPage();
+      y = margin;
+    }
+  }
 
-  <div class="meta">
-    <table>
-      <tr><td>Article Title</td><td>${article.title}</td></tr>
-      <tr><td>Reference Number</td><td>${article.reference_number}</td></tr>
-      <tr><td>Author</td><td>${authorName}</td></tr>
-      <tr><td>Keywords</td><td>${article.keywords?.join(", ") || "N/A"}</td></tr>
-    </table>
-  </div>
+  function addWrappedText(text: string, x: number, maxWidth: number, fontSize: number, color: [number, number, number], lineHeight = 6): number {
+    doc.setFontSize(fontSize);
+    doc.setTextColor(...color);
+    const lines = doc.splitTextToSize(text, maxWidth);
+    for (const line of lines) {
+      checkPageBreak(lineHeight);
+      doc.text(line, x, y);
+      y += lineHeight;
+    }
+    return y;
+  }
 
-  <div class="scores">
-    <div class="score-box ${reviewData.plagiarismScore >= 80 ? "score-green" : reviewData.plagiarismScore >= 60 ? "score-yellow" : "score-red"}">
-      <div class="label">Plagiarism</div><div class="value">${reviewData.plagiarismScore}%</div>
-    </div>
-    <div class="score-box ${reviewData.grammarScore >= 80 ? "score-green" : reviewData.grammarScore >= 60 ? "score-yellow" : "score-red"}">
-      <div class="label">Grammar</div><div class="value">${reviewData.grammarScore}%</div>
-    </div>
-    <div class="score-box ${reviewData.contentScore >= 80 ? "score-green" : reviewData.contentScore >= 60 ? "score-yellow" : "score-red"}">
-      <div class="label">Content</div><div class="value">${reviewData.contentScore}%</div>
-    </div>
-    <div class="score-box ${reviewData.overallScore >= 80 ? "score-green" : reviewData.overallScore >= 60 ? "score-yellow" : "score-red"}">
-      <div class="label">Overall</div><div class="value">${reviewData.overallScore}%</div>
-    </div>
-  </div>
+  // ===== HEADER =====
+  // Top blue bar
+  doc.setFillColor(...primaryBlue);
+  doc.rect(0, 0, pageWidth, 4, "F");
 
-  <div class="recommendation" style="background: ${recColor}22; color: ${recColor}; border: 1px solid ${recColor}44;">
-    Recommendation: ${recLabel || "N/A"}
-  </div>
+  y = 18;
+  doc.setFontSize(22);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...darkText);
+  doc.text("AI Review Report", pageWidth / 2, y, { align: "center" });
+  y += 8;
 
-  <div class="summary">${reviewData.summary || ""}</div>
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...grayText);
+  doc.text("World Wide Journal of Multidisciplinary Research and Development", pageWidth / 2, y, { align: "center" });
+  y += 6;
+  doc.setFontSize(9);
+  doc.text(`Generated on ${now}`, pageWidth / 2, y, { align: "center" });
+  y += 4;
 
-  ${reviewData.detailedFeedback?.plagiarism ? `
-  <div class="section">
-    <h3>Plagiarism Assessment</h3>
-    <p>${reviewData.detailedFeedback.plagiarism.assessment}</p>
-    ${reviewData.detailedFeedback.plagiarism.suggestions?.length ? `<div class="sub">Suggestions:</div><ul>${listItems(reviewData.detailedFeedback.plagiarism.suggestions)}</ul>` : ""}
-  </div>` : ""}
+  // Separator line
+  doc.setDrawColor(...primaryBlue);
+  doc.setLineWidth(0.8);
+  doc.line(margin, y, pageWidth - margin, y);
+  y += 10;
 
-  ${reviewData.detailedFeedback?.grammar ? `
-  <div class="section">
-    <h3>Grammar & Structure</h3>
-    <p>${reviewData.detailedFeedback.grammar.assessment}</p>
-    ${reviewData.detailedFeedback.grammar.issues?.length ? `<div class="sub">Issues Found:</div><ul>${listItems(reviewData.detailedFeedback.grammar.issues)}</ul>` : ""}
-    ${reviewData.detailedFeedback.grammar.suggestions?.length ? `<div class="sub">Suggestions:</div><ul>${listItems(reviewData.detailedFeedback.grammar.suggestions)}</ul>` : ""}
-  </div>` : ""}
+  // ===== ARTICLE DETAILS TABLE =====
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...darkText);
+  doc.text("Article Details", margin, y);
+  y += 6;
 
-  ${reviewData.detailedFeedback?.content ? `
-  <div class="section">
-    <h3>Content Quality</h3>
-    <p>${reviewData.detailedFeedback.content.assessment}</p>
-    ${reviewData.detailedFeedback.content.strengths?.length ? `<div class="sub">Strengths:</div><ul>${listItems(reviewData.detailedFeedback.content.strengths)}</ul>` : ""}
-    ${reviewData.detailedFeedback.content.weaknesses?.length ? `<div class="sub">Weaknesses:</div><ul>${listItems(reviewData.detailedFeedback.content.weaknesses)}</ul>` : ""}
-    ${reviewData.detailedFeedback.content.suggestions?.length ? `<div class="sub">Suggestions:</div><ul>${listItems(reviewData.detailedFeedback.content.suggestions)}</ul>` : ""}
-  </div>` : ""}
+  const detailRows = [
+    ["Article Title", article.title || "N/A"],
+    ["Reference Number", article.reference_number || "N/A"],
+    ["Author", authorName],
+    ["Keywords", article.keywords?.join(", ") || "N/A"],
+  ];
 
-  <div class="footer">
-    This report was generated by AI-powered analysis and should be used as a supplementary review tool.<br>
-    WWJMRD &bull; wwjmrd@gmail.com &bull; www.wwjmrd.com
-  </div>
-</div>
-</body></html>`;
+  const labelWidth = 42;
+  const valueWidth = contentWidth - labelWidth;
+
+  for (const [label, value] of detailRows) {
+    const valueLines = doc.splitTextToSize(value, valueWidth - 6);
+    const rowHeight = Math.max(8, valueLines.length * 5 + 4);
+    checkPageBreak(rowHeight);
+
+    // Label cell
+    doc.setFillColor(...lightGray);
+    doc.rect(margin, y - 4, labelWidth, rowHeight, "F");
+    doc.setDrawColor(220, 220, 220);
+    doc.rect(margin, y - 4, labelWidth, rowHeight, "S");
+
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...darkText);
+    doc.text(label, margin + 3, y);
+
+    // Value cell
+    doc.setFillColor(...white);
+    doc.rect(margin + labelWidth, y - 4, valueWidth, rowHeight, "F");
+    doc.setDrawColor(220, 220, 220);
+    doc.rect(margin + labelWidth, y - 4, valueWidth, rowHeight, "S");
+
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...grayText);
+    let valueY = y;
+    for (const line of valueLines) {
+      doc.text(line, margin + labelWidth + 3, valueY);
+      valueY += 5;
+    }
+
+    y += rowHeight;
+  }
+
+  y += 10;
+
+  // ===== SCORES SECTION =====
+  checkPageBreak(40);
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...darkText);
+  doc.text("Review Scores", margin, y);
+  y += 8;
+
+  const scores = [
+    { label: "Plagiarism", value: reviewData.plagiarismScore },
+    { label: "Grammar", value: reviewData.grammarScore },
+    { label: "Content", value: reviewData.contentScore },
+    { label: "Overall", value: reviewData.overallScore },
+  ];
+
+  const boxWidth = (contentWidth - 15) / 4;
+  const boxHeight = 28;
+
+  scores.forEach((score, i) => {
+    const boxX = margin + i * (boxWidth + 5);
+    const color = getScoreColor(score.value);
+
+    // Score box background
+    doc.setFillColor(color[0], color[1], color[2]);
+    doc.roundedRect(boxX, y, boxWidth, boxHeight, 3, 3, "F");
+
+    // Score label
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(255, 255, 255);
+    doc.text(score.label, boxX + boxWidth / 2, y + 8, { align: "center" });
+
+    // Score value
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.text(`${score.value}%`, boxX + boxWidth / 2, y + 21, { align: "center" });
+  });
+
+  y += boxHeight + 10;
+
+  // ===== RECOMMENDATION =====
+  const recLabel = (reviewData.detailedFeedback?.recommendation || "N/A").replace(/_/g, " ");
+  const recColor = recLabel === "accept" ? greenColor
+    : recLabel.includes("minor") ? yellowColor
+    : recLabel.includes("major") ? [230, 126, 34] as [number, number, number]
+    : redColor;
+
+  checkPageBreak(16);
+  doc.setFillColor(recColor[0], recColor[1], recColor[2]);
+  doc.roundedRect(margin, y, contentWidth, 12, 3, 3, "F");
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(255, 255, 255);
+  doc.text(`Recommendation: ${recLabel.toUpperCase()}`, pageWidth / 2, y + 8, { align: "center" });
+  y += 20;
+
+  // ===== SUMMARY =====
+  if (reviewData.summary) {
+    checkPageBreak(20);
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...darkText);
+    doc.text("Summary", margin, y);
+    y += 6;
+
+    doc.setFillColor(...lightGray);
+    const summaryLines = doc.splitTextToSize(reviewData.summary, contentWidth - 10);
+    const summaryHeight = summaryLines.length * 5 + 8;
+    checkPageBreak(summaryHeight);
+    doc.roundedRect(margin, y - 3, contentWidth, summaryHeight, 2, 2, "F");
+
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...grayText);
+    for (const line of summaryLines) {
+      doc.text(line, margin + 5, y + 2);
+      y += 5;
+    }
+    y += 10;
+  }
+
+  // ===== DETAILED FEEDBACK SECTIONS =====
+  const feedback = reviewData.detailedFeedback;
+
+  function addSection(title: string, dotColor: [number, number, number], content: {
+    assessment?: string;
+    issues?: string[];
+    suggestions?: string[];
+    strengths?: string[];
+    weaknesses?: string[];
+  }) {
+    if (!content) return;
+
+    checkPageBreak(20);
+
+    // Section title with colored dot
+    doc.setFillColor(...dotColor);
+    doc.circle(margin + 3, y - 1.5, 2.5, "F");
+
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...darkText);
+    doc.text(title, margin + 9, y);
+    y += 2;
+
+    // Thin separator
+    doc.setDrawColor(...dotColor);
+    doc.setLineWidth(0.5);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 6;
+
+    // Assessment
+    if (content.assessment) {
+      addWrappedText(content.assessment, margin + 2, contentWidth - 4, 9, grayText, 5);
+      y += 3;
+    }
+
+    // Strengths
+    if (content.strengths?.length) {
+      checkPageBreak(10);
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(...greenColor);
+      doc.text("Strengths:", margin + 2, y);
+      y += 5;
+      for (const item of content.strengths) {
+        checkPageBreak(6);
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(...grayText);
+        const lines = doc.splitTextToSize(`• ${item}`, contentWidth - 8);
+        for (const line of lines) {
+          doc.text(line, margin + 5, y);
+          y += 5;
+        }
+      }
+      y += 2;
+    }
+
+    // Weaknesses
+    if (content.weaknesses?.length) {
+      checkPageBreak(10);
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(...redColor);
+      doc.text("Weaknesses:", margin + 2, y);
+      y += 5;
+      for (const item of content.weaknesses) {
+        checkPageBreak(6);
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(...grayText);
+        const lines = doc.splitTextToSize(`• ${item}`, contentWidth - 8);
+        for (const line of lines) {
+          doc.text(line, margin + 5, y);
+          y += 5;
+        }
+      }
+      y += 2;
+    }
+
+    // Issues
+    if (content.issues?.length) {
+      checkPageBreak(10);
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(230, 126, 34);
+      doc.text("Issues Found:", margin + 2, y);
+      y += 5;
+      for (const item of content.issues) {
+        checkPageBreak(6);
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(...grayText);
+        const lines = doc.splitTextToSize(`• ${item}`, contentWidth - 8);
+        for (const line of lines) {
+          doc.text(line, margin + 5, y);
+          y += 5;
+        }
+      }
+      y += 2;
+    }
+
+    // Suggestions
+    if (content.suggestions?.length) {
+      checkPageBreak(10);
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(...primaryBlue);
+      doc.text("Suggestions:", margin + 2, y);
+      y += 5;
+      for (const item of content.suggestions) {
+        checkPageBreak(6);
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(...grayText);
+        const lines = doc.splitTextToSize(`• ${item}`, contentWidth - 8);
+        for (const line of lines) {
+          doc.text(line, margin + 5, y);
+          y += 5;
+        }
+      }
+      y += 2;
+    }
+
+    y += 5;
+  }
+
+  if (feedback) {
+    if (feedback.plagiarism) {
+      addSection("Plagiarism Assessment", [52, 152, 219] as [number, number, number], feedback.plagiarism);
+    }
+    if (feedback.grammar) {
+      addSection("Grammar & Structure", yellowColor, feedback.grammar);
+    }
+    if (feedback.content) {
+      addSection("Content Quality", greenColor, feedback.content);
+    }
+  }
+
+  // ===== FOOTER =====
+  const totalPages = doc.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    // Bottom border
+    doc.setDrawColor(220, 220, 220);
+    doc.setLineWidth(0.3);
+    doc.line(margin, pageHeight - 15, pageWidth - margin, pageHeight - 15);
+
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "italic");
+    doc.setTextColor(...grayText);
+    doc.text(
+      "This report was generated by AI-powered analysis and should be used as a supplementary review tool.",
+      pageWidth / 2, pageHeight - 10, { align: "center" }
+    );
+    doc.text(
+      "WWJMRD • wwjmrd@gmail.com • www.wwjmrd.com",
+      pageWidth / 2, pageHeight - 6, { align: "center" }
+    );
+
+    // Page number
+    doc.setFont("helvetica", "normal");
+    doc.text(`Page ${i} of ${totalPages}`, pageWidth - margin, pageHeight - 6, { align: "right" });
+  }
+
+  return doc.output("arraybuffer");
 }
 
 serve(async (req) => {
@@ -201,11 +463,10 @@ serve(async (req) => {
         documentText = await extractDocxText(supabase, article.document_url);
       } catch (err) {
         console.error("Document extraction failed:", err);
-        // Fall back to metadata-only review
       }
     }
 
-    // Build content for review - include full document text when available
+    // Build content for review
     const contentToReview = documentText
       ? `Title: ${article.title}\n\nAbstract: ${article.abstract || "No abstract provided"}\n\nKeywords: ${article.keywords?.join(", ") || "No keywords provided"}\n\n--- Full Document Content ---\n${documentText.substring(0, 30000)}`
       : `Title: ${article.title}\n\nAbstract: ${article.abstract || "No abstract provided"}\n\nKeywords: ${article.keywords?.join(", ") || "No keywords provided"}`;
@@ -297,22 +558,22 @@ Provide your response as a valid JSON object with this exact structure:
       return jsonResponse({ error: "Failed to parse AI response" }, 500);
     }
 
-    // Generate review report HTML
+    // Generate PDF review report
     const authorName = (article.profiles as any)?.full_name || "Unknown Author";
-    const reportHtml = generateReviewReportHtml(article, reviewData, authorName);
+    console.log("Generating PDF report for:", article.reference_number);
+    const pdfBuffer = generateReviewReportPdf(article, reviewData, authorName);
 
-    // Upload review report to storage
-    const reportFileName = `review-${article.reference_number}-${Date.now()}.html`;
+    // Upload PDF report to storage
+    const reportFileName = `review-${article.reference_number}-${Date.now()}.pdf`;
     const { error: reportUploadError } = await supabase.storage
       .from("review-reports")
-      .upload(reportFileName, new Blob([reportHtml], { type: "text/html" }), {
-        contentType: "text/html",
+      .upload(reportFileName, new Blob([pdfBuffer], { type: "application/pdf" }), {
+        contentType: "application/pdf",
         upsert: true,
       });
 
     if (reportUploadError) {
       console.error("Report upload error:", reportUploadError);
-      // Don't fail the whole review, just log the error
     }
 
     // Update article with review report URL path
