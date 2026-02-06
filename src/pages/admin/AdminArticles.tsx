@@ -64,7 +64,7 @@ export default function AdminArticles() {
         .from('articles')
         .select(`
           *,
-          profiles:author_id (full_name, email)
+          profiles:author_id (full_name, email, country, affiliation)
         `)
         .order('created_at', { ascending: false });
       
@@ -380,19 +380,74 @@ export default function AdminArticles() {
           
           {selectedArticle && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm text-muted-foreground">Author</label>
-                  <p className="font-medium">{(selectedArticle.profiles as any)?.full_name}</p>
-                  <p className="text-sm text-muted-foreground">{(selectedArticle.profiles as any)?.email}</p>
-                </div>
-                <div>
-                  <label className="text-sm text-muted-foreground">Current Status</label>
-                  <p className={`inline-block px-2 py-1 rounded-full text-xs border mt-1 ${getStatusBadge(selectedArticle.status)}`}>
-                    {formatStatus(selectedArticle.status)}
-                  </p>
+              {/* Author Profile Details */}
+              <div className="p-4 rounded-lg bg-[hsl(var(--glass-bg))] border border-[hsl(var(--glass-border))]">
+                <h4 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Author Details</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs text-muted-foreground">Full Name</label>
+                    <p className="font-medium">{(selectedArticle.profiles as any)?.full_name || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Email</label>
+                    <p className="text-sm">{(selectedArticle.profiles as any)?.email || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Country</label>
+                    <p className="text-sm">{(selectedArticle.profiles as any)?.country || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Affiliation</label>
+                    <p className="text-sm">{(selectedArticle.profiles as any)?.affiliation || 'N/A'}</p>
+                  </div>
                 </div>
               </div>
+
+              <div>
+                <label className="text-sm text-muted-foreground">Current Status</label>
+                <p className={`inline-block px-2 py-1 rounded-full text-xs border mt-1 ${getStatusBadge(selectedArticle.status)}`}>
+                  {formatStatus(selectedArticle.status)}
+                </p>
+              </div>
+
+              {/* Additional Article Details */}
+              {(selectedArticle.subject || selectedArticle.country || selectedArticle.reason_of_research || selectedArticle.submission_target) && (
+                <div className="p-4 rounded-lg bg-[hsl(var(--glass-bg))] border border-[hsl(var(--glass-border))]">
+                  <h4 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Submission Details</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    {selectedArticle.author_name && (
+                      <div>
+                        <label className="text-xs text-muted-foreground">Author Name (on article)</label>
+                        <p className="text-sm">{selectedArticle.author_name}</p>
+                      </div>
+                    )}
+                    {selectedArticle.country && (
+                      <div>
+                        <label className="text-xs text-muted-foreground">Article Country</label>
+                        <p className="text-sm">{selectedArticle.country}</p>
+                      </div>
+                    )}
+                    {selectedArticle.subject && (
+                      <div>
+                        <label className="text-xs text-muted-foreground">Subject</label>
+                        <p className="text-sm">{selectedArticle.subject}</p>
+                      </div>
+                    )}
+                    {selectedArticle.submission_target && (
+                      <div>
+                        <label className="text-xs text-muted-foreground">Submission Target</label>
+                        <p className="text-sm">{selectedArticle.submission_target}</p>
+                      </div>
+                    )}
+                    {selectedArticle.reason_of_research && (
+                      <div className="col-span-2">
+                        <label className="text-xs text-muted-foreground">Reason of Research</label>
+                        <p className="text-sm mt-1">{selectedArticle.reason_of_research}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
               
               {selectedArticle.abstract && (
                 <div>
