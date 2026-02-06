@@ -34,9 +34,9 @@ export default function MyArticles() {
 
     if (!subscription.canDownloadReport) {
       toast.error(
-        `Monthly limit reached (${subscription.reviewReportsLimit} review reports/month). ${
-          subscription.plan === 'free' ? 'Upgrade to Pro for more.' : ''
-        }`
+        subscription.plan === 'free'
+          ? `You've used all ${subscription.reviewReportsLimit} free review report downloads. Upgrade to Pro for more.`
+          : `Monthly limit reached (${subscription.reviewReportsLimit} review reports/month).`
       );
       return;
     }
@@ -168,9 +168,9 @@ export default function MyArticles() {
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <FileText className="w-4 h-4" />
             <span>
-              Review reports: {subscription.reviewReportsUsed}/{subscription.reviewReportsLimit} used this month
-              {subscription.plan === 'free' && ' (Free plan)'}
-              {subscription.plan === 'pro' && ' (Pro plan)'}
+              Review reports: {subscription.reviewReportsUsed}/{subscription.reviewReportsLimit} used
+              {subscription.plan === 'free' && ' (Free plan — lifetime limit)'}
+              {subscription.plan === 'pro' && ' this month (Pro plan)'}
             </span>
           </div>
           {subscription.plan === 'free' && (
