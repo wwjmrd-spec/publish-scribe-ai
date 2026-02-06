@@ -340,6 +340,41 @@ export type Database = {
           },
         ]
       }
+      plan_usage: {
+        Row: {
+          coauthor_certs_used: number
+          id: string
+          review_reports_used: number
+          updated_at: string
+          usage_month: string
+          user_id: string
+        }
+        Insert: {
+          coauthor_certs_used?: number
+          id?: string
+          review_reports_used?: number
+          updated_at?: string
+          usage_month: string
+          user_id: string
+        }
+        Update: {
+          coauthor_certs_used?: number
+          id?: string
+          review_reports_used?: number
+          updated_at?: string
+          usage_month?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_usage_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           affiliation: string | null
@@ -378,8 +413,10 @@ export type Database = {
           id: string
           indian_coauthor_fee: number | null
           indian_fee: number | null
+          indian_pro_fee: number | null
           international_coauthor_fee: number | null
           international_fee: number | null
+          international_pro_fee: number | null
           updated_at: string | null
           updated_by: string | null
         }
@@ -387,8 +424,10 @@ export type Database = {
           id?: string
           indian_coauthor_fee?: number | null
           indian_fee?: number | null
+          indian_pro_fee?: number | null
           international_coauthor_fee?: number | null
           international_fee?: number | null
+          international_pro_fee?: number | null
           updated_at?: string | null
           updated_by?: string | null
         }
@@ -396,8 +435,10 @@ export type Database = {
           id?: string
           indian_coauthor_fee?: number | null
           indian_fee?: number | null
+          indian_pro_fee?: number | null
           international_coauthor_fee?: number | null
           international_fee?: number | null
+          international_pro_fee?: number | null
           updated_at?: string | null
           updated_by?: string | null
         }
@@ -428,6 +469,54 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      user_subscriptions: {
+        Row: {
+          created_at: string
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          payment_id: string | null
+          plan_type: string
+          starts_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          payment_id?: string | null
+          plan_type?: string
+          starts_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          payment_id?: string | null
+          plan_type?: string
+          starts_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_subscriptions_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
