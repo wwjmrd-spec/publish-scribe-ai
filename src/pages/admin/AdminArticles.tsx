@@ -52,6 +52,7 @@ export default function AdminArticles() {
     issue: '',
     pageNumber: '',
     year: new Date().getFullYear().toString(),
+    publishedLink: '',
   });
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -108,6 +109,7 @@ export default function AdminArticles() {
           issue: publishDetails.issue,
           pageNumber: publishDetails.pageNumber,
           year: publishDetails.year,
+          publishedLink: publishDetails.publishedLink || null,
         },
       });
 
@@ -119,7 +121,7 @@ export default function AdminArticles() {
       toast.success('Article published with certificate!');
       setIsPublishDialogOpen(false);
       setIsViewDialogOpen(false);
-      setPublishDetails({ volume: '', issue: '', pageNumber: '', year: new Date().getFullYear().toString() });
+      setPublishDetails({ volume: '', issue: '', pageNumber: '', year: new Date().getFullYear().toString(), publishedLink: '' });
 
       // Send referral reward emails in the background
       try {
@@ -435,6 +437,19 @@ export default function AdminArticles() {
                       <p className="font-medium">{selectedArticle.publication_year}</p>
                     </div>
                   </div>
+                  {selectedArticle.published_link && (
+                    <div className="mt-3 text-sm">
+                      <span className="text-muted-foreground">Published Link:</span>
+                      <a
+                        href={selectedArticle.published_link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="ml-2 text-primary hover:underline break-all"
+                      >
+                        {selectedArticle.published_link}
+                      </a>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -533,6 +548,16 @@ export default function AdminArticles() {
                   className="glass-input"
                 />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="publishedLink">Published Article Link (optional)</Label>
+              <Input
+                id="publishedLink"
+                placeholder="e.g., https://wwjmrd.com/vol11/issue12/article-1"
+                value={publishDetails.publishedLink}
+                onChange={(e) => setPublishDetails(prev => ({ ...prev, publishedLink: e.target.value }))}
+                className="glass-input"
+              />
             </div>
           </div>
 

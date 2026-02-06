@@ -59,7 +59,7 @@ serve(async (req) => {
       });
     }
 
-    const { articleId, volume, issue, pageNumber, year } = await req.json();
+    const { articleId, volume, issue, pageNumber, year, publishedLink } = await req.json();
 
     if (!articleId || !volume || !issue || !pageNumber || !year) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
@@ -370,6 +370,7 @@ serve(async (req) => {
         issue,
         page_number: pageNumber,
         publication_year: year,
+        published_link: publishedLink || null,
         certificate_url: signedUrlData?.signedUrl,
         status: "published",
       })

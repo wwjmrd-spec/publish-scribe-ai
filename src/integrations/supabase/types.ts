@@ -83,6 +83,7 @@ export type Database = {
           keywords: string[] | null
           page_number: string | null
           publication_year: string | null
+          published_link: string | null
           reference_number: string
           review_report_url: string | null
           status: Database["public"]["Enums"]["article_status"] | null
@@ -102,6 +103,7 @@ export type Database = {
           keywords?: string[] | null
           page_number?: string | null
           publication_year?: string | null
+          published_link?: string | null
           reference_number: string
           review_report_url?: string | null
           status?: Database["public"]["Enums"]["article_status"] | null
@@ -121,6 +123,7 @@ export type Database = {
           keywords?: string[] | null
           page_number?: string | null
           publication_year?: string | null
+          published_link?: string | null
           reference_number?: string
           review_report_url?: string | null
           status?: Database["public"]["Enums"]["article_status"] | null
