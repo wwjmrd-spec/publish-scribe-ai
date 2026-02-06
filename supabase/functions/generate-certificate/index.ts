@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { jsPDF } from "https://esm.sh/jspdf@2.5.2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,6 +15,204 @@ function escapeHtml(unsafe: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+function generateCertificatePdf(
+  authorName: string,
+  authorAffiliation: string,
+  articleTitle: string,
+  volume: string,
+  issue: string,
+  pageNumber: string,
+  year: string,
+  coAuthorsStr: string,
+  certificateNumber: string,
+  currentDate: string
+): ArrayBuffer {
+  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+
+  // Colors
+  const darkBlue = [44, 62, 80] as [number, number, number];
+  const accentBlue = [52, 152, 219] as [number, number, number];
+  const certRed = [231, 76, 60] as [number, number, number];
+  const grayText = [102, 102, 102] as [number, number, number];
+  const white = [255, 255, 255] as [number, number, number];
+  const lightBg = [248, 249, 250] as [number, number, number];
+
+  // ===== OUTER BORDER =====
+  doc.setDrawColor(...darkBlue);
+  doc.setLineWidth(2);
+  doc.rect(8, 8, pageWidth - 16, pageHeight - 16);
+
+  // Inner border
+  doc.setDrawColor(...accentBlue);
+  doc.setLineWidth(0.8);
+  doc.rect(12, 12, pageWidth - 24, pageHeight - 24);
+
+  // ===== HEADER =====
+  let y = 28;
+
+  // Journal title
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(18);
+  doc.setTextColor(...darkBlue);
+  doc.text("World Wide Journal of Multidisciplinary Research and Development", pageWidth / 2, y, { align: "center" });
+  y += 10;
+
+  // Badges line
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  const badges = ["International Journal", "Peer Reviewed Journal", "Refereed Journal", "Indexed Journal"];
+  const badgeWidth = 42;
+  const totalBadgeWidth = badges.length * badgeWidth + (badges.length - 1) * 4;
+  let bx = (pageWidth - totalBadgeWidth) / 2;
+  for (const badge of badges) {
+    doc.setFillColor(...accentBlue);
+    doc.roundedRect(bx, y - 4, badgeWidth, 7, 1.5, 1.5, "F");
+    doc.setTextColor(...white);
+    doc.text(badge, bx + badgeWidth / 2, y + 0.5, { align: "center" });
+    bx += badgeWidth + 4;
+  }
+  y += 10;
+
+  // ISSN
+  doc.setFontSize(9);
+  doc.setTextColor(...grayText);
+  doc.text("PRINT-ISSN: 2454-6615  |  ONLINE-ISSN: 2454-6615", pageWidth / 2, y, { align: "center" });
+  y += 6;
+
+  // Separator
+  doc.setDrawColor(...accentBlue);
+  doc.setLineWidth(0.5);
+  doc.line(40, y, pageWidth - 40, y);
+  y += 12;
+
+  // ===== CERTIFICATE TITLE =====
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(30);
+  doc.setTextColor(...certRed);
+  doc.text("Publication Certificate", pageWidth / 2, y, { align: "center" });
+
+  // Underline
+  const titleWidth = doc.getTextWidth("Publication Certificate");
+  doc.setDrawColor(...certRed);
+  doc.setLineWidth(0.8);
+  doc.line((pageWidth - titleWidth) / 2, y + 2, (pageWidth + titleWidth) / 2, y + 2);
+  y += 16;
+
+  // ===== CONTENT =====
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(12);
+  doc.setTextColor(...darkBlue);
+
+  const certText = `This is to certify that "${authorName}", affiliated to "${authorAffiliation}" has published manuscript titled`;
+  const lines = doc.splitTextToSize(certText, pageWidth - 80);
+  for (const line of lines) {
+    doc.text(line, pageWidth / 2, y, { align: "center" });
+    y += 7;
+  }
+
+  // Article title (italic, blue)
+  doc.setFont("helvetica", "bolditalic");
+  doc.setTextColor(...accentBlue);
+  doc.setFontSize(13);
+  const titleLines = doc.splitTextToSize(`"${articleTitle}"`, pageWidth - 80);
+  for (const line of titleLines) {
+    doc.text(line, pageWidth / 2, y, { align: "center" });
+    y += 7;
+  }
+  y += 6;
+
+  // ===== DETAILS TABLE =====
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(...darkBlue);
+  doc.text("Details of Published Article as follows:", pageWidth / 2, y, { align: "center" });
+  y += 8;
+
+  const tableData = [
+    ["Volume", volume],
+    ["Year", year],
+    ["Issue", issue],
+    ["Page Number", pageNumber],
+  ];
+
+  const tableWidth = 120;
+  const colWidth = tableWidth / 2;
+  const tableX = (pageWidth - tableWidth) / 2;
+  const rowHeight = 9;
+
+  for (let i = 0; i < tableData.length; i++) {
+    const rowY = y + i * rowHeight;
+
+    // Label cell (gray bg)
+    doc.setFillColor(...lightBg);
+    doc.rect(tableX, rowY, colWidth, rowHeight, "F");
+    doc.setDrawColor(200, 200, 200);
+    doc.rect(tableX, rowY, colWidth, rowHeight, "S");
+
+    // Value cell
+    doc.setFillColor(...white);
+    doc.rect(tableX + colWidth, rowY, colWidth, rowHeight, "F");
+    doc.rect(tableX + colWidth, rowY, colWidth, rowHeight, "S");
+
+    // Label text
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(...darkBlue);
+    doc.text(tableData[i][0], tableX + 5, rowY + 6);
+
+    // Value text
+    doc.setFont("helvetica", "normal");
+    doc.text(tableData[i][1], tableX + colWidth + 5, rowY + 6);
+  }
+
+  y += tableData.length * rowHeight + 8;
+
+  // ===== CO-AUTHORS =====
+  if (coAuthorsStr) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(...darkBlue);
+    doc.text("Co-Author: ", pageWidth / 2 - doc.getTextWidth("Co-Author: " + coAuthorsStr) / 2, y);
+    doc.setFont("helvetica", "normal");
+    doc.text(coAuthorsStr, pageWidth / 2 - doc.getTextWidth("Co-Author: " + coAuthorsStr) / 2 + doc.getTextWidth("Co-Author: "), y);
+    y += 8;
+  }
+
+  // ===== FOOTER =====
+  const footerY = pageHeight - 35;
+
+  // Certificate info (left)
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(...grayText);
+  doc.text(`Certificate No.: ${certificateNumber}`, 25, footerY);
+  doc.text(`Date: ${currentDate}`, 25, footerY + 6);
+
+  // Signature (right)
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(10);
+  doc.setTextColor(...grayText);
+  doc.text("Yours Sincerely,", pageWidth - 25, footerY, { align: "right" });
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.setTextColor(...darkBlue);
+  doc.text("Deepika Meena", pageWidth - 25, footerY + 7, { align: "right" });
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(...grayText);
+  doc.text("Publisher", pageWidth - 25, footerY + 12, { align: "right" });
+
+  // Bottom journal info
+  const bottomY = pageHeight - 16;
+  doc.setFontSize(8);
+  doc.setTextColor(...grayText);
+  doc.text("World Wide Journal of Multidisciplinary Research and Development  |  Email: wwjmrd@gmail.com  |  Website: www.wwjmrd.com", pageWidth / 2, bottomY, { align: "center" });
+
+  return doc.output("arraybuffer");
 }
 
 serve(async (req) => {
@@ -100,252 +299,30 @@ serve(async (req) => {
       ?.map((ca: any) => ca.name)
       .join(", ") || "";
 
-    // Generate HTML certificate
     const authorName = (article.profiles as any)?.full_name || "Unknown Author";
     const authorAffiliation = (article.profiles as any)?.affiliation || "Unknown Affiliation";
 
-    const certificateHtml = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Open+Sans:wght@400;600&display=swap');
-    
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    
-    body {
-      font-family: 'Open Sans', sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      min-height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      padding: 20px;
-    }
-    
-    .certificate {
-      width: 800px;
-      background: white;
-      border: 3px solid #2c3e50;
-      padding: 40px;
-      position: relative;
-    }
-    
-    .certificate::before {
-      content: '';
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      right: 10px;
-      bottom: 10px;
-      border: 2px solid #3498db;
-      pointer-events: none;
-    }
-    
-    .header {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-    
-    .journal-title {
-      font-family: 'Playfair Display', serif;
-      font-size: 28px;
-      font-weight: 700;
-      color: #2c3e50;
-      margin-bottom: 5px;
-    }
-    
-    .journal-badges {
-      display: flex;
-      justify-content: center;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin: 10px 0;
-    }
-    
-    .badge {
-      background: #3498db;
-      color: white;
-      padding: 4px 12px;
-      border-radius: 4px;
-      font-size: 11px;
-      font-weight: 600;
-    }
-    
-    .issn-info {
-      font-size: 12px;
-      color: #666;
-      margin: 10px 0;
-    }
-    
-    .certificate-title {
-      font-family: 'Playfair Display', serif;
-      font-size: 36px;
-      font-weight: 700;
-      color: #e74c3c;
-      text-align: center;
-      margin: 25px 0;
-      text-decoration: underline;
-    }
-    
-    .content {
-      text-align: center;
-      line-height: 1.8;
-      font-size: 14px;
-      margin: 20px 0;
-    }
-    
-    .author-name {
-      font-weight: 700;
-      color: #2c3e50;
-      font-size: 16px;
-    }
-    
-    .manuscript-title {
-      font-style: italic;
-      font-weight: 600;
-      color: #3498db;
-    }
-    
-    .details-section {
-      margin: 30px auto;
-      width: 60%;
-    }
-    
-    .details-title {
-      font-weight: 700;
-      color: #2c3e50;
-      margin-bottom: 15px;
-      text-align: center;
-    }
-    
-    .details-table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-    
-    .details-table td {
-      padding: 8px 15px;
-      border: 1px solid #ddd;
-    }
-    
-    .details-table td:first-child {
-      font-weight: 600;
-      background: #f8f9fa;
-      width: 40%;
-    }
-    
-    .co-authors {
-      text-align: center;
-      margin: 15px 0;
-      font-size: 13px;
-    }
-    
-    .co-authors strong {
-      color: #2c3e50;
-    }
-    
-    .footer {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
-      margin-top: 40px;
-      padding-top: 20px;
-    }
-    
-    .cert-info {
-      font-size: 12px;
-      color: #666;
-    }
-    
-    .signature-section {
-      text-align: center;
-    }
-    
-    .signature-text {
-      font-size: 12px;
-      color: #666;
-      margin-bottom: 5px;
-    }
-    
-    .publisher-name {
-      font-weight: 700;
-      color: #2c3e50;
-    }
-    
-    .publisher-title {
-      font-size: 12px;
-      color: #666;
-    }
-    
-    .journal-info {
-      font-size: 11px;
-      color: #666;
-      text-align: center;
-      margin-top: 20px;
-    }
-  </style>
-</head>
-<body>
-  <div class="certificate">
-    <div class="header">
-      <div class="journal-title">World Wide Journal of Multidisciplinary Research and Development</div>
-      <div class="journal-badges">
-        <span class="badge">International Journal</span>
-        <span class="badge">Peer Reviewed Journal</span>
-        <span class="badge">Refereed Journal</span>
-        <span class="badge">Indexed Journal</span>
-      </div>
-      <div class="issn-info">
-        PRINT-ISSN: 2454-6615 &nbsp;|&nbsp; ONLINE-ISSN: 2454-6615
-      </div>
-    </div>
-    
-    <div class="certificate-title">Publication Certificate</div>
-    
-    <div class="content">
-      <p>This is to certify that <span class="author-name">"${escapeHtml(authorName)}"</span>, affiliated to <span class="author-name">"${escapeHtml(authorAffiliation)}"</span> has published manuscript titled <span class="manuscript-title">"${escapeHtml(article.title)}"</span></p>
-    </div>
-    
-    <div class="details-section">
-      <div class="details-title">Details of Published Article as follows:</div>
-      <table class="details-table">
-        <tr><td>Volume</td><td>${volume}</td></tr>
-        <tr><td>Year</td><td>${year}</td></tr>
-        <tr><td>Issue</td><td>${issue}</td></tr>
-        <tr><td>Page Number</td><td>${pageNumber}</td></tr>
-      </table>
-    </div>
-    
-    ${coAuthorsStr ? `<div class="co-authors"><strong>Co-Author:</strong> ${escapeHtml(coAuthorsStr)}</div>` : ''}
-    
-    <div class="footer">
-      <div class="cert-info">
-        <p>Certificate No.: ${certificateNumber}</p>
-        <p>Date: ${currentDate}</p>
-      </div>
-      <div class="signature-section">
-        <div class="signature-text">Yours Sincerely,</div>
-        <div class="publisher-name">Deepika Meena</div>
-        <div class="publisher-title">Publisher</div>
-      </div>
-    </div>
-    
-    <div class="journal-info">
-      World Wide Journal of Multidisciplinary Research and Development<br>
-      Email: wwjmrd@gmail.com | Website: www.wwjmrd.com
-    </div>
-  </div>
-</body>
-</html>`;
+    // Generate PDF certificate
+    console.log("Generating PDF certificate for article:", articleId);
+    const pdfBuffer = generateCertificatePdf(
+      authorName,
+      authorAffiliation,
+      article.title,
+      volume,
+      issue,
+      pageNumber,
+      year,
+      coAuthorsStr,
+      certificateNumber,
+      currentDate
+    );
 
-    // Store certificate HTML as a file
-    const fileName = `certificate-${article.reference_number}.html`;
+    // Store certificate PDF
+    const fileName = `certificate-${article.reference_number}.pdf`;
     const { error: uploadError } = await supabase.storage
       .from("certificates")
-      .upload(fileName, new Blob([certificateHtml], { type: "text/html" }), {
-        contentType: "text/html",
+      .upload(fileName, pdfBuffer, {
+        contentType: "application/pdf",
         upsert: true,
       });
 
@@ -384,7 +361,7 @@ serve(async (req) => {
       });
     }
 
-    console.log(`Certificate generated for article ${articleId}`);
+    console.log(`PDF Certificate generated for article ${articleId}, file: ${fileName}`);
 
     return new Response(
       JSON.stringify({

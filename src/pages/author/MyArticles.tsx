@@ -21,6 +21,7 @@ import {
   Upload,
   Crown,
   Lock,
+  Award,
 } from 'lucide-react';
 
 export default function MyArticles() {
@@ -286,8 +287,12 @@ export default function MyArticles() {
                           </Button>
                         )}
                         {article.certificate_url && (
-                          <Button variant="outline" size="sm">
-                            <Download className="w-4 h-4 mr-1" />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate('/author/certificates')}
+                          >
+                            <Award className="w-4 h-4 mr-1" />
                             Certificate
                           </Button>
                         )}
