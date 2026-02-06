@@ -18,6 +18,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
+import { PlanLimitsCard } from '@/components/dashboard/PlanLimitsCard';
 
 export default function AuthorDashboard() {
   const { user, isIndian } = useAuth();
@@ -181,6 +182,16 @@ export default function AuthorDashboard() {
           </GlassCard>
         </motion.div>
       </div>
+
+      {/* Plan Limits */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.28 }}
+        className="mb-8"
+      >
+        <PlanLimitsCard />
+      </motion.div>
 
       {/* Quick Actions */}
       <motion.div
