@@ -739,20 +739,21 @@ const handler = async (req: Request): Promise<Response> => {
     const isServiceRole = token === serviceRoleKey;
 
     if (!isServiceRole) {
-      // Validate as user JWT
+      // Validate as user JWT using getClaims
       const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-      const supabase = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      const authClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
         global: { headers: { Authorization: authHeader } },
       });
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) {
-        console.error("Auth failed for send-email:", userError?.message);
+      const token = authHeader.replace("Bearer ", "");
+      const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(token);
+      if (claimsError || !claimsData?.claims) {
+        console.error("Auth failed for send-email:", claimsError?.message);
         return new Response(JSON.stringify({ error: "Unauthorized" }), {
           status: 401,
           headers: { "Content-Type": "application/json", ...corsHeaders },
         });
       }
-      console.log("Email request authenticated for user:", user.id);
+      console.log("Email request authenticated for user:", claimsData.claims.sub);
     } else {
       console.log("Email request authenticated via service role");
     }

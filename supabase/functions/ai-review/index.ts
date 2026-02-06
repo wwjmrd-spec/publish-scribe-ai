@@ -421,22 +421,28 @@ serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) return jsonResponse({ error: "No authorization header" }, 401);
+    if (!authHeader?.startsWith("Bearer ")) return jsonResponse({ error: "No authorization header" }, 401);
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const lovableApiKey = Deno.env.get("LOVABLE_API_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Verify admin role
+    // Auth: verify JWT using anon key client + getClaims
+    const authClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
     const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
-    if (userError || !user) return jsonResponse({ error: "Unauthorized" }, 401);
+    const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) return jsonResponse({ error: "Unauthorized" }, 401);
+
+    const userId = claimsData.claims.sub as string;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const { data: roleData } = await supabase
       .from("user_roles")
       .select("role")
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .single();
 
     if (roleData?.role !== "admin") return jsonResponse({ error: "Admin access required" }, 403);
