@@ -21,20 +21,24 @@ serve(async (req) => {
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("Authorization header required");
+    if (!authHeader?.startsWith("Bearer ")) throw new Error("Authorization header required");
 
-    const supabase = createClient(
-      supabaseUrl,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
+    // Auth: verify JWT using anon key client + getClaims
+    const authClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(token);
 
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-    if (authError || !user) throw new Error("Unauthorized");
+    if (claimsError || !claimsData?.claims) {
+      console.error("Auth verification failed:", claimsError?.message);
+      throw new Error("Unauthorized");
+    }
+
+    const user = { id: claimsData.claims.sub as string };
+    console.log("Authenticated user for co-author cert order:", user.id);
 
     const { coAuthorId, articleId, amount, currency } = await req.json();
 

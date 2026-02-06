@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 async function getPayPalAccessToken(clientId: string, clientSecret: string): Promise<string> {
@@ -48,20 +48,22 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const authHeader = req.headers.get('Authorization');
 
-    if (!authHeader) {
+    if (!authHeader?.startsWith('Bearer ')) {
       throw new Error('Authorization header required');
     }
 
-    const supabase = createClient(supabaseUrl, supabaseKey, {
+    const authClient = createClient(supabaseUrl, supabaseKey, {
       global: { headers: { Authorization: authHeader } }
     });
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(token);
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      console.error('Auth error:', authError);
+    if (claimsError || !claimsData?.claims) {
+      console.error('Auth verification failed:', claimsError?.message);
       throw new Error('Unauthorized');
     }
 
+    const user = { id: claimsData.claims.sub as string };
     console.log('Creating PayPal order for user:', user.id);
 
     const { articleIds, amount, discountCode, discountAmount } = await req.json();

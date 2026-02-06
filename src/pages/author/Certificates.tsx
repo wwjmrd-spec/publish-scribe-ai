@@ -5,7 +5,7 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { GlassCard } from '@/components/layout/GlassCard';
 import { Button } from '@/components/ui/button';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -16,6 +16,7 @@ import {
   Download,
   FileText,
   Users,
+  Sparkles,
 } from 'lucide-react';
 
 export default function Certificates() {
@@ -23,6 +24,7 @@ export default function Certificates() {
   const { subscription, isLoading: subLoading } = useSubscription();
   const { isProcessing: isPaymentProcessing, processingCoAuthorId, payForCoAuthorCertificate } = useCoAuthorCertPayment();
   const { isLoaded: razorpayLoaded } = useRazorpay();
+  const queryClient = useQueryClient();
   const currencySymbol = isIndian ? '₹' : '$';
 
   const { data: publishedArticles, isLoading } = useQuery({
@@ -76,11 +78,11 @@ export default function Certificates() {
       });
 
       if (response.error) throw new Error(response.error.message);
+      if (response.data?.error) throw new Error(response.data.error);
       return response.data;
     },
     onSuccess: (data) => {
       if (data.url) {
-        // Trigger download via anchor tag to avoid popup blockers
         const a = document.createElement('a');
         a.href = data.url;
         a.download = '';
@@ -97,12 +99,12 @@ export default function Certificates() {
 
   const coAuthorDownloadMutation = useMutation({
     mutationFn: async ({ fileName }: { fileName: string }) => {
-      // Use the service to get a signed URL for the co-author certificate stored in certificates bucket
       const { data, error } = await supabase.functions.invoke('get-document-url', {
         body: { fileName, fileType: 'coauthor_certificate' },
       });
 
       if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
       return data;
     },
     onSuccess: (data) => {
@@ -121,6 +123,27 @@ export default function Certificates() {
     },
   });
 
+  // Free generation for Pro plan users
+  const freeGenerateMutation = useMutation({
+    mutationFn: async ({ coAuthorId, articleId }: { coAuthorId: string; articleId: string }) => {
+      const response = await supabase.functions.invoke('generate-free-coauthor-cert', {
+        body: { coAuthorId, articleId },
+      });
+
+      if (response.error) throw new Error(response.error.message);
+      if (response.data?.error) throw new Error(response.data.error);
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success('Co-author certificate generated successfully!');
+      queryClient.invalidateQueries({ queryKey: ['published-articles'] });
+      queryClient.invalidateQueries({ queryKey: ['plan-usage'] });
+    },
+    onError: (error) => {
+      toast.error('Failed to generate certificate: ' + error.message);
+    },
+  });
+
   const handleDownloadCertificate = async (articleId: string) => {
     downloadMutation.mutate({ articleId, fileType: 'certificate' });
   };
@@ -132,13 +155,6 @@ export default function Certificates() {
   };
 
   const handlePayCoAuthorCertificate = async (coAuthorId: string, articleId: string) => {
-    // Free plan users can pay for co-author certificates (no subscription check needed)
-    // Pro plan users use their monthly quota
-    if (subscription.plan === 'pro' && !subscription.canCreateCoauthorCert) {
-      toast.error(`Monthly limit reached (${subscription.coauthorCertsLimit} co-author certificates/month).`);
-      return;
-    }
-
     await payForCoAuthorCertificate(
       coAuthorId,
       articleId,
@@ -147,6 +163,10 @@ export default function Certificates() {
       user?.email || '',
       user?.user_metadata?.full_name || user?.email || ''
     );
+  };
+
+  const handleFreeCoAuthorCertificate = async (coAuthorId: string, articleId: string) => {
+    freeGenerateMutation.mutate({ coAuthorId, articleId });
   };
 
   if (isLoading || subLoading) {
@@ -266,12 +286,19 @@ export default function Certificates() {
                       <div className="flex items-center gap-2 mb-3">
                         <Users className="w-5 h-5 text-muted-foreground" />
                         <h4 className="font-medium">Co-Author Certificates</h4>
+                        {subscription.plan === 'pro' && (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-primary/20 text-primary">
+                            {subscription.coauthorCertsUsed}/{subscription.coauthorCertsLimit} free used
+                          </span>
+                        )}
                       </div>
 
                       <div className="space-y-2">
                         {article.co_authors.map((coAuthor: any) => {
                           const certificate = coAuthor.co_author_certificates?.[0];
                           const isPaid = certificate?.payment_status === 'paid';
+                          const isProWithFreeQuota = subscription.plan === 'pro' && subscription.canCreateCoauthorCert;
+                          const isGeneratingThis = freeGenerateMutation.isPending && freeGenerateMutation.variables?.coAuthorId === coAuthor.id;
 
                           return (
                             <div
@@ -298,6 +325,20 @@ export default function Certificates() {
                                     <Download className="w-4 h-4 mr-1" />
                                   )}
                                   Download PDF
+                                </Button>
+                              ) : isProWithFreeQuota ? (
+                                <Button
+                                  size="sm"
+                                  className="gradient-primary"
+                                  onClick={() => handleFreeCoAuthorCertificate(coAuthor.id, article.id)}
+                                  disabled={isGeneratingThis}
+                                >
+                                  {isGeneratingThis ? (
+                                    <GlassSpinner size="sm" className="mr-1" />
+                                  ) : (
+                                    <Sparkles className="w-4 h-4 mr-1" />
+                                  )}
+                                  Generate Free
                                 </Button>
                               ) : (
                                 <Button
