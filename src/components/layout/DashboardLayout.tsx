@@ -43,6 +43,7 @@ const adminNavItems: NavItem[] = [
   { label: 'Authors', href: '/admin/authors', icon: Users },
   { label: 'Discount Codes', href: '/admin/discounts', icon: Tag },
   { label: 'Fee Settings', href: '/admin/fees', icon: Settings },
+  { label: 'Profile', href: '/admin/profile', icon: UserCircle },
 ];
 
 interface DashboardLayoutProps {
