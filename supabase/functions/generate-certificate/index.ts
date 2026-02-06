@@ -371,7 +371,7 @@ serve(async (req) => {
         page_number: pageNumber,
         publication_year: year,
         published_link: publishedLink || null,
-        certificate_url: signedUrlData?.signedUrl,
+        certificate_url: fileName,
         status: "published",
       })
       .eq("id", articleId);
