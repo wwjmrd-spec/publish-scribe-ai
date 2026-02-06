@@ -14,7 +14,7 @@ import { User, Lock, Camera, Palette, Save, Loader2, Sun, Moon, Monitor } from '
 import { cn } from '@/lib/utils';
 
 export default function Profile() {
-  const { user } = useAuth();
+  const { user, userRole } = useAuth();
   const { theme, setTheme } = useTheme();
 
   // Profile state
@@ -168,7 +168,7 @@ export default function Profile() {
   ];
 
   return (
-    <DashboardLayout type="author">
+    <DashboardLayout type={userRole === 'admin' ? 'admin' : 'author'}>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
