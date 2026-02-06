@@ -14,6 +14,7 @@ import MyArticles from "./pages/author/MyArticles";
 import Cart from "./pages/author/Cart";
 import Certificates from "./pages/author/Certificates";
 import Profile from "./pages/author/Profile";
+import Subscription from "./pages/author/Subscription";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminArticles from "./pages/admin/AdminArticles";
 import AdminAuthors from "./pages/admin/AdminAuthors";
@@ -82,6 +83,14 @@ const App = () => (
               element={
                 <ProtectedRoute allowedRoles={['author']}>
                   <Profile />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/author/subscription" 
+              element={
+                <ProtectedRoute allowedRoles={['author']}>
+                  <Subscription />
                 </ProtectedRoute>
               } 
             />

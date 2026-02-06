@@ -19,6 +19,7 @@ import {
   X,
   Brain,
   UserCircle,
+  Crown,
 } from 'lucide-react';
 
 interface NavItem {
@@ -33,6 +34,7 @@ const authorNavItems: NavItem[] = [
   { label: 'My Articles', href: '/author/articles', icon: FileText },
   { label: 'Cart', href: '/author/cart', icon: ShoppingCart },
   { label: 'Certificates', href: '/author/certificates', icon: Award },
+  { label: 'Subscription', href: '/author/subscription', icon: Crown },
   { label: 'Profile', href: '/author/profile', icon: UserCircle },
 ];
 

@@ -6,8 +6,10 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { GlassCard } from '@/components/layout/GlassCard';
 import { Button } from '@/components/ui/button';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useSubscription, incrementUsage } from '@/hooks/useSubscription';
+import { toast } from 'sonner';
 import {
   FileText,
   Eye,
@@ -17,11 +19,54 @@ import {
   AlertCircle,
   XCircle,
   Upload,
+  Crown,
+  Lock,
 } from 'lucide-react';
 
 export default function MyArticles() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { subscription, isLoading: subLoading } = useSubscription();
+
+  const handleDownloadReport = async (articleId: string) => {
+    if (!user) return;
+
+    if (!subscription.canDownloadReport) {
+      toast.error(
+        `Monthly limit reached (${subscription.reviewReportsLimit} review reports/month). ${
+          subscription.plan === 'free' ? 'Upgrade to Pro for more.' : ''
+        }`
+      );
+      return;
+    }
+
+    try {
+      const response = await supabase.functions.invoke('get-document-url', {
+        body: { articleId, fileType: 'review_report' },
+      });
+
+      if (response.error || !response.data?.url) {
+        toast.error('Failed to get report download link');
+        return;
+      }
+
+      // Increment usage
+      await incrementUsage(user.id, 'review_reports_used');
+      queryClient.invalidateQueries({ queryKey: ['plan-usage'] });
+
+      const link = document.createElement('a');
+      link.href = response.data.url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.download = `review-report-${articleId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      toast.error('Failed to download report');
+    }
+  };
 
   const { data: articles, isLoading } = useQuery({
     queryKey: ['my-articles', user?.id],
@@ -85,7 +130,7 @@ export default function MyArticles() {
     });
   };
 
-  if (isLoading) {
+  if (isLoading || subLoading) {
     return (
       <DashboardLayout type="author">
         <div className="flex items-center justify-center h-64">
@@ -116,6 +161,29 @@ export default function MyArticles() {
             <Upload className="w-4 h-4 mr-2" />
             Submit New
           </Button>
+        </div>
+
+        {/* Plan Usage Info */}
+        <div className="mb-6 flex items-center justify-between p-3 rounded-lg bg-muted/50">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <FileText className="w-4 h-4" />
+            <span>
+              Review reports: {subscription.reviewReportsUsed}/{subscription.reviewReportsLimit} used this month
+              {subscription.plan === 'free' && ' (Free plan)'}
+              {subscription.plan === 'pro' && ' (Pro plan)'}
+            </span>
+          </div>
+          {subscription.plan === 'free' && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate('/author/subscription')}
+              className="text-primary"
+            >
+              <Crown className="w-4 h-4 mr-1" />
+              Upgrade
+            </Button>
+          )}
         </div>
 
         {/* Articles List */}
@@ -203,8 +271,17 @@ export default function MyArticles() {
 
                       <div className="flex gap-2">
                         {article.review_report_url && (
-                          <Button variant="outline" size="sm">
-                            <Download className="w-4 h-4 mr-1" />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDownloadReport(article.id)}
+                            disabled={!subscription.canDownloadReport}
+                          >
+                            {!subscription.canDownloadReport ? (
+                              <Lock className="w-4 h-4 mr-1" />
+                            ) : (
+                              <Download className="w-4 h-4 mr-1" />
+                            )}
                             Report
                           </Button>
                         )}

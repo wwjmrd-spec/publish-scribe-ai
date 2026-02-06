@@ -5,11 +5,12 @@
  import { Button } from '@/components/ui/button';
  import { Input } from '@/components/ui/input';
  import { 
-   Settings, 
-   IndianRupee,
-   DollarSign,
-   Save,
- } from 'lucide-react';
+  Settings, 
+  IndianRupee,
+  DollarSign,
+  Save,
+  Crown,
+} from 'lucide-react';
  import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
  import { supabase } from '@/integrations/supabase/client';
  import { GlassSpinner } from '@/components/ui/GlassSpinner';
@@ -20,12 +21,14 @@
  export default function AdminFees() {
    const { user } = useAuth();
    const queryClient = useQueryClient();
-   const [fees, setFees] = useState({
-     indian_fee: '',
-     international_fee: '',
-     indian_coauthor_fee: '',
-     international_coauthor_fee: '',
-   });
+  const [fees, setFees] = useState({
+    indian_fee: '',
+    international_fee: '',
+    indian_coauthor_fee: '',
+    international_coauthor_fee: '',
+    indian_pro_fee: '',
+    international_pro_fee: '',
+  });
  
    const { data: currentFees, isLoading } = useQuery({
      queryKey: ['publication-fees'],
@@ -40,27 +43,31 @@
      },
    });
  
-   useEffect(() => {
-     if (currentFees) {
-       setFees({
-         indian_fee: currentFees.indian_fee?.toString() || '',
-         international_fee: currentFees.international_fee?.toString() || '',
-         indian_coauthor_fee: currentFees.indian_coauthor_fee?.toString() || '',
-         international_coauthor_fee: currentFees.international_coauthor_fee?.toString() || '',
-       });
-     }
-   }, [currentFees]);
+  useEffect(() => {
+    if (currentFees) {
+      setFees({
+        indian_fee: currentFees.indian_fee?.toString() || '',
+        international_fee: currentFees.international_fee?.toString() || '',
+        indian_coauthor_fee: currentFees.indian_coauthor_fee?.toString() || '',
+        international_coauthor_fee: currentFees.international_coauthor_fee?.toString() || '',
+        indian_pro_fee: currentFees.indian_pro_fee?.toString() || '',
+        international_pro_fee: currentFees.international_pro_fee?.toString() || '',
+      });
+    }
+  }, [currentFees]);
  
    const updateMutation = useMutation({
      mutationFn: async () => {
-       const feeData = {
-         indian_fee: parseFloat(fees.indian_fee) || 0,
-         international_fee: parseFloat(fees.international_fee) || 0,
-         indian_coauthor_fee: parseFloat(fees.indian_coauthor_fee) || 0,
-         international_coauthor_fee: parseFloat(fees.international_coauthor_fee) || 0,
-         updated_by: user?.id,
-         updated_at: new Date().toISOString(),
-       };
+      const feeData = {
+          indian_fee: parseFloat(fees.indian_fee) || 0,
+          international_fee: parseFloat(fees.international_fee) || 0,
+          indian_coauthor_fee: parseFloat(fees.indian_coauthor_fee) || 0,
+          international_coauthor_fee: parseFloat(fees.international_coauthor_fee) || 0,
+          indian_pro_fee: parseFloat(fees.indian_pro_fee) || 0,
+          international_pro_fee: parseFloat(fees.international_pro_fee) || 0,
+          updated_by: user?.id,
+          updated_at: new Date().toISOString(),
+        };
  
        if (currentFees?.id) {
          const { error } = await supabase
@@ -203,7 +210,62 @@
              </div>
            </GlassCard>
          </motion.div>
-       </div>
+      </div>
+
+      {/* Pro Plan Fees */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.25 }}
+        className="mt-6"
+      >
+        <GlassCard className="border-primary/20">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center glow-purple">
+              <Crown className="w-5 h-5 text-primary-foreground" />
+            </div>
+            <div>
+              <h2 className="font-display text-xl font-semibold">Pro Plan Pricing</h2>
+              <p className="text-sm text-muted-foreground">Monthly subscription fee for Pro plan</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <Label>Indian Pro Plan Fee (₹/month)</Label>
+              <div className="relative mt-1">
+                <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  type="number"
+                  value={fees.indian_pro_fee}
+                  onChange={(e) => setFees({ ...fees, indian_pro_fee: e.target.value })}
+                  className="pl-10 glass-input"
+                  placeholder="999"
+                />
+              </div>
+            </div>
+            <div>
+              <Label>International Pro Plan Fee ($/month)</Label>
+              <div className="relative mt-1">
+                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  type="number"
+                  value={fees.international_pro_fee}
+                  onChange={(e) => setFees({ ...fees, international_pro_fee: e.target.value })}
+                  className="pl-10 glass-input"
+                  placeholder="19"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 p-3 rounded-lg bg-muted/50">
+            <p className="text-sm text-muted-foreground">
+              <strong>Pro plan includes:</strong> 5 review report downloads/month, 4 co-author certificates/month. Valid for 1 month.
+            </p>
+          </div>
+        </GlassCard>
+      </motion.div>
  
        {/* Save Button */}
        <motion.div
@@ -234,12 +296,14 @@
              <Settings className="w-5 h-5 text-primary mt-0.5" />
              <div>
                <h3 className="font-semibold mb-1">How fees work</h3>
-               <ul className="text-sm text-muted-foreground space-y-1">
-                 <li>• Publication fee is charged per article after approval</li>
-                 <li>• Co-author certificate fee is optional and charged per co-author</li>
-                 <li>• Indian authors pay in INR via Razorpay</li>
-                 <li>• International authors pay in USD via PayPal</li>
-               </ul>
+                <ul className="text-sm text-muted-foreground space-y-1">
+                  <li>• Publication fee is charged per article after approval</li>
+                  <li>• Co-author certificate fee is optional and charged per co-author</li>
+                  <li>• Indian authors pay in INR via Razorpay</li>
+                  <li>• International authors pay in USD via PayPal</li>
+                  <li>• Pro plan gives authors 5 review reports and 4 co-author certificates per month</li>
+                  <li>• Free plan allows 2 review report downloads per month</li>
+                </ul>
              </div>
            </div>
          </GlassCard>
