@@ -79,13 +79,38 @@ export default function AdminArticles() {
   });
 
   const updateStatusMutation = useMutation({
-    mutationFn: async ({ articleId, status }: { articleId: string; status: ArticleStatus }) => {
+    mutationFn: async ({ articleId, status, article }: { articleId: string; status: ArticleStatus; article?: any }) => {
       const { error } = await supabase
         .from('articles')
         .update({ status })
         .eq('id', articleId);
       
       if (error) throw error;
+
+      // Send email notification for specific status changes
+      const notifyStatuses: ArticleStatus[] = ['under_review', 'pending_fee', 'rejected'];
+      if (notifyStatuses.includes(status) && article) {
+        const authorProfile = article.profiles as any;
+        if (authorProfile?.email) {
+          try {
+            await supabase.functions.invoke('send-email', {
+              body: {
+                to: authorProfile.email,
+                template: 'article-status-change',
+                data: {
+                  authorName: authorProfile.full_name || 'Author',
+                  articleTitle: article.title,
+                  referenceNumber: article.reference_number,
+                  status,
+                },
+              },
+            });
+            console.log(`Status change email sent to ${authorProfile.email} for status: ${status}`);
+          } catch (emailError) {
+            console.error('Failed to send status email (non-critical):', emailError);
+          }
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-articles'] });
@@ -458,7 +483,7 @@ export default function AdminArticles() {
           <DialogFooter className="flex-wrap gap-2">
             <Button
               variant="outline"
-              onClick={() => updateStatusMutation.mutate({ articleId: selectedArticle.id, status: 'under_review' })}
+              onClick={() => updateStatusMutation.mutate({ articleId: selectedArticle.id, status: 'under_review', article: selectedArticle })}
               disabled={updateStatusMutation.isPending}
             >
               <Clock className="w-4 h-4 mr-2" />
@@ -467,7 +492,7 @@ export default function AdminArticles() {
             <Button
               variant="outline"
               className="text-orange-400 hover:text-orange-300"
-              onClick={() => updateStatusMutation.mutate({ articleId: selectedArticle.id, status: 'pending_fee' })}
+              onClick={() => updateStatusMutation.mutate({ articleId: selectedArticle.id, status: 'pending_fee', article: selectedArticle })}
               disabled={updateStatusMutation.isPending}
             >
               Pending Fee
@@ -484,7 +509,7 @@ export default function AdminArticles() {
             <Button
               variant="outline"
               className="text-destructive hover:text-destructive"
-              onClick={() => updateStatusMutation.mutate({ articleId: selectedArticle.id, status: 'rejected' })}
+              onClick={() => updateStatusMutation.mutate({ articleId: selectedArticle.id, status: 'rejected', article: selectedArticle })}
               disabled={updateStatusMutation.isPending}
             >
               <XCircle className="w-4 h-4 mr-2" />

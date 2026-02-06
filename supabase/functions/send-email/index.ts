@@ -20,7 +20,7 @@ function escapeHtml(unsafe: string): string {
     .replace(/'/g, '&#039;');
 }
 
-type EmailTemplate = "password-reset" | "email-verification" | "welcome" | "article-submission" | "payment-confirmation" | "referral-reward" | "custom";
+type EmailTemplate = "password-reset" | "email-verification" | "welcome" | "article-submission" | "payment-confirmation" | "referral-reward" | "article-status-change" | "custom";
 
 interface EmailRequest {
   to: string;
@@ -53,6 +53,8 @@ interface EmailRequest {
     referredEmail?: string;
     bonusDownloads?: number;
     rewardType?: 'referrer' | 'referred';
+    // Article status change
+    status?: string;
   };
   // For custom template
   subject?: string;
@@ -559,6 +561,102 @@ const getReferralRewardTemplate = (data: EmailRequest["data"]): string => {
 `;
 };
 
+const getStatusInfo = (status: string): { emoji: string; title: string; message: string; color: string } => {
+  switch (status) {
+    case 'under_review':
+      return {
+        emoji: '🔍',
+        title: 'Article Under Review',
+        message: 'Your article is now being reviewed by our editorial team. We will notify you once the review is complete.',
+        color: '#eab308',
+      };
+    case 'pending_fee':
+      return {
+        emoji: '💳',
+        title: 'Publication Fee Required',
+        message: 'Great news! Your article has been reviewed and accepted. Please complete the publication fee payment to proceed with publishing.',
+        color: '#f97316',
+      };
+    case 'rejected':
+      return {
+        emoji: '❌',
+        title: 'Article Not Accepted',
+        message: 'Unfortunately, your article did not meet our publication criteria at this time. You are welcome to revise and resubmit.',
+        color: '#ef4444',
+      };
+    default:
+      return {
+        emoji: 'ℹ️',
+        title: 'Article Status Updated',
+        message: `Your article status has been updated to: ${status.replace(/_/g, ' ')}.`,
+        color: '#00d4ff',
+      };
+  }
+};
+
+const getArticleStatusChangeTemplate = (data: EmailRequest["data"]): string => {
+  const info = getStatusInfo(data?.status || '');
+  const isPendingFee = data?.status === 'pending_fee';
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${info.title}</title>
+  <style>${baseStyles}</style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">
+      <img src="https://myjbbbytbzzzsaaiohrz.supabase.co/storage/v1/object/public/email-assets/logo.png?v=1" alt="WWJMRD Logo" width="200" />
+    </div>
+    
+    <h1>${info.emoji} ${info.title}</h1>
+    
+    <p>Hi ${escapeHtml(data?.authorName || 'Author')},</p>
+    
+    <p>${info.message}</p>
+    
+    <div class="features-box">
+      <p class="features-title">Article Details:</p>
+      <div class="info-row">
+        <span class="info-label">Reference Number</span>
+        <span class="info-value">${escapeHtml(data?.referenceNumber || 'N/A')}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Title</span>
+        <span class="info-value">${escapeHtml(data?.articleTitle || 'N/A')}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Status</span>
+        <span class="info-value" style="color: ${info.color}; font-weight: 600;">${(data?.status || '').replace(/_/g, ' ').replace(/\\b\\w/g, (l: string) => l.toUpperCase())}</span>
+      </div>
+    </div>
+    
+    ${isPendingFee ? `
+    <p>Please log in to your dashboard to complete the payment and proceed with publication.</p>
+    <div class="button-container">
+      <a href="https://wwjmrdai.lovable.app/author/articles" class="button">Pay Publication Fee</a>
+    </div>
+    ` : `
+    <div class="button-container">
+      <a href="https://wwjmrdai.lovable.app/author/articles" class="button">View My Articles</a>
+    </div>
+    `}
+    
+    <hr>
+    
+    <p class="footer-text">If you have any questions about this update, contact us at info@wwjmrd.com</p>
+    
+    <p class="footer">© ${new Date().getFullYear()} WWJMRD. All rights reserved.</p>
+  </div>
+</body>
+</html>
+`;
+};
+
 const getEmailContent = (
   template: EmailTemplate,
   data: EmailRequest["data"],
@@ -606,6 +704,14 @@ const getEmailContent = (
           : 'Your Article Was Published & Your Referrer Was Rewarded! 🎉',
         html: getReferralRewardTemplate(data),
       };
+
+    case "article-status-change": {
+      const statusInfo = getStatusInfo(data?.status || '');
+      return {
+        subject: `${statusInfo.emoji} ${statusInfo.title} - ${data?.referenceNumber || 'Your Article'}`,
+        html: getArticleStatusChangeTemplate(data),
+      };
+    }
 
     default:
       throw new Error(`Unknown template: ${template}`);
