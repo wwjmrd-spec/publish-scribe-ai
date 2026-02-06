@@ -15,6 +15,7 @@ import Cart from "./pages/author/Cart";
 import Certificates from "./pages/author/Certificates";
 import Profile from "./pages/author/Profile";
 import Subscription from "./pages/author/Subscription";
+import Rewards from "./pages/author/Rewards";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminArticles from "./pages/admin/AdminArticles";
 import AdminAuthors from "./pages/admin/AdminAuthors";
@@ -22,6 +23,7 @@ import AdminDiscounts from "./pages/admin/AdminDiscounts";
 import AdminFees from "./pages/admin/AdminFees";
 import AdminAIReview from "./pages/admin/AdminAIReview";
 import NotFound from "./pages/NotFound";
+import { ReferralPopup } from "./components/referral/ReferralPopup";
 
 const queryClient = new QueryClient();
 
@@ -32,6 +34,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <ReferralPopup />
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
@@ -91,6 +94,14 @@ const App = () => (
               element={
                 <ProtectedRoute allowedRoles={['author']}>
                   <Subscription />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/author/rewards" 
+              element={
+                <ProtectedRoute allowedRoles={['author']}>
+                  <Rewards />
                 </ProtectedRoute>
               } 
             />

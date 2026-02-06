@@ -20,7 +20,9 @@ import {
   Brain,
   UserCircle,
   Crown,
+  Gift,
 } from 'lucide-react';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 
 interface NavItem {
   label: string;
@@ -35,6 +37,7 @@ const authorNavItems: NavItem[] = [
   { label: 'Cart', href: '/author/cart', icon: ShoppingCart },
   { label: 'Certificates', href: '/author/certificates', icon: Award },
   { label: 'Subscription', href: '/author/subscription', icon: Crown },
+  { label: 'Rewards', href: '/author/rewards', icon: Gift },
   { label: 'Profile', href: '/author/profile', icon: UserCircle },
 ];
 
@@ -88,14 +91,17 @@ export function DashboardLayout({ children, type }: DashboardLayoutProps) {
       {/* Sidebar - Desktop */}
       <aside className="hidden lg:flex flex-col w-64 glass-card rounded-none border-r border-[hsl(var(--glass-border))]">
         <div className="p-6 border-b border-[hsl(var(--glass-border))]">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center">
-              <FileText className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <span className="font-display font-bold text-xl gradient-text">
-              PubPortal
-            </span>
-          </Link>
+          <div className="flex items-center justify-between">
+            <Link to="/" className="flex items-center gap-2">
+              <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center">
+                <FileText className="w-5 h-5 text-primary-foreground" />
+              </div>
+              <span className="font-display font-bold text-xl gradient-text">
+                PubPortal
+              </span>
+            </Link>
+            <NotificationBell />
+          </div>
         </div>
 
         <nav className="flex-1 p-4 space-y-2">
@@ -147,13 +153,16 @@ export function DashboardLayout({ children, type }: DashboardLayoutProps) {
               PubPortal
             </span>
           </Link>
-          <Button
+          <div className="flex items-center gap-1">
+            <NotificationBell />
+            <Button
             variant="ghost"
             size="icon"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
-            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </Button>
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </Button>
+          </div>
         </div>
       </div>
 
