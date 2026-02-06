@@ -86,7 +86,15 @@ export default function AdminAIReview() {
         return;
       }
 
-      window.open(response.data.url, '_blank');
+      // Use anchor element to trigger download instead of window.open (avoids popup blocker)
+      const link = document.createElement('a');
+      link.href = response.data.url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.download = `review-report-${articleId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     } catch (err) {
       toast.error('Failed to download report');
     }
