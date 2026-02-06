@@ -122,6 +122,47 @@ export default function SubmitArticle() {
       return;
     }
 
+    // Validate co-author emails before submission
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const filledCoAuthors = coAuthors.filter(
+      (ca) => ca.name.trim() || ca.email.trim()
+    );
+    
+    for (const ca of filledCoAuthors) {
+      if (!ca.name.trim()) {
+        toast({ title: 'Co-author name is required', variant: 'destructive' });
+        return;
+      }
+      if (!ca.email.trim()) {
+        toast({ title: 'Co-author email is required', variant: 'destructive' });
+        return;
+      }
+      if (!emailRegex.test(ca.email.trim())) {
+        toast({ 
+          title: 'Invalid co-author email', 
+          description: `"${ca.email}" is not a valid email address`,
+          variant: 'destructive' 
+        });
+        return;
+      }
+      if (ca.email.trim().length > 254) {
+        toast({ 
+          title: 'Co-author email too long', 
+          description: 'Email must be 254 characters or less',
+          variant: 'destructive' 
+        });
+        return;
+      }
+      if (ca.name.trim().length > 200) {
+        toast({ 
+          title: 'Co-author name too long', 
+          description: 'Name must be 200 characters or less',
+          variant: 'destructive' 
+        });
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
@@ -161,9 +202,9 @@ export default function SubmitArticle() {
 
       if (articleError) throw articleError;
 
-      // Add co-authors
-      const validCoAuthors = coAuthors.filter(
-        (ca) => ca.name.trim() && ca.email.trim()
+      // Add co-authors (already validated above)
+      const validCoAuthors = filledCoAuthors.filter(
+        (ca) => ca.name.trim() && ca.email.trim() && emailRegex.test(ca.email.trim())
       );
       
       if (validCoAuthors.length > 0) {
