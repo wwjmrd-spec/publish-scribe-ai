@@ -5,20 +5,17 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { GlassCard } from '@/components/layout/GlassCard';
 import { Button } from '@/components/ui/button';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useCoAuthorCertPayment } from '@/hooks/useCoAuthorCertPayment';
 import { useRazorpay } from '@/hooks/useRazorpay';
-import { useNavigate } from 'react-router-dom';
 import {
   Award,
   Download,
   FileText,
   Users,
-  Crown,
-  Lock,
 } from 'lucide-react';
 
 export default function Certificates() {
@@ -26,8 +23,6 @@ export default function Certificates() {
   const { subscription, isLoading: subLoading } = useSubscription();
   const { isProcessing: isPaymentProcessing, processingCoAuthorId, payForCoAuthorCertificate } = useCoAuthorCertPayment();
   const { isLoaded: razorpayLoaded } = useRazorpay();
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const currencySymbol = isIndian ? '₹' : '$';
 
   const { data: publishedArticles, isLoading } = useQuery({
@@ -85,7 +80,14 @@ export default function Certificates() {
     },
     onSuccess: (data) => {
       if (data.url) {
-        window.open(data.url, '_blank');
+        // Trigger download via anchor tag to avoid popup blockers
+        const a = document.createElement('a');
+        a.href = data.url;
+        a.download = '';
+        a.target = '_blank';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
       }
     },
     onError: (error) => {
@@ -93,17 +95,47 @@ export default function Certificates() {
     },
   });
 
+  const coAuthorDownloadMutation = useMutation({
+    mutationFn: async ({ fileName }: { fileName: string }) => {
+      // Use the service to get a signed URL for the co-author certificate stored in certificates bucket
+      const { data, error } = await supabase.functions.invoke('get-document-url', {
+        body: { fileName, fileType: 'coauthor_certificate' },
+      });
+
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    onSuccess: (data) => {
+      if (data.url) {
+        const a = document.createElement('a');
+        a.href = data.url;
+        a.download = '';
+        a.target = '_blank';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+    },
+    onError: (error) => {
+      toast.error('Failed to download co-author certificate: ' + error.message);
+    },
+  });
+
   const handleDownloadCertificate = async (articleId: string) => {
     downloadMutation.mutate({ articleId, fileType: 'certificate' });
   };
 
+  const handleDownloadCoAuthorCertificate = (certificate: any) => {
+    if (certificate?.certificate_url) {
+      coAuthorDownloadMutation.mutate({ fileName: certificate.certificate_url });
+    }
+  };
+
   const handlePayCoAuthorCertificate = async (coAuthorId: string, articleId: string) => {
-    if (!subscription.canCreateCoauthorCert) {
-      if (subscription.plan === 'free') {
-        toast.error('Co-author certificates require a Pro plan. Upgrade to continue.');
-      } else {
-        toast.error(`Monthly limit reached (${subscription.coauthorCertsLimit} co-author certificates/month).`);
-      }
+    // Free plan users can pay for co-author certificates (no subscription check needed)
+    // Pro plan users use their monthly quota
+    if (subscription.plan === 'pro' && !subscription.canCreateCoauthorCert) {
+      toast.error(`Monthly limit reached (${subscription.coauthorCertsLimit} co-author certificates/month).`);
       return;
     }
 
@@ -140,31 +172,6 @@ export default function Certificates() {
             Download publication certificates and manage co-author certificates
           </p>
         </div>
-
-        {/* Plan Info Banner */}
-        {subscription.plan === 'free' && (
-          <GlassCard className="mb-6 border-primary/20 bg-primary/5">
-            <div className="flex items-center justify-between flex-wrap gap-4">
-              <div className="flex items-center gap-3">
-                <Lock className="w-5 h-5 text-primary" />
-                <div>
-                  <p className="font-medium">Co-author certificates require Pro plan</p>
-                  <p className="text-sm text-muted-foreground">
-                    Upgrade to get 4 co-author certificates per month
-                  </p>
-                </div>
-              </div>
-              <Button
-                size="sm"
-                className="gradient-primary"
-                onClick={() => navigate('/author/subscription')}
-              >
-                <Crown className="w-4 h-4 mr-2" />
-                Upgrade to Pro
-              </Button>
-            </div>
-          </GlassCard>
-        )}
 
         {publishedArticles?.length === 0 ? (
           <GlassCard className="text-center py-16">
@@ -234,7 +241,7 @@ export default function Certificates() {
                         <div>
                           <p className="font-medium">Publication Certificate</p>
                           <p className="text-sm text-muted-foreground">
-                            Main author certificate
+                            Main author certificate (PDF)
                           </p>
                         </div>
                       </div>
@@ -248,7 +255,7 @@ export default function Certificates() {
                         ) : (
                           <Download className="w-4 h-4 mr-2" />
                         )}
-                        Download
+                        Download PDF
                       </Button>
                     </div>
                   </div>
@@ -282,13 +289,15 @@ export default function Certificates() {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() =>
-                                    certificate.certificate_url &&
-                                    window.open(certificate.certificate_url, '_blank')
-                                  }
+                                  onClick={() => handleDownloadCoAuthorCertificate(certificate)}
+                                  disabled={coAuthorDownloadMutation.isPending}
                                 >
-                                  <Download className="w-4 h-4 mr-1" />
-                                  Download
+                                  {coAuthorDownloadMutation.isPending ? (
+                                    <GlassSpinner size="sm" className="mr-1" />
+                                  ) : (
+                                    <Download className="w-4 h-4 mr-1" />
+                                  )}
+                                  Download PDF
                                 </Button>
                               ) : (
                                 <Button

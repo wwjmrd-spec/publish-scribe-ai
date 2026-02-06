@@ -46,7 +46,60 @@ serve(async (req) => {
     // Service role client for data operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { articleId, fileType } = await req.json();
+    const { articleId, fileType, fileName } = await req.json();
+
+    // Handle co-author certificate download (uses fileName directly)
+    if (fileType === "coauthor_certificate" && fileName) {
+      // Verify user has access - check if they own any article linked to this certificate
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId)
+        .single();
+
+      const isAdmin = roleData?.role === "admin";
+
+      if (!isAdmin) {
+        // Check if the user owns an article that has this co-author certificate
+        const { data: certData } = await supabase
+          .from("co_author_certificates")
+          .select("article_id, articles:article_id (author_id)")
+          .eq("certificate_url", fileName)
+          .eq("payment_status", "paid")
+          .limit(1)
+          .maybeSingle();
+
+        const certArticle = certData?.articles as any;
+        if (!certData || certArticle?.author_id !== userId) {
+          return new Response(JSON.stringify({ error: "Access denied" }), {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+
+      // Extract just the filename
+      const urlParts = fileName.split("/");
+      const cleanFileName = urlParts[urlParts.length - 1].split("?")[0];
+
+      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+        .from("certificates")
+        .createSignedUrl(cleanFileName, 60 * 60);
+
+      if (signedUrlError || !signedUrlData) {
+        console.error("Signed URL error:", signedUrlError);
+        return new Response(JSON.stringify({ error: "Failed to generate download URL" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      console.log(`Generated download URL for co-author certificate: ${cleanFileName}`);
+      return new Response(
+        JSON.stringify({ success: true, url: signedUrlData.signedUrl }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     if (!articleId || !fileType) {
       return new Response(JSON.stringify({ error: "Article ID and file type required" }), {
@@ -94,7 +147,6 @@ serve(async (req) => {
     } else if (fileType === "certificate") {
       bucket = "certificates";
       if (article.certificate_url) {
-        // Extract just the filename from certificate URL (handles both full URLs and plain filenames)
         const urlParts = article.certificate_url.split("/");
         filePath = urlParts[urlParts.length - 1].split("?")[0];
       }
