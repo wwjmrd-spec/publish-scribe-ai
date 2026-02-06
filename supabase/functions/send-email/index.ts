@@ -9,6 +9,16 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// HTML escape function to prevent XSS in email templates
+function escapeHtml(unsafe: string): string {
+  return unsafe
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 type EmailTemplate = "password-reset" | "email-verification" | "welcome" | "article-submission" | "payment-confirmation" | "custom";
 
 interface EmailRequest {
@@ -212,16 +222,16 @@ const getPasswordResetTemplate = (resetUrl: string, userName: string = "there"):
     
     <h1>Reset Your Password</h1>
     
-    <p>Hi ${userName},</p>
+    <p>Hi ${escapeHtml(userName)},</p>
     
     <p>We received a request to reset your password for your WWJMRD account. Click the button below to set a new password:</p>
     
     <div class="button-container">
-      <a href="${resetUrl}" class="button">Reset Password</a>
+      <a href="${escapeHtml(resetUrl)}" class="button">Reset Password</a>
     </div>
     
     <p>Or copy and paste this link into your browser:</p>
-    <p class="link"><a href="${resetUrl}" style="color: #00d4ff;">${resetUrl}</a></p>
+    <p class="link"><a href="${escapeHtml(resetUrl)}" style="color: #00d4ff;">${escapeHtml(resetUrl)}</a></p>
     
     <hr>
     
@@ -250,16 +260,16 @@ const getEmailVerificationTemplate = (verifyUrl: string, userName: string = "the
     
     <h1>Verify Your Email</h1>
     
-    <p>Hi ${userName},</p>
+    <p>Hi ${escapeHtml(userName)},</p>
     
     <p>Welcome to WWJMRD! Please verify your email address to get started with publishing your research articles.</p>
     
     <div class="button-container">
-      <a href="${verifyUrl}" class="button">Verify Email Address</a>
+      <a href="${escapeHtml(verifyUrl)}" class="button">Verify Email Address</a>
     </div>
     
     <p>Or copy and paste this link into your browser:</p>
-    <p class="link"><a href="${verifyUrl}" style="color: #00d4ff;">${verifyUrl}</a></p>
+    <p class="link"><a href="${escapeHtml(verifyUrl)}" style="color: #00d4ff;">${escapeHtml(verifyUrl)}</a></p>
     
     <hr>
     
@@ -298,12 +308,12 @@ const getWelcomeTemplate = (loginUrl: string, userName: string = "there"): strin
     
     <h1>Welcome to WWJMRD! 🎉</h1>
     
-    <p>Hi ${userName},</p>
+    <p>Hi ${escapeHtml(userName)},</p>
     
     <p>Congratulations! Your email has been verified and your WWJMRD account is now active. You're ready to start submitting your research articles for publication.</p>
     
     <div class="button-container">
-      <a href="${loginUrl}" class="button">Go to Dashboard</a>
+      <a href="${escapeHtml(loginUrl)}" class="button">Go to Dashboard</a>
     </div>
     
     <hr>
@@ -333,7 +343,7 @@ const getArticleSubmissionTemplate = (data: EmailRequest["data"], isAdmin: boole
     
     <h1>${isAdmin ? 'New Article Submitted' : 'Article Submitted Successfully'} 📄</h1>
     
-    <p>${isAdmin ? 'A new article has been submitted for review.' : `Hi ${data?.authorName || 'Author'},`}</p>
+    <p>${isAdmin ? 'A new article has been submitted for review.' : `Hi ${escapeHtml(data?.authorName || 'Author')},`}</p>
     
     ${isAdmin ? '' : '<p>Thank you for submitting your article to WWJMRD. Your submission has been received and is now under review.</p>'}
     
@@ -341,28 +351,28 @@ const getArticleSubmissionTemplate = (data: EmailRequest["data"], isAdmin: boole
       <p class="features-title">Submission Details:</p>
       <div class="info-row">
         <span class="info-label">Reference Number</span>
-        <span class="info-value">${data?.referenceNumber || 'N/A'}</span>
+        <span class="info-value">${escapeHtml(data?.referenceNumber || 'N/A')}</span>
       </div>
       <div class="info-row">
         <span class="info-label">Title</span>
-        <span class="info-value">${data?.articleTitle || 'N/A'}</span>
+        <span class="info-value">${escapeHtml(data?.articleTitle || 'N/A')}</span>
       </div>
       <div class="info-row">
         <span class="info-label">Author</span>
-        <span class="info-value">${data?.authorName || 'N/A'}</span>
+        <span class="info-value">${escapeHtml(data?.authorName || 'N/A')}</span>
       </div>
       <div class="info-row">
         <span class="info-label">Email</span>
-        <span class="info-value">${data?.authorEmail || 'N/A'}</span>
+        <span class="info-value">${escapeHtml(data?.authorEmail || 'N/A')}</span>
       </div>
       <div class="info-row">
         <span class="info-label">Submission Date</span>
-        <span class="info-value">${data?.submissionDate || new Date().toLocaleDateString()}</span>
+        <span class="info-value">${escapeHtml(data?.submissionDate || new Date().toLocaleDateString())}</span>
       </div>
       ${data?.coAuthors && data.coAuthors.length > 0 ? `
       <div class="info-row">
         <span class="info-label">Co-Authors</span>
-        <span class="info-value">${data.coAuthors.join(', ')}</span>
+        <span class="info-value">${data.coAuthors.map(name => escapeHtml(name)).join(', ')}</span>
       </div>
       ` : ''}
     </div>
@@ -418,7 +428,7 @@ const getPaymentConfirmationTemplate = (data: EmailRequest["data"], isAdmin: boo
       <span class="status-badge">PAID</span>
     </div>
     
-    <p>${isAdmin ? `Payment received from ${data?.authorName || 'Author'} (${data?.authorEmail || 'N/A'}).` : `Hi ${data?.authorName || 'Author'},`}</p>
+    <p>${isAdmin ? `Payment received from ${escapeHtml(data?.authorName || 'Author')} (${escapeHtml(data?.authorEmail || 'N/A')}).` : `Hi ${escapeHtml(data?.authorName || 'Author')},`}</p>
     
     ${isAdmin ? '' : '<p>Thank you for your payment! Your publication fee has been processed successfully.</p>'}
     
@@ -451,7 +461,7 @@ const getPaymentConfirmationTemplate = (data: EmailRequest["data"], isAdmin: boo
     ${data?.articleTitles && data.articleTitles.length > 0 ? `
     <div class="article-list">
       <p class="features-title">Articles:</p>
-      ${data.articleTitles.map(title => `<div class="article-item">📄 ${title}</div>`).join('')}
+      ${data.articleTitles.map(title => `<div class="article-item">📄 ${escapeHtml(title)}</div>`).join('')}
     </div>
     ` : ''}
     
@@ -588,7 +598,7 @@ const handler = async (req: Request): Promise<Response> => {
   } catch (error: any) {
     console.error("Error in send-email function:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: "Failed to send email. Please try again." }),
       {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },

@@ -617,7 +617,7 @@ Provide your response as a valid JSON object with this exact structure:
   } catch (error) {
     console.error("AI review error:", error);
     return jsonResponse(
-      { error: error instanceof Error ? error.message : "Unknown error" },
+      { error: "An error occurred while processing the review. Please try again." },
       500
     );
   }
