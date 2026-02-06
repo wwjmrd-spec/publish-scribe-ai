@@ -114,12 +114,70 @@ export default function AdminArticles() {
       if (response.error) throw new Error(response.error.message);
       return response.data;
     },
-    onSuccess: (data) => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['admin-articles'] });
       toast.success('Article published with certificate!');
       setIsPublishDialogOpen(false);
       setIsViewDialogOpen(false);
       setPublishDetails({ volume: '', issue: '', pageNumber: '', year: new Date().getFullYear().toString() });
+
+      // Send referral reward emails in the background
+      try {
+        const authorId = selectedArticle.author_id;
+        const articleTitle = selectedArticle.title;
+
+        // Check if there's a referral for this author
+        const { data: referral } = await supabase
+          .from('referrals')
+          .select('*, referrer:profiles!referrals_referrer_id_fkey(email, full_name)')
+          .eq('referred_id', authorId)
+          .eq('status', 'rewarded')
+          .order('rewarded_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (referral && referral.referrer) {
+          const referrerProfile = referral.referrer as any;
+          const authorProfile = (selectedArticle.profiles as any);
+
+          // Send email to referrer
+          await supabase.functions.invoke('send-email', {
+            body: {
+              to: referrerProfile.email,
+              template: 'referral-reward',
+              data: {
+                referrerName: referrerProfile.full_name,
+                referredName: authorProfile?.full_name || 'Author',
+                referredEmail: authorProfile?.email,
+                articleTitle,
+                bonusDownloads: 2,
+                rewardType: 'referrer',
+              },
+            },
+          });
+
+          // Send email to referred author
+          if (authorProfile?.email) {
+            await supabase.functions.invoke('send-email', {
+              body: {
+                to: authorProfile.email,
+                template: 'referral-reward',
+                data: {
+                  referrerName: referrerProfile.full_name,
+                  referredName: authorProfile.full_name,
+                  articleTitle,
+                  bonusDownloads: 2,
+                  rewardType: 'referred',
+                },
+              },
+            });
+          }
+
+          console.log('Referral reward emails sent successfully');
+        }
+      } catch (emailError) {
+        console.error('Failed to send referral emails (non-critical):', emailError);
+      }
     },
     onError: (error) => {
       toast.error('Failed to publish: ' + error.message);
