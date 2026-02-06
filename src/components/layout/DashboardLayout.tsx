@@ -18,6 +18,7 @@ import {
   Menu,
   X,
   Brain,
+  UserCircle,
 } from 'lucide-react';
 
 interface NavItem {
@@ -32,6 +33,7 @@ const authorNavItems: NavItem[] = [
   { label: 'My Articles', href: '/author/articles', icon: FileText },
   { label: 'Cart', href: '/author/cart', icon: ShoppingCart },
   { label: 'Certificates', href: '/author/certificates', icon: Award },
+  { label: 'Profile', href: '/author/profile', icon: UserCircle },
 ];
 
 const adminNavItems: NavItem[] = [
@@ -65,17 +67,17 @@ export function DashboardLayout({ children, type }: DashboardLayoutProps) {
     <div className="min-h-screen flex">
       {/* Fixed background */}
       <div className="fixed inset-0 -z-10">
-        <div className="absolute inset-0 bg-gradient-to-br from-[hsl(230,60%,6%)] via-[hsl(240,45%,10%)] to-[hsl(230,60%,6%)]" />
+        <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--gradient-start))] via-background to-[hsl(var(--gradient-end))]" />
         <div 
-          className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full opacity-30"
+          className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full opacity-20 dark:opacity-30"
           style={{
-            background: 'radial-gradient(circle, hsl(185 100% 50% / 0.1) 0%, transparent 70%)',
+            background: 'radial-gradient(circle, hsl(var(--glow-cyan) / 0.15) 0%, transparent 70%)',
           }}
         />
         <div 
-          className="absolute bottom-0 left-0 w-[500px] h-[500px] rounded-full opacity-30"
+          className="absolute bottom-0 left-0 w-[500px] h-[500px] rounded-full opacity-20 dark:opacity-30"
           style={{
-            background: 'radial-gradient(circle, hsl(280 100% 50% / 0.1) 0%, transparent 70%)',
+            background: 'radial-gradient(circle, hsl(var(--glow-purple) / 0.15) 0%, transparent 70%)',
           }}
         />
       </div>
