@@ -1,39 +1,23 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { GlassCard } from '@/components/layout/GlassCard';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import { useToast } from '@/hooks/use-toast';
+import { useGenerateSubject } from '@/hooks/useGenerateSubject';
 import { supabase } from '@/integrations/supabase/client';
-import {
-  Upload,
-  FileText,
-  X,
-  Plus,
-  User,
-  Mail,
-  Building,
-  ArrowRight,
-  CheckCircle,
-} from 'lucide-react';
-
-interface CoAuthor {
-  id: string;
-  name: string;
-  email: string;
-  affiliation: string;
-}
+import { ArticleDetailsSection } from '@/components/submit/ArticleDetailsSection';
+import { FileUploadSection } from '@/components/submit/FileUploadSection';
+import { CoAuthorsSection, type CoAuthor } from '@/components/submit/CoAuthorsSection';
+import { ArrowRight } from 'lucide-react';
 
 export default function SubmitArticle() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { generateSubject, loading: generatingSubject } = useGenerateSubject();
 
   const [loading, setLoading] = useState(false);
   const [title, setTitle] = useState('');
@@ -41,76 +25,61 @@ export default function SubmitArticle() {
   const [keywords, setKeywords] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [coAuthors, setCoAuthors] = useState<CoAuthor[]>([]);
-  const [dragActive, setDragActive] = useState(false);
 
-  const handleDrag = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
-    }
-  }, []);
+  // New fields
+  const [authorName, setAuthorName] = useState('');
+  const [country, setCountry] = useState('');
+  const [subject, setSubject] = useState('');
+  const [reasonOfResearch, setReasonOfResearch] = useState('');
+  const [submissionTarget, setSubmissionTarget] = useState('');
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-    
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const droppedFile = e.dataTransfer.files[0];
-      if (droppedFile.name.endsWith('.docx')) {
-        setFile(droppedFile);
-      } else {
-        toast({
-          title: 'Invalid file type',
-          description: 'Please upload a .docx file',
-          variant: 'destructive',
-        });
-      }
-    }
-  }, [toast]);
+  // Pre-fill author name and country from profile
+  useEffect(() => {
+    if (!user?.id) return;
+    supabase
+      .from('profiles')
+      .select('full_name, country')
+      .eq('id', user.id)
+      .single()
+      .then(({ data }) => {
+        if (data) {
+          if (data.full_name) setAuthorName(data.full_name);
+          if (data.country) setCountry(data.country);
+        }
+      });
+  }, [user?.id]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const selectedFile = e.target.files[0];
-      if (selectedFile.name.endsWith('.docx')) {
-        setFile(selectedFile);
-      } else {
-        toast({
-          title: 'Invalid file type',
-          description: 'Please upload a .docx file',
-          variant: 'destructive',
-        });
-      }
-    }
+  const handleGenerateSubject = async () => {
+    const result = await generateSubject(abstract);
+    if (result) setSubject(result);
   };
 
   const addCoAuthor = () => {
-    setCoAuthors([
-      ...coAuthors,
+    setCoAuthors((prev) => [
+      ...prev,
       { id: crypto.randomUUID(), name: '', email: '', affiliation: '' },
     ]);
   };
 
   const removeCoAuthor = (id: string) => {
-    setCoAuthors(coAuthors.filter((ca) => ca.id !== id));
+    setCoAuthors((prev) => prev.filter((ca) => ca.id !== id));
   };
 
   const updateCoAuthor = (id: string, field: keyof CoAuthor, value: string) => {
-    setCoAuthors(
-      coAuthors.map((ca) =>
-        ca.id === id ? { ...ca, [field]: value } : ca
-      )
+    setCoAuthors((prev) =>
+      prev.map((ca) => (ca.id === id ? { ...ca, [field]: value } : ca))
     );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!title.trim()) {
       toast({ title: 'Please enter a title', variant: 'destructive' });
+      return;
+    }
+    if (!authorName.trim()) {
+      toast({ title: 'Please enter author name', variant: 'destructive' });
       return;
     }
     if (!file) {
@@ -122,12 +91,12 @@ export default function SubmitArticle() {
       return;
     }
 
-    // Validate co-author emails before submission
+    // Validate co-author emails
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const filledCoAuthors = coAuthors.filter(
       (ca) => ca.name.trim() || ca.email.trim()
     );
-    
+
     for (const ca of filledCoAuthors) {
       if (!ca.name.trim()) {
         toast({ title: 'Co-author name is required', variant: 'destructive' });
@@ -138,27 +107,19 @@ export default function SubmitArticle() {
         return;
       }
       if (!emailRegex.test(ca.email.trim())) {
-        toast({ 
-          title: 'Invalid co-author email', 
+        toast({
+          title: 'Invalid co-author email',
           description: `"${ca.email}" is not a valid email address`,
-          variant: 'destructive' 
+          variant: 'destructive',
         });
         return;
       }
       if (ca.email.trim().length > 254) {
-        toast({ 
-          title: 'Co-author email too long', 
-          description: 'Email must be 254 characters or less',
-          variant: 'destructive' 
-        });
+        toast({ title: 'Co-author email too long', variant: 'destructive' });
         return;
       }
       if (ca.name.trim().length > 200) {
-        toast({ 
-          title: 'Co-author name too long', 
-          description: 'Name must be 200 characters or less',
-          variant: 'destructive' 
-        });
+        toast({ title: 'Co-author name too long', variant: 'destructive' });
         return;
       }
     }
@@ -166,22 +127,20 @@ export default function SubmitArticle() {
     setLoading(true);
 
     try {
-      // Upload file to storage
+      // Upload file
       const filePath = `${user.id}/${crypto.randomUUID()}.docx`;
       const { error: uploadError } = await supabase.storage
         .from('documents')
         .upload(filePath, file);
-
       if (uploadError) throw uploadError;
 
-      // Get author profile
+      // Get author profile for email
       const { data: profile } = await supabase
         .from('profiles')
         .select('full_name, email')
         .eq('id', user.id)
         .single();
 
-      // Create article - reference_number will be auto-generated by trigger
       const keywordArray = keywords
         .split(',')
         .map((k) => k.trim())
@@ -195,18 +154,23 @@ export default function SubmitArticle() {
           abstract: abstract.trim(),
           keywords: keywordArray,
           document_url: filePath,
-          reference_number: '', // Will be auto-filled by trigger
+          reference_number: '',
+          author_name: authorName.trim(),
+          country: country.trim() || null,
+          subject: subject.trim() || null,
+          reason_of_research: reasonOfResearch.trim() || null,
+          submission_target: submissionTarget.trim() || null,
         })
         .select()
         .single();
 
       if (articleError) throw articleError;
 
-      // Add co-authors (already validated above)
+      // Add co-authors
       const validCoAuthors = filledCoAuthors.filter(
         (ca) => ca.name.trim() && ca.email.trim() && emailRegex.test(ca.email.trim())
       );
-      
+
       if (validCoAuthors.length > 0) {
         const { error: coAuthorError } = await supabase
           .from('co_authors')
@@ -218,39 +182,40 @@ export default function SubmitArticle() {
               affiliation: ca.affiliation.trim() || null,
             }))
           );
-
         if (coAuthorError) throw coAuthorError;
       }
 
-      // Send email notifications
+      // Send email notifications (fire & forget)
       const emailData = {
         articleTitle: title.trim(),
         referenceNumber: article.reference_number,
-        authorName: profile?.full_name || user.email?.split('@')[0] || 'Author',
+        authorName: authorName.trim() || profile?.full_name || user.email?.split('@')[0] || 'Author',
         authorEmail: profile?.email || user.email,
         submissionDate: new Date().toLocaleDateString(),
         coAuthors: validCoAuthors.map((ca) => ca.name),
       };
 
-      // Send to author
-      supabase.functions.invoke('send-email', {
-        body: {
-          to: profile?.email || user.email,
-          template: 'article-submission',
-          data: emailData,
-          isAdmin: false,
-        },
-      }).catch((err) => console.error('Failed to send author email:', err));
+      supabase.functions
+        .invoke('send-email', {
+          body: {
+            to: profile?.email || user.email,
+            template: 'article-submission',
+            data: emailData,
+            isAdmin: false,
+          },
+        })
+        .catch((err) => console.error('Failed to send author email:', err));
 
-      // Send to admin
-      supabase.functions.invoke('send-email', {
-        body: {
-          to: 'info@wwjmrd.com',
-          template: 'article-submission',
-          data: emailData,
-          isAdmin: true,
-        },
-      }).catch((err) => console.error('Failed to send admin email:', err));
+      supabase.functions
+        .invoke('send-email', {
+          body: {
+            to: 'info@wwjmrd.com',
+            template: 'article-submission',
+            data: emailData,
+            isAdmin: true,
+          },
+        })
+        .catch((err) => console.error('Failed to send admin email:', err));
 
       toast({
         title: 'Article submitted successfully!',
@@ -285,213 +250,35 @@ export default function SubmitArticle() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Article Details */}
-          <GlassCard>
-            <h2 className="font-display text-xl font-semibold mb-6 flex items-center gap-2">
-              <FileText className="w-5 h-5 text-primary" />
-              Article Details
-            </h2>
+          <ArticleDetailsSection
+            title={title}
+            setTitle={setTitle}
+            abstract={abstract}
+            setAbstract={setAbstract}
+            keywords={keywords}
+            setKeywords={setKeywords}
+            authorName={authorName}
+            setAuthorName={setAuthorName}
+            country={country}
+            setCountry={setCountry}
+            subject={subject}
+            setSubject={setSubject}
+            reasonOfResearch={reasonOfResearch}
+            setReasonOfResearch={setReasonOfResearch}
+            submissionTarget={submissionTarget}
+            setSubmissionTarget={setSubmissionTarget}
+            onGenerateSubject={handleGenerateSubject}
+            generatingSubject={generatingSubject}
+          />
 
-            <div className="space-y-5">
-              <div className="space-y-2">
-                <Label htmlFor="title">Article Title *</Label>
-                <Input
-                  id="title"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Enter your article title"
-                  className="glass-input"
-                />
-              </div>
+          <FileUploadSection file={file} setFile={setFile} />
 
-              <div className="space-y-2">
-                <Label htmlFor="abstract">Abstract</Label>
-                <Textarea
-                  id="abstract"
-                  value={abstract}
-                  onChange={(e) => setAbstract(e.target.value)}
-                  placeholder="Provide a brief summary of your article"
-                  className="glass-input min-h-[120px]"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="keywords">Keywords (comma separated)</Label>
-                <Input
-                  id="keywords"
-                  value={keywords}
-                  onChange={(e) => setKeywords(e.target.value)}
-                  placeholder="e.g., machine learning, neural networks, deep learning"
-                  className="glass-input"
-                />
-              </div>
-            </div>
-          </GlassCard>
-
-          {/* File Upload */}
-          <GlassCard>
-            <h2 className="font-display text-xl font-semibold mb-6 flex items-center gap-2">
-              <Upload className="w-5 h-5 text-primary" />
-              Document Upload
-            </h2>
-
-            <div
-              onDragEnter={handleDrag}
-              onDragLeave={handleDrag}
-              onDragOver={handleDrag}
-              onDrop={handleDrop}
-              className={`relative border-2 border-dashed rounded-xl p-8 text-center transition-all duration-300 ${
-                dragActive
-                  ? 'border-primary bg-primary/10'
-                  : file
-                  ? 'border-green-500/50 bg-green-500/5'
-                  : 'border-[hsl(var(--glass-border))] hover:border-primary/50'
-              }`}
-            >
-              {file ? (
-                <div className="flex items-center justify-center gap-4">
-                  <div className="w-12 h-12 rounded-lg bg-green-500/20 flex items-center justify-center">
-                    <CheckCircle className="w-6 h-6 text-green-500" />
-                  </div>
-                  <div className="text-left">
-                    <p className="font-medium">{file.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {(file.size / 1024 / 1024).toFixed(2)} MB
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setFile(null)}
-                    className="ml-2"
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-              ) : (
-                <>
-                  <div className="w-16 h-16 rounded-2xl bg-[hsl(var(--glass-bg-strong))] flex items-center justify-center mx-auto mb-4">
-                    <Upload className="w-8 h-8 text-muted-foreground" />
-                  </div>
-                  <p className="text-lg font-medium mb-2">
-                    Drag and drop your .docx file
-                  </p>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    or click to browse
-                  </p>
-                  <input
-                    type="file"
-                    accept=".docx"
-                    onChange={handleFileChange}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  />
-                </>
-              )}
-            </div>
-          </GlassCard>
-
-          {/* Co-Authors */}
-          <GlassCard>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="font-display text-xl font-semibold flex items-center gap-2">
-                <User className="w-5 h-5 text-primary" />
-                Co-Authors
-              </h2>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={addCoAuthor}
-              >
-                <Plus className="w-4 h-4 mr-1" />
-                Add Co-Author
-              </Button>
-            </div>
-
-            {coAuthors.length === 0 ? (
-              <p className="text-center text-muted-foreground py-6">
-                No co-authors added yet. Click "Add Co-Author" to add.
-              </p>
-            ) : (
-              <div className="space-y-4">
-                {coAuthors.map((coAuthor, index) => (
-                  <motion.div
-                    key={coAuthor.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="p-4 rounded-lg bg-[hsl(var(--glass-bg))] relative"
-                  >
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="absolute top-2 right-2"
-                      onClick={() => removeCoAuthor(coAuthor.id)}
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-
-                    <p className="text-sm text-muted-foreground mb-3">
-                      Co-Author {index + 1}
-                    </p>
-
-                    <div className="grid sm:grid-cols-3 gap-4">
-                      <div className="space-y-2">
-                        <Label className="text-xs">Name *</Label>
-                        <div className="relative">
-                          <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                          <Input
-                            value={coAuthor.name}
-                            onChange={(e) =>
-                              updateCoAuthor(coAuthor.id, 'name', e.target.value)
-                            }
-                            placeholder="Full name"
-                            className="glass-input pl-10 h-9 text-sm"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label className="text-xs">Email *</Label>
-                        <div className="relative">
-                          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                          <Input
-                            type="email"
-                            value={coAuthor.email}
-                            onChange={(e) =>
-                              updateCoAuthor(coAuthor.id, 'email', e.target.value)
-                            }
-                            placeholder="Email address"
-                            className="glass-input pl-10 h-9 text-sm"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label className="text-xs">Affiliation</Label>
-                        <div className="relative">
-                          <Building className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                          <Input
-                            value={coAuthor.affiliation}
-                            onChange={(e) =>
-                              updateCoAuthor(
-                                coAuthor.id,
-                                'affiliation',
-                                e.target.value
-                              )
-                            }
-                            placeholder="University/Institute"
-                            className="glass-input pl-10 h-9 text-sm"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            )}
-          </GlassCard>
+          <CoAuthorsSection
+            coAuthors={coAuthors}
+            onAdd={addCoAuthor}
+            onRemove={removeCoAuthor}
+            onUpdate={updateCoAuthor}
+          />
 
           {/* Submit Button */}
           <div className="flex justify-end gap-4">
