@@ -14,6 +14,7 @@ import {
   RefreshCw,
   ChevronDown,
   ChevronUp,
+  Download,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -61,14 +62,35 @@ export default function AdminAIReview() {
       if (response.error) throw new Error(response.error.message);
       return response.data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['admin-articles-for-review'] });
-      toast.success('AI review completed!');
+      const msg = data?.documentReviewed
+        ? 'AI review completed! Full document was analyzed.'
+        : 'AI review completed (metadata only - no document found).';
+      toast.success(msg);
     },
     onError: (error) => {
       toast.error('Review failed: ' + error.message);
     },
   });
+
+  // Download review report
+  const handleDownloadReport = async (articleId: string) => {
+    try {
+      const response = await supabase.functions.invoke('get-document-url', {
+        body: { articleId, fileType: 'review_report' },
+      });
+
+      if (response.error || !response.data?.url) {
+        toast.error('Failed to get report download link');
+        return;
+      }
+
+      window.open(response.data.url, '_blank');
+    } catch (err) {
+      toast.error('Failed to download report');
+    }
+  };
 
   const filteredArticles = articles?.filter(article =>
     article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -222,6 +244,16 @@ export default function AdminAIReview() {
                         </>
                       )}
                     </Button>
+                    {latestReview && article.review_report_url && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDownloadReport(article.id)}
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        Report
+                      </Button>
+                    )}
                     {latestReview && (
                       <Button
                         variant="ghost"
