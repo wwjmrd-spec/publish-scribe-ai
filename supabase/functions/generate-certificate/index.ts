@@ -6,6 +6,16 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// HTML escape function to prevent XSS in certificate templates
+function escapeHtml(unsafe: string): string {
+  return unsafe
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -295,7 +305,7 @@ serve(async (req) => {
     <div class="certificate-title">Publication Certificate</div>
     
     <div class="content">
-      <p>This is to certify that <span class="author-name">"${authorName}"</span>, affiliated to <span class="author-name">"${authorAffiliation}"</span> has published manuscript titled <span class="manuscript-title">"${article.title}"</span></p>
+      <p>This is to certify that <span class="author-name">"${escapeHtml(authorName)}"</span>, affiliated to <span class="author-name">"${escapeHtml(authorAffiliation)}"</span> has published manuscript titled <span class="manuscript-title">"${escapeHtml(article.title)}"</span></p>
     </div>
     
     <div class="details-section">
@@ -308,7 +318,7 @@ serve(async (req) => {
       </table>
     </div>
     
-    ${coAuthorsStr ? `<div class="co-authors"><strong>Co-Author:</strong> ${coAuthorsStr}</div>` : ''}
+    ${coAuthorsStr ? `<div class="co-authors"><strong>Co-Author:</strong> ${escapeHtml(coAuthorsStr)}</div>` : ''}
     
     <div class="footer">
       <div class="cert-info">
@@ -386,7 +396,7 @@ serve(async (req) => {
   } catch (error) {
     console.error("Certificate generation error:", error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
+      JSON.stringify({ error: "Failed to generate certificate. Please try again." }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

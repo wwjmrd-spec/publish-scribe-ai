@@ -160,9 +160,8 @@ serve(async (req) => {
     );
   } catch (error: unknown) {
     console.error('Error creating PayPal order:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: 'Failed to create payment order. Please try again.' }),
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
