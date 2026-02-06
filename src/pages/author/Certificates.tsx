@@ -8,7 +8,9 @@ import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { useSubscription, incrementUsage } from '@/hooks/useSubscription';
+import { useSubscription } from '@/hooks/useSubscription';
+import { useCoAuthorCertPayment } from '@/hooks/useCoAuthorCertPayment';
+import { useRazorpay } from '@/hooks/useRazorpay';
 import { useNavigate } from 'react-router-dom';
 import {
   Award,
@@ -22,6 +24,8 @@ import {
 export default function Certificates() {
   const { user, isIndian } = useAuth();
   const { subscription, isLoading: subLoading } = useSubscription();
+  const { isProcessing: isPaymentProcessing, processingCoAuthorId, payForCoAuthorCertificate } = useCoAuthorCertPayment();
+  const { isLoaded: razorpayLoaded } = useRazorpay();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const currencySymbol = isIndian ? '₹' : '$';
@@ -102,9 +106,15 @@ export default function Certificates() {
       }
       return;
     }
-    // TODO: Implement co-author certificate payment
-    toast.info('Co-author certificate payment coming soon');
-    console.log('Paying for co-author:', coAuthorId, articleId);
+
+    await payForCoAuthorCertificate(
+      coAuthorId,
+      articleId,
+      coAuthorFee,
+      isIndian ? 'INR' : 'USD',
+      user?.email || '',
+      user?.user_metadata?.full_name || user?.email || ''
+    );
   };
 
   if (isLoading || subLoading) {
@@ -287,7 +297,11 @@ export default function Certificates() {
                                   onClick={() =>
                                     handlePayCoAuthorCertificate(coAuthor.id, article.id)
                                   }
+                                  disabled={isPaymentProcessing && processingCoAuthorId === coAuthor.id}
                                 >
+                                  {isPaymentProcessing && processingCoAuthorId === coAuthor.id ? (
+                                    <GlassSpinner size="sm" className="mr-1" />
+                                  ) : null}
                                   Pay {currencySymbol}{coAuthorFee}
                                 </Button>
                               )}
