@@ -2,8 +2,14 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
-interface PaymentData {
-  articleIds: string[];
+export interface PaymentItem {
+  type: 'article_fee' | 'pro_subscription' | 'coauthor_certificate';
+  articleId?: string;
+  coAuthorId?: string;
+}
+
+export interface PaymentData {
+  items: PaymentItem[];
   amount: number;
   currency: 'INR' | 'USD';
   discountCode?: string;
@@ -61,12 +67,22 @@ export function usePayment() {
     try {
       const orderData = await createRazorpayOrder(paymentData);
 
+      const itemCount = paymentData.items.length;
+      const hasSubscription = paymentData.items.some(i => i.type === 'pro_subscription');
+      const articleCount = paymentData.items.filter(i => i.type === 'article_fee').length;
+      const certCount = paymentData.items.filter(i => i.type === 'coauthor_certificate').length;
+
+      const descParts: string[] = [];
+      if (articleCount > 0) descParts.push(`${articleCount} article(s)`);
+      if (hasSubscription) descParts.push('Pro Plan');
+      if (certCount > 0) descParts.push(`${certCount} certificate(s)`);
+
       const options = {
         key: orderData.keyId,
         amount: orderData.amount,
         currency: orderData.currency,
-        name: 'Academic Journal',
-        description: `Publication fee for ${paymentData.articleIds.length} article(s)`,
+        name: 'WWJMRD',
+        description: `Payment for ${descParts.join(', ')}`,
         order_id: orderData.orderId,
         prefill: {
           email: userEmail,
@@ -87,7 +103,7 @@ export function usePayment() {
 
             toast({
               title: 'Payment successful!',
-              description: 'Your article fees have been paid successfully.',
+              description: 'Your payment has been processed successfully.',
             });
             onSuccess();
           } catch (error) {

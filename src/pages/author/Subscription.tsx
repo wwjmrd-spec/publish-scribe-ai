@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCart } from '@/contexts/CartContext';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { GlassCard } from '@/components/layout/GlassCard';
 import { Button } from '@/components/ui/button';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import { useSubscription } from '@/hooks/useSubscription';
-import { useRazorpay } from '@/hooks/useRazorpay';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -19,17 +20,15 @@ import {
   Users,
   Clock,
   Sparkles,
-  CreditCard,
-  Loader2,
+  ShoppingCart,
 } from 'lucide-react';
 
 export default function Subscription() {
   const { user, userRole, isIndian } = useAuth();
   const { subscription, isLoading } = useSubscription();
-  const { isLoaded: razorpayLoaded } = useRazorpay();
-  const [isProcessing, setIsProcessing] = useState(false);
+  const { addItem, hasItem } = useCart();
+  const navigate = useNavigate();
   const currencySymbol = isIndian ? '₹' : '$';
-  const currency = isIndian ? 'INR' : 'USD';
 
   const { data: fees } = useQuery({
     queryKey: ['publication-fees'],
@@ -52,79 +51,24 @@ export default function Subscription() {
     ? 999
     : 19;
 
-  const handleUpgradeToPro = async () => {
-    if (!user) return;
+  const proAlreadyInCart = hasItem('pro_subscription');
 
-    if (!razorpayLoaded) {
-      toast.error('Payment gateway is loading. Please wait a moment and try again.');
+  const handleAddToCart = () => {
+    if (proAlreadyInCart) {
+      navigate('/author/cart');
       return;
     }
 
-    setIsProcessing(true);
+    addItem({
+      id: 'pro_subscription',
+      type: 'pro_subscription',
+      label: 'Pro Plan Subscription',
+      description: '1 Month — 5 review reports, 4 co-author certificates',
+      amount: proFee,
+    });
 
-    try {
-      // Create subscription order via edge function
-      const { data: orderData, error: orderError } = await supabase.functions.invoke('create-subscription-order', {
-        body: { currency },
-      });
-
-      if (orderError) throw new Error(orderError.message);
-      if (orderData.error) throw new Error(orderData.error);
-
-      // Open Razorpay checkout
-      const options = {
-        key: orderData.keyId,
-        amount: orderData.amount,
-        currency: orderData.currency,
-        name: 'WWJMRD',
-        description: 'Pro Plan Subscription (1 Month)',
-        order_id: orderData.orderId,
-        prefill: {
-          email: user.email || '',
-          name: user.user_metadata?.full_name || user.email || '',
-        },
-        theme: {
-          color: '#00d4ff',
-        },
-        handler: async (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
-          try {
-            const { data: verifyData, error: verifyError } = await supabase.functions.invoke('verify-subscription-payment', {
-              body: {
-                paymentId: orderData.paymentId,
-                razorpayOrderId: response.razorpay_order_id,
-                razorpayPaymentId: response.razorpay_payment_id,
-                razorpaySignature: response.razorpay_signature,
-              },
-            });
-
-            if (verifyError) throw new Error(verifyError.message);
-            if (verifyData.error) throw new Error(verifyData.error);
-
-            toast.success('Pro Plan activated! Enjoy your premium features.');
-            // Reload to refresh subscription state
-            window.location.reload();
-          } catch (error) {
-            console.error('Verification failed:', error);
-            toast.error('Payment verification failed. Please contact support if amount was deducted.');
-          } finally {
-            setIsProcessing(false);
-          }
-        },
-        modal: {
-          ondismiss: () => {
-            setIsProcessing(false);
-            toast.info('Payment cancelled. You can try again when ready.');
-          },
-        },
-      };
-
-      const razorpay = new window.Razorpay(options);
-      razorpay.open();
-    } catch (err: any) {
-      console.error('Subscription payment error:', err);
-      toast.error('Failed to initiate payment: ' + (err.message || 'Please try again'));
-      setIsProcessing(false);
-    }
+    toast.success('Pro Plan added to cart!');
+    navigate('/author/cart');
   };
 
   if (isLoading) {
@@ -322,20 +266,10 @@ export default function Subscription() {
               ) : (
                 <Button
                   className="w-full gradient-primary hover:shadow-[0_0_30px_hsl(var(--primary)/0.5)]"
-                  onClick={handleUpgradeToPro}
-                  disabled={isProcessing}
+                  onClick={handleAddToCart}
                 >
-                  {isProcessing ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      <CreditCard className="w-4 h-4 mr-2" />
-                      Pay & Upgrade — {currencySymbol}{proFee}/month
-                    </>
-                  )}
+                  <ShoppingCart className="w-4 h-4 mr-2" />
+                  {proAlreadyInCart ? 'Go to Cart' : `Add to Cart — ${currencySymbol}${proFee}/month`}
                 </Button>
               )}
             </GlassCard>

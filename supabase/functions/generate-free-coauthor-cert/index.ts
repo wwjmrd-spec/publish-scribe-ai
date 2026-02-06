@@ -33,7 +33,6 @@ function generateCoAuthorCertificatePdf(
   const pageHeight = doc.internal.pageSize.getHeight();
 
   const darkBlue = [44, 62, 80] as [number, number, number];
-  const accentBlue = [52, 152, 219] as [number, number, number];
   const certGreen = [39, 174, 96] as [number, number, number];
   const grayText = [102, 102, 102] as [number, number, number];
   const white = [255, 255, 255] as [number, number, number];
@@ -206,55 +205,72 @@ serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) throw new Error("Authorization header required");
 
-    const authClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
     const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(token);
 
-    if (claimsError || !claimsData?.claims) {
-      console.error("Auth verification failed:", claimsError?.message);
-      throw new Error("Unauthorized");
+    // Parse request body first
+    const body = await req.json();
+    const { coAuthorId, articleId, paidViaCart, userId: bodyUserId } = body;
+    if (!coAuthorId || !articleId) throw new Error("Missing required fields");
+
+    // Determine if this is an internal service role call
+    const isInternalCall = token === supabaseServiceKey && paidViaCart === true;
+
+    let userId: string;
+
+    if (isInternalCall) {
+      // Internal call from verify-payment - skip Pro check
+      if (!bodyUserId) throw new Error("userId required for internal calls");
+      userId = bodyUserId;
+      console.log("Internal call: generating paid co-author cert for user:", userId);
+    } else {
+      // Normal user auth flow
+      const authClient = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(token);
+
+      if (claimsError || !claimsData?.claims) {
+        console.error("Auth verification failed:", claimsError?.message);
+        throw new Error("Unauthorized");
+      }
+
+      userId = claimsData.claims.sub as string;
+      console.log("Generating free co-author cert for user:", userId);
     }
-
-    const userId = claimsData.claims.sub as string;
-    console.log("Generating free co-author cert for user:", userId);
 
     const serviceClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { coAuthorId, articleId } = await req.json();
-    if (!coAuthorId || !articleId) throw new Error("Missing required fields");
+    if (!isInternalCall) {
+      // Verify Pro subscription (only for user calls)
+      const { data: subscription } = await serviceClient
+        .from("user_subscriptions")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("is_active", true)
+        .eq("plan_type", "pro")
+        .maybeSingle();
 
-    // Verify Pro subscription
-    const { data: subscription } = await serviceClient
-      .from("user_subscriptions")
-      .select("*")
-      .eq("user_id", userId)
-      .eq("is_active", true)
-      .eq("plan_type", "pro")
-      .maybeSingle();
+      if (!subscription) {
+        throw new Error("Pro subscription required for free co-author certificates");
+      }
 
-    if (!subscription) {
-      throw new Error("Pro subscription required for free co-author certificates");
-    }
+      if (subscription.expires_at && new Date(subscription.expires_at) < new Date()) {
+        throw new Error("Pro subscription has expired");
+      }
 
-    // Check if expired
-    if (subscription.expires_at && new Date(subscription.expires_at) < new Date()) {
-      throw new Error("Pro subscription has expired");
-    }
+      // Check monthly usage
+      const currentMonth = getCurrentMonth();
+      const { data: usage } = await serviceClient
+        .from("plan_usage")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("usage_month", currentMonth)
+        .maybeSingle();
 
-    // Check monthly usage
-    const currentMonth = getCurrentMonth();
-    const { data: usage } = await serviceClient
-      .from("plan_usage")
-      .select("*")
-      .eq("user_id", userId)
-      .eq("usage_month", currentMonth)
-      .maybeSingle();
-
-    const coauthorCertsUsed = usage?.coauthor_certs_used ?? 0;
-    if (coauthorCertsUsed >= PRO_COAUTHOR_LIMIT) {
-      throw new Error("Monthly co-author certificate limit reached");
+      const coauthorCertsUsed = usage?.coauthor_certs_used ?? 0;
+      if (coauthorCertsUsed >= PRO_COAUTHOR_LIMIT) {
+        throw new Error("Monthly co-author certificate limit reached");
+      }
     }
 
     // Verify article belongs to user and is published
@@ -285,13 +301,16 @@ serve(async (req) => {
     // Check if already generated
     const { data: existingCert } = await serviceClient
       .from("co_author_certificates")
-      .select("id, payment_status")
+      .select("id, payment_status, certificate_url")
       .eq("co_author_id", coAuthorId)
       .eq("article_id", articleId)
       .maybeSingle();
 
-    if (existingCert?.payment_status === "paid") {
-      throw new Error("Certificate already generated for this co-author");
+    if (existingCert?.payment_status === "paid" && existingCert?.certificate_url) {
+      return new Response(
+        JSON.stringify({ success: true, message: "Certificate already generated" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     // Generate PDF
@@ -313,7 +332,7 @@ serve(async (req) => {
       year: "numeric",
     });
 
-    console.log("Generating free PDF certificate for co-author:", coAuthorName);
+    console.log("Generating PDF certificate for co-author:", coAuthorName);
 
     const pdfBuffer = generateCoAuthorCertificatePdf(
       coAuthorName,
@@ -344,14 +363,16 @@ serve(async (req) => {
     }
 
     // Create or update certificate record
+    const certPaymentId = isInternalCall ? "paid_via_cart" : "pro_plan_free";
+
     if (existingCert) {
       await serviceClient
         .from("co_author_certificates")
         .update({
           payment_status: "paid",
-          payment_id: "pro_plan_free",
+          payment_id: certPaymentId,
           certificate_url: fileName,
-          amount_paid: 0,
+          amount_paid: isInternalCall ? (existingCert as any).amount_paid || 0 : 0,
         })
         .eq("id", existingCert.id);
     } else {
@@ -361,7 +382,7 @@ serve(async (req) => {
           co_author_id: coAuthorId,
           article_id: articleId,
           payment_status: "paid",
-          payment_id: "pro_plan_free",
+          payment_id: certPaymentId,
           certificate_url: fileName,
           amount_paid: 0,
         });
@@ -372,33 +393,45 @@ serve(async (req) => {
       }
     }
 
-    // Increment usage
-    if (usage) {
-      await serviceClient
+    // Increment usage only for free Pro certs (not paid via cart)
+    if (!isInternalCall) {
+      const currentMonth = getCurrentMonth();
+      const { data: usage } = await serviceClient
         .from("plan_usage")
-        .update({
-          coauthor_certs_used: coauthorCertsUsed + 1,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", usage.id);
-    } else {
-      await serviceClient
-        .from("plan_usage")
-        .insert({
-          user_id: userId,
-          usage_month: currentMonth,
-          coauthor_certs_used: 1,
-        });
+        .select("*")
+        .eq("user_id", userId)
+        .eq("usage_month", currentMonth)
+        .maybeSingle();
+
+      const coauthorCertsUsed = usage?.coauthor_certs_used ?? 0;
+
+      if (usage) {
+        await serviceClient
+          .from("plan_usage")
+          .update({
+            coauthor_certs_used: coauthorCertsUsed + 1,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", usage.id);
+      } else {
+        await serviceClient
+          .from("plan_usage")
+          .insert({
+            user_id: userId,
+            usage_month: currentMonth,
+            coauthor_certs_used: 1,
+          });
+      }
     }
 
-    console.log("Free co-author certificate generated:", fileName);
+    console.log("Co-author certificate generated:", fileName);
 
     return new Response(
       JSON.stringify({ success: true, certificateNumber }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: any) {
-    console.error("Free co-author cert error:", error);
+    console.error("Co-author cert error:", error);
     return new Response(
       JSON.stringify({ error: error.message || "Failed to generate certificate" }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }

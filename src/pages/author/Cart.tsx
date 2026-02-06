@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCart } from '@/contexts/CartContext';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { GlassCard } from '@/components/layout/GlassCard';
 import { Button } from '@/components/ui/button';
@@ -10,6 +11,7 @@ import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import { useToast } from '@/hooks/use-toast';
 import { useRazorpay } from '@/hooks/useRazorpay';
 import { usePayment } from '@/hooks/usePayment';
+import { useSubscription } from '@/hooks/useSubscription';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -20,10 +22,14 @@ import {
   CreditCard,
   Trash2,
   Loader2,
+  Crown,
+  Users,
 } from 'lucide-react';
 
 export default function Cart() {
   const { user, isIndian } = useAuth();
+  const { items: cartItems, removeItem, clearCart } = useCart();
+  const { subscription } = useSubscription();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -77,9 +83,23 @@ export default function Cart() {
     return isIndian ? Number(fees.indian_fee) : Number(fees.international_fee);
   }, [fees, isIndian]);
 
-  const subtotal = useMemo(() => {
+  // Filter out invalid cart items (e.g., Pro subscription when already Pro)
+  const validCartItems = useMemo(() => {
+    return cartItems.filter(item => {
+      if (item.type === 'pro_subscription' && subscription.plan === 'pro') return false;
+      return true;
+    });
+  }, [cartItems, subscription.plan]);
+
+  const articleSubtotal = useMemo(() => {
     return selectedArticles.length * feePerArticle;
   }, [selectedArticles.length, feePerArticle]);
+
+  const cartItemsSubtotal = useMemo(() => {
+    return validCartItems.reduce((sum, item) => sum + item.amount, 0);
+  }, [validCartItems]);
+
+  const subtotal = articleSubtotal + cartItemsSubtotal;
 
   const discountAmountValue = useMemo(() => {
     if (!appliedDiscount) return 0;
@@ -90,6 +110,8 @@ export default function Cart() {
   }, [appliedDiscount, subtotal]);
 
   const total = subtotal - discountAmountValue;
+
+  const totalItemCount = selectedArticles.length + validCartItems.length;
 
   const toggleArticle = (articleId: string) => {
     setSelectedArticles((prev) =>
@@ -111,7 +133,7 @@ export default function Cart() {
 
   const applyDiscountCode = async () => {
     const trimmedCode = discountCode.trim().toUpperCase();
-    
+
     const DISCOUNT_CODE_REGEX = /^[A-Z0-9]{4,20}$/;
     if (!trimmedCode || !DISCOUNT_CODE_REGEX.test(trimmedCode)) {
       toast({
@@ -121,7 +143,7 @@ export default function Cart() {
       });
       return;
     }
-    
+
     setApplyingDiscount(true);
     try {
       const { data, error } = await supabase
@@ -202,10 +224,10 @@ export default function Cart() {
   };
 
   const handlePayment = async () => {
-    if (selectedArticles.length === 0) {
+    if (totalItemCount === 0) {
       toast({
-        title: 'No articles selected',
-        description: 'Please select at least one article to pay for',
+        title: 'No items selected',
+        description: 'Please select at least one item to pay for',
         variant: 'destructive',
       });
       return;
@@ -219,24 +241,35 @@ export default function Cart() {
       return;
     }
 
-    const paymentData = {
-      articleIds: selectedArticles,
-      amount: subtotal,
-      currency: currency as 'INR' | 'USD',
-      discountCode: appliedDiscount?.code,
-      discountAmount: discountAmountValue,
-    };
+    const items = [
+      ...selectedArticles.map(id => ({ type: 'article_fee' as const, articleId: id })),
+      ...validCartItems.map(item => ({
+        type: item.type as 'pro_subscription' | 'coauthor_certificate',
+        articleId: item.articleId,
+        coAuthorId: item.coAuthorId,
+      })),
+    ];
 
     try {
       await processRazorpayPayment(
-        paymentData,
+        {
+          items,
+          amount: subtotal,
+          currency: currency as 'INR' | 'USD',
+          discountCode: appliedDiscount?.code,
+          discountAmount: discountAmountValue,
+        },
         user?.email || '',
         user?.user_metadata?.full_name || user?.email || '',
         () => {
           queryClient.invalidateQueries({ queryKey: ['pending-articles'] });
+          queryClient.invalidateQueries({ queryKey: ['user-subscription'] });
+          queryClient.invalidateQueries({ queryKey: ['published-articles'] });
+          queryClient.invalidateQueries({ queryKey: ['plan-usage'] });
           setSelectedArticles([]);
           setAppliedDiscount(null);
           setDiscountCode('');
+          clearCart();
         }
       );
     } catch (error) {
@@ -248,6 +281,10 @@ export default function Cart() {
       });
     }
   };
+
+  const hasArticles = (pendingArticles?.length ?? 0) > 0;
+  const hasCartItems = validCartItems.length > 0;
+  const isEmpty = !hasArticles && !hasCartItems;
 
   if (articlesLoading) {
     return (
@@ -269,11 +306,11 @@ export default function Cart() {
         <div className="mb-8">
           <h1 className="font-display text-3xl font-bold mb-2">Payment Cart</h1>
           <p className="text-muted-foreground">
-            Select articles to pay publication fees
+            Review and pay for all your items in one go
           </p>
         </div>
 
-        {pendingArticles?.length === 0 ? (
+        {isEmpty ? (
           <GlassCard className="text-center py-16">
             <div className="w-20 h-20 rounded-full bg-[hsl(var(--glass-bg-strong))] flex items-center justify-center mx-auto mb-6">
               <ShoppingCart className="w-10 h-10 text-muted-foreground" />
@@ -282,66 +319,116 @@ export default function Cart() {
               Cart is empty
             </h3>
             <p className="text-muted-foreground">
-              No articles are pending payment at the moment
+              No items are pending payment at the moment
             </p>
           </GlassCard>
         ) : (
           <div className="grid lg:grid-cols-3 gap-6">
-            {/* Articles List */}
+            {/* Items List */}
             <div className="lg:col-span-2 space-y-4">
-              <GlassCard>
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="font-display text-xl font-semibold">
-                    Pending Articles ({pendingArticles?.length})
-                  </h2>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={selectAll}
-                  >
-                    {selectedArticles.length === pendingArticles?.length
-                      ? 'Deselect All'
-                      : 'Select All'}
-                  </Button>
-                </div>
-
-                <div className="space-y-3">
-                  {pendingArticles?.map((article) => (
-                    <div
-                      key={article.id}
-                      className={`flex items-center gap-4 p-4 rounded-lg transition-all duration-300 cursor-pointer ${
-                        selectedArticles.includes(article.id)
-                          ? 'bg-primary/10 border border-primary/30'
-                          : 'bg-[hsl(var(--glass-bg))] hover:bg-[hsl(var(--glass-bg-strong))] border border-transparent'
-                      }`}
-                      onClick={() => toggleArticle(article.id)}
-                    >
-                      <Checkbox
-                        checked={selectedArticles.includes(article.id)}
-                        onCheckedChange={() => toggleArticle(article.id)}
-                        className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                      />
-                      <div className="w-10 h-10 rounded-lg bg-[hsl(var(--glass-bg-strong))] flex items-center justify-center flex-shrink-0">
-                        <FileText className="w-5 h-5 text-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{article.title}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {article.reference_number}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-semibold">
-                          {currencySymbol}{feePerArticle.toLocaleString()}
-                        </p>
-                      </div>
+              {/* Pending Articles */}
+              {hasArticles && (
+                <GlassCard>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-5 h-5 text-primary" />
+                      <h2 className="font-display text-xl font-semibold">
+                        Article Publication Fees ({pendingArticles?.length})
+                      </h2>
                     </div>
-                  ))}
-                </div>
-              </GlassCard>
+                    <Button variant="ghost" size="sm" onClick={selectAll}>
+                      {selectedArticles.length === pendingArticles?.length
+                        ? 'Deselect All'
+                        : 'Select All'}
+                    </Button>
+                  </div>
+
+                  <div className="space-y-3">
+                    {pendingArticles?.map((article) => (
+                      <div
+                        key={article.id}
+                        className={`flex items-center gap-4 p-4 rounded-lg transition-all duration-300 cursor-pointer ${
+                          selectedArticles.includes(article.id)
+                            ? 'bg-primary/10 border border-primary/30'
+                            : 'bg-[hsl(var(--glass-bg))] hover:bg-[hsl(var(--glass-bg-strong))] border border-transparent'
+                        }`}
+                        onClick={() => toggleArticle(article.id)}
+                      >
+                        <Checkbox
+                          checked={selectedArticles.includes(article.id)}
+                          onCheckedChange={() => toggleArticle(article.id)}
+                          className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                        />
+                        <div className="w-10 h-10 rounded-lg bg-[hsl(var(--glass-bg-strong))] flex items-center justify-center flex-shrink-0">
+                          <FileText className="w-5 h-5 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">{article.title}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {article.reference_number}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold">
+                            {currencySymbol}{feePerArticle.toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </GlassCard>
+              )}
+
+              {/* Cart Items (Pro Subscription, Co-Author Certs) */}
+              {hasCartItems && (
+                <GlassCard>
+                  <div className="flex items-center gap-2 mb-4">
+                    <ShoppingCart className="w-5 h-5 text-primary" />
+                    <h2 className="font-display text-xl font-semibold">
+                      Other Items ({validCartItems.length})
+                    </h2>
+                  </div>
+
+                  <div className="space-y-3">
+                    {validCartItems.map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex items-center gap-4 p-4 rounded-lg bg-[hsl(var(--glass-bg))] border border-transparent"
+                      >
+                        <div className="w-10 h-10 rounded-lg bg-[hsl(var(--glass-bg-strong))] flex items-center justify-center flex-shrink-0">
+                          {item.type === 'pro_subscription' ? (
+                            <Crown className="w-5 h-5 text-primary" />
+                          ) : (
+                            <Users className="w-5 h-5 text-primary" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">{item.label}</p>
+                          <p className="text-sm text-muted-foreground truncate">
+                            {item.description}
+                          </p>
+                        </div>
+                        <div className="text-right flex items-center gap-3">
+                          <p className="font-semibold">
+                            {currencySymbol}{item.amount.toLocaleString()}
+                          </p>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                            onClick={() => removeItem(item.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </GlassCard>
+              )}
             </div>
 
-            {/* Payment Summary */}
+            {/* Order Summary */}
             <div className="space-y-4">
               <GlassCard>
                 <h2 className="font-display text-xl font-semibold mb-4">
@@ -394,14 +481,27 @@ export default function Cart() {
 
                   {/* Summary */}
                   <div className="pt-4 border-t border-[hsl(var(--glass-border))] space-y-3">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">
-                        Articles ({selectedArticles.length})
-                      </span>
-                      <span>
-                        {currencySymbol}{subtotal.toLocaleString()}
-                      </span>
-                    </div>
+                    {selectedArticles.length > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">
+                          Articles ({selectedArticles.length})
+                        </span>
+                        <span>
+                          {currencySymbol}{articleSubtotal.toLocaleString()}
+                        </span>
+                      </div>
+                    )}
+
+                    {validCartItems.map((item) => (
+                      <div key={item.id} className="flex justify-between text-sm">
+                        <span className="text-muted-foreground truncate mr-2">
+                          {item.type === 'pro_subscription' ? 'Pro Plan' : item.label}
+                        </span>
+                        <span className="flex-shrink-0">
+                          {currencySymbol}{item.amount.toLocaleString()}
+                        </span>
+                      </div>
+                    ))}
 
                     {appliedDiscount && (
                       <div className="flex justify-between text-sm text-emerald-500">
@@ -422,7 +522,7 @@ export default function Cart() {
                   <Button
                     className="w-full gradient-primary hover:shadow-[0_0_30px_hsl(var(--primary)/0.5)]"
                     size="lg"
-                    disabled={selectedArticles.length === 0 || isProcessing}
+                    disabled={totalItemCount === 0 || isProcessing}
                     onClick={handlePayment}
                   >
                     {isProcessing ? (
@@ -448,11 +548,14 @@ export default function Cart() {
               <GlassCard className="text-sm">
                 <div className="flex items-start gap-3">
                   <AlertCircle className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-medium mb-1">Payment Information</p>
+                  <div className="space-y-1">
+                    <p className="font-medium">Payment Information</p>
                     <p className="text-muted-foreground">
                       Publication fee per article: {currencySymbol}
                       {feePerArticle.toLocaleString()}
+                    </p>
+                    <p className="text-muted-foreground">
+                      All items will be processed in a single payment.
                     </p>
                   </div>
                 </div>
