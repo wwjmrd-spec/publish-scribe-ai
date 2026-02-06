@@ -75,7 +75,9 @@ export type Database = {
         Row: {
           abstract: string | null
           author_id: string
+          author_name: string | null
           certificate_url: string | null
+          country: string | null
           created_at: string | null
           document_url: string | null
           id: string
@@ -84,10 +86,13 @@ export type Database = {
           page_number: string | null
           publication_year: string | null
           published_link: string | null
+          reason_of_research: string | null
           reference_number: string
           review_report_url: string | null
           status: Database["public"]["Enums"]["article_status"] | null
+          subject: string | null
           submission_date: string | null
+          submission_target: string | null
           title: string
           updated_at: string | null
           volume: string | null
@@ -95,7 +100,9 @@ export type Database = {
         Insert: {
           abstract?: string | null
           author_id: string
+          author_name?: string | null
           certificate_url?: string | null
+          country?: string | null
           created_at?: string | null
           document_url?: string | null
           id?: string
@@ -104,10 +111,13 @@ export type Database = {
           page_number?: string | null
           publication_year?: string | null
           published_link?: string | null
+          reason_of_research?: string | null
           reference_number: string
           review_report_url?: string | null
           status?: Database["public"]["Enums"]["article_status"] | null
+          subject?: string | null
           submission_date?: string | null
+          submission_target?: string | null
           title: string
           updated_at?: string | null
           volume?: string | null
@@ -115,7 +125,9 @@ export type Database = {
         Update: {
           abstract?: string | null
           author_id?: string
+          author_name?: string | null
           certificate_url?: string | null
+          country?: string | null
           created_at?: string | null
           document_url?: string | null
           id?: string
@@ -124,10 +136,13 @@ export type Database = {
           page_number?: string | null
           publication_year?: string | null
           published_link?: string | null
+          reason_of_research?: string | null
           reference_number?: string
           review_report_url?: string | null
           status?: Database["public"]["Enums"]["article_status"] | null
+          subject?: string | null
           submission_date?: string | null
+          submission_target?: string | null
           title?: string
           updated_at?: string | null
           volume?: string | null

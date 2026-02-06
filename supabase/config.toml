@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.generate-free-coauthor-cert]
 verify_jwt = false
+
+[functions.generate-subject]
+verify_jwt = false
