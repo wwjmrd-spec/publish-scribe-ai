@@ -602,7 +602,7 @@ Provide your response as a valid JSON object with this exact structure:
         overall_score: reviewData.overallScore,
         summary: reviewData.summary,
         detailed_feedback: reviewData.detailedFeedback,
-        reviewed_by: user.id,
+        reviewed_by: userId,
       })
       .select()
       .single();

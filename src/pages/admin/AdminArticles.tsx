@@ -349,6 +349,7 @@ export default function AdminArticles() {
                             setSelectedArticle(article);
                             setIsViewDialogOpen(true);
                           }}
+                          title="View Details"
                         >
                           <Eye className="w-4 h-4" />
                         </Button>
@@ -360,6 +361,39 @@ export default function AdminArticles() {
                         >
                           <Brain className="w-4 h-4" />
                         </Button>
+                        {article.document_url && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => downloadMutation.mutate({ articleId: article.id, fileType: 'document' })}
+                            disabled={downloadMutation.isPending}
+                            title="Download Document"
+                          >
+                            <Download className="w-4 h-4" />
+                          </Button>
+                        )}
+                        {article.certificate_url && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => downloadMutation.mutate({ articleId: article.id, fileType: 'certificate' })}
+                            disabled={downloadMutation.isPending}
+                            title="Download Certificate"
+                          >
+                            <Award className="w-4 h-4" />
+                          </Button>
+                        )}
+                        {article.review_report_url && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => downloadMutation.mutate({ articleId: article.id, fileType: 'review_report' })}
+                            disabled={downloadMutation.isPending}
+                            title="Download Review Report"
+                          >
+                            <FileText className="w-4 h-4" />
+                          </Button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -491,6 +525,17 @@ export default function AdminArticles() {
                   >
                     <Award className="w-4 h-4 mr-2" />
                     Download Certificate
+                  </Button>
+                )}
+                {selectedArticle.review_report_url && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => downloadMutation.mutate({ articleId: selectedArticle.id, fileType: 'review_report' })}
+                    disabled={downloadMutation.isPending}
+                  >
+                    <FileText className="w-4 h-4 mr-2" />
+                    Download Review Report
                   </Button>
                 )}
               </div>
