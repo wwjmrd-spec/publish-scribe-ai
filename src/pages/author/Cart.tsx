@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
@@ -10,10 +10,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import { useToast } from '@/hooks/use-toast';
 import { useRazorpay } from '@/hooks/useRazorpay';
-import { usePayment } from '@/hooks/usePayment';
+import { usePayment, PaymentGateway } from '@/hooks/usePayment';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useSearchParams } from 'react-router-dom';
 import {
   ShoppingCart,
   FileText,
@@ -33,8 +34,10 @@ export default function Cart() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  const [searchParams, setSearchParams] = useSearchParams();
   const { isLoaded: razorpayLoaded } = useRazorpay();
-  const { isProcessing, processRazorpayPayment } = usePayment();
+  const { isProcessing, processRazorpayPayment, processPayPalPayment, capturePayPalPayment } = usePayment();
+  const [paymentMethod, setPaymentMethod] = useState<PaymentGateway>('razorpay');
 
   const [selectedArticles, setSelectedArticles] = useState<string[]>([]);
   const [discountCode, setDiscountCode] = useState('');
@@ -77,6 +80,30 @@ export default function Cart() {
       return data;
     },
   });
+
+  // Handle PayPal return
+  useEffect(() => {
+    const paypalStatus = searchParams.get('paypal');
+    if (paypalStatus === 'success') {
+      setSearchParams({}, { replace: true });
+      capturePayPalPayment(() => {
+        queryClient.invalidateQueries({ queryKey: ['pending-articles'] });
+        queryClient.invalidateQueries({ queryKey: ['user-subscription'] });
+        queryClient.invalidateQueries({ queryKey: ['published-articles'] });
+        queryClient.invalidateQueries({ queryKey: ['plan-usage'] });
+        setSelectedArticles([]);
+        setAppliedDiscount(null);
+        setDiscountCode('');
+        clearCart();
+      });
+    } else if (paypalStatus === 'cancelled') {
+      setSearchParams({}, { replace: true });
+      toast({
+        title: 'Payment cancelled',
+        description: 'You cancelled the PayPal payment. You can try again when ready.',
+      });
+    }
+  }, []);
 
   const feePerArticle = useMemo(() => {
     if (!fees) return isIndian ? 2500 : 79;
@@ -233,7 +260,7 @@ export default function Cart() {
       return;
     }
 
-    if (!razorpayLoaded) {
+    if (paymentMethod === 'razorpay' && !razorpayLoaded) {
       toast({
         title: 'Loading payment gateway',
         description: 'Please wait a moment and try again.',
@@ -250,28 +277,38 @@ export default function Cart() {
       })),
     ];
 
+    const paymentData = {
+      items,
+      amount: subtotal,
+      currency: currency as 'INR' | 'USD',
+      discountCode: appliedDiscount?.code,
+      discountAmount: discountAmountValue,
+    };
+
+    const onSuccess = () => {
+      queryClient.invalidateQueries({ queryKey: ['pending-articles'] });
+      queryClient.invalidateQueries({ queryKey: ['user-subscription'] });
+      queryClient.invalidateQueries({ queryKey: ['published-articles'] });
+      queryClient.invalidateQueries({ queryKey: ['plan-usage'] });
+      setSelectedArticles([]);
+      setAppliedDiscount(null);
+      setDiscountCode('');
+      clearCart();
+    };
+
     try {
-      await processRazorpayPayment(
-        {
-          items,
-          amount: subtotal,
-          currency: currency as 'INR' | 'USD',
-          discountCode: appliedDiscount?.code,
-          discountAmount: discountAmountValue,
-        },
-        user?.email || '',
-        user?.user_metadata?.full_name || user?.email || '',
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['pending-articles'] });
-          queryClient.invalidateQueries({ queryKey: ['user-subscription'] });
-          queryClient.invalidateQueries({ queryKey: ['published-articles'] });
-          queryClient.invalidateQueries({ queryKey: ['plan-usage'] });
-          setSelectedArticles([]);
-          setAppliedDiscount(null);
-          setDiscountCode('');
-          clearCart();
-        }
-      );
+      if (paymentMethod === 'razorpay') {
+        await processRazorpayPayment(
+          paymentData,
+          user?.email || '',
+          user?.user_metadata?.full_name || user?.email || '',
+          onSuccess
+        );
+      } else {
+        await processPayPalPayment(paymentData, () => {
+          // PayPal redirects away, nothing to do here
+        });
+      }
     } catch (error) {
       console.error('Payment error:', error);
       toast({
@@ -518,6 +555,41 @@ export default function Cart() {
                     </div>
                   </div>
 
+                  {/* Payment Method Selection */}
+                  <div className="space-y-2">
+                    <label className="text-sm text-muted-foreground">
+                      Payment Method
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        className={`flex items-center justify-center gap-2 p-3 rounded-lg border text-sm font-medium transition-all duration-200 ${
+                          paymentMethod === 'razorpay'
+                            ? 'border-primary bg-primary/10 text-foreground'
+                            : 'border-[hsl(var(--glass-border))] bg-[hsl(var(--glass-bg))] text-muted-foreground hover:bg-[hsl(var(--glass-bg-strong))]'
+                        }`}
+                        onClick={() => setPaymentMethod('razorpay')}
+                      >
+                        <CreditCard className="w-4 h-4" />
+                        Razorpay
+                      </button>
+                      <button
+                        type="button"
+                        className={`flex items-center justify-center gap-2 p-3 rounded-lg border text-sm font-medium transition-all duration-200 ${
+                          paymentMethod === 'paypal'
+                            ? 'border-primary bg-primary/10 text-foreground'
+                            : 'border-[hsl(var(--glass-border))] bg-[hsl(var(--glass-bg))] text-muted-foreground hover:bg-[hsl(var(--glass-bg-strong))]'
+                        }`}
+                        onClick={() => setPaymentMethod('paypal')}
+                      >
+                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.42 1.012 4.287-.023.143-.047.288-.077.437-.983 5.05-4.349 6.797-8.647 6.797h-2.19c-.524 0-.968.382-1.05.9l-1.12 7.106zm14.146-14.42a3.35 3.35 0 0 0-.607-.541c-.013.076-.026.175-.041.254-.93 4.778-4.005 7.201-9.138 7.201h-2.19a.563.563 0 0 0-.556.479l-1.187 7.527h-.506l-.24 1.516a.56.56 0 0 0 .554.647h3.882c.46 0 .85-.334.922-.788.06-.26.76-4.852.816-5.09a.932.932 0 0 1 .923-.788h.58c3.76 0 6.705-1.528 7.565-5.946.36-1.847.174-3.388-.777-4.471z"/>
+                        </svg>
+                        PayPal
+                      </button>
+                    </div>
+                  </div>
+
                   {/* Payment Button */}
                   <Button
                     className="w-full gradient-primary hover:shadow-[0_0_30px_hsl(var(--primary)/0.5)]"
@@ -533,13 +605,13 @@ export default function Cart() {
                     ) : (
                       <>
                         <CreditCard className="w-5 h-5 mr-2" />
-                        Pay with Razorpay
+                        {paymentMethod === 'razorpay' ? 'Pay with Razorpay' : 'Pay with PayPal'}
                       </>
                     )}
                   </Button>
 
                   <p className="text-xs text-center text-muted-foreground">
-                    Secure payment powered by Razorpay
+                    Secure payment via {paymentMethod === 'razorpay' ? 'Razorpay' : 'PayPal'}
                   </p>
                 </div>
               </GlassCard>

@@ -22,6 +22,8 @@ interface RazorpayResponse {
   razorpay_signature: string;
 }
 
+export type PaymentGateway = 'razorpay' | 'paypal';
+
 export function usePayment() {
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
@@ -36,12 +38,26 @@ export function usePayment() {
     return data;
   };
 
+  const createPayPalOrder = async (paymentData: PaymentData) => {
+    const { data, error } = await supabase.functions.invoke('create-paypal-order', {
+      body: {
+        ...paymentData,
+        returnUrl: window.location.origin + '/author/cart',
+      },
+    });
+
+    if (error) throw new Error(error.message);
+    if (data.error) throw new Error(data.error);
+    return data;
+  };
+
   const verifyPayment = async (verificationData: {
-    gateway: 'razorpay';
+    gateway: PaymentGateway;
     paymentId: string;
-    razorpayOrderId: string;
-    razorpayPaymentId: string;
-    razorpaySignature: string;
+    razorpayOrderId?: string;
+    razorpayPaymentId?: string;
+    razorpaySignature?: string;
+    paypalOrderId?: string;
   }) => {
     const { data, error } = await supabase.functions.invoke('verify-payment', {
       body: verificationData,
@@ -137,8 +153,77 @@ export function usePayment() {
     }
   };
 
+  const processPayPalPayment = async (
+    paymentData: PaymentData,
+    onRedirect: (paymentId: string) => void
+  ) => {
+    setIsProcessing(true);
+
+    try {
+      const orderData = await createPayPalOrder(paymentData);
+
+      if (!orderData.approvalUrl) {
+        throw new Error('PayPal approval URL not received');
+      }
+
+      // Save payment ID to localStorage so we can verify on return
+      localStorage.setItem('wwjmrd-paypal-payment-id', orderData.paymentId);
+      localStorage.setItem('wwjmrd-paypal-order-id', orderData.orderId);
+
+      onRedirect(orderData.paymentId);
+
+      // Redirect to PayPal
+      window.location.href = orderData.approvalUrl;
+    } catch (error) {
+      console.error('PayPal error:', error);
+      setIsProcessing(false);
+      throw error;
+    }
+  };
+
+  const capturePayPalPayment = async (onSuccess: () => void) => {
+    const paymentId = localStorage.getItem('wwjmrd-paypal-payment-id');
+    const paypalOrderId = localStorage.getItem('wwjmrd-paypal-order-id');
+
+    if (!paymentId || !paypalOrderId) {
+      throw new Error('PayPal payment data not found');
+    }
+
+    setIsProcessing(true);
+
+    try {
+      await verifyPayment({
+        gateway: 'paypal',
+        paymentId,
+        paypalOrderId,
+      });
+
+      // Clean up localStorage
+      localStorage.removeItem('wwjmrd-paypal-payment-id');
+      localStorage.removeItem('wwjmrd-paypal-order-id');
+
+      toast({
+        title: 'Payment successful!',
+        description: 'Your PayPal payment has been processed successfully.',
+      });
+
+      onSuccess();
+    } catch (error) {
+      console.error('PayPal capture failed:', error);
+      toast({
+        title: 'Payment verification failed',
+        description: 'Please contact support if amount was deducted.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   return {
     isProcessing,
     processRazorpayPayment,
+    processPayPalPayment,
+    capturePayPalPayment,
   };
 }
