@@ -29,6 +29,43 @@ async function verifyRazorpaySignature(
   return expectedSignature === signature;
 }
 
+async function getPayPalAccessToken(clientId: string, clientSecret: string): Promise<string> {
+  const auth = btoa(`${clientId}:${clientSecret}`);
+  const response = await fetch('https://api-m.paypal.com/v1/oauth2/token', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Basic ${auth}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: 'grant_type=client_credentials',
+  });
+  if (!response.ok) {
+    const errorData = await response.text();
+    console.error('PayPal auth failed:', errorData);
+    throw new Error('Failed to authenticate with PayPal');
+  }
+  const data = await response.json();
+  return data.access_token;
+}
+
+async function capturePayPalOrder(orderId: string, accessToken: string): Promise<any> {
+  const response = await fetch(`https://api-m.paypal.com/v2/checkout/orders/${orderId}/capture`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.text();
+    console.error('PayPal capture failed:', errorData);
+    throw new Error('Failed to capture PayPal payment');
+  }
+
+  return await response.json();
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -57,7 +94,7 @@ serve(async (req) => {
     const userId = claimsData.claims.sub as string;
     console.log('Authenticated user for payment verification:', userId);
 
-    const { gateway, paymentId, razorpayOrderId, razorpayPaymentId, razorpaySignature } = await req.json();
+    const { gateway, paymentId, razorpayOrderId, razorpayPaymentId, razorpaySignature, paypalOrderId } = await req.json();
 
     console.log('Verifying payment:', { gateway, paymentId });
 
@@ -86,32 +123,69 @@ serve(async (req) => {
       );
     }
 
-    // Verify Razorpay signature
-    if (gateway !== 'razorpay') {
+    // Verify payment based on gateway
+    let capturedTransactionId: string | null = null;
+
+    if (gateway === 'razorpay') {
+      const RAZORPAY_KEY_SECRET = Deno.env.get('RAZORPAY_KEY_SECRET');
+      if (!RAZORPAY_KEY_SECRET) {
+        throw new Error('Payment gateway not configured');
+      }
+
+      const verified = await verifyRazorpaySignature(
+        razorpayOrderId,
+        razorpayPaymentId,
+        razorpaySignature,
+        RAZORPAY_KEY_SECRET
+      );
+
+      console.log('Razorpay signature verification:', verified);
+
+      if (!verified) {
+        await serviceClient
+          .from('payments')
+          .update({ payment_status: 'failed' })
+          .eq('id', paymentId);
+
+        throw new Error('Payment verification failed');
+      }
+
+      capturedTransactionId = razorpayPaymentId;
+    } else if (gateway === 'paypal') {
+      const PAYPAL_CLIENT_ID = Deno.env.get('PAYPAL_CLIENT_ID');
+      const PAYPAL_CLIENT_SECRET = Deno.env.get('PAYPAL_CLIENT_SECRET');
+
+      if (!PAYPAL_CLIENT_ID || !PAYPAL_CLIENT_SECRET) {
+        throw new Error('PayPal gateway not configured');
+      }
+
+      const orderIdToCapture = paypalOrderId || payment.transaction_id;
+      if (!orderIdToCapture) {
+        throw new Error('PayPal order ID missing');
+      }
+
+      console.log('Capturing PayPal order:', orderIdToCapture);
+
+      const accessToken = await getPayPalAccessToken(PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET);
+      const captureResult = await capturePayPalOrder(orderIdToCapture, accessToken);
+
+      console.log('PayPal capture result status:', captureResult.status);
+
+      if (captureResult.status !== 'COMPLETED') {
+        await serviceClient
+          .from('payments')
+          .update({ payment_status: 'failed' })
+          .eq('id', paymentId);
+
+        throw new Error('PayPal payment not completed');
+      }
+
+      // Extract capture ID
+      const captures = captureResult.purchase_units?.[0]?.payments?.captures;
+      capturedTransactionId = captures?.[0]?.id || orderIdToCapture;
+      console.log('PayPal payment captured, transaction ID:', capturedTransactionId);
+    } else {
       throw new Error('Invalid payment gateway');
-    }
-
-    const RAZORPAY_KEY_SECRET = Deno.env.get('RAZORPAY_KEY_SECRET');
-    if (!RAZORPAY_KEY_SECRET) {
-      throw new Error('Payment gateway not configured');
-    }
-
-    const verified = await verifyRazorpaySignature(
-      razorpayOrderId,
-      razorpayPaymentId,
-      razorpaySignature,
-      RAZORPAY_KEY_SECRET
-    );
-
-    console.log('Razorpay signature verification:', verified);
-
-    if (!verified) {
-      await serviceClient
-        .from('payments')
-        .update({ payment_status: 'failed' })
-        .eq('id', paymentId);
-
-      throw new Error('Payment verification failed');
     }
 
     // Update payment as successful
@@ -119,7 +193,7 @@ serve(async (req) => {
       .from('payments')
       .update({ 
         payment_status: 'success',
-        transaction_id: razorpayPaymentId,
+        transaction_id: capturedTransactionId,
       })
       .eq('id', paymentId);
 
@@ -309,7 +383,7 @@ serve(async (req) => {
       finalAmount: payment.final_amount,
       discountCode: payment.discount_code,
       discountAmount: payment.discount_amount,
-      transactionId: razorpayPaymentId,
+      transactionId: capturedTransactionId,
       paymentDate: new Date().toLocaleDateString(),
       authorName: userProfile?.full_name || 'Author',
       authorEmail: userProfile?.email,

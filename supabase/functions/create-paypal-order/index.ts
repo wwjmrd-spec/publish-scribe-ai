@@ -29,7 +29,6 @@ async function getPayPalAccessToken(clientId: string, clientSecret: string): Pro
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -43,7 +42,6 @@ serve(async (req) => {
       throw new Error('Payment gateway not configured');
     }
 
-    // Authenticate user
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const authHeader = req.headers.get('Authorization');
@@ -63,27 +61,143 @@ serve(async (req) => {
       throw new Error('Unauthorized');
     }
 
-    const user = { id: claimsData.claims.sub as string };
-    console.log('Creating PayPal order for user:', user.id);
+    const userId = claimsData.claims.sub as string;
+    console.log('Creating PayPal order for user:', userId);
 
-    const { articleIds, amount, discountCode, discountAmount } = await req.json();
-
-    if (!articleIds || !Array.isArray(articleIds) || articleIds.length === 0) {
-      throw new Error('No articles selected');
-    }
+    const body = await req.json();
+    const { items, amount, discountCode, discountAmount, currency, returnUrl } = body;
 
     if (!amount || amount <= 0) {
       throw new Error('Invalid amount');
     }
 
+    if (!currency || !['INR', 'USD'].includes(currency)) {
+      throw new Error('Invalid currency');
+    }
+
+    const serviceClient = createClient(
+      supabaseUrl,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+
+    // Determine article IDs from items
+    let articleIds: string[] = [];
+    let paymentItems: any[] = [];
+
+    if (items && Array.isArray(items) && items.length > 0) {
+      articleIds = items.filter((i: any) => i.type === 'article_fee' && i.articleId).map((i: any) => i.articleId);
+      paymentItems = items;
+
+      const hasSubscription = items.some((i: any) => i.type === 'pro_subscription');
+      const coauthorCerts = items.filter((i: any) => i.type === 'coauthor_certificate');
+
+      // Validate subscription eligibility
+      if (hasSubscription) {
+        const { data: existingSub } = await serviceClient
+          .from('user_subscriptions')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('is_active', true)
+          .eq('plan_type', 'pro')
+          .maybeSingle();
+
+        if (existingSub && existingSub.expires_at && new Date(existingSub.expires_at) > new Date()) {
+          throw new Error('You already have an active Pro subscription');
+        }
+        console.log('Pro subscription validated for user:', userId);
+      }
+
+      // Validate and create cert records for co-author certificates
+      for (const cert of coauthorCerts) {
+        if (!cert.coAuthorId || !cert.articleId) {
+          throw new Error('Invalid co-author certificate data');
+        }
+
+        const { data: article, error: articleError } = await serviceClient
+          .from('articles')
+          .select('id, author_id, status')
+          .eq('id', cert.articleId)
+          .eq('author_id', userId)
+          .eq('status', 'published')
+          .single();
+
+        if (articleError || !article) {
+          throw new Error('Article not found, not yours, or not published');
+        }
+
+        const { data: coAuthor, error: coAuthorError } = await serviceClient
+          .from('co_authors')
+          .select('id, name')
+          .eq('id', cert.coAuthorId)
+          .eq('article_id', cert.articleId)
+          .single();
+
+        if (coAuthorError || !coAuthor) {
+          throw new Error('Co-author not found for this article');
+        }
+
+        const { data: existingCert } = await serviceClient
+          .from('co_author_certificates')
+          .select('id, payment_status')
+          .eq('co_author_id', cert.coAuthorId)
+          .eq('article_id', cert.articleId)
+          .maybeSingle();
+
+        if (existingCert?.payment_status === 'paid') {
+          throw new Error(`Certificate already paid for co-author: ${coAuthor.name}`);
+        }
+
+        if (existingCert) {
+          await serviceClient
+            .from('co_author_certificates')
+            .update({ payment_status: 'pending', currency })
+            .eq('id', existingCert.id);
+        } else {
+          await serviceClient
+            .from('co_author_certificates')
+            .insert({
+              co_author_id: cert.coAuthorId,
+              article_id: cert.articleId,
+              payment_status: 'pending',
+              currency,
+            });
+        }
+
+        console.log('Co-author cert record created/updated for:', coAuthor.name);
+      }
+    } else if (body.articleIds && Array.isArray(body.articleIds)) {
+      articleIds = body.articleIds;
+      paymentItems = articleIds.map((id: string) => ({ type: 'article_fee', articleId: id }));
+
+      if (articleIds.length === 0) {
+        throw new Error('No articles selected');
+      }
+    } else {
+      throw new Error('No items provided');
+    }
+
     const finalAmount = amount - (discountAmount || 0);
 
-    console.log('Order details:', { articleIds, amount, discountAmount, finalAmount });
+    console.log('Order details:', { itemCount: paymentItems.length, amount, discountAmount, finalAmount, currency });
 
     // Get PayPal access token
     const accessToken = await getPayPalAccessToken(PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET);
 
+    // Build description
+    const descParts: string[] = [];
+    const articleCount = paymentItems.filter((i: any) => i.type === 'article_fee').length;
+    const hasSubscription = paymentItems.some((i: any) => i.type === 'pro_subscription');
+    const certCount = paymentItems.filter((i: any) => i.type === 'coauthor_certificate').length;
+    if (articleCount > 0) descParts.push(`${articleCount} article(s)`);
+    if (hasSubscription) descParts.push('Pro Plan');
+    if (certCount > 0) descParts.push(`${certCount} certificate(s)`);
+
+    // PayPal only supports specific currencies; for INR we convert display but PayPal charges in USD
+    const paypalCurrency = currency === 'INR' ? 'USD' : currency;
+    const paypalAmount = currency === 'INR' ? (finalAmount / 85).toFixed(2) : finalAmount.toFixed(2);
+
     // Create PayPal order
+    const baseReturnUrl = returnUrl || 'https://wwjmrdai.lovable.app/author/cart';
     const orderResponse = await fetch('https://api-m.paypal.com/v2/checkout/orders', {
       method: 'POST',
       headers: {
@@ -94,18 +208,18 @@ serve(async (req) => {
         intent: 'CAPTURE',
         purchase_units: [{
           amount: {
-            currency_code: 'USD',
-            value: finalAmount.toFixed(2),
+            currency_code: paypalCurrency,
+            value: paypalAmount,
           },
-          description: `Publication fee for ${articleIds.length} article(s)`,
-          custom_id: user.id,
+          description: `Payment for ${descParts.join(', ')}`,
+          custom_id: userId,
         }],
         application_context: {
-          brand_name: 'Academic Journal',
+          brand_name: 'WWJMRD',
           landing_page: 'NO_PREFERENCE',
           user_action: 'PAY_NOW',
-          return_url: `${req.headers.get('origin')}/author/cart?success=true`,
-          cancel_url: `${req.headers.get('origin')}/author/cart?cancelled=true`,
+          return_url: `${baseReturnUrl}?paypal=success`,
+          cancel_url: `${baseReturnUrl}?paypal=cancelled`,
         },
       }),
     });
@@ -113,31 +227,27 @@ serve(async (req) => {
     if (!orderResponse.ok) {
       const errorData = await orderResponse.text();
       console.error('PayPal order creation failed:', errorData);
-      throw new Error('Failed to create payment order');
+      throw new Error('Failed to create PayPal order');
     }
 
     const orderData = await orderResponse.json();
     console.log('PayPal order created:', orderData.id);
 
     // Create payment record in database
-    const serviceClient = createClient(
-      supabaseUrl,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
-
     const { data: payment, error: paymentError } = await serviceClient
       .from('payments')
       .insert({
-        user_id: user.id,
+        user_id: userId,
         article_ids: articleIds,
         amount: amount,
         discount_code: discountCode || null,
         discount_amount: discountAmount || 0,
         final_amount: finalAmount,
-        currency: 'USD',
+        currency: currency,
         payment_gateway: 'paypal',
         payment_status: 'pending',
         transaction_id: orderData.id,
+        payment_items: paymentItems,
       })
       .select()
       .single();
@@ -149,7 +259,6 @@ serve(async (req) => {
 
     console.log('Payment record created:', payment.id);
 
-    // Get approval URL
     const approvalUrl = orderData.links.find((link: any) => link.rel === 'approve')?.href;
 
     return new Response(
@@ -161,9 +270,10 @@ serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error: unknown) {
-    console.error('Error creating PayPal order:', error);
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Error creating PayPal order:', message);
     return new Response(
-      JSON.stringify({ error: 'Failed to create payment order. Please try again.' }),
+      JSON.stringify({ error: message || 'Failed to create payment order. Please try again.' }),
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
