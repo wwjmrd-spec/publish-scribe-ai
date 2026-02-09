@@ -6,10 +6,19 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+// Use sandbox URL for testing; switch to 'https://api-m.paypal.com' for production
+const PAYPAL_BASE_URL = Deno.env.get('PAYPAL_MODE') === 'live'
+  ? 'https://api-m.paypal.com'
+  : 'https://api-m.sandbox.paypal.com';
+
 async function getPayPalAccessToken(clientId: string, clientSecret: string): Promise<string> {
   const auth = btoa(`${clientId}:${clientSecret}`);
   
-  const response = await fetch('https://api-m.paypal.com/v1/oauth2/token', {
+  console.log('PayPal mode:', Deno.env.get('PAYPAL_MODE') || 'sandbox (default)');
+  console.log('PayPal base URL:', PAYPAL_BASE_URL);
+  console.log('PayPal Client ID (first 8 chars):', clientId.substring(0, 8) + '...');
+
+  const response = await fetch(`${PAYPAL_BASE_URL}/v1/oauth2/token`, {
     method: 'POST',
     headers: {
       'Authorization': `Basic ${auth}`,
@@ -198,7 +207,7 @@ serve(async (req) => {
 
     // Create PayPal order
     const baseReturnUrl = returnUrl || 'https://wwjmrdai.lovable.app/author/cart';
-    const orderResponse = await fetch('https://api-m.paypal.com/v2/checkout/orders', {
+    const orderResponse = await fetch(`${PAYPAL_BASE_URL}/v2/checkout/orders`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,

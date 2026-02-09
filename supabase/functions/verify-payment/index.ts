@@ -29,9 +29,13 @@ async function verifyRazorpaySignature(
   return expectedSignature === signature;
 }
 
+const PAYPAL_BASE_URL = Deno.env.get('PAYPAL_MODE') === 'live'
+  ? 'https://api-m.paypal.com'
+  : 'https://api-m.sandbox.paypal.com';
+
 async function getPayPalAccessToken(clientId: string, clientSecret: string): Promise<string> {
   const auth = btoa(`${clientId}:${clientSecret}`);
-  const response = await fetch('https://api-m.paypal.com/v1/oauth2/token', {
+  const response = await fetch(`${PAYPAL_BASE_URL}/v1/oauth2/token`, {
     method: 'POST',
     headers: {
       'Authorization': `Basic ${auth}`,
@@ -49,7 +53,7 @@ async function getPayPalAccessToken(clientId: string, clientSecret: string): Pro
 }
 
 async function capturePayPalOrder(orderId: string, accessToken: string): Promise<any> {
-  const response = await fetch(`https://api-m.paypal.com/v2/checkout/orders/${orderId}/capture`, {
+  const response = await fetch(`${PAYPAL_BASE_URL}/v2/checkout/orders/${orderId}/capture`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${accessToken}`,
