@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { jsPDF } from "https://esm.sh/jspdf@2.5.2";
+import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -26,7 +27,8 @@ function generateCoAuthorCertificatePdf(
   refNumber: string,
   mainAuthorName: string,
   certificateNumber: string,
-  currentDate: string
+  currentDate: string,
+  stampImageBase64: string | null
 ): ArrayBuffer {
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -71,7 +73,7 @@ function generateCoAuthorCertificatePdf(
 
   doc.setFontSize(9);
   doc.setTextColor(...grayText);
-  doc.text("PRINT-ISSN: 2454-6615  |  ONLINE-ISSN: 2454-6615", pageWidth / 2, y, { align: "center" });
+  doc.text("ONLINE-ISSN: 2454-6615", pageWidth / 2, y, { align: "center" });
   y += 6;
 
   doc.setDrawColor(...certGreen);
@@ -164,25 +166,46 @@ function generateCoAuthorCertificatePdf(
   doc.text(mainAuthorName, pageWidth / 2 - doc.getTextWidth(mainAuthorFullText) / 2 + doc.getTextWidth(mainAuthorLabel), y);
   y += 8;
 
-  const footerY = pageHeight - 35;
+  const footerY = pageHeight - 40;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   doc.setTextColor(...grayText);
-  doc.text(`Certificate No.: ${certificateNumber}`, 25, footerY);
-  doc.text(`Date: ${currentDate}`, 25, footerY + 6);
+  doc.text(`Certificate No.: ${certificateNumber}`, 25, footerY + 10);
+  doc.text(`Date: ${currentDate}`, 25, footerY + 16);
 
-  doc.setFont("helvetica", "italic");
-  doc.setFontSize(10);
-  doc.setTextColor(...grayText);
-  doc.text("Yours Sincerely,", pageWidth - 25, footerY, { align: "right" });
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.setTextColor(...darkBlue);
-  doc.text("Deepika Meena", pageWidth - 25, footerY + 7, { align: "right" });
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(...grayText);
-  doc.text("Publisher", pageWidth - 25, footerY + 12, { align: "right" });
+  // Publisher stamp image (right)
+  if (stampImageBase64) {
+    try {
+      const stampWidth = 45;
+      const stampHeight = 40;
+      const stampX = pageWidth - 25 - stampWidth;
+      const stampY = footerY - 5;
+      doc.addImage(stampImageBase64, "PNG", stampX, stampY, stampWidth, stampHeight);
+    } catch (e) {
+      console.error("Failed to add stamp image:", e);
+      doc.setFont("helvetica", "italic");
+      doc.text("Yours Sincerely,", pageWidth - 25, footerY, { align: "right" });
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.setTextColor(...darkBlue);
+      doc.text("Deepika Meena", pageWidth - 25, footerY + 7, { align: "right" });
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(...grayText);
+      doc.text("Publisher", pageWidth - 25, footerY + 12, { align: "right" });
+    }
+  } else {
+    doc.setFont("helvetica", "italic");
+    doc.text("Yours Sincerely,", pageWidth - 25, footerY, { align: "right" });
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.setTextColor(...darkBlue);
+    doc.text("Deepika Meena", pageWidth - 25, footerY + 7, { align: "right" });
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(...grayText);
+    doc.text("Publisher", pageWidth - 25, footerY + 12, { align: "right" });
+  }
 
   const bottomY = pageHeight - 16;
   doc.setFontSize(8);
@@ -332,6 +355,20 @@ serve(async (req) => {
       year: "numeric",
     });
 
+    // Fetch publisher stamp image
+    let stampImageBase64: string | null = null;
+    try {
+      const stampUrl = `${supabaseUrl}/storage/v1/object/public/email-assets/publisher-stamp.png`;
+      const stampRes = await fetch(stampUrl);
+      if (stampRes.ok) {
+        const stampBuffer = await stampRes.arrayBuffer();
+        const stampBytes = new Uint8Array(stampBuffer);
+        stampImageBase64 = "data:image/png;base64," + base64Encode(stampBytes);
+      }
+    } catch (e) {
+      console.error("Failed to fetch stamp image:", e);
+    }
+
     console.log("Generating PDF certificate for co-author:", coAuthorName);
 
     const pdfBuffer = generateCoAuthorCertificatePdf(
@@ -345,7 +382,8 @@ serve(async (req) => {
       refNumber,
       mainAuthorName,
       certificateNumber,
-      currentDate
+      currentDate,
+      stampImageBase64
     );
 
     // Store PDF
