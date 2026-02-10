@@ -13,7 +13,18 @@ import {
   FileText,
   Crown,
   ArrowUpDown,
+  DollarSign,
+  IndianRupee,
+  ChevronDown,
+  UserCheck,
 } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
@@ -78,6 +89,73 @@ export default function AdminAuthors() {
         subMap[sub.user_id] = sub;
       });
       return subMap;
+    },
+  });
+
+  const changeCurrencyMutation = useMutation({
+    mutationFn: async ({ authorId, isIndian }: { authorId: string; isIndian: boolean }) => {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_indian: isIndian })
+        .eq('id', authorId);
+      if (error) throw error;
+    },
+    onSuccess: (_, { isIndian }) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-authors'] });
+      toast.success(`Currency changed to ${isIndian ? 'INR' : 'USD'} successfully`);
+    },
+    onError: (error) => {
+      toast.error('Failed to change currency: ' + error.message);
+    },
+  });
+
+  const { data: coAuthorsMap } = useQuery({
+    queryKey: ['admin-co-authors'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('co_authors')
+        .select('*, co_author_certificates(id, certificate_url, payment_status)');
+      if (error) throw error;
+      const map: Record<string, any[]> = {};
+      data?.forEach(ca => {
+        if (!map[ca.article_id]) map[ca.article_id] = [];
+        map[ca.article_id].push(ca);
+      });
+      return map;
+    },
+  });
+
+  const { data: authorArticlesMap } = useQuery({
+    queryKey: ['admin-author-articles-map'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('articles')
+        .select('id, title, author_id, reference_number');
+      if (error) throw error;
+      const map: Record<string, any[]> = {};
+      data?.forEach(a => {
+        if (!map[a.author_id]) map[a.author_id] = [];
+        map[a.author_id].push(a);
+      });
+      return map;
+    },
+  });
+
+  const [expandedAuthor, setExpandedAuthor] = useState<string | null>(null);
+
+  const downloadCertMutation = useMutation({
+    mutationFn: async ({ articleId, fileType }: { articleId: string; fileType: string }) => {
+      const response = await supabase.functions.invoke('get-document-url', {
+        body: { articleId, fileType: 'co_author_certificate' },
+      });
+      if (response.error) throw new Error(response.error.message);
+      return response.data;
+    },
+    onSuccess: (data) => {
+      if (data.url) window.open(data.url, '_blank');
+    },
+    onError: (error) => {
+      toast.error('Failed to download: ' + error.message);
     },
   });
 
@@ -273,18 +351,84 @@ export default function AdminAuthors() {
                           {articleCounts?.[author.id] || 0}
                         </div>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="mt-2 w-full text-xs"
-                        onClick={() => {
-                          setSelectedAuthor(author);
-                          setIsPlanDialogOpen(true);
-                        }}
-                      >
-                        <ArrowUpDown className="w-3 h-3 mr-1" />
-                        Change Plan
-                      </Button>
+                      {/* Currency Toggle */}
+                      <div className="flex items-center gap-2 mt-2">
+                        <span className="text-xs text-muted-foreground">Currency:</span>
+                        <Select
+                          value={author.is_indian ? 'INR' : 'USD'}
+                          onValueChange={(val) => changeCurrencyMutation.mutate({ authorId: author.id, isIndian: val === 'INR' })}
+                        >
+                          <SelectTrigger className="h-7 text-xs w-20 glass-input">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="INR">₹ INR</SelectItem>
+                            <SelectItem value="USD">$ USD</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="flex gap-2 mt-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="flex-1 text-xs"
+                          onClick={() => {
+                            setSelectedAuthor(author);
+                            setIsPlanDialogOpen(true);
+                          }}
+                        >
+                          <ArrowUpDown className="w-3 h-3 mr-1" />
+                          Plan
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="flex-1 text-xs"
+                          onClick={() => setExpandedAuthor(expandedAuthor === author.id ? null : author.id)}
+                        >
+                          <UserCheck className="w-3 h-3 mr-1" />
+                          Co-Authors
+                        </Button>
+                      </div>
+
+                      {/* Expanded Co-Authors */}
+                      {expandedAuthor === author.id && (
+                        <div className="mt-3 pt-3 border-t border-[hsl(var(--glass-border))] space-y-2">
+                          <p className="text-xs font-semibold text-muted-foreground uppercase">Co-Authors</p>
+                          {(() => {
+                            const articles = authorArticlesMap?.[author.id] || [];
+                            const allCoAuthors = articles.flatMap((a: any) => {
+                              const cas = coAuthorsMap?.[a.id] || [];
+                              return cas.map((ca: any) => ({ ...ca, articleTitle: a.title, articleRef: a.reference_number }));
+                            });
+                            if (!allCoAuthors.length) return <p className="text-xs text-muted-foreground">No co-authors</p>;
+                            return allCoAuthors.map((ca: any) => (
+                              <div key={ca.id} className="p-2 rounded-lg bg-[hsl(var(--glass-bg))] text-xs space-y-1">
+                                <p className="font-medium">{ca.name}</p>
+                                <p className="text-muted-foreground">{ca.email}</p>
+                                {ca.affiliation && <p className="text-muted-foreground">{ca.affiliation}</p>}
+                                <p className="text-muted-foreground text-[10px]">Article: {ca.articleRef}</p>
+                                {ca.co_author_certificates?.map((cert: any) => (
+                                  cert.certificate_url && (
+                                    <Button
+                                      key={cert.id}
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-6 text-[10px] mt-1"
+                                      onClick={() => {
+                                        if (cert.certificate_url) window.open(cert.certificate_url, '_blank');
+                                      }}
+                                    >
+                                      Download Cert
+                                    </Button>
+                                  )
+                                ))}
+                              </div>
+                            ));
+                          })()}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </GlassCard>

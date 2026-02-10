@@ -10,7 +10,14 @@ import { Label } from '@/components/ui/label';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/hooks/use-toast';
-import { User, Lock, Camera, Palette, Save, Loader2, Sun, Moon, Monitor } from 'lucide-react';
+import { User, Lock, Camera, Palette, Save, Loader2, Sun, Moon, Monitor, DollarSign } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 
 export default function Profile() {
@@ -22,6 +29,7 @@ export default function Profile() {
   const [email, setEmail] = useState('');
   const [affiliation, setAffiliation] = useState('');
   const [country, setCountry] = useState('');
+  const [currency, setCurrency] = useState<'INR' | 'USD'>('INR');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
@@ -45,7 +53,7 @@ export default function Profile() {
     setLoadingProfile(true);
     const { data, error } = await supabase
       .from('profiles')
-      .select('full_name, email, affiliation, country, avatar_url')
+      .select('full_name, email, affiliation, country, avatar_url, is_indian')
       .eq('id', user.id)
       .maybeSingle();
 
@@ -54,6 +62,7 @@ export default function Profile() {
       setEmail(data.email || '');
       setAffiliation(data.affiliation || '');
       setCountry(data.country || '');
+      setCurrency(data.is_indian ? 'INR' : 'USD');
       setAvatarUrl(data.avatar_url || null);
     }
     if (error) console.error('Failed to fetch profile:', error.message);
@@ -78,6 +87,7 @@ export default function Profile() {
         full_name: fullName.trim(),
         affiliation: affiliation.trim() || null,
         country: country.trim() || null,
+        is_indian: currency === 'INR',
       })
       .eq('id', user.id);
 
@@ -239,6 +249,23 @@ export default function Profile() {
                     className="glass-input"
                     disabled={loadingProfile}
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="currency">Currency</Label>
+                  <Select
+                    value={currency}
+                    onValueChange={(val) => setCurrency(val as 'INR' | 'USD')}
+                    disabled={loadingProfile}
+                  >
+                    <SelectTrigger id="currency" className="glass-input">
+                      <SelectValue placeholder="Select currency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="INR">₹ INR (Indian Rupee)</SelectItem>
+                      <SelectItem value="USD">$ USD (US Dollar)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Used for publication fee calculations.</p>
                 </div>
               </div>
               <div className="flex justify-end">

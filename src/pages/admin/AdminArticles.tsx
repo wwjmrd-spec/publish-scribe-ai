@@ -64,7 +64,8 @@ export default function AdminArticles() {
         .from('articles')
         .select(`
           *,
-          profiles:author_id (full_name, email, country, affiliation)
+          profiles:author_id (full_name, email, country, affiliation),
+          co_authors (id, name, email, affiliation, co_author_certificates (id, certificate_url, payment_status))
         `)
         .order('created_at', { ascending: false });
       
@@ -498,6 +499,40 @@ export default function AdminArticles() {
                       <span key={i} className="px-2 py-1 rounded-full bg-primary/20 text-primary text-xs">
                         {keyword}
                       </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Co-Authors Section */}
+              {(selectedArticle as any)?.co_authors?.length > 0 && (
+                <div className="p-4 rounded-lg bg-[hsl(var(--glass-bg))] border border-[hsl(var(--glass-border))]">
+                  <h4 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Co-Authors</h4>
+                  <div className="space-y-3">
+                    {(selectedArticle as any).co_authors.map((ca: any) => (
+                      <div key={ca.id} className="flex items-start justify-between gap-3 p-2 rounded bg-background/50">
+                        <div className="text-sm space-y-0.5">
+                          <p className="font-medium">{ca.name}</p>
+                          <p className="text-muted-foreground text-xs">{ca.email}</p>
+                          {ca.affiliation && <p className="text-muted-foreground text-xs">{ca.affiliation}</p>}
+                        </div>
+                        <div className="flex gap-1 shrink-0">
+                          {ca.co_author_certificates?.map((cert: any) => (
+                            cert.certificate_url && (
+                              <Button
+                                key={cert.id}
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-xs"
+                                onClick={() => window.open(cert.certificate_url, '_blank')}
+                              >
+                                <Download className="w-3 h-3 mr-1" />
+                                Cert
+                              </Button>
+                            )
+                          ))}
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </div>
