@@ -112,6 +112,17 @@ export default function Index() {
               Publish Your Research
               <br />
               <span className="gradient-text">With Confidence</span>
+
+              <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=AW-953801023"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'AW-953801023');
+</script>
+              
             </h1>
 
             <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
