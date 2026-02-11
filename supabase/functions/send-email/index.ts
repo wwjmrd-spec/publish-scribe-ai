@@ -1,8 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { Resend } from "https://esm.sh/resend@4.0.0";
-
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+import { encode as base64Encode } from "https://deno.land/std@0.190.0/encoding/base64.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -20,6 +18,128 @@ function escapeHtml(unsafe: string): string {
     .replace(/'/g, '&#039;');
 }
 
+// ========== AWS SES v2 Signing Helpers ==========
+
+function getAmzDate(): { amzDate: string; dateStamp: string } {
+  const now = new Date();
+  const amzDate = now.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  const dateStamp = amzDate.slice(0, 8);
+  return { amzDate, dateStamp };
+}
+
+async function hmacSha256(key: ArrayBuffer | Uint8Array, message: string): Promise<ArrayBuffer> {
+  const cryptoKey = await crypto.subtle.importKey(
+    "raw",
+    key instanceof ArrayBuffer ? key : key.buffer,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  return await crypto.subtle.sign("HMAC", cryptoKey, new TextEncoder().encode(message));
+}
+
+async function sha256(message: string): Promise<string> {
+  const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(message));
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function getSignatureKey(key: string, dateStamp: string, region: string, service: string): Promise<ArrayBuffer> {
+  const kDate = await hmacSha256(new TextEncoder().encode("AWS4" + key), dateStamp);
+  const kRegion = await hmacSha256(kDate, region);
+  const kService = await hmacSha256(kRegion, service);
+  const kSigning = await hmacSha256(kService, "aws4_request");
+  return kSigning;
+}
+
+async function sendSESEmail(to: string, subject: string, htmlBody: string, from: string): Promise<any> {
+  const accessKeyId = Deno.env.get("AWS_ACCESS_KEY_ID");
+  const secretAccessKey = Deno.env.get("AWS_SECRET_ACCESS_KEY");
+  const region = Deno.env.get("AWS_SES_REGION") || "us-east-1";
+
+  if (!accessKeyId || !secretAccessKey) {
+    throw new Error("AWS SES credentials not configured");
+  }
+
+  const host = `email.${region}.amazonaws.com`;
+  const endpoint = `https://${host}/v2/email/outbound-emails`;
+  const { amzDate, dateStamp } = getAmzDate();
+
+  const requestBody = JSON.stringify({
+    Content: {
+      Simple: {
+        Subject: { Data: subject, Charset: "UTF-8" },
+        Body: { Html: { Data: htmlBody, Charset: "UTF-8" } },
+      },
+    },
+    Destination: { ToAddresses: [to] },
+    FromEmailAddress: from,
+  });
+
+  const payloadHash = await sha256(requestBody);
+
+  // Create canonical request
+  const method = "POST";
+  const canonicalUri = "/v2/email/outbound-emails";
+  const canonicalQueryString = "";
+  const canonicalHeaders = `content-type:application/json\nhost:${host}\nx-amz-date:${amzDate}\n`;
+  const signedHeaders = "content-type;host;x-amz-date";
+
+  const canonicalRequest = [
+    method,
+    canonicalUri,
+    canonicalQueryString,
+    canonicalHeaders,
+    signedHeaders,
+    payloadHash,
+  ].join("\n");
+
+  // Create string to sign
+  const algorithm = "AWS4-HMAC-SHA256";
+  const credentialScope = `${dateStamp}/${region}/ses/aws4_request`;
+  const stringToSign = [
+    algorithm,
+    amzDate,
+    credentialScope,
+    await sha256(canonicalRequest),
+  ].join("\n");
+
+  // Calculate signature
+  const signingKey = await getSignatureKey(secretAccessKey, dateStamp, region, "ses");
+  const signatureBuffer = await hmacSha256(signingKey, stringToSign);
+  const signature = Array.from(new Uint8Array(signatureBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+
+  const authorizationHeader = `${algorithm} Credential=${accessKeyId}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Host": host,
+      "X-Amz-Date": amzDate,
+      "Authorization": authorizationHeader,
+    },
+    body: requestBody,
+  });
+
+  const responseText = await response.text();
+
+  if (!response.ok) {
+    console.error("AWS SES error:", response.status, responseText);
+    throw new Error(`AWS SES error [${response.status}]: ${responseText}`);
+  }
+
+  let result;
+  try {
+    result = JSON.parse(responseText);
+  } catch {
+    result = { MessageId: responseText };
+  }
+
+  return result;
+}
+
+// ========== Email Templates ==========
+
 type EmailTemplate = "password-reset" | "email-verification" | "welcome" | "article-submission" | "payment-confirmation" | "referral-reward" | "article-status-change" | "custom";
 
 interface EmailRequest {
@@ -30,14 +150,12 @@ interface EmailRequest {
     verifyUrl?: string;
     loginUrl?: string;
     userName?: string;
-    // Article submission
     articleTitle?: string;
     referenceNumber?: string;
     authorName?: string;
     authorEmail?: string;
     submissionDate?: string;
     coAuthors?: string[];
-    // Payment confirmation
     paymentId?: string;
     amount?: number;
     currency?: string;
@@ -47,16 +165,13 @@ interface EmailRequest {
     discountCode?: string;
     discountAmount?: number;
     finalAmount?: number;
-    // Referral reward
     referrerName?: string;
     referredName?: string;
     referredEmail?: string;
     bonusDownloads?: number;
     rewardType?: 'referrer' | 'referred';
-    // Article status change
     status?: string;
   };
-  // For custom template
   subject?: string;
   html?: string;
   from?: string;
@@ -342,14 +457,48 @@ const getArticleStatusChangeTemplate = (data: EmailRequest["data"]): string => {
   `;
   return wrapEmail(info.title, body);
 };
+
+// Template resolver
+const getEmailContent = (template: EmailTemplate, data: EmailRequest["data"], isAdmin?: boolean): { subject: string; html: string } => {
+  switch (template) {
+    case "password-reset":
+      return { subject: "Reset Your Password - WWJMRD", html: getPasswordResetTemplate(data?.resetUrl || '', data?.userName) };
+    case "email-verification":
+      return { subject: "Verify Your Email - WWJMRD", html: getEmailVerificationTemplate(data?.verifyUrl || '', data?.userName) };
+    case "welcome":
+      return { subject: "Welcome to WWJMRD! 🎉", html: getWelcomeTemplate(data?.loginUrl || '', data?.userName) };
+    case "article-submission":
+      return {
+        subject: isAdmin ? `New Article Submitted: ${data?.articleTitle || 'Untitled'}` : `Article Submitted Successfully - ${data?.referenceNumber || ''}`,
+        html: getArticleSubmissionTemplate(data, isAdmin),
+      };
+    case "payment-confirmation":
+      return {
+        subject: isAdmin ? `Payment Received from ${data?.authorName || 'Author'}` : "Payment Successful - WWJMRD",
+        html: getPaymentConfirmationTemplate(data, isAdmin),
+      };
+    case "referral-reward":
+      return {
+        subject: data?.rewardType === 'referrer' ? "Referral Reward Earned! 🎉" : "Congratulations on Your Publication! 🎉",
+        html: getReferralRewardTemplate(data),
+      };
+    case "article-status-change":
+      return {
+        subject: `Article Status Updated: ${(data?.status || '').replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}`,
+        html: getArticleStatusChangeTemplate(data),
+      };
+    default:
+      throw new Error(`Unknown email template: ${template}`);
+  }
+};
+
 const handler = async (req: Request): Promise<Response> => {
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Authenticate the request - accept valid user JWT or service role key
+    // Authenticate the request
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       console.error("No Authorization header provided");
@@ -364,7 +513,6 @@ const handler = async (req: Request): Promise<Response> => {
     const isServiceRole = token === serviceRoleKey;
 
     if (!isServiceRole) {
-      // Validate as user JWT using getUser
       const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
       const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
       const authClient = createClient(supabaseUrl, anonKey, {
@@ -386,12 +534,10 @@ const handler = async (req: Request): Promise<Response> => {
     const body: EmailRequest & { isAdmin?: boolean } = await req.json();
     const { to, template, data, subject, html, from, isAdmin } = body;
 
-    // Validate required fields
     if (!to) {
       throw new Error("Missing required field: to");
     }
 
-    // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(to)) {
       throw new Error("Invalid email address format");
@@ -401,14 +547,12 @@ const handler = async (req: Request): Promise<Response> => {
     let emailHtml: string;
 
     if (template === "custom") {
-      // Custom template - use provided subject and html
       if (!subject || !html) {
         throw new Error("Custom template requires subject and html fields");
       }
       emailSubject = subject;
       emailHtml = html;
     } else if (template) {
-      // Use predefined template
       const content = getEmailContent(template, data, isAdmin);
       emailSubject = content.subject;
       emailHtml = content.html;
@@ -418,21 +562,14 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`Sending ${template} email to: ${to}, subject: ${emailSubject}, isAdmin: ${isAdmin}`);
 
-    const emailResponse = await resend.emails.send({
-      from: from || "WWJMRD <info@wwjmrd.com>",
-      to: [to],
-      subject: emailSubject,
-      html: emailHtml,
-    });
+    const fromAddress = from || "WWJMRD <info@wwjmrd.com>";
+    const emailResponse = await sendSESEmail(to, emailSubject, emailHtml, fromAddress);
 
-    console.log("Email sent successfully:", emailResponse);
+    console.log("Email sent successfully via AWS SES:", emailResponse);
 
     return new Response(JSON.stringify(emailResponse), {
       status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        ...corsHeaders,
-      },
+      headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   } catch (error: any) {
     console.error("Error in send-email function:", error);
