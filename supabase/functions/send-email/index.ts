@@ -400,18 +400,12 @@ const getArticleStatusChangeTemplate = (data: EmailRequest["data"]): string => {
   `;
   return wrapEmail(info.title, body);
 };
-function getEmailContent(data: any) {
-  return {
-    subject: "Manuscript Submission Confirmation",
-    html: `
-      <h2>Submission Received</h2>
-      <p>Dear ${data.name},</p>
-      <p>We have received your manuscript submission.</p>
-      <p>Our editorial team will review it shortly.</p>
-      <p>Regards,<br>WWJMRD Editorial Team</p>
-    `,
-    text: `Dear ${data.name}, Your manuscript has been received.`,
-  };
+function getEmailContent(
+  template: EmailTemplate,
+  data?: EmailRequest["data"],
+  isAdmin: boolean = false
+): { subject: string; html: string } {
+   ...
 }
 
 const handler = async (req: Request): Promise<Response> => {
