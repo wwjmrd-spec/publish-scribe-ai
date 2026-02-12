@@ -23,6 +23,7 @@ import AdminAuthors from "./pages/admin/AdminAuthors";
 import AdminDiscounts from "./pages/admin/AdminDiscounts";
 import AdminFees from "./pages/admin/AdminFees";
 import AdminAIReview from "./pages/admin/AdminAIReview";
+import AdminArticleDetail from "./pages/admin/AdminArticleDetail";
 import NotFound from "./pages/NotFound";
 import { ReferralPopup } from "./components/referral/ReferralPopup";
 
@@ -122,6 +123,14 @@ const App = () => (
               element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <AdminArticles />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/articles/:articleId" 
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminArticleDetail />
                 </ProtectedRoute>
               } 
             />
