@@ -209,7 +209,7 @@ export default function SubmitArticle() {
       supabase.functions
         .invoke('send-email', {
           body: {
-            to: 'info@wwjmrd.com',
+            to: 'shubhmeena23@gmail.com',
             template: 'article-submission',
             data: emailData,
             isAdmin: true,

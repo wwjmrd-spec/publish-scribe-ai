@@ -405,7 +405,51 @@ function getEmailContent(
   data?: EmailRequest["data"],
   isAdmin: boolean = false
 ): { subject: string; html: string } {
-   ...
+  switch (template) {
+    case "password-reset":
+      return {
+        subject: "Reset Your Password - WWJMRD",
+        html: getPasswordResetTemplate(data?.resetUrl || "", data?.userName),
+      };
+    case "email-verification":
+      return {
+        subject: "Verify Your Email - WWJMRD",
+        html: getEmailVerificationTemplate(data?.verifyUrl || "", data?.userName),
+      };
+    case "welcome":
+      return {
+        subject: "Welcome to WWJMRD! 🎉",
+        html: getWelcomeTemplate(data?.loginUrl || "", data?.userName),
+      };
+    case "article-submission":
+      return {
+        subject: isAdmin
+          ? `New Article Submitted: ${data?.articleTitle || "Untitled"}`
+          : "Article Submitted Successfully - WWJMRD",
+        html: getArticleSubmissionTemplate(data, isAdmin),
+      };
+    case "payment-confirmation":
+      return {
+        subject: isAdmin
+          ? `Payment Received from ${data?.authorName || "Author"}`
+          : "Payment Successful - WWJMRD",
+        html: getPaymentConfirmationTemplate(data, isAdmin),
+      };
+    case "referral-reward":
+      return {
+        subject: data?.rewardType === "referrer"
+          ? "Referral Reward Earned! 🎉 - WWJMRD"
+          : "Congratulations on Your Publication! 🎉 - WWJMRD",
+        html: getReferralRewardTemplate(data),
+      };
+    case "article-status-change":
+      return {
+        subject: `Article Status Update: ${(data?.status || "").replace(/_/g, " ")} - WWJMRD`,
+        html: getArticleStatusChangeTemplate(data),
+      };
+    default:
+      throw new Error(`Unknown email template: ${template}`);
+  }
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -415,6 +459,37 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    const body: EmailRequest & { isAdmin?: boolean; test?: boolean } = await req.json();
+
+    // Allow a simple test mode to verify Resend connectivity
+    if (body.test === true) {
+      console.log("Test mode: sending test email to admin");
+      try {
+        const testResult = await resend.emails.send({
+          from: "WWJMRD <info@wwjmrd.com>",
+          to: ["shubhmeena23@gmail.com"],
+          subject: "WWJMRD Test Email ✅",
+          html: wrapEmail("Test Email", `
+            ${emailH1("Email Delivery Test ✅")}
+            ${emailP("This is a test email to verify that WWJMRD email delivery is working correctly.")}
+            ${emailP("If you received this email, the Resend integration is functioning properly.")}
+            ${emailP(`Sent at: ${new Date().toISOString()}`)}
+          `),
+        });
+        console.log("Test email result:", JSON.stringify(testResult));
+        return new Response(JSON.stringify({ success: true, result: testResult }), {
+          status: 200,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      } catch (testErr: any) {
+        console.error("Test email failed:", testErr?.message, JSON.stringify(testErr));
+        return new Response(JSON.stringify({ success: false, error: testErr?.message || "Unknown error" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
+    }
+
     // Authenticate the request - accept valid user JWT or service role key
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
@@ -449,7 +524,6 @@ const handler = async (req: Request): Promise<Response> => {
       console.log("Email request authenticated via service role");
     }
 
-    const body: EmailRequest & { isAdmin?: boolean } = await req.json();
     const { to, template, data, subject, html, from, isAdmin } = body;
 
     // Validate required fields
@@ -491,7 +565,7 @@ const handler = async (req: Request): Promise<Response> => {
       html: emailHtml,
     });
 
-    console.log("Email sent successfully:", emailResponse);
+    console.log("Email sent successfully:", JSON.stringify(emailResponse));
 
     return new Response(JSON.stringify(emailResponse), {
       status: 200,
