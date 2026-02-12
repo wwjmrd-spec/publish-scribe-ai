@@ -45,7 +45,6 @@ export default function AdminArticles() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedArticle, setSelectedArticle] = useState<any>(null);
-  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
   const [publishDetails, setPublishDetails] = useState({
     volume: '',
@@ -116,7 +115,7 @@ export default function AdminArticles() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-articles'] });
       toast.success('Article status updated');
-      setIsViewDialogOpen(false);
+      
     },
     onError: (error) => {
       toast.error('Failed to update status: ' + error.message);
@@ -146,7 +145,7 @@ export default function AdminArticles() {
       queryClient.invalidateQueries({ queryKey: ['admin-articles'] });
       toast.success('Article published with certificate!');
       setIsPublishDialogOpen(false);
-      setIsViewDialogOpen(false);
+      
       setPublishDetails({ volume: '', issue: '', pageNumber: '', year: new Date().getFullYear().toString(), publishedLink: '' });
 
       // Send referral reward emails in the background
@@ -346,10 +345,7 @@ export default function AdminArticles() {
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => {
-                            setSelectedArticle(article);
-                            setIsViewDialogOpen(true);
-                          }}
+                          onClick={() => navigate(`/admin/articles/${article.id}`)}
                           title="View Details"
                         >
                           <Eye className="w-4 h-4" />
@@ -404,255 +400,6 @@ export default function AdminArticles() {
           </div>
         )}
       </GlassCard>
-
-      {/* View/Edit Dialog */}
-      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="glass-card-strong max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="gradient-text">{selectedArticle?.title}</DialogTitle>
-            <DialogDescription>Reference: {selectedArticle?.reference_number}</DialogDescription>
-          </DialogHeader>
-          
-          {selectedArticle && (
-            <div className="space-y-4">
-              {/* Author Profile Details */}
-              <div className="p-4 rounded-lg bg-[hsl(var(--glass-bg))] border border-[hsl(var(--glass-border))]">
-                <h4 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Author Details</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs text-muted-foreground">Full Name</label>
-                    <p className="font-medium">{(selectedArticle.profiles as any)?.full_name || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground">Email</label>
-                    <p className="text-sm">{(selectedArticle.profiles as any)?.email || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground">Country</label>
-                    <p className="text-sm">{(selectedArticle.profiles as any)?.country || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground">Affiliation</label>
-                    <p className="text-sm">{(selectedArticle.profiles as any)?.affiliation || 'N/A'}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-sm text-muted-foreground">Current Status</label>
-                <p className={`inline-block px-2 py-1 rounded-full text-xs border mt-1 ${getStatusBadge(selectedArticle.status)}`}>
-                  {formatStatus(selectedArticle.status)}
-                </p>
-              </div>
-
-              {/* Additional Article Details */}
-              {(selectedArticle.subject || selectedArticle.country || selectedArticle.reason_of_research || selectedArticle.submission_target) && (
-                <div className="p-4 rounded-lg bg-[hsl(var(--glass-bg))] border border-[hsl(var(--glass-border))]">
-                  <h4 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Submission Details</h4>
-                  <div className="grid grid-cols-2 gap-4">
-                    {selectedArticle.author_name && (
-                      <div>
-                        <label className="text-xs text-muted-foreground">Author Name (on article)</label>
-                        <p className="text-sm">{selectedArticle.author_name}</p>
-                      </div>
-                    )}
-                    {selectedArticle.country && (
-                      <div>
-                        <label className="text-xs text-muted-foreground">Article Country</label>
-                        <p className="text-sm">{selectedArticle.country}</p>
-                      </div>
-                    )}
-                    {selectedArticle.subject && (
-                      <div>
-                        <label className="text-xs text-muted-foreground">Subject</label>
-                        <p className="text-sm">{selectedArticle.subject}</p>
-                      </div>
-                    )}
-                    {selectedArticle.submission_target && (
-                      <div>
-                        <label className="text-xs text-muted-foreground">Submission Target</label>
-                        <p className="text-sm">{selectedArticle.submission_target}</p>
-                      </div>
-                    )}
-                    {selectedArticle.reason_of_research && (
-                      <div className="col-span-2">
-                        <label className="text-xs text-muted-foreground">Reason of Research</label>
-                        <p className="text-sm mt-1">{selectedArticle.reason_of_research}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-              
-              {selectedArticle.abstract && (
-                <div>
-                  <label className="text-sm text-muted-foreground">Abstract</label>
-                  <p className="text-sm mt-1 p-3 rounded-lg bg-[hsl(var(--glass-bg))]">{selectedArticle.abstract}</p>
-                </div>
-              )}
-
-              {selectedArticle.keywords?.length > 0 && (
-                <div>
-                  <label className="text-sm text-muted-foreground">Keywords</label>
-                  <div className="flex flex-wrap gap-2 mt-1">
-                    {selectedArticle.keywords.map((keyword: string, i: number) => (
-                      <span key={i} className="px-2 py-1 rounded-full bg-primary/20 text-primary text-xs">
-                        {keyword}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Co-Authors Section */}
-              {(selectedArticle as any)?.co_authors?.length > 0 && (
-                <div className="p-4 rounded-lg bg-[hsl(var(--glass-bg))] border border-[hsl(var(--glass-border))]">
-                  <h4 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Co-Authors</h4>
-                  <div className="space-y-3">
-                    {(selectedArticle as any).co_authors.map((ca: any) => (
-                      <div key={ca.id} className="flex items-start justify-between gap-3 p-2 rounded bg-background/50">
-                        <div className="text-sm space-y-0.5">
-                          <p className="font-medium">{ca.name}</p>
-                          <p className="text-muted-foreground text-xs">{ca.email}</p>
-                          {ca.affiliation && <p className="text-muted-foreground text-xs">{ca.affiliation}</p>}
-                        </div>
-                        <div className="flex gap-1 shrink-0">
-                          {ca.co_author_certificates?.map((cert: any) => (
-                            cert.certificate_url && (
-                              <Button
-                                key={cert.id}
-                                variant="outline"
-                                size="sm"
-                                className="h-7 text-xs"
-                                onClick={() => window.open(cert.certificate_url, '_blank')}
-                              >
-                                <Download className="w-3 h-3 mr-1" />
-                                Cert
-                              </Button>
-                            )
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Download Section */}
-              <div className="flex flex-wrap gap-2">
-                {selectedArticle.document_url && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => downloadMutation.mutate({ articleId: selectedArticle.id, fileType: 'document' })}
-                    disabled={downloadMutation.isPending}
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    Download Document
-                  </Button>
-                )}
-                {selectedArticle.certificate_url && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => downloadMutation.mutate({ articleId: selectedArticle.id, fileType: 'certificate' })}
-                    disabled={downloadMutation.isPending}
-                  >
-                    <Award className="w-4 h-4 mr-2" />
-                    Download Certificate
-                  </Button>
-                )}
-                {selectedArticle.review_report_url && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => downloadMutation.mutate({ articleId: selectedArticle.id, fileType: 'review_report' })}
-                    disabled={downloadMutation.isPending}
-                  >
-                    <FileText className="w-4 h-4 mr-2" />
-                    Download Review Report
-                  </Button>
-                )}
-              </div>
-
-              {/* Publication Details (if published) */}
-              {selectedArticle.status === 'published' && selectedArticle.volume && (
-                <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
-                  <h4 className="font-medium text-green-400 mb-2">Publication Details</h4>
-                  <div className="grid grid-cols-4 gap-4 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Volume:</span>
-                      <p className="font-medium">{selectedArticle.volume}</p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Issue:</span>
-                      <p className="font-medium">{selectedArticle.issue}</p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Pages:</span>
-                      <p className="font-medium">{selectedArticle.page_number}</p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Year:</span>
-                      <p className="font-medium">{selectedArticle.publication_year}</p>
-                    </div>
-                  </div>
-                  {selectedArticle.published_link && (
-                    <div className="mt-3 text-sm">
-                      <span className="text-muted-foreground">Published Link:</span>
-                      <a
-                        href={selectedArticle.published_link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="ml-2 text-primary hover:underline break-all"
-                      >
-                        {selectedArticle.published_link}
-                      </a>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          <DialogFooter className="flex-wrap gap-2">
-            <Button
-              variant="outline"
-              onClick={() => updateStatusMutation.mutate({ articleId: selectedArticle.id, status: 'under_review', article: selectedArticle })}
-              disabled={updateStatusMutation.isPending}
-            >
-              <Clock className="w-4 h-4 mr-2" />
-              Under Review
-            </Button>
-            <Button
-              variant="outline"
-              className="text-orange-400 hover:text-orange-300"
-              onClick={() => updateStatusMutation.mutate({ articleId: selectedArticle.id, status: 'pending_fee', article: selectedArticle })}
-              disabled={updateStatusMutation.isPending}
-            >
-              Pending Fee
-            </Button>
-            <Button
-              variant="outline"
-              className="text-green-400 hover:text-green-300"
-              onClick={handlePublishClick}
-              disabled={updateStatusMutation.isPending || selectedArticle?.status === 'published'}
-            >
-              <CheckCircle className="w-4 h-4 mr-2" />
-              Publish
-            </Button>
-            <Button
-              variant="outline"
-              className="text-destructive hover:text-destructive"
-              onClick={() => updateStatusMutation.mutate({ articleId: selectedArticle.id, status: 'rejected', article: selectedArticle })}
-              disabled={updateStatusMutation.isPending}
-            >
-              <XCircle className="w-4 h-4 mr-2" />
-              Reject
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Publish Dialog with Certificate Details */}
       <Dialog open={isPublishDialogOpen} onOpenChange={setIsPublishDialogOpen}>
