@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -16,6 +16,8 @@ import { ArrowRight } from 'lucide-react';
 export default function SubmitArticle() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const resubmitArticle = (location.state as any)?.resubmit;
   const { toast } = useToast();
   const { generateSubject, loading: generatingSubject } = useGenerateSubject();
 
@@ -33,8 +35,19 @@ export default function SubmitArticle() {
   const [reasonOfResearch, setReasonOfResearch] = useState('');
   const [submissionTarget, setSubmissionTarget] = useState('');
 
-  // Pre-fill author name and country from profile
+  // Pre-fill from resubmitted article or profile
   useEffect(() => {
+    if (resubmitArticle) {
+      setTitle(resubmitArticle.title || '');
+      setAbstract(resubmitArticle.abstract || '');
+      setKeywords(resubmitArticle.keywords?.join(', ') || '');
+      setAuthorName(resubmitArticle.author_name || '');
+      setCountry(resubmitArticle.country || '');
+      setSubject(resubmitArticle.subject || '');
+      setReasonOfResearch(resubmitArticle.reason_of_research || '');
+      setSubmissionTarget(resubmitArticle.submission_target || '');
+      return;
+    }
     if (!user?.id) return;
     supabase
       .from('profiles')
@@ -47,7 +60,7 @@ export default function SubmitArticle() {
           if (data.country) setCountry(data.country);
         }
       });
-  }, [user?.id]);
+  }, [user?.id, resubmitArticle]);
 
   const handleGenerateSubject = async () => {
     const result = await generateSubject(abstract);
@@ -243,9 +256,13 @@ export default function SubmitArticle() {
         className="max-w-3xl mx-auto"
       >
         <div className="mb-8">
-          <h1 className="font-display text-3xl font-bold mb-2">Submit Article</h1>
+          <h1 className="font-display text-3xl font-bold mb-2">
+            {resubmitArticle ? 'Resubmit Article' : 'Submit Article'}
+          </h1>
           <p className="text-muted-foreground">
-            Fill in the details below to submit your article for review
+            {resubmitArticle
+              ? 'Submit a revised version of your rejected article'
+              : 'Fill in the details below to submit your article for review'}
           </p>
         </div>
 

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { GlassCard } from '@/components/layout/GlassCard';
 import { Input } from '@/components/ui/input';
@@ -43,6 +44,7 @@ export default function AdminAuthors() {
   const [selectedAuthor, setSelectedAuthor] = useState<any>(null);
   const [isPlanDialogOpen, setIsPlanDialogOpen] = useState(false);
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const { data: authors, isLoading } = useQuery({
     queryKey: ['admin-authors'],
@@ -311,7 +313,7 @@ export default function AdminAuthors() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
               >
-                <GlassCard className="h-full">
+                <div className="h-full glass-card p-6 cursor-pointer hover:border-primary/30 transition-colors" onClick={() => navigate(`/admin/authors/${author.id}`)}>
                   <div className="flex items-start gap-4">
                     <div className="w-12 h-12 rounded-full gradient-primary flex items-center justify-center text-lg font-bold text-primary-foreground">
                       {author.full_name.charAt(0).toUpperCase()}
@@ -431,7 +433,7 @@ export default function AdminAuthors() {
                       )}
                     </div>
                   </div>
-                </GlassCard>
+                </div>
               </motion.div>
             );
           })}

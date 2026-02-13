@@ -323,8 +323,8 @@ serve(async (req) => {
       });
     }
 
-    // Generate certificate number
-    const certificateNumber = `${volume}-${issue}-${pageNumber.split("-")[0] || pageNumber}`;
+    // Use article reference number as certificate number
+    const certificateNumber = article.reference_number || `${volume}-${issue}-${pageNumber.split("-")[0] || pageNumber}`;
     const currentDate = new Date().toLocaleDateString("en-GB", {
       day: "2-digit",
       month: "2-digit",

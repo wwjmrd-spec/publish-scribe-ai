@@ -28,6 +28,7 @@ type EmailTemplate =
   | "payment-confirmation"
   | "referral-reward"
   | "article-status-change"
+  | "review-report-ready"
   | "custom";
 
 interface EmailRequest {
@@ -400,6 +401,26 @@ const getArticleStatusChangeTemplate = (data: EmailRequest["data"]): string => {
   `;
   return wrapEmail(info.title, body);
 };
+
+const getReviewReportReadyTemplate = (data: EmailRequest["data"]): string => {
+  const infoRows = [
+    emailInfoRow("Reference Number", escapeHtml(data?.referenceNumber || "N/A")),
+    emailInfoRow("Title", escapeHtml(data?.articleTitle || "N/A")),
+    emailInfoRow("Overall Score", `${(data as any)?.overallScore ?? "N/A"}%`),
+    emailInfoRow("Recommendation", escapeHtml(((data as any)?.recommendation || "N/A").replace(/_/g, " "))),
+  ].join("");
+
+  const body = `
+    ${emailH1("Review Report Ready 📊")}
+    ${emailP(`Dear ${escapeHtml(data?.authorName || "Author")},`)}
+    ${emailP(`The AI review report for your article has been generated and is now available for download in your dashboard.`)}
+    ${emailInfoBox("Review Summary", infoRows)}
+    ${emailP("Log in to your dashboard to view the full review report and download it.")}
+    ${emailDivider()}
+    ${emailFooterText("This is an automated notification from WWJMRD. If you have questions about the review, please contact us at wwjmrd@gmail.com.")}
+  `;
+  return wrapEmail("Review Report Ready", body);
+};
 function getEmailContent(
   template: EmailTemplate,
   data?: EmailRequest["data"],
@@ -446,6 +467,11 @@ function getEmailContent(
       return {
         subject: `Article Status Update: ${(data?.status || "").replace(/_/g, " ")} - WWJMRD`,
         html: getArticleStatusChangeTemplate(data),
+      };
+    case "review-report-ready":
+      return {
+        subject: `Review Report Ready: ${data?.articleTitle || "Your Article"} - WWJMRD`,
+        html: getReviewReportReadyTemplate(data),
       };
     default:
       throw new Error(`Unknown email template: ${template}`);

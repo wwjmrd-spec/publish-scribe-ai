@@ -614,6 +614,34 @@ Provide your response as a valid JSON object with this exact structure:
 
     console.log(`AI review completed for article ${articleId}, report: ${reportFileName}`);
 
+    // Send email notification to author about review report
+    try {
+      const authorProfile = article.profiles as any;
+      if (authorProfile?.email) {
+        await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${supabaseServiceKey}`,
+          },
+          body: JSON.stringify({
+            to: authorProfile.email,
+            template: "review-report-ready",
+            data: {
+              authorName: authorProfile.full_name || "Author",
+              articleTitle: article.title,
+              referenceNumber: article.reference_number,
+              overallScore: reviewData.overallScore,
+              recommendation: (reviewData.detailedFeedback?.recommendation || "N/A").replace(/_/g, " "),
+            },
+          }),
+        });
+        console.log("Review report email sent to:", authorProfile.email);
+      }
+    } catch (emailError) {
+      console.error("Failed to send review report email:", emailError);
+    }
+
     return jsonResponse({
       success: true,
       review,
