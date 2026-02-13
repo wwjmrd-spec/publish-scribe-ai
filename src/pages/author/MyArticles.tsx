@@ -305,6 +305,16 @@ export default function MyArticles() {
                             Pay Now
                           </Button>
                         )}
+                        {article.status === 'rejected' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => navigate('/author/submit', { state: { resubmit: article } })}
+                          >
+                            <Upload className="w-4 h-4 mr-1" />
+                            Resubmit
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </div>

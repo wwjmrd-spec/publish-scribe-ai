@@ -24,6 +24,7 @@ import AdminDiscounts from "./pages/admin/AdminDiscounts";
 import AdminFees from "./pages/admin/AdminFees";
 import AdminAIReview from "./pages/admin/AdminAIReview";
 import AdminArticleDetail from "./pages/admin/AdminArticleDetail";
+import AdminAuthorDetail from "./pages/admin/AdminAuthorDetail";
 import NotFound from "./pages/NotFound";
 import { ReferralPopup } from "./components/referral/ReferralPopup";
 
@@ -139,6 +140,14 @@ const App = () => (
               element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <AdminAuthors />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/authors/:authorId" 
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminAuthorDetail />
                 </ProtectedRoute>
               } 
             />

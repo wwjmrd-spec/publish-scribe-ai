@@ -348,7 +348,7 @@ serve(async (req) => {
     const publicationYear = article.publication_year || "N/A";
     const mainAuthorName = mainAuthor?.full_name || "Unknown";
 
-    const certificateNumber = `CA-${volume}-${issue}-${(pageNumber as string).split("-")[0] || pageNumber}`;
+    const certificateNumber = refNumber || `CA-${volume}-${issue}-${(pageNumber as string).split("-")[0] || pageNumber}`;
     const currentDate = new Date().toLocaleDateString("en-GB", {
       day: "2-digit",
       month: "2-digit",
