@@ -309,7 +309,7 @@ export default function MyArticles() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => navigate('/author/submit', { state: { resubmit: article } })}
+                            onClick={() => navigate('/author/resubmit', { state: { resubmit: article } })}
                           >
                             <Upload className="w-4 h-4 mr-1" />
                             Resubmit

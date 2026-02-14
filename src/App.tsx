@@ -11,6 +11,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import AuthorDashboard from "./pages/author/AuthorDashboard";
 import SubmitArticle from "./pages/author/SubmitArticle";
+import ResubmitArticle from "./pages/author/ResubmitArticle";
 import MyArticles from "./pages/author/MyArticles";
 import Cart from "./pages/author/Cart";
 import Certificates from "./pages/author/Certificates";
@@ -58,6 +59,14 @@ const App = () => (
               element={
                 <ProtectedRoute allowedRoles={['author']}>
                   <SubmitArticle />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/author/resubmit" 
+              element={
+                <ProtectedRoute allowedRoles={['author']}>
+                  <ResubmitArticle />
                 </ProtectedRoute>
               } 
             />
