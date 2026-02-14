@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Bell, Check, CheckCheck, Gift, Info, AlertCircle } from 'lucide-react';
 import { useNotifications, Notification } from '@/hooks/useNotifications';
 import { Button } from '@/components/ui/button';
@@ -26,9 +27,19 @@ function getNotificationIcon(type: string) {
 
 export function NotificationBell() {
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+  const navigate = useNavigate();
+  const [open, setOpen] = React.useState(false);
+
+  const handleClick = (n: Notification) => {
+    if (!n.is_read) markAsRead(n.id);
+    if ((n as any).link) {
+      setOpen(false);
+      navigate((n as any).link);
+    }
+  };
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="w-5 h-5" />
@@ -64,10 +75,11 @@ export function NotificationBell() {
               {notifications.map((n: Notification) => (
                 <button
                   key={n.id}
-                  onClick={() => !n.is_read && markAsRead(n.id)}
+                  onClick={() => handleClick(n)}
                   className={cn(
                     "w-full text-left p-4 hover:bg-[hsl(var(--glass-bg-strong))] transition-colors",
-                    !n.is_read && "bg-primary/5"
+                    !n.is_read && "bg-primary/5",
+                    (n as any).link && "cursor-pointer"
                   )}
                 >
                   <div className="flex items-start gap-3">
