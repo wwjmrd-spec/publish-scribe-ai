@@ -14,6 +14,7 @@ import { FileUploadSection } from '@/components/submit/FileUploadSection';
 import { CoAuthorsSection, type CoAuthor } from '@/components/submit/CoAuthorsSection';
 import { ArrowRight, ArrowLeft, Upload, FileText, CheckCircle, Sparkles, Bot } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
+import mammoth from 'mammoth';
 
 type Step = 1 | 2 | 3;
 
@@ -23,40 +24,11 @@ const stepInfo = [
   { label: 'Done', icon: CheckCircle },
 ];
 
-// Extract text from .docx using browser APIs (basic extraction)
+// Extract text from .docx using mammoth.js
 async function extractTextFromDocx(file: File): Promise<string> {
   const arrayBuffer = await file.arrayBuffer();
-  const uint8 = new Uint8Array(arrayBuffer);
-
-  // .docx is a ZIP file containing XML. We'll find word/document.xml
-  // Simple approach: find XML content between tags
-  const decoder = new TextDecoder('utf-8');
-  const text = decoder.decode(uint8);
-
-  // Try to extract readable text from the raw binary
-  // Look for text patterns between XML tags
-  const textParts: string[] = [];
-  const regex = /<w:t[^>]*>([^<]+)<\/w:t>/g;
-  let match;
-  while ((match = regex.exec(text)) !== null) {
-    textParts.push(match[1]);
-  }
-
-  if (textParts.length > 0) {
-    return textParts.join(' ');
-  }
-
-  // Fallback: extract any readable ASCII text
-  let readable = '';
-  for (let i = 0; i < uint8.length; i++) {
-    const char = uint8[i];
-    if ((char >= 32 && char <= 126) || char === 10 || char === 13) {
-      readable += String.fromCharCode(char);
-    } else if (readable.length > 0 && readable[readable.length - 1] !== ' ') {
-      readable += ' ';
-    }
-  }
-  return readable.replace(/\s+/g, ' ').trim();
+  const result = await mammoth.extractRawText({ arrayBuffer });
+  return result.value.trim();
 }
 
 export default function SubmitArticle() {
