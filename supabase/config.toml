@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.generate-subject]
 verify_jwt = false
+
+[functions.scan-article]
+verify_jwt = false
