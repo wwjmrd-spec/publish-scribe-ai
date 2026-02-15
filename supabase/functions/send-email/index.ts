@@ -25,6 +25,7 @@ type EmailTemplate =
   | "email-verification"
   | "welcome"
   | "article-submission"
+  | "article-resubmission"
   | "payment-confirmation"
   | "referral-reward"
   | "article-status-change"
@@ -421,6 +422,29 @@ const getReviewReportReadyTemplate = (data: EmailRequest["data"]): string => {
   `;
   return wrapEmail("Review Report Ready", body);
 };
+const getArticleResubmissionTemplate = (data: EmailRequest["data"], isAdmin: boolean = false): string => {
+  const infoRows = [
+    emailInfoRow("Reference Number", escapeHtml(data?.referenceNumber || "N/A")),
+    emailInfoRow("Title", escapeHtml(data?.articleTitle || "N/A")),
+    emailInfoRow("Author", escapeHtml(data?.authorName || "N/A")),
+    emailInfoRow("Resubmission Date", escapeHtml(data?.submissionDate || new Date().toLocaleDateString())),
+  ].join("");
+
+  const body = `
+    ${emailH1(isAdmin ? "Article Resubmitted 🔄" : "Article Resubmitted Successfully 🔄")}
+    ${emailP(isAdmin ? `Author ${escapeHtml(data?.authorName || "Author")} has resubmitted a revised article.` : `Hi ${escapeHtml(data?.authorName || "Author")},`)}
+    ${isAdmin ? "" : emailP("Your revised article has been resubmitted and is now under review again.")}
+    ${emailInfoBox("Resubmission Details:", infoRows)}
+    ${isAdmin
+      ? emailButton("https://wwjmrdai.lovable.app/admin/articles", "Review Article")
+      : emailButton("https://wwjmrdai.lovable.app/author/articles", "Track Your Article")
+    }
+    ${emailDivider()}
+    ${emailFooterText("If you have any questions, contact us at info@wwjmrd.com")}
+  `;
+  return wrapEmail(isAdmin ? "Article Resubmitted" : "Article Resubmitted Successfully", body);
+};
+
 function getEmailContent(
   template: EmailTemplate,
   data?: EmailRequest["data"],
@@ -448,6 +472,13 @@ function getEmailContent(
           ? `New Article Submitted: ${data?.articleTitle || "Untitled"}`
           : "Article Submitted Successfully - WWJMRD",
         html: getArticleSubmissionTemplate(data, isAdmin),
+      };
+    case "article-resubmission":
+      return {
+        subject: isAdmin
+          ? `Article Resubmitted: ${data?.articleTitle || "Untitled"}`
+          : "Article Resubmitted Successfully - WWJMRD",
+        html: getArticleResubmissionTemplate(data, isAdmin),
       };
     case "payment-confirmation":
       return {
