@@ -23,6 +23,7 @@ import {
   Gift,
 } from 'lucide-react';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
+import { GuidedTour } from '@/components/onboarding/GuidedTour';
 
 interface NavItem {
   label: string;
@@ -30,15 +31,22 @@ interface NavItem {
   icon: React.ElementType;
 }
 
+interface NavItem {
+  label: string;
+  href: string;
+  icon: React.ElementType;
+  tourId?: string;
+}
+
 const authorNavItems: NavItem[] = [
-  { label: 'Dashboard', href: '/author', icon: Home },
-  { label: 'Submit Article', href: '/author/submit', icon: Upload },
-  { label: 'My Articles', href: '/author/articles', icon: FileText },
-  { label: 'Cart', href: '/author/cart', icon: ShoppingCart },
-  { label: 'Certificates', href: '/author/certificates', icon: Award },
-  { label: 'Subscription', href: '/author/subscription', icon: Crown },
-  { label: 'Rewards', href: '/author/rewards', icon: Gift },
-  { label: 'Profile', href: '/author/profile', icon: UserCircle },
+  { label: 'Dashboard', href: '/author', icon: Home, tourId: 'dashboard' },
+  { label: 'Submit Article', href: '/author/submit', icon: Upload, tourId: 'submit-article' },
+  { label: 'My Articles', href: '/author/articles', icon: FileText, tourId: 'my-articles' },
+  { label: 'Cart', href: '/author/cart', icon: ShoppingCart, tourId: 'cart' },
+  { label: 'Certificates', href: '/author/certificates', icon: Award, tourId: 'certificates' },
+  { label: 'Subscription', href: '/author/subscription', icon: Crown, tourId: 'subscription' },
+  { label: 'Rewards', href: '/author/rewards', icon: Gift, tourId: 'rewards' },
+  { label: 'Profile', href: '/author/profile', icon: UserCircle, tourId: 'profile' },
 ];
 
 const adminNavItems: NavItem[] = [
@@ -61,6 +69,26 @@ export function DashboardLayout({ children, type }: DashboardLayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+  const [showTour, setShowTour] = React.useState(false);
+
+  // Show tour for first-time users
+  React.useEffect(() => {
+    if (user) {
+      const tourKey = `pubportal_tour_seen_${user.id}`;
+      if (!localStorage.getItem(tourKey)) {
+        // Small delay to let the layout render
+        const timer = setTimeout(() => setShowTour(true), 800);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [user]);
+
+  const handleTourComplete = () => {
+    setShowTour(false);
+    if (user) {
+      localStorage.setItem(`pubportal_tour_seen_${user.id}`, 'true');
+    }
+  };
 
   const navItems = type === 'admin' ? adminNavItems : authorNavItems;
 
@@ -113,6 +141,7 @@ export function DashboardLayout({ children, type }: DashboardLayoutProps) {
               <Link
                 key={item.href}
                 to={item.href}
+                data-tour={item.tourId}
                 className={cn(
                   "flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300",
                   isActive
@@ -214,6 +243,11 @@ export function DashboardLayout({ children, type }: DashboardLayoutProps) {
           {children}
         </div>
       </main>
+
+      {/* Guided Tour for new users */}
+      {showTour && (
+        <GuidedTour type={type} onComplete={handleTourComplete} />
+      )}
     </div>
   );
 }
