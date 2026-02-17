@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { X, ArrowRight, ArrowLeft, Sparkles } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface TourStep {
   selector: string;
   title: string;
   description: string;
-  position?: 'right' | 'bottom' | 'left';
 }
 
 const authorTourSteps: TourStep[] = [
@@ -15,61 +16,55 @@ const authorTourSteps: TourStep[] = [
     selector: '[data-tour="dashboard"]',
     title: '📊 Dashboard',
     description: 'Your home base! See article stats, quick actions, and recent submissions at a glance.',
-    position: 'right',
   },
   {
     selector: '[data-tour="submit-article"]',
     title: '📤 Submit Article',
     description: 'Upload your .docx research paper and our AI will automatically extract title, abstract, keywords & co-authors for you!',
-    position: 'right',
   },
   {
     selector: '[data-tour="my-articles"]',
     title: '📄 My Articles',
     description: 'Track all your submissions — see their review status, download review reports, and resubmit revised versions.',
-    position: 'right',
   },
   {
     selector: '[data-tour="cart"]',
     title: '🛒 Cart & Payments',
     description: 'Once your article is approved, pay the publication fee here via Razorpay (INR) or PayPal (USD).',
-    position: 'right',
   },
   {
     selector: '[data-tour="certificates"]',
     title: '🏆 Certificates',
     description: 'Download your publication certificates and co-author certificates after your article is published.',
-    position: 'right',
   },
   {
     selector: '[data-tour="subscription"]',
     title: '👑 Subscription',
     description: 'Upgrade to Pro for discounted fees, free co-author certificates, and AI review reports every month.',
-    position: 'right',
   },
   {
     selector: '[data-tour="rewards"]',
     title: '🎁 Rewards',
     description: 'Refer fellow researchers and earn rewards! Share your unique referral code to get benefits.',
-    position: 'right',
   },
   {
     selector: '[data-tour="profile"]',
     title: '👤 Profile',
     description: 'Update your name, affiliation, country, and manage your account settings.',
-    position: 'right',
   },
 ];
 
 interface GuidedTourProps {
   type: 'author' | 'admin';
-  onComplete: () => void;
+  onComplete: (dontShowAgain: boolean) => void;
 }
 
 export function GuidedTour({ type, onComplete }: GuidedTourProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties>({});
   const [highlightStyle, setHighlightStyle] = useState<React.CSSProperties>({});
+  const [dontShowAgain, setDontShowAgain] = useState(true);
+  const isMobile = useIsMobile();
 
   const steps = type === 'author' ? authorTourSteps : authorTourSteps.slice(0, 1);
   const step = steps[currentStep];
@@ -77,9 +72,24 @@ export function GuidedTour({ type, onComplete }: GuidedTourProps) {
   const positionTooltip = useCallback(() => {
     if (!step) return;
     const el = document.querySelector(step.selector);
-    if (!el) return;
+
+    // On mobile, sidebar nav items aren't visible — show centered card
+    if (!el || isMobile) {
+      setHighlightStyle({ display: 'none' });
+      setTooltipStyle({
+        position: 'fixed',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        maxWidth: 340,
+        width: '90vw',
+      });
+      return;
+    }
 
     const rect = el.getBoundingClientRect();
+    const viewportW = window.innerWidth;
+    const viewportH = window.innerHeight;
 
     setHighlightStyle({
       position: 'fixed',
@@ -88,25 +98,39 @@ export function GuidedTour({ type, onComplete }: GuidedTourProps) {
       width: rect.width + 8,
       height: rect.height + 8,
       borderRadius: '12px',
+      display: 'block',
     });
 
-    const pos = step.position || 'right';
-    if (pos === 'right') {
+    const tooltipW = 320;
+    const spaceRight = viewportW - rect.right - 16;
+    const spaceBottom = viewportH - rect.bottom - 16;
+
+    if (spaceRight >= tooltipW) {
+      // Position right
       setTooltipStyle({
         position: 'fixed',
-        top: rect.top,
+        top: Math.min(rect.top, viewportH - 280),
         left: rect.right + 16,
-        maxWidth: 320,
+        maxWidth: tooltipW,
       });
-    } else if (pos === 'bottom') {
+    } else if (spaceBottom >= 200) {
+      // Position bottom
       setTooltipStyle({
         position: 'fixed',
         top: rect.bottom + 16,
-        left: rect.left,
-        maxWidth: 320,
+        left: Math.max(8, Math.min(rect.left, viewportW - tooltipW - 8)),
+        maxWidth: tooltipW,
+      });
+    } else {
+      // Fallback: position left
+      setTooltipStyle({
+        position: 'fixed',
+        top: Math.min(rect.top, viewportH - 280),
+        left: Math.max(8, rect.left - tooltipW - 16),
+        maxWidth: tooltipW,
       });
     }
-  }, [step]);
+  }, [step, isMobile]);
 
   useEffect(() => {
     positionTooltip();
@@ -114,13 +138,11 @@ export function GuidedTour({ type, onComplete }: GuidedTourProps) {
     return () => window.removeEventListener('resize', positionTooltip);
   }, [positionTooltip]);
 
-  // Scroll element into view
   useEffect(() => {
     if (!step) return;
     const el = document.querySelector(step.selector);
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      // Reposition after scroll
       setTimeout(positionTooltip, 300);
     }
   }, [currentStep, step, positionTooltip]);
@@ -129,7 +151,7 @@ export function GuidedTour({ type, onComplete }: GuidedTourProps) {
     if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
-      onComplete();
+      onComplete(dontShowAgain);
     }
   };
 
@@ -140,7 +162,7 @@ export function GuidedTour({ type, onComplete }: GuidedTourProps) {
   };
 
   const handleSkip = () => {
-    onComplete();
+    onComplete(dontShowAgain);
   };
 
   return (
@@ -165,9 +187,9 @@ export function GuidedTour({ type, onComplete }: GuidedTourProps) {
         {/* Tooltip */}
         <motion.div
           key={`tooltip-${currentStep}`}
-          initial={{ opacity: 0, x: -10 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -10 }}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 10 }}
           transition={{ duration: 0.3, delay: 0.1 }}
           style={tooltipStyle}
           className="z-[10001] bg-card border border-border rounded-xl shadow-2xl p-5"
@@ -210,6 +232,18 @@ export function GuidedTour({ type, onComplete }: GuidedTourProps) {
                 }`}
               />
             ))}
+          </div>
+
+          {/* Don't show again */}
+          <div className="flex items-center gap-2 mb-4">
+            <Checkbox
+              id="dont-show"
+              checked={dontShowAgain}
+              onCheckedChange={(checked) => setDontShowAgain(checked === true)}
+            />
+            <label htmlFor="dont-show" className="text-xs text-muted-foreground cursor-pointer select-none">
+              Don't show this again
+            </label>
           </div>
 
           {/* Actions */}

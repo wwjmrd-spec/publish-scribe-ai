@@ -83,9 +83,9 @@ export function DashboardLayout({ children, type }: DashboardLayoutProps) {
     }
   }, [user]);
 
-  const handleTourComplete = () => {
+  const handleTourComplete = (dontShowAgain: boolean) => {
     setShowTour(false);
-    if (user) {
+    if (user && dontShowAgain) {
       localStorage.setItem(`pubportal_tour_seen_${user.id}`, 'true');
     }
   };
