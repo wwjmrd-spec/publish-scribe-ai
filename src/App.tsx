@@ -28,6 +28,7 @@ import AdminArticleDetail from "./pages/admin/AdminArticleDetail";
 import AdminAuthorDetail from "./pages/admin/AdminAuthorDetail";
 import NotFound from "./pages/NotFound";
 import { ReferralPopup } from "./components/referral/ReferralPopup";
+import { CookieConsent } from "./components/CookieConsent";
 
 const queryClient = new QueryClient();
 
@@ -40,6 +41,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <ReferralPopup />
+        <CookieConsent />
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
