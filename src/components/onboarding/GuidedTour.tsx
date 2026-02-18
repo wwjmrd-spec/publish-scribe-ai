@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { X, ArrowRight, ArrowLeft, Sparkles } from 'lucide-react';
-import { useIsMobile } from '@/hooks/use-mobile';
+
 
 interface TourStep {
   selector: string;
@@ -64,31 +64,48 @@ export function GuidedTour({ type, onComplete }: GuidedTourProps) {
   const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties>({});
   const [highlightStyle, setHighlightStyle] = useState<React.CSSProperties>({});
   const [dontShowAgain, setDontShowAgain] = useState(true);
-  const isMobile = useIsMobile();
+  
 
   const steps = type === 'author' ? authorTourSteps : authorTourSteps.slice(0, 1);
   const step = steps[currentStep];
 
   const positionTooltip = useCallback(() => {
     if (!step) return;
-    const el = document.querySelector(step.selector);
 
-    // On mobile, sidebar nav items aren't visible — show centered card
-    if (!el || isMobile) {
+    const viewportW = window.innerWidth;
+    const isMobileView = viewportW < 768;
+
+    // On mobile, always show centered card regardless of element visibility
+    if (isMobileView) {
       setHighlightStyle({ display: 'none' });
       setTooltipStyle({
         position: 'fixed',
         top: '50%',
         left: '50%',
         transform: 'translate(-50%, -50%)',
-        maxWidth: 340,
-        width: '90vw',
+        maxWidth: 'calc(100vw - 32px)',
+        width: 340,
       });
       return;
     }
 
-    const rect = el.getBoundingClientRect();
-    const viewportW = window.innerWidth;
+    const el = document.querySelector(step.selector);
+    const rect = el?.getBoundingClientRect();
+    // If element doesn't exist or is hidden (zero size), center the tooltip
+    if (!el || !rect || (rect.width === 0 && rect.height === 0)) {
+      setHighlightStyle({ display: 'none' });
+      setTooltipStyle({
+        position: 'fixed',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        maxWidth: 'calc(100vw - 32px)',
+        width: 340,
+      });
+      return;
+    }
+
+    const vw = window.innerWidth;
     const viewportH = window.innerHeight;
 
     setHighlightStyle({
@@ -102,7 +119,7 @@ export function GuidedTour({ type, onComplete }: GuidedTourProps) {
     });
 
     const tooltipW = 320;
-    const spaceRight = viewportW - rect.right - 16;
+    const spaceRight = vw - rect.right - 16;
     const spaceBottom = viewportH - rect.bottom - 16;
 
     if (spaceRight >= tooltipW) {
@@ -118,7 +135,7 @@ export function GuidedTour({ type, onComplete }: GuidedTourProps) {
       setTooltipStyle({
         position: 'fixed',
         top: rect.bottom + 16,
-        left: Math.max(8, Math.min(rect.left, viewportW - tooltipW - 8)),
+        left: Math.max(8, Math.min(rect.left, vw - tooltipW - 8)),
         maxWidth: tooltipW,
       });
     } else {
@@ -130,7 +147,7 @@ export function GuidedTour({ type, onComplete }: GuidedTourProps) {
         maxWidth: tooltipW,
       });
     }
-  }, [step, isMobile]);
+  }, [step]);
 
   useEffect(() => {
     positionTooltip();
@@ -139,7 +156,7 @@ export function GuidedTour({ type, onComplete }: GuidedTourProps) {
   }, [positionTooltip]);
 
   useEffect(() => {
-    if (!step) return;
+    if (!step || window.innerWidth < 768) return;
     const el = document.querySelector(step.selector);
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -192,7 +209,7 @@ export function GuidedTour({ type, onComplete }: GuidedTourProps) {
           exit={{ opacity: 0, y: 10 }}
           transition={{ duration: 0.3, delay: 0.1 }}
           style={tooltipStyle}
-          className="z-[10001] bg-card border border-border rounded-xl shadow-2xl p-5"
+          className="z-[10001] bg-card border border-border rounded-xl shadow-2xl p-5 box-border overflow-hidden"
         >
           {/* Step counter & skip */}
           <div className="flex items-center justify-between mb-3">
@@ -247,13 +264,13 @@ export function GuidedTour({ type, onComplete }: GuidedTourProps) {
           </div>
 
           {/* Actions */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <Button
               variant="ghost"
               size="sm"
               onClick={handlePrev}
               disabled={currentStep === 0}
-              className="gap-1"
+              className="gap-1 shrink-0"
             >
               <ArrowLeft className="w-3 h-3" />
               Back
@@ -261,7 +278,7 @@ export function GuidedTour({ type, onComplete }: GuidedTourProps) {
             <Button
               size="sm"
               onClick={handleNext}
-              className="gap-1 gradient-primary"
+              className="gap-1 gradient-primary shrink-0"
             >
               {currentStep === steps.length - 1 ? "Let's Go!" : 'Next'}
               {currentStep < steps.length - 1 && <ArrowRight className="w-3 h-3" />}
