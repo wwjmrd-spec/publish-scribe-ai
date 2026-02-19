@@ -238,8 +238,8 @@ export function DashboardLayout({ children, type }: DashboardLayoutProps) {
       )}
 
       {/* Main Content */}
-      <main className="flex-1 lg:ml-0 mt-16 lg:mt-0">
-        <div className="p-6 lg:p-8">
+      <main className="flex-1 lg:ml-0 mt-16 lg:mt-0 overflow-x-hidden">
+        <div className="p-4 sm:p-6 lg:p-8">
           {children}
         </div>
       </main>

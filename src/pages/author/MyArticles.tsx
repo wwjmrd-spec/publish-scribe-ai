@@ -148,7 +148,7 @@ export default function MyArticles() {
         animate={{ opacity: 1, y: 0 }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
             <h1 className="font-display text-3xl font-bold mb-2">My Articles</h1>
             <p className="text-muted-foreground">
@@ -157,7 +157,7 @@ export default function MyArticles() {
           </div>
           <Button
             onClick={() => navigate('/author/submit')}
-            className="gradient-primary hover:shadow-[0_0_30px_hsl(var(--primary)/0.5)]"
+            className="w-full sm:w-auto gradient-primary hover:shadow-[0_0_30px_hsl(var(--primary)/0.5)]"
           >
             <Upload className="w-4 h-4 mr-2" />
             Submit New
@@ -165,7 +165,7 @@ export default function MyArticles() {
         </div>
 
         {/* Plan Usage Info */}
-        <div className="mb-6 flex items-center justify-between p-3 rounded-lg bg-muted/50">
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-lg bg-muted/50">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <FileText className="w-4 h-4" />
             <span>
@@ -265,7 +265,7 @@ export default function MyArticles() {
                     </div>
 
                     {/* Status & Actions */}
-                    <div className="flex items-center gap-4 lg:flex-shrink-0">
+                    <div className="flex flex-wrap items-center gap-3 lg:flex-shrink-0">
                       <span className={getStatusBadge(article.status)}>
                         {formatStatus(article.status)}
                       </span>

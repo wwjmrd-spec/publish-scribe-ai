@@ -366,14 +366,14 @@ export default function Cart() {
               {/* Pending Articles */}
               {hasArticles && (
                 <GlassCard>
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <FileText className="w-5 h-5 text-primary" />
-                      <h2 className="font-display text-xl font-semibold">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <FileText className="w-5 h-5 text-primary shrink-0" />
+                      <h2 className="font-display text-lg sm:text-xl font-semibold truncate">
                         Article Publication Fees ({pendingArticles?.length})
                       </h2>
                     </div>
-                    <Button variant="ghost" size="sm" onClick={selectAll}>
+                    <Button variant="ghost" size="sm" onClick={selectAll} className="shrink-0 self-start sm:self-auto">
                       {selectedArticles.length === pendingArticles?.length
                         ? 'Deselect All'
                         : 'Select All'}

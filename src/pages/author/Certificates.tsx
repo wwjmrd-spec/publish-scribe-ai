@@ -228,24 +228,24 @@ export default function Certificates() {
               >
                 <GlassCard>
                   {/* Article Header */}
-                  <div className="flex items-start justify-between mb-6">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center glow-cyan">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-6">
+                    <div className="flex items-center gap-4 min-w-0">
+                      <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center glow-cyan shrink-0">
                         <FileText className="w-6 h-6 text-primary-foreground" />
                       </div>
-                      <div>
-                        <h3 className="font-semibold text-lg">{article.title}</h3>
+                      <div className="min-w-0">
+                        <h3 className="font-semibold text-lg truncate">{article.title}</h3>
                         <p className="text-sm text-muted-foreground">
                           {article.reference_number}
                         </p>
                       </div>
                     </div>
-                    <span className="status-published">Published</span>
+                    <span className="status-published shrink-0 self-start">Published</span>
                   </div>
 
                   {/* Publication Details */}
                   {article.volume && (
-                    <div className="grid grid-cols-4 gap-4 p-4 rounded-lg bg-[hsl(var(--glass-bg))] mb-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 rounded-lg bg-[hsl(var(--glass-bg))] mb-4">
                       <div>
                         <p className="text-xs text-muted-foreground">Volume</p>
                         <p className="font-medium">{article.volume}</p>
@@ -267,9 +267,9 @@ export default function Certificates() {
 
                   {/* Main Certificate */}
                   <div className="p-4 rounded-lg bg-[hsl(var(--glass-bg))] mb-4">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div className="flex items-center gap-3">
-                        <Award className="w-6 h-6 text-primary" />
+                        <Award className="w-6 h-6 text-primary shrink-0" />
                         <div>
                           <p className="font-medium">Publication Certificate</p>
                           <p className="text-sm text-muted-foreground">
@@ -279,6 +279,7 @@ export default function Certificates() {
                       </div>
                       <Button
                         variant="outline"
+                        className="w-full sm:w-auto"
                         onClick={() => handleDownloadCertificate(article.id)}
                         disabled={!article.certificate_url || downloadMutation.isPending}
                       >
@@ -314,9 +315,9 @@ export default function Certificates() {
                           const isInCart = hasItem(`cert_${coAuthor.id}`);
 
                           return (
-                            <div
+                             <div
                               key={coAuthor.id}
-                              className="flex items-center justify-between p-3 rounded-lg bg-[hsl(var(--glass-bg))]"
+                              className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-lg bg-[hsl(var(--glass-bg))]"
                             >
                               <div>
                                 <p className="font-medium">{coAuthor.name}</p>
