@@ -1,6 +1,6 @@
-import React from "react";
-import { cn } from "@/lib/utils";
-import { motion } from "framer-motion";
+import React from 'react';
+import { cn } from '@/lib/utils';
+import { motion } from 'framer-motion';
 
 interface GlassCardProps {
   children: React.ReactNode;
@@ -16,10 +16,10 @@ export function GlassCard({ children, className, hover = false, gradient = false
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
       className={cn(
-        "glass-card p-6 w-full relative",
+        "glass-card p-6",
         hover && "hover-glow-cyan cursor-pointer",
         gradient && "gradient-border",
-        className,
+        className
       )}
     >
       {children}
