@@ -270,35 +270,35 @@
 
   /* Status badges */
   .status-submitted {
-    @apply px-3 py-1 rounded-full text-xs font-medium;
+    @apply px-2 py-0.5 rounded-full text-[11px] font-medium whitespace-nowrap;
     background: hsl(var(--glow-cyan) / 0.2);
     color: hsl(var(--glow-cyan));
     border: 1px solid hsl(var(--glow-cyan) / 0.3);
   }
 
   .status-under-review {
-    @apply px-3 py-1 rounded-full text-xs font-medium;
+    @apply px-2 py-0.5 rounded-full text-[11px] font-medium whitespace-nowrap;
     background: hsl(var(--glow-purple) / 0.2);
     color: hsl(var(--glow-purple));
     border: 1px solid hsl(var(--glow-purple) / 0.3);
   }
 
   .status-pending-fee {
-    @apply px-3 py-1 rounded-full text-xs font-medium;
+    @apply px-2 py-0.5 rounded-full text-[11px] font-medium whitespace-nowrap;
     background: hsl(45 100% 50% / 0.2);
     color: hsl(45 100% 60%);
     border: 1px solid hsl(45 100% 50% / 0.3);
   }
 
   .status-published {
-    @apply px-3 py-1 rounded-full text-xs font-medium;
+    @apply px-2 py-0.5 rounded-full text-[11px] font-medium whitespace-nowrap;
     background: hsl(120 100% 40% / 0.2);
     color: hsl(120 100% 50%);
     border: 1px solid hsl(120 100% 40% / 0.3);
   }
 
   .status-rejected {
-    @apply px-3 py-1 rounded-full text-xs font-medium;
+    @apply px-2 py-0.5 rounded-full text-[11px] font-medium whitespace-nowrap;
     background: hsl(var(--destructive) / 0.2);
     color: hsl(var(--destructive));
     border: 1px solid hsl(var(--destructive) / 0.3);

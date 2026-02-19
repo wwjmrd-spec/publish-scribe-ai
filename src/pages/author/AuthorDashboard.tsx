@@ -271,22 +271,22 @@ export default function AuthorDashboard() {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.4 + index * 0.05 }}
-                  className="flex items-center justify-between p-4 rounded-lg bg-[hsl(var(--glass-bg))] hover:bg-[hsl(var(--glass-bg-strong))] transition-all duration-300"
+                  className="flex items-start sm:items-center justify-between gap-3 p-3 sm:p-4 rounded-lg bg-[hsl(var(--glass-bg))] hover:bg-[hsl(var(--glass-bg-strong))] transition-all duration-300"
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-lg bg-[hsl(var(--glass-bg-strong))] flex items-center justify-center">
+                  <div className="flex items-start sm:items-center gap-3 sm:gap-4 min-w-0 flex-1">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-[hsl(var(--glass-bg-strong))] flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
                       {getStatusIcon(article.status)}
                     </div>
-                    <div>
-                      <p className="font-medium truncate max-w-[200px] sm:max-w-none">
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm sm:text-base truncate">
                         {article.title}
                       </p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-xs sm:text-sm text-muted-foreground">
                         {article.reference_number}
                       </p>
                     </div>
                   </div>
-                  <span className={getStatusBadge(article.status)}>
+                  <span className={`${getStatusBadge(article.status)} shrink-0`}>
                     {formatStatus(article.status)}
                   </span>
                 </motion.div>

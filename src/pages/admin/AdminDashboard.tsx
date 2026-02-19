@@ -217,35 +217,36 @@ export default function AdminDashboard() {
               <h2 className="font-display text-xl font-semibold">Pending Actions</h2>
             </div>
             <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 rounded-lg bg-[hsl(var(--glass-bg))]">
-                <div className="flex items-center gap-3">
-                  <Clock className="w-5 h-5 text-primary" />
-                  <span>Articles awaiting review</span>
+        <div className="flex items-center justify-between gap-2 p-3 sm:p-4 rounded-lg bg-[hsl(var(--glass-bg))]">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                  <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" />
+                  <span className="text-sm sm:text-base truncate">Articles awaiting review</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl font-bold">{stats.pendingReview}</span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-xl sm:text-2xl font-bold">{stats.pendingReview}</span>
                   <Button 
                     size="sm" 
                     variant="outline"
                     onClick={() => navigate('/admin/articles')}
+                    className="hidden sm:inline-flex"
                   >
                     Review
                   </Button>
                 </div>
               </div>
-              <div className="flex items-center justify-between p-4 rounded-lg bg-[hsl(var(--glass-bg))]">
-                <div className="flex items-center gap-3">
-                  <Eye className="w-5 h-5 text-secondary" />
-                  <span>Under AI review</span>
+              <div className="flex items-center justify-between gap-2 p-3 sm:p-4 rounded-lg bg-[hsl(var(--glass-bg))]">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                  <Eye className="w-4 h-4 sm:w-5 sm:h-5 text-secondary shrink-0" />
+                  <span className="text-sm sm:text-base truncate">Under AI review</span>
                 </div>
-                <span className="text-2xl font-bold">{stats.underReview}</span>
+                <span className="text-xl sm:text-2xl font-bold shrink-0">{stats.underReview}</span>
               </div>
-              <div className="flex items-center justify-between p-4 rounded-lg bg-[hsl(var(--glass-bg))]">
-                <div className="flex items-center gap-3">
-                  <CheckCircle className="w-5 h-5 text-green-500" />
-                  <span>Published articles</span>
+              <div className="flex items-center justify-between gap-2 p-3 sm:p-4 rounded-lg bg-[hsl(var(--glass-bg))]">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                  <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-500 shrink-0" />
+                  <span className="text-sm sm:text-base truncate">Published articles</span>
                 </div>
-                <span className="text-2xl font-bold">{stats.published}</span>
+                <span className="text-xl sm:text-2xl font-bold shrink-0">{stats.published}</span>
               </div>
             </div>
           </GlassCard>
@@ -305,33 +306,51 @@ export default function AdminDashboard() {
               <p className="text-muted-foreground">No articles submitted yet</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-[hsl(var(--glass-border))]">
-                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Reference</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Title</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Status</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentArticles.map((article) => (
-                    <tr key={article.id} className="border-b border-[hsl(var(--glass-border))] hover:bg-[hsl(var(--glass-bg))] transition-colors">
-                      <td className="py-3 px-4 font-mono text-sm">{article.reference_number}</td>
-                      <td className="py-3 px-4 max-w-[200px] truncate">{article.title}</td>
-                      <td className="py-3 px-4">
-                        <span className={getStatusBadge(article.status)}>
-                          {formatStatus(article.status)}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-sm text-muted-foreground">
-                        {new Date(article.created_at).toLocaleDateString()}
-                      </td>
+            <div>
+              <div className="space-y-3 sm:hidden">
+                {recentArticles.map((article) => (
+                  <div key={article.id} className="p-3 rounded-lg bg-[hsl(var(--glass-bg))] space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-medium text-sm truncate flex-1">{article.title}</p>
+                      <span className={`${getStatusBadge(article.status)} shrink-0 whitespace-nowrap`}>
+                        {formatStatus(article.status)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span className="font-mono">{article.reference_number}</span>
+                      <span>{new Date(article.created_at).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="overflow-x-auto hidden sm:block">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-[hsl(var(--glass-border))]">
+                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Reference</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Title</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Status</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Date</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {recentArticles.map((article) => (
+                      <tr key={article.id} className="border-b border-[hsl(var(--glass-border))] hover:bg-[hsl(var(--glass-bg))] transition-colors">
+                        <td className="py-3 px-4 font-mono text-sm">{article.reference_number}</td>
+                        <td className="py-3 px-4 max-w-[200px] truncate">{article.title}</td>
+                        <td className="py-3 px-4">
+                          <span className={getStatusBadge(article.status)}>
+                            {formatStatus(article.status)}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-sm text-muted-foreground">
+                          {new Date(article.created_at).toLocaleDateString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </GlassCard>

@@ -150,17 +150,17 @@
        <motion.div
          initial={{ opacity: 0, y: 20 }}
          animate={{ opacity: 1, y: 0 }}
-         className="mb-8 flex items-center justify-between"
-       >
-         <div>
-           <h1 className="font-display text-3xl font-bold mb-2">Discount Codes</h1>
-           <p className="text-muted-foreground">Create and manage promotional codes</p>
-         </div>
-         <Button onClick={() => setIsCreateDialogOpen(true)} className="gap-2">
-           <Plus className="w-4 h-4" />
-           Create Code
-         </Button>
-       </motion.div>
+          className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+        >
+          <div>
+            <h1 className="font-display text-2xl sm:text-3xl font-bold mb-2">Discount Codes</h1>
+            <p className="text-muted-foreground text-sm sm:text-base">Create and manage promotional codes</p>
+          </div>
+          <Button onClick={() => setIsCreateDialogOpen(true)} className="gap-2 w-full sm:w-auto">
+            <Plus className="w-4 h-4" />
+            Create Code
+          </Button>
+        </motion.div>
  
        {/* Discounts Table */}
        <GlassCard>
@@ -177,65 +177,83 @@
              </Button>
            </div>
          ) : (
-           <div className="overflow-x-auto">
-             <table className="w-full">
-               <thead>
-                 <tr className="border-b border-[hsl(var(--glass-border))]">
-                   <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Code</th>
-                   <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Discount</th>
-                   <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Currency</th>
-                   <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Validity</th>
-                   <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Usage</th>
-                   <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Active</th>
-                   <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Actions</th>
-                 </tr>
-               </thead>
-               <tbody>
-                 {discounts.map((discount) => (
-                   <tr key={discount.id} className="border-b border-[hsl(var(--glass-border))] hover:bg-[hsl(var(--glass-bg))] transition-colors">
-                     <td className="py-3 px-4 font-mono font-semibold text-primary">{discount.code}</td>
-                     <td className="py-3 px-4">
-                       <span className="flex items-center gap-1">
-                         {discount.discount_type === 'percentage' ? (
-                           <><Percent className="w-3 h-3" />{discount.discount_value}%</>
-                         ) : (
-                           <><DollarSign className="w-3 h-3" />{discount.discount_value}</>
-                         )}
-                       </span>
-                     </td>
-                     <td className="py-3 px-4 text-sm">{discount.currency}</td>
-                     <td className="py-3 px-4 text-sm text-muted-foreground">
-                       <div className="flex items-center gap-1">
-                         <Calendar className="w-3 h-3" />
-                         {new Date(discount.start_date).toLocaleDateString()} - {new Date(discount.end_date).toLocaleDateString()}
-                       </div>
-                     </td>
-                     <td className="py-3 px-4 text-sm">
-                       {discount.used_count || 0}/{discount.usage_limit || '∞'}
-                     </td>
-                     <td className="py-3 px-4">
-                       <Switch
-                         checked={discount.is_active || false}
-                         onCheckedChange={(checked) => 
-                           toggleActiveMutation.mutate({ id: discount.id, is_active: checked })
-                         }
-                       />
-                     </td>
-                     <td className="py-3 px-4">
-                       <Button
-                         size="sm"
-                         variant="ghost"
-                         className="text-destructive hover:text-destructive"
-                         onClick={() => deleteMutation.mutate(discount.id)}
-                       >
-                         <Trash2 className="w-4 h-4" />
-                       </Button>
-                     </td>
-                   </tr>
-                 ))}
-               </tbody>
-             </table>
-           </div>
+          <div>
+            {/* Mobile cards */}
+            <div className="space-y-3 sm:hidden">
+              {discounts.map((discount) => (
+                <div key={discount.id} className="p-3 rounded-lg bg-[hsl(var(--glass-bg))] border border-[hsl(var(--glass-border))] space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono font-semibold text-primary text-sm">{discount.code}</span>
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={discount.is_active || false}
+                        onCheckedChange={(checked) => toggleActiveMutation.mutate({ id: discount.id, is_active: checked })}
+                      />
+                      <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive h-7 w-7 p-0" onClick={() => deleteMutation.mutate(discount.id)}>
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 text-xs">
+                    <span className="px-2 py-0.5 rounded-full bg-primary/20 text-primary">
+                      {discount.discount_type === 'percentage' ? `${discount.discount_value}%` : `$${discount.discount_value}`}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{discount.currency}</span>
+                    <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{discount.used_count || 0}/{discount.usage_limit || '∞'}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{new Date(discount.start_date).toLocaleDateString()} - {new Date(discount.end_date).toLocaleDateString()}</p>
+                </div>
+              ))}
+            </div>
+            {/* Desktop table */}
+            <div className="overflow-x-auto hidden sm:block">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-[hsl(var(--glass-border))]">
+                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Code</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Discount</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Currency</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Validity</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Usage</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Active</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {discounts.map((discount) => (
+                    <tr key={discount.id} className="border-b border-[hsl(var(--glass-border))] hover:bg-[hsl(var(--glass-bg))] transition-colors">
+                      <td className="py-3 px-4 font-mono font-semibold text-primary">{discount.code}</td>
+                      <td className="py-3 px-4">
+                        <span className="flex items-center gap-1">
+                          {discount.discount_type === 'percentage' ? (
+                            <><Percent className="w-3 h-3" />{discount.discount_value}%</>
+                          ) : (
+                            <><DollarSign className="w-3 h-3" />{discount.discount_value}</>
+                          )}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-sm">{discount.currency}</td>
+                      <td className="py-3 px-4 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />
+                          {new Date(discount.start_date).toLocaleDateString()} - {new Date(discount.end_date).toLocaleDateString()}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 text-sm">{discount.used_count || 0}/{discount.usage_limit || '∞'}</td>
+                      <td className="py-3 px-4">
+                        <Switch checked={discount.is_active || false} onCheckedChange={(checked) => toggleActiveMutation.mutate({ id: discount.id, is_active: checked })} />
+                      </td>
+                      <td className="py-3 px-4">
+                        <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => deleteMutation.mutate(discount.id)}>
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
          )}
        </GlassCard>
  

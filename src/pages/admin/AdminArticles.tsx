@@ -312,91 +312,90 @@ export default function AdminArticles() {
             <p className="text-muted-foreground">No articles found</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-[hsl(var(--glass-border))]">
-                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Reference</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Title</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Author</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Status</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Date</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredArticles.map((article) => (
-                  <tr key={article.id} className="border-b border-[hsl(var(--glass-border))] hover:bg-[hsl(var(--glass-bg))] transition-colors">
-                    <td className="py-3 px-4 font-mono text-sm">{article.reference_number}</td>
-                    <td className="py-3 px-4 max-w-[200px] truncate">{article.title}</td>
-                    <td className="py-3 px-4 text-sm">
-                      {(article.profiles as any)?.full_name || 'Unknown'}
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className={`px-2 py-1 rounded-full text-xs border ${getStatusBadge(article.status || '')}`}>
-                        {formatStatus(article.status || '')}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-sm text-muted-foreground">
-                      {new Date(article.created_at || '').toLocaleDateString()}
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => navigate(`/admin/articles/${article.id}`)}
-                          title="View Details"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => navigate(`/admin/ai-review?articleId=${article.id}`)}
-                          title="AI Review"
-                        >
-                          <Brain className="w-4 h-4" />
-                        </Button>
-                        {article.document_url && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => downloadMutation.mutate({ articleId: article.id, fileType: 'document' })}
-                            disabled={downloadMutation.isPending}
-                            title="Download Document"
-                          >
-                            <Download className="w-4 h-4" />
-                          </Button>
-                        )}
-                        {article.certificate_url && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => downloadMutation.mutate({ articleId: article.id, fileType: 'certificate' })}
-                            disabled={downloadMutation.isPending}
-                            title="Download Certificate"
-                          >
-                            <Award className="w-4 h-4" />
-                          </Button>
-                        )}
-                        {article.review_report_url && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => downloadMutation.mutate({ articleId: article.id, fileType: 'review_report' })}
-                            disabled={downloadMutation.isPending}
-                            title="Download Review Report"
-                          >
-                            <FileText className="w-4 h-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </td>
+          <div>
+            {/* Mobile cards */}
+            <div className="space-y-3 sm:hidden">
+              {filteredArticles.map((article) => (
+                <div
+                  key={article.id}
+                  className="p-3 rounded-lg bg-[hsl(var(--glass-bg))] border border-[hsl(var(--glass-border))] space-y-2 cursor-pointer"
+                  onClick={() => navigate(`/admin/articles/${article.id}`)}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-sm truncate">{article.title}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{(article.profiles as any)?.full_name || 'Unknown'}</p>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded-full text-[11px] border shrink-0 whitespace-nowrap ${getStatusBadge(article.status || '')}`}>
+                      {formatStatus(article.status || '')}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span className="font-mono">{article.reference_number}</span>
+                    <span>{new Date(article.created_at || '').toLocaleDateString()}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Desktop table */}
+            <div className="overflow-x-auto hidden sm:block">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-[hsl(var(--glass-border))]">
+                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Reference</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Title</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Author</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Status</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Date</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {filteredArticles.map((article) => (
+                    <tr key={article.id} className="border-b border-[hsl(var(--glass-border))] hover:bg-[hsl(var(--glass-bg))] transition-colors">
+                      <td className="py-3 px-4 font-mono text-sm">{article.reference_number}</td>
+                      <td className="py-3 px-4 max-w-[200px] truncate">{article.title}</td>
+                      <td className="py-3 px-4 text-sm">
+                        {(article.profiles as any)?.full_name || 'Unknown'}
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className={`px-2 py-1 rounded-full text-xs border whitespace-nowrap ${getStatusBadge(article.status || '')}`}>
+                          {formatStatus(article.status || '')}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-sm text-muted-foreground">
+                        {new Date(article.created_at || '').toLocaleDateString()}
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-2">
+                          <Button size="sm" variant="ghost" onClick={() => navigate(`/admin/articles/${article.id}`)} title="View Details">
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => navigate(`/admin/ai-review?articleId=${article.id}`)} title="AI Review">
+                            <Brain className="w-4 h-4" />
+                          </Button>
+                          {article.document_url && (
+                            <Button size="sm" variant="ghost" onClick={() => downloadMutation.mutate({ articleId: article.id, fileType: 'document' })} disabled={downloadMutation.isPending} title="Download Document">
+                              <Download className="w-4 h-4" />
+                            </Button>
+                          )}
+                          {article.certificate_url && (
+                            <Button size="sm" variant="ghost" onClick={() => downloadMutation.mutate({ articleId: article.id, fileType: 'certificate' })} disabled={downloadMutation.isPending} title="Download Certificate">
+                              <Award className="w-4 h-4" />
+                            </Button>
+                          )}
+                          {article.review_report_url && (
+                            <Button size="sm" variant="ghost" onClick={() => downloadMutation.mutate({ articleId: article.id, fileType: 'review_report' })} disabled={downloadMutation.isPending} title="Download Review Report">
+                              <FileText className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </GlassCard>
