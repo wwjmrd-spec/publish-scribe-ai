@@ -204,7 +204,7 @@ export function GuidedTour({ type, onComplete }: GuidedTourProps) {
           exit={{ opacity: 0, y: 10 }}
           transition={{ duration: 0.3, delay: 0.1 }}
           style={tooltipStyle}
-          className="z-[100001] bg-card border border-border rounded-xl shadow-2xl p-4 sm:p-5 box-border overflow-hidden ml-[16px] mt-[82px] mb-0 mr-[18px]">
+          className="z-[100001] bg-card border border-border rounded-xl shadow-2xl p-4 sm:p-5 box-border overflow-hidden ml-[10px]">
 
           {/* Step counter & skip */}
           <div className="flex items-center justify-between mb-3">
