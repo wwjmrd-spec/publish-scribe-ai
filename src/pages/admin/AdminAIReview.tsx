@@ -150,12 +150,12 @@ export default function AdminAIReview() {
         className="mb-8"
       >
         <div className="flex items-center gap-3 mb-2">
-          <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center glow-purple">
-            <Brain className="w-6 h-6 text-primary-foreground" />
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl gradient-primary flex items-center justify-center glow-purple shrink-0">
+            <Brain className="w-5 h-5 sm:w-6 sm:h-6 text-primary-foreground" />
           </div>
-          <div>
-            <h1 className="font-display text-3xl font-bold">AI Article Review</h1>
-            <p className="text-muted-foreground">Analyze articles using AI for plagiarism, grammar, and content quality</p>
+          <div className="min-w-0">
+            <h1 className="font-display text-2xl sm:text-3xl font-bold">AI Article Review</h1>
+            <p className="text-muted-foreground text-sm sm:text-base truncate">Analyze articles using AI</p>
           </div>
         </div>
       </motion.div>
@@ -203,7 +203,7 @@ export default function AdminAIReview() {
 
                   {/* Scores (if reviewed) */}
                   {latestReview && (
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <div className={`px-3 py-1 rounded-lg border ${getScoreBg(latestReview.overall_score || 0)}`}>
                         <span className="text-xs text-muted-foreground">Overall</span>
                         <p className={`text-lg font-bold ${getScoreColor(latestReview.overall_score || 0)}`}>
@@ -229,9 +229,10 @@ export default function AdminAIReview() {
                   )}
 
                   {/* Actions */}
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <Button
                       variant="outline"
+                      size="sm"
                       onClick={() => reviewMutation.mutate(article.id)}
                       disabled={reviewMutation.isPending && reviewMutation.variables === article.id}
                     >
@@ -284,7 +285,7 @@ export default function AdminAIReview() {
                     {latestReview && (
                       <div className="mt-6 pt-6 border-t border-[hsl(var(--glass-border))]">
                         {/* Score Grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
                           <div className={`p-4 rounded-lg border ${getScoreBg(latestReview.plagiarism_score || 0)}`}>
                             <p className="text-sm text-muted-foreground mb-1">Plagiarism</p>
                             <p className={`text-2xl font-bold ${getScoreColor(latestReview.plagiarism_score || 0)}`}>
