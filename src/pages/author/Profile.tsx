@@ -188,17 +188,17 @@ export default function Profile() {
         <h1 className="text-3xl font-display font-bold gradient-text mb-8">My Profile</h1>
 
         <Tabs defaultValue="details" className="space-y-6">
-          <TabsList className="glass-card-strong w-full grid grid-cols-4 h-auto p-1">
-            <TabsTrigger value="details" className="gap-2 py-2.5 data-[state=active]:bg-primary/20 data-[state=active]:text-primary">
-              <User className="w-4 h-4" /> Details
+          <TabsList className="glass-card-strong w-full grid grid-cols-2 sm:grid-cols-4 h-auto p-1 gap-1">
+            <TabsTrigger value="details" className="gap-1.5 py-2.5 text-xs sm:text-sm data-[state=active]:bg-primary/20 data-[state=active]:text-primary">
+              <User className="w-4 h-4" /> <span className="hidden xs:inline">Details</span><span className="xs:hidden">Details</span>
             </TabsTrigger>
-            <TabsTrigger value="password" className="gap-2 py-2.5 data-[state=active]:bg-primary/20 data-[state=active]:text-primary">
+            <TabsTrigger value="password" className="gap-1.5 py-2.5 text-xs sm:text-sm data-[state=active]:bg-primary/20 data-[state=active]:text-primary">
               <Lock className="w-4 h-4" /> Password
             </TabsTrigger>
-            <TabsTrigger value="avatar" className="gap-2 py-2.5 data-[state=active]:bg-primary/20 data-[state=active]:text-primary">
+            <TabsTrigger value="avatar" className="gap-1.5 py-2.5 text-xs sm:text-sm data-[state=active]:bg-primary/20 data-[state=active]:text-primary">
               <Camera className="w-4 h-4" /> Picture
             </TabsTrigger>
-            <TabsTrigger value="theme" className="gap-2 py-2.5 data-[state=active]:bg-primary/20 data-[state=active]:text-primary">
+            <TabsTrigger value="theme" className="gap-1.5 py-2.5 text-xs sm:text-sm data-[state=active]:bg-primary/20 data-[state=active]:text-primary">
               <Palette className="w-4 h-4" /> Theme
             </TabsTrigger>
           </TabsList>

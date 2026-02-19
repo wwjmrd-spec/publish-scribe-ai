@@ -79,14 +79,14 @@ export default function Index() {
             </span>
           </Link>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             <Link to="/auth">
-              <Button variant="glass">
+              <Button variant="glass" size="sm" className="sm:size-default">
                 Sign In
               </Button>
             </Link>
             <Link to="/auth">
-              <Button className="gradient-primary hover:shadow-[0_0_30px_hsl(var(--primary)/0.5)]">
+              <Button size="sm" className="sm:size-default gradient-primary hover:shadow-[0_0_30px_hsl(var(--primary)/0.5)]">
                 Get Started
                 <ArrowRight className="w-4 h-4 ml-1" />
               </Button>
@@ -96,7 +96,7 @@ export default function Index() {
       </motion.nav>
 
       {/* Hero Section */}
-      <section className="pt-32 pb-20 px-4">
+      <section className="pt-28 sm:pt-32 pb-16 sm:pb-20 px-4">
         <div className="container mx-auto text-center">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -108,7 +108,7 @@ export default function Index() {
               <span className="text-sm text-muted-foreground">AI-Powered Article Review</span>
             </div>
 
-            <h1 className="font-display text-4xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight">
+            <h1 className="font-display text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight">
               Publish Your Research
               <br />
               <span className="gradient-text">With Confidence</span>
@@ -119,14 +119,14 @@ export default function Index() {
               and instant certificate generation for researchers worldwide.
             </p>
 
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link to="/auth">
-                <Button size="xl" className="gradient-primary hover:shadow-[0_0_40px_hsl(var(--primary)/0.5)] min-w-[200px]">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full px-4 sm:px-0">
+              <Link to="/auth" className="w-full sm:w-auto">
+                <Button size="xl" className="w-full sm:w-auto gradient-primary hover:shadow-[0_0_40px_hsl(var(--primary)/0.5)] min-w-[200px]">
                   Start Publishing
                   <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
               </Link>
-              <Button size="xl" variant="outline" className="min-w-[200px]">
+              <Button size="xl" variant="outline" className="w-full sm:w-auto min-w-[200px]">
                 Learn More
               </Button>
             </div>
@@ -245,15 +245,15 @@ export default function Index() {
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
           >
-            <GlassCard className="text-center py-12 md:py-16 gradient-border">
-              <h2 className="font-display text-3xl md:text-4xl font-bold mb-4">
+            <GlassCard className="text-center py-10 sm:py-12 md:py-16 px-4 sm:px-6 gradient-border">
+              <h2 className="font-display text-2xl sm:text-3xl md:text-4xl font-bold mb-4">
                 Ready to <span className="gradient-text">Publish</span>?
               </h2>
               <p className="text-muted-foreground max-w-xl mx-auto mb-8">
                 Join thousands of researchers who trust PubPortal for their publication needs
               </p>
-              <Link to="/auth">
-                <Button size="xl" className="gradient-primary hover:shadow-[0_0_40px_hsl(var(--primary)/0.5)]">
+              <Link to="/auth" className="block sm:inline">
+                <Button size="xl" className="w-full sm:w-auto gradient-primary hover:shadow-[0_0_40px_hsl(var(--primary)/0.5)]">
                   Create Free Account
                   <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
