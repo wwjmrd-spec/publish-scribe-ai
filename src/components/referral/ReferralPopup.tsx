@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/hooks/use-toast';
 import { Gift, ArrowRight } from 'lucide-react';
 
@@ -18,6 +19,7 @@ export function ReferralPopup() {
   const [open, setOpen] = useState(false);
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
+  const [dontShowAgain, setDontShowAgain] = useState(false);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -34,6 +36,9 @@ export function ReferralPopup() {
 
       // Check if user has seen the popup (use localStorage)
       const key = `referral_popup_seen_${user.id}`;
+      const dismissed = localStorage.getItem(`referral_popup_dismissed_${user.id}`);
+      if (dismissed) return;
+
       const seen = localStorage.getItem(key);
       if (!seen) {
         setOpen(true);
@@ -121,6 +126,9 @@ export function ReferralPopup() {
   };
 
   const handleSkip = () => {
+    if (dontShowAgain) {
+      localStorage.setItem(`referral_popup_dismissed_${user!.id}`, 'true');
+    }
     localStorage.setItem(`referral_popup_seen_${user!.id}`, 'true');
     setOpen(false);
   };
@@ -150,6 +158,17 @@ export function ReferralPopup() {
             className="glass-input text-center text-lg tracking-widest font-mono"
             maxLength={8}
           />
+
+          <div className="flex items-center gap-2 mb-4">
+            <Checkbox
+              id="referral-dont-show"
+              checked={dontShowAgain}
+              onCheckedChange={(checked) => setDontShowAgain(checked === true)}
+            />
+            <label htmlFor="referral-dont-show" className="text-xs text-muted-foreground cursor-pointer select-none">
+              Don't show this again
+            </label>
+          </div>
 
           <div className="flex gap-3">
             <Button
