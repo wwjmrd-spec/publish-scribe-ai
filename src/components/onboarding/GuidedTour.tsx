@@ -78,10 +78,12 @@ export function GuidedTour({ type, onComplete }: GuidedTourProps) {
     const centeredStyle: React.CSSProperties = {
       position: 'fixed',
       top: '50%',
-      left: '50%',
-      transform: 'translate(-50%, -50%)',
-      maxWidth: 'min(320px, calc(100vw - 32px))',
-      width: 'calc(100vw - 32px)'
+      left: '16px',
+      right: '16px',
+      transform: 'translateY(-50%)',
+      maxWidth: '360px',
+      margin: '0 auto',
+      width: 'auto'
     };
 
     // On mobile, always show centered card regardless of element visibility
@@ -204,7 +206,7 @@ export function GuidedTour({ type, onComplete }: GuidedTourProps) {
           exit={{ opacity: 0, y: 10 }}
           transition={{ duration: 0.3, delay: 0.1 }}
           style={tooltipStyle}
-          className="z-[100001] bg-card border border-border rounded-xl shadow-2xl p-4 sm:p-5 box-border overflow-hidden ml-[10px]">
+          className="z-[100001] bg-card border border-border rounded-xl shadow-2xl p-4 sm:p-5 box-border overflow-hidden">
 
           {/* Step counter & skip */}
           <div className="flex items-center justify-between mb-3">
