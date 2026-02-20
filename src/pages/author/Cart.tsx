@@ -384,7 +384,7 @@ export default function Cart() {
                     {pendingArticles?.map((article) => (
                       <div
                         key={article.id}
-                        className={`flex items-center gap-4 p-4 rounded-lg transition-all duration-300 cursor-pointer ${
+                        className={`flex items-start gap-3 p-3 sm:p-4 rounded-lg transition-all duration-300 cursor-pointer ${
                           selectedArticles.includes(article.id)
                             ? 'bg-primary/10 border border-primary/30'
                             : 'bg-[hsl(var(--glass-bg))] hover:bg-[hsl(var(--glass-bg-strong))] border border-transparent'
@@ -394,21 +394,21 @@ export default function Cart() {
                         <Checkbox
                           checked={selectedArticles.includes(article.id)}
                           onCheckedChange={() => toggleArticle(article.id)}
-                          className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                          className="data-[state=checked]:bg-primary data-[state=checked]:border-primary mt-1 shrink-0"
                         />
-                        <div className="w-10 h-10 rounded-lg bg-[hsl(var(--glass-bg-strong))] flex items-center justify-center flex-shrink-0">
+                        <div className="hidden sm:flex w-10 h-10 rounded-lg bg-[hsl(var(--glass-bg-strong))] items-center justify-center shrink-0">
                           <FileText className="w-5 h-5 text-primary" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate">{article.title}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {article.reference_number}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-semibold">
-                            {currencySymbol}{feePerArticle.toLocaleString()}
-                          </p>
+                          <p className="font-medium text-sm sm:text-base line-clamp-2 sm:truncate">{article.title}</p>
+                          <div className="flex items-center justify-between gap-2 mt-1">
+                            <p className="text-xs sm:text-sm text-muted-foreground">
+                              {article.reference_number}
+                            </p>
+                            <p className="font-semibold text-sm sm:text-base shrink-0">
+                              {currencySymbol}{feePerArticle.toLocaleString()}
+                            </p>
+                          </div>
                         </div>
                       </div>
                     ))}
