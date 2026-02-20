@@ -360,7 +360,7 @@ export default function Cart() {
             </p>
           </GlassCard>
         ) : (
-          <div className="grid lg:grid-cols-3 gap-6">
+          <div className="flex flex-col lg:grid lg:grid-cols-3 gap-6">
             {/* Items List */}
             <div className="lg:col-span-2 space-y-4">
               {/* Pending Articles */}
@@ -430,9 +430,9 @@ export default function Cart() {
                     {validCartItems.map((item) => (
                       <div
                         key={item.id}
-                        className="flex items-center gap-4 p-4 rounded-lg bg-[hsl(var(--glass-bg))] border border-transparent"
+                        className="flex items-start gap-3 p-3 sm:p-4 rounded-lg bg-[hsl(var(--glass-bg))] border border-transparent"
                       >
-                        <div className="w-10 h-10 rounded-lg bg-[hsl(var(--glass-bg-strong))] flex items-center justify-center flex-shrink-0">
+                        <div className="hidden sm:flex w-10 h-10 rounded-lg bg-[hsl(var(--glass-bg-strong))] items-center justify-center shrink-0">
                           {item.type === 'pro_subscription' ? (
                             <Crown className="w-5 h-5 text-primary" />
                           ) : (
@@ -440,12 +440,25 @@ export default function Cart() {
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate">{item.label}</p>
-                          <p className="text-sm text-muted-foreground truncate">
+                          <p className="font-medium text-sm sm:text-base line-clamp-2 sm:truncate">{item.label}</p>
+                          <p className="text-xs sm:text-sm text-muted-foreground line-clamp-1">
                             {item.description}
                           </p>
+                          <div className="flex items-center justify-between gap-2 mt-1 sm:hidden">
+                            <p className="font-semibold text-sm">
+                              {currencySymbol}{item.amount.toLocaleString()}
+                            </p>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                              onClick={() => removeItem(item.id)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </div>
-                        <div className="text-right flex items-center gap-3">
+                        <div className="hidden sm:flex items-center gap-3">
                           <p className="font-semibold">
                             {currencySymbol}{item.amount.toLocaleString()}
                           </p>
