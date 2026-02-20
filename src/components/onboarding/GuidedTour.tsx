@@ -63,7 +63,7 @@ export function GuidedTour({ type, onComplete }: GuidedTourProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties>({});
   const [highlightStyle, setHighlightStyle] = useState<React.CSSProperties>({});
-  const [dontShowAgain, setDontShowAgain] = useState(true);
+  const [dontShowAgain, setDontShowAgain] = useState(false);
 
 
   const steps = type === 'author' ? authorTourSteps : authorTourSteps.slice(0, 1);
