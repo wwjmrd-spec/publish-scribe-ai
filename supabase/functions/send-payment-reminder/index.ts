@@ -40,6 +40,7 @@ serve(async (req: Request) => {
       articles = [data];
     } else {
       // Auto trigger (cron): find all articles pending_fee for more than 24 hours
+      // that haven't received a reminder in the last 24 hours
       const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
       const { data, error } = await supabase
@@ -52,7 +53,22 @@ serve(async (req: Request) => {
         console.error("Error fetching articles:", error);
         throw error;
       }
-      articles = data || [];
+
+      // Filter out articles that already received a reminder in the last 24h
+      const filteredArticles = [];
+      for (const art of (data || [])) {
+        const { data: recentReminder } = await supabase
+          .from("payment_reminders")
+          .select("id")
+          .eq("article_id", art.id)
+          .gte("sent_at", twentyFourHoursAgo)
+          .limit(1);
+        
+        if (!recentReminder || recentReminder.length === 0) {
+          filteredArticles.push(art);
+        }
+      }
+      articles = filteredArticles;
     }
 
     console.log(`Found ${articles.length} article(s) to send payment reminders for`);
@@ -84,6 +100,11 @@ serve(async (req: Request) => {
           errors.push(`Failed to send to ${profile.email}: ${emailError.message}`);
         } else {
           sentCount++;
+          // Track the reminder
+          await supabase.from("payment_reminders").insert({
+            article_id: article.id,
+            reminder_type: articleId ? "manual" : "auto",
+          });
           console.log(`Payment reminder sent to ${profile.email} for article ${article.reference_number}`);
         }
       } catch (err: any) {
