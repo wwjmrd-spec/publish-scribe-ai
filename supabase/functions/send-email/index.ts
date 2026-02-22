@@ -30,6 +30,7 @@ type EmailTemplate =
   | "referral-reward"
   | "article-status-change"
   | "review-report-ready"
+  | "payment-reminder"
   | "custom";
 
 interface EmailRequest {
@@ -422,6 +423,27 @@ const getReviewReportReadyTemplate = (data: EmailRequest["data"]): string => {
   `;
   return wrapEmail("Review Report Ready", body);
 };
+const getPaymentReminderTemplate = (data: EmailRequest["data"]): string => {
+  const body = `
+    ${emailH1("⏰ Payment Reminder")}
+    ${emailP(`Hi ${escapeHtml(data?.authorName || "Author")},`)}
+    ${emailP(`This is a friendly reminder that the publication fee for your article is still pending. Please complete the payment to proceed with the publication process.`)}
+    ${emailInfoBox(
+      "Article Details:",
+      [
+        emailInfoRow("Reference Number", escapeHtml(data?.referenceNumber || "N/A")),
+        emailInfoRow("Title", escapeHtml(data?.articleTitle || "N/A")),
+        emailInfoRow("Status", "Pending Fee", " color:#f97316; font-weight:600;"),
+      ].join(""),
+    )}
+    ${emailP("Please log in to your dashboard and complete the payment at your earliest convenience to avoid any delays in publishing your article.")}
+    ${emailButton("https://wwjmrdai.lovable.app/author/articles", "Pay Publication Fee Now")}
+    ${emailDivider()}
+    ${emailFooterText("If you've already made the payment, please disregard this email. For any queries, contact us at info@wwjmrd.com")}
+  `;
+  return wrapEmail("Payment Reminder - WWJMRD", body);
+};
+
 const getArticleResubmissionTemplate = (data: EmailRequest["data"], isAdmin: boolean = false): string => {
   const infoRows = [
     emailInfoRow("Reference Number", escapeHtml(data?.referenceNumber || "N/A")),
@@ -503,6 +525,11 @@ function getEmailContent(
       return {
         subject: `Review Report Ready: ${data?.articleTitle || "Your Article"} - WWJMRD`,
         html: getReviewReportReadyTemplate(data),
+      };
+    case "payment-reminder":
+      return {
+        subject: `Payment Reminder: ${data?.articleTitle || "Your Article"} - WWJMRD`,
+        html: getPaymentReminderTemplate(data),
       };
     default:
       throw new Error(`Unknown email template: ${template}`);

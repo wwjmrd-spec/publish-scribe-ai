@@ -15,6 +15,7 @@ import {
   XCircle,
   Clock,
   ArrowLeft,
+  Mail,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -199,6 +200,22 @@ export default function AdminArticleDetail() {
     },
     onError: (error) => {
       toast.error('Failed to get download URL: ' + error.message);
+    },
+  });
+
+  const sendReminderMutation = useMutation({
+    mutationFn: async () => {
+      const response = await supabase.functions.invoke('send-payment-reminder', {
+        body: { articleId: article!.id },
+      });
+      if (response.error) throw new Error(response.error.message);
+      return response.data;
+    },
+    onSuccess: (data) => {
+      toast.success(`Payment reminder sent (${data.remindersSent} email)`);
+    },
+    onError: (error) => {
+      toast.error('Failed to send reminder: ' + error.message);
     },
   });
 
@@ -457,6 +474,18 @@ export default function AdminArticleDetail() {
                 >
                   <XCircle className="w-4 h-4 mr-2" /> Reject
                 </Button>
+                {article.status === 'pending_fee' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-amber-400 hover:text-amber-300"
+                    onClick={() => sendReminderMutation.mutate()}
+                    disabled={sendReminderMutation.isPending}
+                  >
+                    <Mail className="w-4 h-4 mr-2" />
+                    {sendReminderMutation.isPending ? 'Sending...' : 'Send Payment Reminder'}
+                  </Button>
+                )}
               </div>
             </GlassCard>
 
