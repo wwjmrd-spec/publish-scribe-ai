@@ -343,6 +343,35 @@ export type Database = {
           },
         ]
       }
+      payment_reminders: {
+        Row: {
+          article_id: string
+          id: string
+          reminder_type: string
+          sent_at: string
+        }
+        Insert: {
+          article_id: string
+          id?: string
+          reminder_type?: string
+          sent_at?: string
+        }
+        Update: {
+          article_id?: string
+          id?: string
+          reminder_type?: string
+          sent_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_reminders_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payments: {
         Row: {
           amount: number
