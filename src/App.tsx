@@ -29,6 +29,7 @@ import AdminAuthorDetail from "./pages/admin/AdminAuthorDetail";
 import NotFound from "./pages/NotFound";
 import { ReferralPopup } from "./components/referral/ReferralPopup";
 import { CookieConsent } from "./components/CookieConsent";
+import { CountryCollectionModal } from "./components/auth/CountryCollectionModal";
 
 const queryClient = new QueryClient();
 
@@ -42,6 +43,7 @@ const App = () => (
         <Sonner />
         <ReferralPopup />
         <CookieConsent />
+        <CountryCollectionModal />
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />

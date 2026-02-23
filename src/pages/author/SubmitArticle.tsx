@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { ArticleDetailsSection } from '@/components/submit/ArticleDetailsSection';
 import { FileUploadSection } from '@/components/submit/FileUploadSection';
 import { CoAuthorsSection, type CoAuthor } from '@/components/submit/CoAuthorsSection';
+import { PublicationTypeSection } from '@/components/submit/PublicationTypeSection';
 import { ArrowRight, ArrowLeft, Upload, FileText, CheckCircle, Sparkles, Bot } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import mammoth from 'mammoth';
@@ -32,7 +33,7 @@ async function extractTextFromDocx(file: File): Promise<string> {
 }
 
 export default function SubmitArticle() {
-  const { user } = useAuth();
+  const { user, isIndian } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { generateSubject, loading: generatingSubject } = useGenerateSubject();
@@ -53,6 +54,7 @@ export default function SubmitArticle() {
   const [subject, setSubject] = useState('');
   const [reasonOfResearch, setReasonOfResearch] = useState('');
   const [submissionTarget, setSubmissionTarget] = useState('');
+  const [publicationType, setPublicationType] = useState<'normal' | 'fast_track'>('normal');
 
   // Pre-fill from profile
   useEffect(() => {
@@ -266,6 +268,7 @@ export default function SubmitArticle() {
           subject: subject.trim() || null,
           reason_of_research: reasonOfResearch.trim() || null,
           submission_target: submissionTarget.trim() || null,
+          publication_type: publicationType,
         })
         .select()
         .single();
@@ -484,6 +487,12 @@ export default function SubmitArticle() {
                 generatingSubject={generatingSubject}
               />
 
+              <PublicationTypeSection
+                publicationType={publicationType}
+                setPublicationType={setPublicationType}
+                isIndian={isIndian}
+              />
+
               <CoAuthorsSection
                 coAuthors={coAuthors}
                 onAdd={addCoAuthor}
@@ -554,6 +563,7 @@ export default function SubmitArticle() {
                       setSubject('');
                       setReasonOfResearch('');
                       setSubmissionTarget('');
+                      setPublicationType('normal');
                       setSubmittedRef('');
                     }}
                   >
