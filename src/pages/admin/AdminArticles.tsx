@@ -321,14 +321,21 @@ export default function AdminArticles() {
                   className="p-3 rounded-lg bg-[hsl(var(--glass-bg))] border border-[hsl(var(--glass-border))] space-y-2 cursor-pointer"
                   onClick={() => navigate(`/admin/articles/${article.id}`)}
                 >
-                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-sm truncate">{article.title}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">{(article.profiles as any)?.full_name || 'Unknown'}</p>
                     </div>
-                    <span className={`px-2 py-0.5 rounded-full text-[11px] border shrink-0 whitespace-nowrap ${getStatusBadge(article.status || '')}`}>
-                      {formatStatus(article.status || '')}
-                    </span>
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <span className={`px-2 py-0.5 rounded-full text-[11px] border whitespace-nowrap ${getStatusBadge(article.status || '')}`}>
+                        {formatStatus(article.status || '')}
+                      </span>
+                      {article.publication_type === 'fast_track' && (
+                        <span className="px-2 py-0.5 rounded-full text-[11px] border whitespace-nowrap bg-purple-500/20 text-purple-400 border-purple-500/30">
+                          ⚡ Fast Track
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <span className="font-mono">{article.reference_number}</span>
@@ -359,9 +366,16 @@ export default function AdminArticles() {
                         {(article.profiles as any)?.full_name || 'Unknown'}
                       </td>
                       <td className="py-3 px-4">
-                        <span className={`px-2 py-1 rounded-full text-xs border whitespace-nowrap ${getStatusBadge(article.status || '')}`}>
-                          {formatStatus(article.status || '')}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2 py-1 rounded-full text-xs border whitespace-nowrap ${getStatusBadge(article.status || '')}`}>
+                            {formatStatus(article.status || '')}
+                          </span>
+                          {article.publication_type === 'fast_track' && (
+                            <span className="px-2 py-1 rounded-full text-xs border whitespace-nowrap bg-purple-500/20 text-purple-400 border-purple-500/30">
+                              ⚡ Fast Track
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="py-3 px-4 text-sm text-muted-foreground">
                         {new Date(article.created_at || '').toLocaleDateString()}

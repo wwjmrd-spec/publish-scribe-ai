@@ -428,9 +428,21 @@ export default function AdminArticleDetail() {
           <div className="space-y-6">
             <GlassCard>
               <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Status</h3>
-              <span className={`inline-block px-3 py-1.5 rounded-full text-sm border ${getStatusBadge(article.status || '')}`}>
-                {formatStatus(article.status || '')}
-              </span>
+              <div className="flex flex-wrap gap-2">
+                <span className={`inline-block px-3 py-1.5 rounded-full text-sm border ${getStatusBadge(article.status || '')}`}>
+                  {formatStatus(article.status || '')}
+                </span>
+                {article.publication_type === 'fast_track' && (
+                  <span className="inline-block px-3 py-1.5 rounded-full text-sm border bg-purple-500/20 text-purple-400 border-purple-500/30">
+                    ⚡ Fast Track
+                  </span>
+                )}
+                {article.publication_type === 'normal' && (
+                  <span className="inline-block px-3 py-1.5 rounded-full text-sm border bg-muted text-muted-foreground">
+                    Normal
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-muted-foreground mt-2">
                 Submitted: {new Date(article.created_at || '').toLocaleDateString()}
               </p>
