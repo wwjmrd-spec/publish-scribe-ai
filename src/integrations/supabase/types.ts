@@ -84,6 +84,7 @@ export type Database = {
           issue: string | null
           keywords: string[] | null
           page_number: string | null
+          publication_type: string
           publication_year: string | null
           published_link: string | null
           reason_of_research: string | null
@@ -109,6 +110,7 @@ export type Database = {
           issue?: string | null
           keywords?: string[] | null
           page_number?: string | null
+          publication_type?: string
           publication_year?: string | null
           published_link?: string | null
           reason_of_research?: string | null
@@ -134,6 +136,7 @@ export type Database = {
           issue?: string | null
           keywords?: string[] | null
           page_number?: string | null
+          publication_type?: string
           publication_year?: string | null
           published_link?: string | null
           reason_of_research?: string | null
@@ -506,9 +509,11 @@ export type Database = {
         Row: {
           id: string
           indian_coauthor_fee: number | null
+          indian_fast_track_fee: number | null
           indian_fee: number | null
           indian_pro_fee: number | null
           international_coauthor_fee: number | null
+          international_fast_track_fee: number | null
           international_fee: number | null
           international_pro_fee: number | null
           updated_at: string | null
@@ -517,9 +522,11 @@ export type Database = {
         Insert: {
           id?: string
           indian_coauthor_fee?: number | null
+          indian_fast_track_fee?: number | null
           indian_fee?: number | null
           indian_pro_fee?: number | null
           international_coauthor_fee?: number | null
+          international_fast_track_fee?: number | null
           international_fee?: number | null
           international_pro_fee?: number | null
           updated_at?: string | null
@@ -528,9 +535,11 @@ export type Database = {
         Update: {
           id?: string
           indian_coauthor_fee?: number | null
+          indian_fast_track_fee?: number | null
           indian_fee?: number | null
           indian_pro_fee?: number | null
           international_coauthor_fee?: number | null
+          international_fast_track_fee?: number | null
           international_fee?: number | null
           international_pro_fee?: number | null
           updated_at?: string | null
