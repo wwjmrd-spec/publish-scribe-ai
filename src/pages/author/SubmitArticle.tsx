@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -8,12 +8,17 @@ import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import { GlassCard } from '@/components/layout/GlassCard';
 import { useToast } from '@/hooks/use-toast';
 import { useGenerateSubject } from '@/hooks/useGenerateSubject';
+import { useRazorpay } from '@/hooks/useRazorpay';
+import { usePayment, type PaymentGateway } from '@/hooks/usePayment';
 import { supabase } from '@/integrations/supabase/client';
 import { ArticleDetailsSection } from '@/components/submit/ArticleDetailsSection';
 import { FileUploadSection } from '@/components/submit/FileUploadSection';
 import { CoAuthorsSection, type CoAuthor } from '@/components/submit/CoAuthorsSection';
 import { PublicationTypeSection } from '@/components/submit/PublicationTypeSection';
-import { ArrowRight, ArrowLeft, Upload, FileText, CheckCircle, Sparkles, Bot } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
+import { ArrowRight, ArrowLeft, Upload, FileText, CheckCircle, Sparkles, Bot, CreditCard, IndianRupee, DollarSign } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import mammoth from 'mammoth';
 
@@ -37,6 +42,11 @@ export default function SubmitArticle() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { generateSubject, loading: generatingSubject } = useGenerateSubject();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Payment hooks
+  const { isLoaded: razorpayLoaded } = useRazorpay();
+  const { isProcessing, processRazorpayPayment, processPayPalPayment, capturePayPalPayment } = usePayment();
 
   const [step, setStep] = useState<Step>(1);
   const [loading, setLoading] = useState(false);
@@ -55,6 +65,29 @@ export default function SubmitArticle() {
   const [reasonOfResearch, setReasonOfResearch] = useState('');
   const [submissionTarget, setSubmissionTarget] = useState('');
   const [publicationType, setPublicationType] = useState<'normal' | 'fast_track'>('normal');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentGateway>('razorpay');
+
+  const currency = isIndian ? 'INR' : 'USD';
+  const currencySymbol = isIndian ? '₹' : '$';
+
+  // Fetch publication fees
+  const { data: fees } = useQuery({
+    queryKey: ['publication-fees'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('publication_fees')
+        .select('*')
+        .limit(1)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const fastTrackFee = useMemo(() => {
+    if (!fees) return isIndian ? 500 : 10;
+    return isIndian ? Number(fees.indian_fast_track_fee) : Number(fees.international_fast_track_fee);
+  }, [fees, isIndian]);
 
   // Pre-fill from profile
   useEffect(() => {
@@ -72,6 +105,62 @@ export default function SubmitArticle() {
       });
   }, [user?.id]);
 
+  // Handle PayPal return for fast track payment
+  useEffect(() => {
+    const paypalStatus = searchParams.get('paypal');
+    if (paypalStatus === 'success') {
+      setSearchParams({}, { replace: true });
+      const savedData = localStorage.getItem('wwjmrd-fast-track-article');
+      if (savedData) {
+        const articleData = JSON.parse(savedData);
+        localStorage.removeItem('wwjmrd-fast-track-article');
+
+        capturePayPalPayment(async () => {
+          // Payment successful, now submit the article
+          try {
+            setLoading(true);
+            await submitArticleToDb(
+              articleData.filePath,
+              articleData.title,
+              articleData.abstract,
+              articleData.keywords,
+              articleData.authorName,
+              articleData.country,
+              articleData.subject,
+              articleData.reasonOfResearch,
+              articleData.submissionTarget,
+              articleData.publicationType,
+              articleData.coAuthors,
+            );
+          } catch (err: any) {
+            console.error('Article submission after PayPal failed:', err);
+            toast({
+              title: 'Article submission failed after payment',
+              description: 'Payment was successful but article submission failed. Please contact support.',
+              variant: 'destructive',
+            });
+          } finally {
+            setLoading(false);
+          }
+        });
+      }
+    } else if (paypalStatus === 'cancelled') {
+      setSearchParams({}, { replace: true });
+      // Clean up uploaded file if possible
+      const savedData = localStorage.getItem('wwjmrd-fast-track-article');
+      if (savedData) {
+        const articleData = JSON.parse(savedData);
+        localStorage.removeItem('wwjmrd-fast-track-article');
+        // Try to delete the uploaded file
+        supabase.storage.from('documents').remove([articleData.filePath]).catch(() => {});
+      }
+      toast({
+        title: 'Payment cancelled',
+        description: 'You cancelled the payment. You can try again when ready.',
+      });
+    }
+  }, []);
+
   // AI Scan: extract text from file and send to AI
   const handleFileNext = async () => {
     if (!file) {
@@ -83,7 +172,6 @@ export default function SubmitArticle() {
     setScanProgress(10);
 
     try {
-      // Step 1: Extract text from .docx
       setScanProgress(20);
       const extractedText = await extractTextFromDocx(file);
       setScanProgress(40);
@@ -98,7 +186,6 @@ export default function SubmitArticle() {
         return;
       }
 
-      // Step 2: Send to AI for metadata extraction
       setScanProgress(60);
       const { data, error } = await supabase.functions.invoke('scan-article', {
         body: { text: extractedText },
@@ -118,7 +205,6 @@ export default function SubmitArticle() {
 
       const meta = data.metadata;
 
-      // Auto-fill fields (only if currently empty or overwrite with AI data)
       if (meta.title) setTitle(meta.title);
       if (meta.abstract) setAbstract(meta.abstract);
       if (meta.keywords) setKeywords(meta.keywords);
@@ -126,7 +212,6 @@ export default function SubmitArticle() {
       if (meta.author_name && !authorName) setAuthorName(meta.author_name);
       if (meta.reason_of_research) setReasonOfResearch(meta.reason_of_research);
 
-      // Auto-fill co-authors
       if (meta.co_authors && Array.isArray(meta.co_authors) && meta.co_authors.length > 0) {
         const newCoAuthors: CoAuthor[] = meta.co_authors.map((ca: any) => ({
           id: crypto.randomUUID(),
@@ -181,25 +266,129 @@ export default function SubmitArticle() {
     );
   };
 
-  const handleSubmit = async () => {
+  // Shared article submission logic
+  const submitArticleToDb = async (
+    filePath: string,
+    articleTitle: string,
+    articleAbstract: string,
+    articleKeywords: string,
+    articleAuthorName: string,
+    articleCountry: string,
+    articleSubject: string,
+    articleReasonOfResearch: string,
+    articleSubmissionTarget: string,
+    articlePublicationType: string,
+    articleCoAuthors: CoAuthor[],
+  ) => {
+    if (!user?.id) throw new Error('Not logged in');
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('full_name, email')
+      .eq('id', user.id)
+      .single();
+
+    const keywordArray = articleKeywords
+      .split(',')
+      .map((k) => k.trim())
+      .filter((k) => k.length > 0);
+
+    const { data: article, error: articleError } = await supabase
+      .from('articles')
+      .insert({
+        author_id: user.id,
+        title: articleTitle.trim(),
+        abstract: articleAbstract.trim(),
+        keywords: keywordArray,
+        document_url: filePath,
+        reference_number: '',
+        author_name: articleAuthorName.trim(),
+        country: articleCountry.trim() || null,
+        subject: articleSubject.trim() || null,
+        reason_of_research: articleReasonOfResearch.trim() || null,
+        submission_target: articleSubmissionTarget.trim() || null,
+        publication_type: articlePublicationType,
+      })
+      .select()
+      .single();
+
+    if (articleError) throw articleError;
+
+    // Add co-authors
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const validCoAuthors = articleCoAuthors.filter(
+      (ca) => ca.name.trim() && ca.email.trim() && emailRegex.test(ca.email.trim())
+    );
+
+    if (validCoAuthors.length > 0) {
+      const { error: coAuthorError } = await supabase
+        .from('co_authors')
+        .insert(
+          validCoAuthors.map((ca) => ({
+            article_id: article.id,
+            name: ca.name.trim(),
+            email: ca.email.trim(),
+            affiliation: ca.affiliation.trim() || null,
+          }))
+        );
+      if (coAuthorError) throw coAuthorError;
+    }
+
+    // Send email notifications (fire & forget)
+    const emailData = {
+      articleTitle: articleTitle.trim(),
+      referenceNumber: article.reference_number,
+      authorName: articleAuthorName.trim() || profile?.full_name || user.email?.split('@')[0] || 'Author',
+      authorEmail: profile?.email || user.email,
+      submissionDate: new Date().toLocaleDateString(),
+      coAuthors: validCoAuthors.map((ca) => ca.name),
+    };
+
+    supabase.functions
+      .invoke('send-email', {
+        body: {
+          to: profile?.email || user.email,
+          template: 'article-submission',
+          data: emailData,
+          isAdmin: false,
+        },
+      })
+      .catch((err) => console.error('Failed to send author email:', err));
+
+    supabase.functions
+      .invoke('send-email', {
+        body: {
+          to: 'shubhmeena23@gmail.com',
+          template: 'article-submission',
+          data: emailData,
+          isAdmin: true,
+        },
+      })
+      .catch((err) => console.error('Failed to send admin email:', err));
+
+    setSubmittedRef(article.reference_number);
+    setStep(3);
+  };
+
+  // Validate form fields
+  const validateForm = (): boolean => {
     if (!title.trim()) {
       toast({ title: 'Please enter a title', variant: 'destructive' });
-      return;
+      return false;
     }
     if (!authorName.trim()) {
       toast({ title: 'Please enter author name', variant: 'destructive' });
-      return;
+      return false;
     }
     if (!file) {
       toast({ title: 'Please upload a document', variant: 'destructive' });
-      return;
+      return false;
     }
     if (!user?.id) {
       toast({ title: 'You must be logged in', variant: 'destructive' });
-      return;
+      return false;
     }
 
-    // Validate co-author emails
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const filledCoAuthors = coAuthors.filter(
       (ca) => ca.name.trim() || ca.email.trim()
@@ -208,11 +397,11 @@ export default function SubmitArticle() {
     for (const ca of filledCoAuthors) {
       if (!ca.name.trim()) {
         toast({ title: 'Co-author name is required', variant: 'destructive' });
-        return;
+        return false;
       }
       if (!ca.email.trim()) {
         toast({ title: 'Co-author email is required', variant: 'destructive' });
-        return;
+        return false;
       }
       if (!emailRegex.test(ca.email.trim())) {
         toast({
@@ -220,114 +409,56 @@ export default function SubmitArticle() {
           description: `"${ca.email}" is not a valid email address`,
           variant: 'destructive',
         });
-        return;
+        return false;
       }
       if (ca.email.trim().length > 254) {
         toast({ title: 'Co-author email too long', variant: 'destructive' });
-        return;
+        return false;
       }
       if (ca.name.trim().length > 200) {
         toast({ title: 'Co-author name too long', variant: 'destructive' });
-        return;
+        return false;
       }
     }
 
-    setLoading(true);
+    return true;
+  };
 
+  const handleSubmit = async () => {
+    if (!validateForm()) return;
+
+    if (publicationType === 'fast_track') {
+      await handleFastTrackSubmit();
+      return;
+    }
+
+    // Normal submission flow
+    setLoading(true);
     try {
-      // Upload file
-      const filePath = `${user.id}/${crypto.randomUUID()}.docx`;
+      const filePath = `${user!.id}/${crypto.randomUUID()}.docx`;
       const { error: uploadError } = await supabase.storage
         .from('documents')
-        .upload(filePath, file);
+        .upload(filePath, file!);
       if (uploadError) throw uploadError;
 
-      // Get author profile for email
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('full_name, email')
-        .eq('id', user.id)
-        .single();
-
-      const keywordArray = keywords
-        .split(',')
-        .map((k) => k.trim())
-        .filter((k) => k.length > 0);
-
-      const { data: article, error: articleError } = await supabase
-        .from('articles')
-        .insert({
-          author_id: user.id,
-          title: title.trim(),
-          abstract: abstract.trim(),
-          keywords: keywordArray,
-          document_url: filePath,
-          reference_number: '',
-          author_name: authorName.trim(),
-          country: country.trim() || null,
-          subject: subject.trim() || null,
-          reason_of_research: reasonOfResearch.trim() || null,
-          submission_target: submissionTarget.trim() || null,
-          publication_type: publicationType,
-        })
-        .select()
-        .single();
-
-      if (articleError) throw articleError;
-
-      // Add co-authors
-      const validCoAuthors = filledCoAuthors.filter(
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const filledCoAuthors = coAuthors.filter(
         (ca) => ca.name.trim() && ca.email.trim() && emailRegex.test(ca.email.trim())
       );
 
-      if (validCoAuthors.length > 0) {
-        const { error: coAuthorError } = await supabase
-          .from('co_authors')
-          .insert(
-            validCoAuthors.map((ca) => ({
-              article_id: article.id,
-              name: ca.name.trim(),
-              email: ca.email.trim(),
-              affiliation: ca.affiliation.trim() || null,
-            }))
-          );
-        if (coAuthorError) throw coAuthorError;
-      }
-
-      // Send email notifications (fire & forget)
-      const emailData = {
-        articleTitle: title.trim(),
-        referenceNumber: article.reference_number,
-        authorName: authorName.trim() || profile?.full_name || user.email?.split('@')[0] || 'Author',
-        authorEmail: profile?.email || user.email,
-        submissionDate: new Date().toLocaleDateString(),
-        coAuthors: validCoAuthors.map((ca) => ca.name),
-      };
-
-      supabase.functions
-        .invoke('send-email', {
-          body: {
-            to: profile?.email || user.email,
-            template: 'article-submission',
-            data: emailData,
-            isAdmin: false,
-          },
-        })
-        .catch((err) => console.error('Failed to send author email:', err));
-
-      supabase.functions
-        .invoke('send-email', {
-          body: {
-            to: 'shubhmeena23@gmail.com',
-            template: 'article-submission',
-            data: emailData,
-            isAdmin: true,
-          },
-        })
-        .catch((err) => console.error('Failed to send admin email:', err));
-
-      setSubmittedRef(article.reference_number);
-      setStep(3);
+      await submitArticleToDb(
+        filePath,
+        title,
+        abstract,
+        keywords,
+        authorName,
+        country,
+        subject,
+        reasonOfResearch,
+        submissionTarget,
+        publicationType,
+        filledCoAuthors,
+      );
     } catch (error: any) {
       console.error('Submission error:', error);
       toast({
@@ -337,6 +468,112 @@ export default function SubmitArticle() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleFastTrackSubmit = async () => {
+    if (paymentMethod === 'razorpay' && !razorpayLoaded) {
+      toast({
+        title: 'Loading payment gateway',
+        description: 'Please wait a moment and try again.',
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // 1. Upload file first
+      const filePath = `${user!.id}/${crypto.randomUUID()}.docx`;
+      const { error: uploadError } = await supabase.storage
+        .from('documents')
+        .upload(filePath, file!);
+      if (uploadError) throw uploadError;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name, email')
+        .eq('id', user!.id)
+        .single();
+
+      setLoading(false); // Upload done, payment gateway takes over
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const filledCoAuthors = coAuthors.filter(
+        (ca) => ca.name.trim() && ca.email.trim() && emailRegex.test(ca.email.trim())
+      );
+
+      const paymentData = {
+        items: [{ type: 'fast_track_fee' as const }],
+        amount: fastTrackFee,
+        currency: currency as 'INR' | 'USD',
+      };
+
+      if (paymentMethod === 'razorpay') {
+        // Razorpay: opens modal, on success callback submit article
+        await processRazorpayPayment(
+          paymentData,
+          profile?.email || user!.email || '',
+          profile?.full_name || user!.email || '',
+          async () => {
+            // Payment successful! Now submit the article
+            try {
+              setLoading(true);
+              await submitArticleToDb(
+                filePath,
+                title,
+                abstract,
+                keywords,
+                authorName,
+                country,
+                subject,
+                reasonOfResearch,
+                submissionTarget,
+                publicationType,
+                filledCoAuthors,
+              );
+            } catch (err: any) {
+              console.error('Article submission after payment failed:', err);
+              toast({
+                title: 'Article submission failed',
+                description: 'Payment was successful but article could not be submitted. Please contact support.',
+                variant: 'destructive',
+              });
+            } finally {
+              setLoading(false);
+            }
+          }
+        );
+      } else {
+        // PayPal: save data to localStorage before redirect
+        const articleData = {
+          filePath,
+          title,
+          abstract,
+          keywords,
+          authorName,
+          country,
+          subject,
+          reasonOfResearch,
+          submissionTarget,
+          publicationType,
+          coAuthors: filledCoAuthors,
+        };
+        localStorage.setItem('wwjmrd-fast-track-article', JSON.stringify(articleData));
+
+        await processPayPalPayment(
+          paymentData,
+          () => {},
+          window.location.origin + '/author/submit'
+        );
+      }
+    } catch (error: any) {
+      console.error('Fast track payment error:', error);
+      setLoading(false);
+      toast({
+        title: 'Payment failed',
+        description: error.message || 'An error occurred during payment',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -493,6 +730,77 @@ export default function SubmitArticle() {
                 isIndian={isIndian}
               />
 
+              {/* Payment Gateway Selection for Fast Track */}
+              {publicationType === 'fast_track' && (
+                <GlassCard>
+                  <h2 className="font-display text-xl font-semibold mb-2 flex items-center gap-2">
+                    <CreditCard className="w-5 h-5 text-primary" />
+                    Payment Method
+                  </h2>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Fast track requires upfront payment of{' '}
+                    <span className="font-semibold text-foreground">
+                      {currencySymbol}{fastTrackFee.toLocaleString()}
+                    </span>
+                    . Select your preferred payment method.
+                  </p>
+
+                  <RadioGroup
+                    value={paymentMethod}
+                    onValueChange={(v) => setPaymentMethod(v as PaymentGateway)}
+                    className="space-y-3"
+                  >
+                    {/* Razorpay - always available */}
+                    <label
+                      htmlFor="pay-razorpay"
+                      className={`flex items-start gap-3 p-4 rounded-lg border cursor-pointer transition-all ${
+                        paymentMethod === 'razorpay'
+                          ? 'border-primary bg-primary/5 shadow-sm'
+                          : 'border-border hover:border-muted-foreground/30'
+                      }`}
+                    >
+                      <RadioGroupItem value="razorpay" id="pay-razorpay" className="mt-0.5" />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          {isIndian ? (
+                            <IndianRupee className="w-4 h-4 text-primary" />
+                          ) : (
+                            <CreditCard className="w-4 h-4 text-primary" />
+                          )}
+                          <span className="font-semibold text-foreground">Razorpay</span>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          Pay via UPI, Net Banking, Cards, or Wallets
+                        </p>
+                      </div>
+                    </label>
+
+                    {/* PayPal - only for international authors */}
+                    {!isIndian && (
+                      <label
+                        htmlFor="pay-paypal"
+                        className={`flex items-start gap-3 p-4 rounded-lg border cursor-pointer transition-all ${
+                          paymentMethod === 'paypal'
+                            ? 'border-primary bg-primary/5 shadow-sm'
+                            : 'border-border hover:border-muted-foreground/30'
+                        }`}
+                      >
+                        <RadioGroupItem value="paypal" id="pay-paypal" className="mt-0.5" />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <DollarSign className="w-4 h-4 text-blue-500" />
+                            <span className="font-semibold text-foreground">PayPal</span>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            Pay securely with your PayPal account
+                          </p>
+                        </div>
+                      </label>
+                    )}
+                  </RadioGroup>
+                </GlassCard>
+              )}
+
               <CoAuthorsSection
                 coAuthors={coAuthors}
                 onAdd={addCoAuthor}
@@ -505,18 +813,24 @@ export default function SubmitArticle() {
                   type="button"
                   variant="outline"
                   onClick={() => setStep(1)}
-                  disabled={loading}
+                  disabled={loading || isProcessing}
                 >
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   Back
                 </Button>
                 <Button
                   onClick={handleSubmit}
-                  disabled={loading}
+                  disabled={loading || isProcessing}
                   className="gradient-primary hover:shadow-[0_0_30px_hsl(var(--primary)/0.5)] min-w-[150px]"
                 >
-                  {loading ? (
+                  {loading || isProcessing ? (
                     <GlassSpinner size="sm" />
+                  ) : publicationType === 'fast_track' ? (
+                    <>
+                      <CreditCard className="w-4 h-4 mr-1" />
+                      Pay {currencySymbol}{fastTrackFee.toLocaleString()} & Submit
+                      <ArrowRight className="w-4 h-4 ml-2" />
+                    </>
                   ) : (
                     <>
                       Submit Article

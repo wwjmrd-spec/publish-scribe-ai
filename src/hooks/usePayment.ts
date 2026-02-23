@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 export interface PaymentItem {
-  type: 'article_fee' | 'pro_subscription' | 'coauthor_certificate';
+  type: 'article_fee' | 'pro_subscription' | 'coauthor_certificate' | 'fast_track_fee';
   articleId?: string;
   coAuthorId?: string;
 }
@@ -38,11 +38,11 @@ export function usePayment() {
     return data;
   };
 
-  const createPayPalOrder = async (paymentData: PaymentData) => {
+  const createPayPalOrder = async (paymentData: PaymentData, returnUrl?: string) => {
     const { data, error } = await supabase.functions.invoke('create-paypal-order', {
       body: {
         ...paymentData,
-        returnUrl: window.location.origin + '/author/cart',
+        returnUrl: returnUrl || window.location.origin + '/author/cart',
       },
     });
 
@@ -155,12 +155,13 @@ export function usePayment() {
 
   const processPayPalPayment = async (
     paymentData: PaymentData,
-    onRedirect: (paymentId: string) => void
+    onRedirect: (paymentId: string) => void,
+    returnUrl?: string
   ) => {
     setIsProcessing(true);
 
     try {
-      const orderData = await createPayPalOrder(paymentData);
+      const orderData = await createPayPalOrder(paymentData, returnUrl);
 
       if (!orderData.approvalUrl) {
         throw new Error('PayPal approval URL not received');
