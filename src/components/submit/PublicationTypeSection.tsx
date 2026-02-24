@@ -77,8 +77,9 @@ export function PublicationTypeSection({
               </span>
             </div>
             <p className="text-sm text-muted-foreground">
-              Priority review with expedited publication. Additional fee of{' '}
-              {isIndian ? '₹500' : '$10'} will be added to your publication fee.
+              Priority review with <span className="font-semibold text-amber-600">publication within 24 hours</span>.
+              Full payment (article publication fee + fast track fee of{' '}
+              {isIndian ? '₹500' : '$10'}) is required before submission.
             </p>
           </div>
         </label>
