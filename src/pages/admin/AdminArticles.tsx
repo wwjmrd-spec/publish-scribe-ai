@@ -331,9 +331,14 @@ export default function AdminArticles() {
                         {formatStatus(article.status || '')}
                       </span>
                       {article.publication_type === 'fast_track' && (
-                        <span className="px-2 py-0.5 rounded-full text-[11px] border whitespace-nowrap bg-purple-500/20 text-purple-400 border-purple-500/30">
-                          ⚡ Fast Track
-                        </span>
+                        <>
+                          <span className="px-2 py-0.5 rounded-full text-[11px] border whitespace-nowrap bg-purple-500/20 text-purple-400 border-purple-500/30">
+                            ⚡ Fast Track
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full text-[11px] border whitespace-nowrap bg-green-500/20 text-green-400 border-green-500/30">
+                            ✅ Paid
+                          </span>
+                        </>
                       )}
                     </div>
                   </div>
@@ -371,9 +376,14 @@ export default function AdminArticles() {
                             {formatStatus(article.status || '')}
                           </span>
                           {article.publication_type === 'fast_track' && (
-                            <span className="px-2 py-1 rounded-full text-xs border whitespace-nowrap bg-purple-500/20 text-purple-400 border-purple-500/30">
-                              ⚡ Fast Track
-                            </span>
+                            <>
+                              <span className="px-2 py-1 rounded-full text-xs border whitespace-nowrap bg-purple-500/20 text-purple-400 border-purple-500/30">
+                                ⚡ Fast Track
+                              </span>
+                              <span className="px-2 py-1 rounded-full text-xs border whitespace-nowrap bg-green-500/20 text-green-400 border-green-500/30">
+                                ✅ Paid
+                              </span>
+                            </>
                           )}
                         </div>
                       </td>

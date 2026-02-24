@@ -237,8 +237,13 @@ export default function MyArticles() {
                         </p>
                       )}
 
-                      <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                      <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
                         <span>Submitted: {formatDate(article.created_at)}</span>
+                        {article.publication_type === 'fast_track' && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-500/20 text-purple-400 border border-purple-500/30">
+                            ⚡ Fast Track (24hr)
+                          </span>
+                        )}
                         {article.co_authors && article.co_authors.length > 0 && (
                           <span>
                             Co-authors: {article.co_authors.length}

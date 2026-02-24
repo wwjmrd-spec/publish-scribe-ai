@@ -437,6 +437,11 @@ export default function AdminArticleDetail() {
                     ⚡ Fast Track
                   </span>
                 )}
+                {article.publication_type === 'fast_track' && (
+                  <span className="inline-block px-3 py-1 rounded-full text-xs border bg-green-500/20 text-green-400 border-green-500/30">
+                    ✅ Fee Paid
+                  </span>
+                )}
                 {article.publication_type === 'normal' && (
                   <span className="inline-block px-3 py-1.5 rounded-full text-sm border bg-muted text-muted-foreground">
                     Normal

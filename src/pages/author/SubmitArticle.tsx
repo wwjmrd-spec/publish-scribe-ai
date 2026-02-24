@@ -502,9 +502,16 @@ export default function SubmitArticle() {
         (ca) => ca.name.trim() && ca.email.trim() && emailRegex.test(ca.email.trim())
       );
 
+      // Calculate full amount: article publication fee + fast track fee
+      const articleFee = isIndian ? Number(fees?.indian_fee || 2500) : Number(fees?.international_fee || 79);
+      const totalAmount = articleFee + fastTrackFee;
+
       const paymentData = {
-        items: [{ type: 'fast_track_fee' as const }],
-        amount: fastTrackFee,
+        items: [
+          { type: 'article_fee' as const },
+          { type: 'fast_track_fee' as const },
+        ],
+        amount: totalAmount,
         currency: currency as 'INR' | 'USD',
       };
 
@@ -737,13 +744,29 @@ export default function SubmitArticle() {
                     <CreditCard className="w-5 h-5 text-primary" />
                     Payment Method
                   </h2>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Fast track requires upfront payment of{' '}
-                    <span className="font-semibold text-foreground">
-                      {currencySymbol}{fastTrackFee.toLocaleString()}
-                    </span>
-                    . Select your preferred payment method.
-                  </p>
+                  {(() => {
+                    const articleFee = isIndian ? Number(fees?.indian_fee || 2500) : Number(fees?.international_fee || 79);
+                    const totalAmount = articleFee + fastTrackFee;
+                    return (
+                      <div className="text-sm text-muted-foreground mb-4 space-y-1">
+                        <p>Fast track requires full upfront payment before submission:</p>
+                        <div className="p-3 rounded-lg bg-muted/50 space-y-1">
+                          <div className="flex justify-between text-sm">
+                            <span>Article Publication Fee</span>
+                            <span className="font-medium text-foreground">{currencySymbol}{articleFee.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span>Fast Track Fee (24hr publication)</span>
+                            <span className="font-medium text-foreground">{currencySymbol}{fastTrackFee.toLocaleString()}</span>
+                          </div>
+                          <div className="border-t border-border pt-1 flex justify-between text-sm font-semibold">
+                            <span>Total</span>
+                            <span className="text-primary">{currencySymbol}{totalAmount.toLocaleString()}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   <RadioGroup
                     value={paymentMethod}
@@ -828,7 +851,7 @@ export default function SubmitArticle() {
                   ) : publicationType === 'fast_track' ? (
                     <>
                       <CreditCard className="w-4 h-4 mr-1" />
-                      Pay {currencySymbol}{fastTrackFee.toLocaleString()} & Submit
+                      Pay {currencySymbol}{(fastTrackFee + (isIndian ? Number(fees?.indian_fee || 2500) : Number(fees?.international_fee || 79))).toLocaleString()} & Submit
                       <ArrowRight className="w-4 h-4 ml-2" />
                     </>
                   ) : (
