@@ -25,6 +25,7 @@ import {
   Loader2,
   Crown,
   Users,
+  Globe,
 } from 'lucide-react';
 
 export default function Cart() {
@@ -38,6 +39,7 @@ export default function Cart() {
   const { isLoaded: razorpayLoaded } = useRazorpay();
   const { isProcessing, processRazorpayPayment, processPayPalPayment, capturePayPalPayment } = usePayment();
   const [paymentMethod, setPaymentMethod] = useState<PaymentGateway>('razorpay');
+  const [preferredCurrency, setPreferredCurrency] = useState<'INR' | 'USD'>(isIndian ? 'INR' : 'USD');
 
   const [selectedArticles, setSelectedArticles] = useState<string[]>([]);
   const [discountCode, setDiscountCode] = useState('');
@@ -48,8 +50,9 @@ export default function Cart() {
   } | null>(null);
   const [applyingDiscount, setApplyingDiscount] = useState(false);
 
-  const currency = isIndian ? 'INR' : 'USD';
-  const currencySymbol = isIndian ? '₹' : '$';
+  const currency = preferredCurrency;
+  const currencySymbol = preferredCurrency === 'INR' ? '₹' : '$';
+  const useIndianFees = preferredCurrency === 'INR';
 
   const { data: pendingArticles, isLoading: articlesLoading } = useQuery({
     queryKey: ['pending-articles', user?.id],
@@ -106,9 +109,9 @@ export default function Cart() {
   }, []);
 
   const feePerArticle = useMemo(() => {
-    if (!fees) return isIndian ? 2500 : 79;
-    return isIndian ? Number(fees.indian_fee) : Number(fees.international_fee);
-  }, [fees, isIndian]);
+    if (!fees) return useIndianFees ? 2500 : 79;
+    return useIndianFees ? Number(fees.indian_fee) : Number(fees.international_fee);
+  }, [fees, useIndianFees]);
 
   // Filter out invalid cart items (e.g., Pro subscription when already Pro)
   const validCartItems = useMemo(() => {
@@ -345,6 +348,44 @@ export default function Cart() {
           <p className="text-muted-foreground">
             Review and pay for all your items in one go
           </p>
+          {/* Currency Preference */}
+          <div className="mt-4 flex items-center gap-3">
+            <Globe className="w-4 h-4 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">Preferred Currency:</span>
+            <div className="flex rounded-lg border border-[hsl(var(--glass-border))] overflow-hidden">
+              <button
+                type="button"
+                className={`px-4 py-1.5 text-sm font-medium transition-all duration-200 ${
+                  preferredCurrency === 'INR'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-[hsl(var(--glass-bg))] text-muted-foreground hover:bg-[hsl(var(--glass-bg-strong))]'
+                }`}
+                onClick={() => {
+                  setPreferredCurrency('INR');
+                  setPaymentMethod('razorpay');
+                  setAppliedDiscount(null);
+                  setDiscountCode('');
+                }}
+              >
+                ₹ INR
+              </button>
+              <button
+                type="button"
+                className={`px-4 py-1.5 text-sm font-medium transition-all duration-200 ${
+                  preferredCurrency === 'USD'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-[hsl(var(--glass-bg))] text-muted-foreground hover:bg-[hsl(var(--glass-bg-strong))]'
+                }`}
+                onClick={() => {
+                  setPreferredCurrency('USD');
+                  setAppliedDiscount(null);
+                  setDiscountCode('');
+                }}
+              >
+                $ USD
+              </button>
+            </div>
+          </div>
         </div>
 
         {isEmpty ? (
@@ -573,7 +614,7 @@ export default function Cart() {
                     <label className="text-sm text-muted-foreground">
                       Payment Method
                     </label>
-                    <div className={`grid ${isIndian ? 'grid-cols-1' : 'grid-cols-2'} gap-2`}>
+                    <div className={`grid ${preferredCurrency === 'INR' ? 'grid-cols-1' : 'grid-cols-2'} gap-2`}>
                       <button
                         type="button"
                         className={`flex items-center justify-center gap-2 p-3 rounded-lg border text-sm font-medium transition-all duration-200 ${
@@ -586,7 +627,7 @@ export default function Cart() {
                         <CreditCard className="w-4 h-4" />
                         Razorpay
                       </button>
-                      {!isIndian && (
+                      {preferredCurrency === 'USD' && (
                         <button
                           type="button"
                           className={`flex items-center justify-center gap-2 p-3 rounded-lg border text-sm font-medium transition-all duration-200 ${
