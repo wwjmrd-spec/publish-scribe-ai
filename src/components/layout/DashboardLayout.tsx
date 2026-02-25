@@ -13,6 +13,7 @@ import {
   Settings,
   BarChart3,
   Tag,
+  Bell,
   LogOut,
   Home,
   Menu,
@@ -56,6 +57,7 @@ const adminNavItems: NavItem[] = [
   { label: 'Authors', href: '/admin/authors', icon: Users },
   { label: 'Discount Codes', href: '/admin/discounts', icon: Tag },
   { label: 'Fee Settings', href: '/admin/fees', icon: Settings },
+  { label: 'Reminders', href: '/admin/reminders', icon: Bell },
   { label: 'Profile', href: '/admin/profile', icon: UserCircle },
 ];
 
