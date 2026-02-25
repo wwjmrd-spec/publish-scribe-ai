@@ -26,6 +26,7 @@ import AdminFees from "./pages/admin/AdminFees";
 import AdminAIReview from "./pages/admin/AdminAIReview";
 import AdminArticleDetail from "./pages/admin/AdminArticleDetail";
 import AdminAuthorDetail from "./pages/admin/AdminAuthorDetail";
+import AdminReminderSettings from "./pages/admin/AdminReminderSettings";
 import NotFound from "./pages/NotFound";
 import { ReferralPopup } from "./components/referral/ReferralPopup";
 import { CookieConsent } from "./components/CookieConsent";
@@ -185,6 +186,14 @@ const App = () => (
               element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <AdminAIReview />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/reminders" 
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminReminderSettings />
                 </ProtectedRoute>
               } 
             />

@@ -600,6 +600,38 @@ export type Database = {
           },
         ]
       }
+      reminder_settings: {
+        Row: {
+          frequency_hours: number
+          id: string
+          max_days: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          frequency_hours?: number
+          id?: string
+          max_days?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          frequency_hours?: number
+          id?: string
+          max_days?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reminder_settings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string

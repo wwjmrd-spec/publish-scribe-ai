@@ -20,13 +20,23 @@ serve(async (req: Request) => {
     const body = await req.json().catch(() => ({}));
     const { articleId } = body;
 
+    // Fetch reminder settings
+    const { data: settingsRow } = await supabase
+      .from("reminder_settings")
+      .select("frequency_hours, max_days")
+      .limit(1)
+      .single();
+
+    const frequencyHours = settingsRow?.frequency_hours ?? 24;
+    const maxDays = settingsRow?.max_days ?? 2;
+
     let articles: any[] = [];
 
     if (articleId) {
       // Manual trigger: send reminder for a specific article
       const { data, error } = await supabase
         .from("articles")
-        .select("id, title, reference_number, author_id, status, profiles:author_id (full_name, email)")
+        .select("id, title, reference_number, author_id, status, updated_at, profiles:author_id (full_name, email)")
         .eq("id", articleId)
         .eq("status", "pending_fee")
         .single();
@@ -37,33 +47,51 @@ serve(async (req: Request) => {
           { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
         );
       }
+
+      // Check if article is still within the max_days window
+      const statusChangedAt = new Date(data.updated_at);
+      const cutoffDate = new Date(statusChangedAt.getTime() + maxDays * 24 * 60 * 60 * 1000);
+      if (new Date() > cutoffDate) {
+        return new Response(
+          JSON.stringify({ error: `Reminder window expired (max ${maxDays} days after pending_fee)` }),
+          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+
       articles = [data];
     } else {
-      // Auto trigger (cron): find all articles pending_fee for more than 24 hours
-      // that haven't received a reminder in the last 24 hours
-      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-
+      // Auto trigger (cron): find all articles pending_fee
+      // that are within the max_days window from when they became pending_fee
       const { data, error } = await supabase
         .from("articles")
         .select("id, title, reference_number, author_id, status, updated_at, profiles:author_id (full_name, email)")
-        .eq("status", "pending_fee")
-        .lt("updated_at", twentyFourHoursAgo);
+        .eq("status", "pending_fee");
 
       if (error) {
         console.error("Error fetching articles:", error);
         throw error;
       }
 
-      // Filter out articles that already received a reminder in the last 24h
+      const now = new Date();
+      const frequencyMs = frequencyHours * 60 * 60 * 1000;
+      const frequencyAgo = new Date(now.getTime() - frequencyMs).toISOString();
+
+      // Filter: within max_days window AND no reminder sent within frequency period
       const filteredArticles = [];
       for (const art of (data || [])) {
+        const statusChangedAt = new Date(art.updated_at);
+        const cutoffDate = new Date(statusChangedAt.getTime() + maxDays * 24 * 60 * 60 * 1000);
+
+        // Skip if past the max_days window
+        if (now > cutoffDate) continue;
+
         const { data: recentReminder } = await supabase
           .from("payment_reminders")
           .select("id")
           .eq("article_id", art.id)
-          .gte("sent_at", twentyFourHoursAgo)
+          .gte("sent_at", frequencyAgo)
           .limit(1);
-        
+
         if (!recentReminder || recentReminder.length === 0) {
           filteredArticles.push(art);
         }
@@ -71,7 +99,7 @@ serve(async (req: Request) => {
       articles = filteredArticles;
     }
 
-    console.log(`Found ${articles.length} article(s) to send payment reminders for`);
+    console.log(`Found ${articles.length} article(s) to send payment reminders for (frequency: ${frequencyHours}h, max: ${maxDays} days)`);
 
     let sentCount = 0;
     const errors: string[] = [];
@@ -100,7 +128,6 @@ serve(async (req: Request) => {
           errors.push(`Failed to send to ${profile.email}: ${emailError.message}`);
         } else {
           sentCount++;
-          // Track the reminder
           await supabase.from("payment_reminders").insert({
             article_id: article.id,
             reminder_type: articleId ? "manual" : "auto",
