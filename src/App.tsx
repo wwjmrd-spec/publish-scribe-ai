@@ -25,6 +25,7 @@ import AdminDiscounts from "./pages/admin/AdminDiscounts";
 import AdminFees from "./pages/admin/AdminFees";
 import AdminAIReview from "./pages/admin/AdminAIReview";
 import AdminArticleDetail from "./pages/admin/AdminArticleDetail";
+import AdminFormatting from "./pages/admin/AdminFormatting";
 import AdminAuthorDetail from "./pages/admin/AdminAuthorDetail";
 import AdminReminderSettings from "./pages/admin/AdminReminderSettings";
 import NotFound from "./pages/NotFound";
@@ -186,6 +187,14 @@ const App = () => (
               element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <AdminAIReview />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/formatting" 
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminFormatting />
                 </ProtectedRoute>
               } 
             />

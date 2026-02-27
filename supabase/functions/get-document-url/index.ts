@@ -153,6 +153,9 @@ serve(async (req) => {
     } else if (fileType === "review_report") {
       bucket = "review-reports";
       filePath = article.review_report_url || null;
+    } else if (fileType === "formatted_document") {
+      bucket = "formatted-articles";
+      filePath = article.formatted_document_url || null;
     }
 
     if (!filePath) {
