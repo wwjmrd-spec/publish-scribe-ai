@@ -54,6 +54,7 @@ const adminNavItems: NavItem[] = [
   { label: 'Dashboard', href: '/admin', icon: BarChart3 },
   { label: 'Articles', href: '/admin/articles', icon: FileText },
   { label: 'AI Review', href: '/admin/ai-review', icon: Brain },
+  { label: 'Formatting', href: '/admin/formatting', icon: FileText },
   { label: 'Authors', href: '/admin/authors', icon: Users },
   { label: 'Discount Codes', href: '/admin/discounts', icon: Tag },
   { label: 'Fee Settings', href: '/admin/fees', icon: Settings },
