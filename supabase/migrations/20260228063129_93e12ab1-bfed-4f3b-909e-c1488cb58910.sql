@@ -1,0 +1,1 @@
+INSERT INTO storage.buckets (id, name, public) VALUES ('formatted-articles', 'formatted-articles', false);
