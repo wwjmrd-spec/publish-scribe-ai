@@ -80,6 +80,10 @@ export type Database = {
           country: string | null
           created_at: string | null
           document_url: string | null
+          formatted_document_url: string | null
+          formatting_approved_at: string | null
+          formatting_status: string | null
+          formatting_suggestions: Json | null
           id: string
           issue: string | null
           keywords: string[] | null
@@ -106,6 +110,10 @@ export type Database = {
           country?: string | null
           created_at?: string | null
           document_url?: string | null
+          formatted_document_url?: string | null
+          formatting_approved_at?: string | null
+          formatting_status?: string | null
+          formatting_suggestions?: Json | null
           id?: string
           issue?: string | null
           keywords?: string[] | null
@@ -132,6 +140,10 @@ export type Database = {
           country?: string | null
           created_at?: string | null
           document_url?: string | null
+          formatted_document_url?: string | null
+          formatting_approved_at?: string | null
+          formatting_status?: string | null
+          formatting_suggestions?: Json | null
           id?: string
           issue?: string | null
           keywords?: string[] | null
