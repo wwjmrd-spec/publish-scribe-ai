@@ -1,0 +1,1 @@
+CREATE POLICY "Authenticated users can read formatted articles" ON storage.objects FOR SELECT USING (bucket_id = 'formatted-articles' AND auth.role() = 'authenticated');
