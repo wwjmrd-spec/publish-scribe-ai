@@ -115,198 +115,314 @@ function generateFormattedPdf(article: any, formatted: FormattedArticle): ArrayB
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 20;
-  const contentWidth = pageWidth - margin * 2;
-  let y = margin;
+  const marginLeft = 15;
+  const marginRight = 15;
+  const contentWidth = pageWidth - marginLeft - marginRight;
+  let y = 0;
   let pageNum = 1;
 
-  const primaryBlue = [41, 98, 168] as [number, number, number];
-  const darkText = [30, 30, 30] as [number, number, number];
-  const grayText = [80, 80, 80] as [number, number, number];
+  // WWJMRD Brand Colors
+  const brandBlue = [0, 51, 153] as [number, number, number];
+  const darkBlue = [0, 32, 96] as [number, number, number];
+  const black = [0, 0, 0] as [number, number, number];
+  const darkGray = [51, 51, 51] as [number, number, number];
+  const medGray = [102, 102, 102] as [number, number, number];
+  const lightGray = [150, 150, 150] as [number, number, number];
 
   function checkPageBreak(requiredSpace: number) {
-    if (y + requiredSpace > pageHeight - 25) {
+    if (y + requiredSpace > pageHeight - 20) {
       doc.addPage();
-      y = margin;
+      y = 15;
       pageNum++;
     }
   }
 
-  function addWrappedText(text: string, x: number, maxWidth: number, fontSize: number, color: [number, number, number], fontStyle = "normal", lineHeight = 5): number {
+  function addJustifiedText(text: string, x: number, maxWidth: number, fontSize: number, color: [number, number, number], fontStyle = "normal", lineHeight = 4.5): number {
     doc.setFontSize(fontSize);
-    doc.setFont("helvetica", fontStyle);
+    doc.setFont("times", fontStyle);
     doc.setTextColor(...color);
     const lines = doc.splitTextToSize(text, maxWidth);
     for (const line of lines) {
       checkPageBreak(lineHeight);
-      doc.text(line, x, y);
+      doc.text(line, x, y, { align: "left", maxWidth: maxWidth });
       y += lineHeight;
     }
     return y;
   }
 
-  // === PAGE HEADER ===
-  function addHeader() {
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "italic");
-    doc.setTextColor(...grayText);
-    doc.text(`World Wide Journal of Multidisciplinary Research and Development`, pageWidth / 2, 10, { align: "center" });
-    y = 18;
+  // ============ PAGE 1 HEADER ============
+
+  // Blue header bar
+  doc.setFillColor(...brandBlue);
+  doc.rect(0, 0, pageWidth, 8, "F");
+
+  // Journal title in header
+  y = 14;
+  doc.setFontSize(11);
+  doc.setFont("times", "bold");
+  doc.setTextColor(...brandBlue);
+  doc.text("World Wide Journal of Multidisciplinary Research and Development", pageWidth / 2, y, { align: "center" });
+
+  // Month-Year subtitle
+  y += 5;
+  doc.setFontSize(9);
+  doc.setFont("times", "normal");
+  doc.setTextColor(...medGray);
+  const monthYear = formatted.header?.month_year || new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  doc.text(`(${monthYear})`, pageWidth / 2, y, { align: "center" });
+
+  // Volume/Issue/Pages
+  y += 5;
+  doc.setFontSize(8);
+  doc.setFont("times", "normal");
+  doc.setTextColor(...medGray);
+  if (formatted.header?.volume_issue_pages) {
+    doc.text(formatted.header.volume_issue_pages, pageWidth / 2, y, { align: "center" });
+    y += 4;
   }
 
-  addHeader();
-
-  // === JOURNAL INFO BLOCK ===
-  doc.setFontSize(7);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(...grayText);
-  const journalInfo = [
-    formatted.header?.volume_issue_pages || "",
-    "www.wwjmrd.com",
-    "International Journal | Peer Reviewed Journal | Refereed Journal | Indexed Journal",
-    "Impact Factor SJIF 2017: 5.182 2018: 5.51, (ISI) 2020-2021: 1.361",
-    "E-ISSN: 2454-6615",
-  ];
-  for (const line of journalInfo) {
-    if (line) {
-      doc.text(line, pageWidth / 2, y, { align: "center" });
-      y += 4;
-    }
-  }
+  // Website
+  doc.setFontSize(8);
+  doc.setTextColor(...brandBlue);
+  doc.text("www.wwjmrd.com", pageWidth / 2, y, { align: "center" });
   y += 4;
 
-  // Separator
-  doc.setDrawColor(...primaryBlue);
-  doc.setLineWidth(0.8);
-  doc.line(margin, y, pageWidth - margin, y);
+  // Journal labels
+  doc.setFontSize(7);
+  doc.setFont("times", "italic");
+  doc.setTextColor(...medGray);
+  doc.text("International Journal  |  Peer Reviewed Journal  |  Refereed Journal  |  Indexed Journal", pageWidth / 2, y, { align: "center" });
+  y += 4;
+
+  // Impact Factor
+  doc.setFontSize(7);
+  doc.setFont("times", "bold");
+  doc.setTextColor(...darkGray);
+  doc.text("Impact Factor SJIF – 2017: 5.182  2018: 5.51,  (ISI) 2020-2021: 1.361", pageWidth / 2, y, { align: "center" });
+  y += 4;
+
+  // E-ISSN
+  doc.setFontSize(8);
+  doc.setFont("times", "bold");
+  doc.setTextColor(...darkBlue);
+  doc.text("E-ISSN: 2454-6615", pageWidth / 2, y, { align: "center" });
+  y += 3;
+
+  // Separator line (double)
+  doc.setDrawColor(...brandBlue);
+  doc.setLineWidth(0.6);
+  doc.line(marginLeft, y, pageWidth - marginRight, y);
+  y += 1.5;
+  doc.setLineWidth(0.2);
+  doc.line(marginLeft, y, pageWidth - marginRight, y);
   y += 8;
 
-  // === TITLE ===
+  // ============ TITLE ============
   doc.setFontSize(14);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...darkText);
-  const titleLines = doc.splitTextToSize(formatted.title || article.title, contentWidth);
+  doc.setFont("times", "bold");
+  doc.setTextColor(...black);
+  const titleLines = doc.splitTextToSize(formatted.title || article.title, contentWidth - 20);
   for (const line of titleLines) {
     checkPageBreak(7);
     doc.text(line, pageWidth / 2, y, { align: "center" });
     y += 7;
   }
-  y += 4;
+  y += 3;
 
-  // === AUTHORS ===
+  // ============ AUTHORS ============
   if (formatted.authors?.length > 0) {
-    for (const author of formatted.authors) {
-      checkPageBreak(10);
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(...darkText);
-      doc.text(author.name, pageWidth / 2, y, { align: "center" });
-      y += 5;
+    // Author names on one line with superscript numbers
+    const authorNames = formatted.authors.map((a, i) => `${a.name}${formatted.authors.length > 1 ? String(i + 1) : ""}`).join(", ");
+    doc.setFontSize(11);
+    doc.setFont("times", "bold");
+    doc.setTextColor(...darkGray);
+    const nameLines = doc.splitTextToSize(authorNames, contentWidth - 10);
+    for (const line of nameLines) {
+      checkPageBreak(6);
+      doc.text(line, pageWidth / 2, y, { align: "center" });
+      y += 6;
+    }
+    y += 2;
+
+    // Affiliations
+    for (let i = 0; i < formatted.authors.length; i++) {
+      const author = formatted.authors[i];
       if (author.affiliation) {
+        checkPageBreak(8);
         doc.setFontSize(8);
-        doc.setFont("helvetica", "italic");
-        doc.setTextColor(...grayText);
-        const affLines = doc.splitTextToSize(author.affiliation, contentWidth - 20);
+        doc.setFont("times", "italic");
+        doc.setTextColor(...medGray);
+        const prefix = formatted.authors.length > 1 ? `${i + 1}` : "";
+        const affText = `${prefix}${author.affiliation}`;
+        const affLines = doc.splitTextToSize(affText, contentWidth - 20);
         for (const line of affLines) {
           doc.text(line, pageWidth / 2, y, { align: "center" });
-          y += 4;
+          y += 3.5;
         }
+        y += 1;
       }
-      y += 2;
     }
     y += 4;
   }
 
-  // === ABSTRACT ===
+  // Thin separator
+  doc.setDrawColor(...lightGray);
+  doc.setLineWidth(0.3);
+  doc.line(marginLeft + 30, y, pageWidth - marginRight - 30, y);
+  y += 6;
+
+  // ============ ABSTRACT ============
   if (formatted.abstract || article.abstract) {
     checkPageBreak(15);
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(...darkText);
-    doc.text("Abstract", margin, y);
-    y += 6;
-    addWrappedText(formatted.abstract || article.abstract || "", margin, contentWidth, 10, grayText, "normal", 5);
+    doc.setFontSize(11);
+    doc.setFont("times", "bold");
+    doc.setTextColor(...black);
+    doc.text("Abstract", marginLeft, y);
+    y += 5;
+
+    doc.setDrawColor(...brandBlue);
+    doc.setLineWidth(0.5);
+    doc.line(marginLeft, y, marginLeft + 15, y);
+    y += 4;
+
+    addJustifiedText(formatted.abstract || article.abstract || "", marginLeft, contentWidth, 10, darkGray, "normal", 4.5);
     y += 4;
   }
 
-  // === KEYWORDS ===
+  // ============ KEYWORDS ============
   if (formatted.keywords?.length > 0 || article.keywords?.length > 0) {
     checkPageBreak(12);
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(...darkText);
-    doc.text("Keywords", margin, y);
-    y += 6;
+    doc.setFontSize(10);
+    doc.setFont("times", "bold");
+    doc.setTextColor(...black);
+    doc.text("Keywords: ", marginLeft, y);
+    const kwLabelWidth = doc.getTextWidth("Keywords: ");
+    doc.setFont("times", "italic");
+    doc.setTextColor(...medGray);
     const kw = (formatted.keywords || article.keywords || []).join("; ");
-    addWrappedText(kw, margin, contentWidth, 10, grayText, "italic", 5);
-    y += 4;
+    const kwLines = doc.splitTextToSize(kw, contentWidth - kwLabelWidth);
+    doc.text(kwLines[0] || "", marginLeft + kwLabelWidth, y);
+    y += 4.5;
+    for (let i = 1; i < kwLines.length; i++) {
+      doc.text(kwLines[i], marginLeft, y);
+      y += 4.5;
+    }
+    y += 5;
   }
 
-  // === SECTIONS ===
+  // Section separator
+  doc.setDrawColor(...brandBlue);
+  doc.setLineWidth(0.4);
+  doc.line(marginLeft, y, pageWidth - marginRight, y);
+  y += 6;
+
+  // ============ SECTIONS ============
   if (formatted.sections?.length > 0) {
     for (const section of formatted.sections) {
       checkPageBreak(15);
-      doc.setFontSize(12);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(...darkText);
-      doc.text(`${section.number}. ${section.heading}`, margin, y);
-      y += 6;
 
+      // Section heading
+      doc.setFontSize(11);
+      doc.setFont("times", "bold");
+      doc.setTextColor(...black);
+      doc.text(`${section.number}. ${section.heading}`, marginLeft, y);
+      y += 5;
+
+      // Underline for section heading
+      doc.setDrawColor(...brandBlue);
+      doc.setLineWidth(0.3);
+      const headingWidth = doc.getTextWidth(`${section.number}. ${section.heading}`);
+      doc.line(marginLeft, y, marginLeft + Math.min(headingWidth, contentWidth), y);
+      y += 4;
+
+      // Section content
       if (section.content) {
-        addWrappedText(section.content, margin, contentWidth, 10, grayText, "normal", 5);
+        addJustifiedText(section.content, marginLeft, contentWidth, 10, darkGray, "normal", 4.5);
         y += 3;
       }
 
+      // Subsections
       if (section.subsections?.length) {
         for (const sub of section.subsections) {
           checkPageBreak(12);
-          doc.setFontSize(11);
-          doc.setFont("helvetica", "bold");
-          doc.setTextColor(...darkText);
-          doc.text(`${sub.number}. ${sub.heading}`, margin, y);
+          doc.setFontSize(10);
+          doc.setFont("times", "bolditalic");
+          doc.setTextColor(...darkGray);
+          doc.text(`${sub.number} ${sub.heading}`, marginLeft + 3, y);
           y += 5;
+
           if (sub.content) {
-            addWrappedText(sub.content, margin, contentWidth, 10, grayText, "normal", 5);
+            addJustifiedText(sub.content, marginLeft, contentWidth, 10, darkGray, "normal", 4.5);
             y += 3;
           }
         }
       }
-    }
-  }
-
-  // === REFERENCES ===
-  if (formatted.references?.length > 0) {
-    checkPageBreak(15);
-    y += 4;
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(...darkText);
-    doc.text("References", margin, y);
-    y += 6;
-
-    for (let i = 0; i < formatted.references.length; i++) {
-      checkPageBreak(8);
-      addWrappedText(`${i + 1}. ${formatted.references[i]}`, margin + 2, contentWidth - 4, 9, grayText, "normal", 4.5);
       y += 2;
     }
   }
 
-  // === FOOTERS ===
+  // ============ REFERENCES ============
+  if (formatted.references?.length > 0) {
+    checkPageBreak(15);
+    y += 4;
+
+    doc.setFontSize(11);
+    doc.setFont("times", "bold");
+    doc.setTextColor(...black);
+    doc.text("References", marginLeft, y);
+    y += 5;
+    doc.setDrawColor(...brandBlue);
+    doc.setLineWidth(0.5);
+    doc.line(marginLeft, y, marginLeft + 20, y);
+    y += 5;
+
+    for (let i = 0; i < formatted.references.length; i++) {
+      checkPageBreak(8);
+      const refNum = `[${i + 1}]  `;
+      doc.setFontSize(9);
+      doc.setFont("times", "bold");
+      doc.setTextColor(...darkGray);
+      doc.text(refNum, marginLeft, y);
+      const numWidth = doc.getTextWidth(refNum);
+
+      doc.setFont("times", "normal");
+      doc.setTextColor(...medGray);
+      const refLines = doc.splitTextToSize(formatted.references[i], contentWidth - numWidth - 2);
+      for (let j = 0; j < refLines.length; j++) {
+        doc.text(refLines[j], marginLeft + numWidth, y);
+        y += 4;
+      }
+      y += 1.5;
+    }
+  }
+
+  // ============ FOOTERS & HEADERS ON ALL PAGES ============
   const totalPages = doc.getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
-    // Header on every page (except first which already has it)
+
+    // Blue top bar on every page
+    doc.setFillColor(...brandBlue);
+    doc.rect(0, 0, pageWidth, 3, "F");
+
+    // Running header on pages after first
     if (i > 1) {
-      doc.setFontSize(8);
-      doc.setFont("helvetica", "italic");
-      doc.setTextColor(...grayText);
-      doc.text("World Wide Journal of Multidisciplinary Research and Development", pageWidth / 2, 10, { align: "center" });
+      doc.setFontSize(7.5);
+      doc.setFont("times", "italic");
+      doc.setTextColor(...medGray);
+      doc.text("World Wide Journal of Multidisciplinary Research and Development", pageWidth / 2, 8, { align: "center" });
     }
+
+    // Bottom separator line
+    doc.setDrawColor(...brandBlue);
+    doc.setLineWidth(0.4);
+    doc.line(marginLeft, pageHeight - 14, pageWidth - marginRight, pageHeight - 14);
+
     // Page number footer
     doc.setFontSize(9);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(...grayText);
-    doc.text(`~ ${i} ~`, pageWidth / 2, pageHeight - 10, { align: "center" });
+    doc.setFont("times", "normal");
+    doc.setTextColor(...medGray);
+    doc.text(`~ ${i} ~`, pageWidth / 2, pageHeight - 9, { align: "center" });
   }
 
   return doc.output("arraybuffer");
