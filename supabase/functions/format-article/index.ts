@@ -327,11 +327,10 @@ serve(async (req) => {
     const authClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) return jsonResponse({ error: "Unauthorized" }, 401);
+    const { data: { user }, error: userError } = await authClient.auth.getUser();
+    if (userError || !user) return jsonResponse({ error: "Unauthorized" }, 401);
 
-    const userId = claimsData.claims.sub as string;
+    const userId = user.id;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const { data: roleData } = await supabase
