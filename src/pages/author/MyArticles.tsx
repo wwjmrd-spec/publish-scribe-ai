@@ -30,6 +30,28 @@ export default function MyArticles() {
   const queryClient = useQueryClient();
   const { subscription, isLoading: subLoading } = useSubscription();
 
+  const handleDownloadGalleyProof = async (articleId: string) => {
+    try {
+      const response = await supabase.functions.invoke('get-document-url', {
+        body: { articleId, fileType: 'formatted_document' },
+      });
+      if (response.error || !response.data?.url) {
+        toast.error('Failed to get galley proof download link');
+        return;
+      }
+      const link = document.createElement('a');
+      link.href = response.data.url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.download = `galley-proof-${articleId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch {
+      toast.error('Failed to download galley proof');
+    }
+  };
+
   const handleDownloadReport = async (articleId: string) => {
     if (!user) return;
 
@@ -289,6 +311,16 @@ export default function MyArticles() {
                               <Download className="w-4 h-4 mr-1" />
                             )}
                             Report
+                          </Button>
+                        )}
+                        {(article as any).formatted_document_url && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDownloadGalleyProof(article.id)}
+                          >
+                            <Download className="w-4 h-4 mr-1" />
+                            Galley Proof
                           </Button>
                         )}
                         {article.certificate_url && (
