@@ -542,8 +542,8 @@ serve(async (req) => {
       for (const admin of admins) {
         await supabase.from("notifications").insert({
           user_id: admin.user_id,
-          title: "Formatted Article Ready for Review 📝",
-          message: `Article "${article.title}" (${article.reference_number}) has been reformatted and is ready for admin review.`,
+          title: "Galley Proof Ready for Review 📝",
+          message: `Galley proof for "${article.title}" (${article.reference_number}) is ready for review.`,
           type: "info",
           link: `/admin/formatting`,
         });
@@ -555,25 +555,41 @@ serve(async (req) => {
     if (authorProfile?.email) {
       await supabase.from("notifications").insert({
         user_id: article.author_id,
-        title: "Article Formatting Complete 📄",
-        message: `Your article "${article.title}" has been reformatted to publication style and is pending admin review.`,
+        title: "Galley Proof Generated 📄",
+        message: `The galley proof for your article "${article.title}" has been generated and is pending admin review.`,
         type: "info",
         link: "/author/articles",
       });
     }
 
-    // Send email notification to admin
+    // Send "Galley Proof" email notification to admin
     try {
       await supabase.functions.invoke("send-email", {
         body: {
           to: "wwjmrd@gmail.com",
           template: "custom",
-          subject: `Formatted Article Ready: ${article.reference_number}`,
-          html: `<h2>Formatted Article Ready for Review</h2><p>Article "${article.title}" (${article.reference_number}) has been reformatted to WWJMRD publication style and is ready for admin review.</p><p><a href="https://wwjmrdai.lovable.app/admin/formatting">Review Now</a></p>`,
+          subject: `Galley Proof - ${article.reference_number}`,
+          html: `<h2>Galley Proof Ready for Review</h2><p>The galley proof for article "<strong>${article.title}</strong>" (${article.reference_number}) by ${(article.profiles as any)?.full_name || "Author"} has been generated and is ready for your review.</p><p><a href="https://wwjmrdai.lovable.app/admin/formatting">Review Galley Proof</a></p>`,
         },
       });
     } catch (emailErr) {
-      console.error("Email notification failed:", emailErr);
+      console.error("Admin email notification failed:", emailErr);
+    }
+
+    // Send "Galley Proof" email notification to author
+    if (authorProfile?.email) {
+      try {
+        await supabase.functions.invoke("send-email", {
+          body: {
+            to: authorProfile.email,
+            template: "custom",
+            subject: `Galley Proof - ${article.reference_number}`,
+            html: `<h2>Galley Proof Generated</h2><p>Dear ${(article.profiles as any)?.full_name || "Author"},</p><p>The galley proof for your article "<strong>${article.title}</strong>" (${article.reference_number}) has been generated and is now pending admin review.</p><p>You will be notified once it has been approved.</p><p><a href="https://wwjmrdai.lovable.app/author/articles">View My Articles</a></p>`,
+          },
+        });
+      } catch (emailErr) {
+        console.error("Author email notification failed:", emailErr);
+      }
     }
 
     return jsonResponse({
