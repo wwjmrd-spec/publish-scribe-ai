@@ -525,6 +525,62 @@ function generateFormattedPdf(article: any, formatted: FormattedArticle): ArrayB
   return doc.output("arraybuffer");
 }
 
+// ===== Galley Proof Email Template (matches send-email style) =====
+function buildGalleyProofEmail(opts: {
+  isAdmin: boolean;
+  articleTitle: string;
+  referenceNumber: string;
+  authorName: string;
+  authorEmail: string;
+}): string {
+  const { isAdmin, articleTitle, referenceNumber, authorName, authorEmail } = opts;
+  const esc = (s: string) => s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+
+  const font = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif";
+  const h1 = (t: string) => `<h1 style="font-family:${font};font-size:24px;font-weight:600;color:#ffffff;text-align:center;margin:0 0 24px;">${t}</h1>`;
+  const p = (t: string) => `<p style="font-family:${font};font-size:16px;line-height:26px;color:#d1d5db;margin:16px 0;">${t}</p>`;
+  const divider = () => `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:24px 0;"><tr><td style="border-top:1px solid rgba(255,255,255,0.1);"></td></tr></table>`;
+  const infoRow = (label: string, value: string, vs = "") =>
+    `<tr><td style="font-family:${font};font-size:14px;color:#9ca3af;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.06);">${label}</td><td align="right" style="font-family:${font};font-size:14px;color:#ffffff;font-weight:500;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.06);${vs}">${value}</td></tr>`;
+  const btn = (href: string, label: string) =>
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:28px 0;"><tr><td align="center"><a href="${href}" target="_blank" style="display:inline-block;background-color:#00d4ff;color:#0d1528;font-family:${font};font-size:16px;font-weight:600;text-decoration:none;padding:14px 32px;border-radius:8px;">${label}</a></td></tr></table>`;
+  const footer = (t: string) => `<p style="font-family:${font};font-size:14px;line-height:22px;color:#9ca3af;margin:16px 0 0;">${t}</p>`;
+
+  const rows = [
+    infoRow("Reference Number", esc(referenceNumber)),
+    infoRow("Title", esc(articleTitle)),
+    infoRow("Author", esc(authorName)),
+    ...(isAdmin ? [infoRow("Email", esc(authorEmail))] : []),
+    infoRow("Status", "Galley Proof Ready", " color:#10b981; font-weight:600;"),
+  ].join("");
+
+  const infoBox = `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#1a2340" style="background-color:#1a2340;border-radius:8px;margin:20px 0;"><tr><td style="padding:20px;"><p style="font-family:${font};font-size:16px;font-weight:600;color:#ffffff;margin:0 0 12px;">Article Details:</p><table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">${rows}</table></td></tr></table>`;
+
+  let body: string;
+  if (isAdmin) {
+    body = `
+      ${h1("Galley Proof Ready for Review 📝")}
+      ${p(`A galley proof has been generated for the following article and is ready for your review.`)}
+      ${infoBox}
+      ${btn("https://wwjmrdai.lovable.app/admin/formatting", "Review Galley Proof")}
+      ${divider()}
+      ${footer("This is an automated notification from WWJMRD. For any queries, contact info@wwjmrd.com")}
+    `;
+  } else {
+    body = `
+      ${h1("Galley Proof Generated 📄")}
+      ${p(`Hi ${esc(authorName)},`)}
+      ${p(`The galley proof for your article has been generated and is pending admin review. You will be notified once it has been approved.`)}
+      ${infoBox}
+      ${btn("https://wwjmrdai.lovable.app/author/articles", "View My Articles")}
+      ${divider()}
+      ${footer("If you have any questions, contact us at info@wwjmrd.com")}
+    `;
+  }
+
+  return `<!DOCTYPE html><html lang="en" xmlns="http://www.w3.org/1999/xhtml"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Galley Proof</title></head><body style="margin:0;padding:0;background-color:#0d1528;width:100%;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0d1528" style="background-color:#0d1528;"><tr><td align="center" style="padding:40px 16px;"><table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;width:100%;"><tr><td align="center" style="padding-bottom:32px;"><img src="https://myjbbbytbzzzsaaiohrz.supabase.co/storage/v1/object/public/email-assets/logo.png?v=1" alt="WWJMRD Logo" width="200" style="display:block;max-width:200px;height:auto;" /></td></tr><tr><td bgcolor="#151d35" style="background-color:#151d35;border-radius:12px;padding:32px 28px;border:1px solid rgba(255,255,255,0.08);">${body}</td></tr><tr><td align="center" style="padding-top:24px;"><p style="font-family:${font};font-size:12px;color:#6b7280;margin:0;">&copy; ${new Date().getFullYear()} WWJMRD. All rights reserved.</p></td></tr></table></td></tr></table></body></html>`;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -782,12 +838,19 @@ serve(async (req) => {
 
     // Email admin
     try {
+      const adminEmailHtml = buildGalleyProofEmail({
+        isAdmin: true,
+        articleTitle: article.title,
+        referenceNumber: article.reference_number,
+        authorName: authorProfile?.full_name || "Author",
+        authorEmail: authorProfile?.email || "N/A",
+      });
       await supabase.functions.invoke("send-email", {
         body: {
           to: "wwjmrd@gmail.com",
           template: "custom",
           subject: `Galley Proof - ${article.reference_number}`,
-          html: `<h2>Galley Proof Ready for Review</h2><p>Article "<strong>${article.title}</strong>" (${article.reference_number}) by ${authorProfile?.full_name || "Author"} is ready for review.</p><p><a href="https://wwjmrdai.lovable.app/admin/formatting">Review Galley Proof</a></p>`,
+          html: adminEmailHtml,
         },
       });
     } catch (emailErr) {
@@ -797,12 +860,19 @@ serve(async (req) => {
     // Email author
     if (authorProfile?.email) {
       try {
+        const authorEmailHtml = buildGalleyProofEmail({
+          isAdmin: false,
+          articleTitle: article.title,
+          referenceNumber: article.reference_number,
+          authorName: authorProfile?.full_name || "Author",
+          authorEmail: authorProfile?.email,
+        });
         await supabase.functions.invoke("send-email", {
           body: {
             to: authorProfile.email,
             template: "custom",
             subject: `Galley Proof - ${article.reference_number}`,
-            html: `<h2>Galley Proof Generated</h2><p>Dear ${authorProfile?.full_name || "Author"},</p><p>The galley proof for your article "<strong>${article.title}</strong>" (${article.reference_number}) has been generated and is pending admin review.</p><p><a href="https://wwjmrdai.lovable.app/author/articles">View My Articles</a></p>`,
+            html: authorEmailHtml,
           },
         });
       } catch (emailErr) {
