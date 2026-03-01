@@ -19,90 +19,152 @@ async function extractDocxText(supabase: any, documentUrl: string): Promise<stri
   const { data: fileData, error: downloadError } = await supabase.storage
     .from("documents")
     .download(documentUrl);
-
   if (downloadError || !fileData) throw new Error("Failed to download document");
-
   const arrayBuffer = await fileData.arrayBuffer();
   const result = await mammoth.extractRawText({ arrayBuffer });
   return result.value;
 }
 
-// WWJMRD template format description based on the sample article
 const WWJMRD_TEMPLATE_DESCRIPTION = `
-You are a professional article formatting assistant for WWJMRD (World Wide Journal of Multidisciplinary Research and Development).
+You are a Journal Formatting Engine.
 
-Your task is to reformat the given article content into the exact WWJMRD publication style. Here is the template specification:
+Your ONLY task is to FORMAT the provided research manuscript EXACTLY in the format of World Wide Journal of Multidisciplinary Research and Development (WWJMRD).
 
-## HEADER (every page):
-- Top line: "World Wide Journal of Multidisciplinary Research and Development (Month-Year)"
-- Journal citation: "WWJMRD Year; Vol(Issue): Pages"
-- Website: www.wwjmrd.com
-- Labels: International Journal, Peer Reviewed Journal, Refereed Journal, Indexed Journal
-- Impact Factor line: "Impact Factor SJIF 2017: 5.182 2018: 5.51, (ISI) 2020-2021: 1.361"
-- E-ISSN: 2454-6615
+DO NOT rewrite.
+DO NOT summarize.
+DO NOT change wording.
+DO NOT improve grammar.
+DO NOT modify references.
+DO NOT remove repetition.
+DO NOT reinterpret statistics.
 
-## ARTICLE STRUCTURE:
-1. **Title** - Bold, centered, larger font
-2. **Author Names** - Below title, with superscript numbers for affiliations
-3. **Affiliations** - Institution, department, address for each author
-4. **Abstract** - Section heading "Abstract", followed by the abstract text
-5. **Keywords** - Section heading "Keywords", semicolon-separated keywords
-6. **Numbered Sections** - Main sections numbered (1. Introduction, 2. Materials and Methods, 3. Results, 4. Discussion, 5. Conclusion)
-7. **Numbered Subsections** - e.g., 2.1, 2.2, 3.1, 3.1.1
-8. **Tables** - Properly formatted with captions (Table 1, Table 2, etc.)
-9. **Figures** - With captions (Fig. 1, Fig. 2, etc.)
-10. **References** - Numbered list, academic citation format (Author, Year. Title. Journal, Volume(Issue): Pages.)
+Your job is STRUCTURE CLONING ONLY.
 
-## FOOTER (every page):
-- Page numbers centered: ~ PageNum ~
+========================
+FORMAT STRUCTURE RULES
+========================
 
-## FORMATTING RULES:
-- Title: Bold, 14pt equivalent
-- Section headings: Bold, 12pt equivalent
-- Body text: Regular, 10pt equivalent
-- Single column layout
-- Justified text alignment
-- Line spacing: 1.15
-- References in numbered list format
+1. HEADER BLOCK (Top of First Page)
+Display in this exact order:
+~ Page Number ~
+WWJMRD YEAR; VOLUME(ISSUE): PAGE RANGE
+www.wwjmrd.com
+International Journal
+Peer Reviewed Journal
+Refereed Journal
+Indexed Journal
+Impact Factor SJIF – 2017: 5.182 2018: 5.51, (ISI) 2020-2021: 1.361
+E-ISSN: 2454-6615
 
-## REFERENCE FORMAT (Academic Guidelines):
-- For journal articles: AuthorLastName Initials, Year. Title. Journal Name, Volume(Issue): Pages.
-- For books: AuthorLastName Initials, Year. Title. Publisher, Location. Pages.
-- For web sources: Organization, Year. Title. URL (accessed Date).
+2. AUTHOR DETAILS (Left Aligned Block Style)
+Each author must appear as:
+Author Name
+Designation, Institution, City, Country.
 
-IMPORTANT INSTRUCTIONS:
-1. Preserve ALL original content - do not add or remove any text
-2. Only reformat the structure, headings, numbering, and layout
-3. Ensure proper section numbering
-4. Format references according to academic guidelines
-5. Return the reformatted article as structured JSON
+After all authors:
+Correspondence:
+Name
+Designation, Institution, City, Country.
 
-Also provide formatting suggestions for the admin (NOT in the article itself):
-- Whether references follow proper academic citation format
-- Any missing standard sections (Abstract, Keywords, Introduction, etc.)
-- Suggestions for improving table/figure captions
-- Any formatting inconsistencies found
+3. TITLE FORMAT
+• Title must be in quotation marks
+• Bold
+• Center aligned
+• Followed by author names in single line
+
+4. SECTION ORDER (MANDATORY)
+Maintain EXACT section order:
+Abstract, Keywords, Introduction, Need of the Study, Aims And Objectives,
+Materials And Methodology, Study Design, Sample Size, Inclusion Criteria,
+Exclusion Criteria, Assessment Parameters, Flow Chart of Sampling Method,
+Result, Tables, Graphs, Discussion, Conclusions, Limitations,
+Recommendations, Conflict Of Interest, Source of Funding, Ethical Clearance, References
+
+Do NOT change order. If a section is missing from content, include the heading but leave content empty.
+
+5. ABSTRACT FORMAT
+• Single paragraph
+• No bullet points
+• 200–300 words
+• Follow with: Keywords: keyword1, keyword2, keyword3
+
+6. TABLE FORMAT RULES
+All tables must follow:
+Table No.X: Title
+Column-based data
+After each table write interpretation: "Table No.X shows that..."
+
+7. GRAPH FORMAT RULES
+Graphs labeled: Graph No. A: Title, Graph No. B: Title
+Graph explanation: "Graph No. X represents..."
+
+8. STATISTICAL PRESENTATION STYLE
+Use exact style: Mean ± SD, P < 0.05, ANOVA, Independent t-test, Mann-Whitney test, etc.
+Do not change statistical notation.
+
+9. DISCUSSION STYLE RULES
+• Compare with previous studies
+• Cite in numeric bracket format (1), (2), (3)
+• Explain physiological reasoning
+
+10. CONCLUSION STYLE
+• Summarize improvements
+• Mention outcome measures
+
+11. LIMITATIONS FORMAT
+Bullet point style: • Point 1 • Point 2
+
+12. REFERENCE STYLE
+Numbered format: 1. 2. 3.
+Web links allowed. Keep raw URLs. Do NOT convert to APA.
+
+13. STRICT RULES
+Preserve: Capitalization style, Table numbering, Mean ± format, Roman/Arabic numbering.
+
+IMPORTANT: Return ALL content from the original. Do NOT omit any text. Structure the output using the provided JSON function.
 `;
+
+interface AuthorDetail {
+  name: string;
+  designation: string;
+}
+
+interface TableData {
+  number: string;
+  title: string;
+  content: string;
+  interpretation: string;
+}
+
+interface GraphData {
+  label: string;
+  title: string;
+  description: string;
+}
+
+interface FormattedSection {
+  heading: string;
+  content: string;
+}
 
 interface FormattedArticle {
   header: {
-    month_year: string;
-    volume_issue_pages: string;
+    year: string;
+    volume: string;
+    issue: string;
+    page_range: string;
+  };
+  authors: AuthorDetail[];
+  correspondence: {
+    name: string;
+    designation: string;
   };
   title: string;
-  authors: Array<{ name: string; affiliation: string }>;
   abstract: string;
   keywords: string[];
-  sections: Array<{
-    number: string;
-    heading: string;
-    content: string;
-    subsections?: Array<{
-      number: string;
-      heading: string;
-      content: string;
-    }>;
-  }>;
+  sections: FormattedSection[];
+  tables: TableData[];
+  graphs: GraphData[];
   references: string[];
   suggestions: Array<{
     type: string;
@@ -115,295 +177,327 @@ function generateFormattedPdf(article: any, formatted: FormattedArticle): ArrayB
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const marginLeft = 15;
-  const marginRight = 15;
+  const marginLeft = 18;
+  const marginRight = 18;
   const contentWidth = pageWidth - marginLeft - marginRight;
   let y = 0;
   let pageNum = 1;
 
-  // WWJMRD Brand Colors
-  const brandBlue = [0, 51, 153] as [number, number, number];
-  const darkBlue = [0, 32, 96] as [number, number, number];
-  const black = [0, 0, 0] as [number, number, number];
-  const darkGray = [51, 51, 51] as [number, number, number];
-  const medGray = [102, 102, 102] as [number, number, number];
-  const lightGray = [150, 150, 150] as [number, number, number];
+  const brandBlue: [number, number, number] = [0, 51, 153];
+  const black: [number, number, number] = [0, 0, 0];
+  const darkGray: [number, number, number] = [51, 51, 51];
+  const medGray: [number, number, number] = [102, 102, 102];
 
-  function checkPageBreak(requiredSpace: number) {
-    if (y + requiredSpace > pageHeight - 20) {
+  function checkPageBreak(needed: number) {
+    if (y + needed > pageHeight - 20) {
       doc.addPage();
-      y = 15;
+      y = 20;
       pageNum++;
     }
   }
 
-  function addJustifiedText(text: string, x: number, maxWidth: number, fontSize: number, color: [number, number, number], fontStyle = "normal", lineHeight = 4.5): number {
-    doc.setFontSize(fontSize);
-    doc.setFont("times", fontStyle);
+  function addText(text: string, x: number, maxW: number, size: number, color: [number, number, number], style = "normal", lh = 4.5): number {
+    doc.setFontSize(size);
+    doc.setFont("times", style);
     doc.setTextColor(...color);
-    const lines = doc.splitTextToSize(text, maxWidth);
+    const lines = doc.splitTextToSize(text, maxW);
     for (const line of lines) {
-      checkPageBreak(lineHeight);
-      doc.text(line, x, y, { align: "left", maxWidth: maxWidth });
-      y += lineHeight;
+      checkPageBreak(lh);
+      doc.text(line, x, y);
+      y += lh;
     }
     return y;
   }
 
-  // ============ PAGE 1 HEADER ============
-
-  // Blue header bar
-  doc.setFillColor(...brandBlue);
-  doc.rect(0, 0, pageWidth, 8, "F");
-
-  // Journal title in header
-  y = 14;
-  doc.setFontSize(11);
-  doc.setFont("times", "bold");
-  doc.setTextColor(...brandBlue);
-  doc.text("World Wide Journal of Multidisciplinary Research and Development", pageWidth / 2, y, { align: "center" });
-
-  // Month-Year subtitle
-  y += 5;
+  // ===== FIRST PAGE HEADER =====
+  y = 12;
+  // Page number top
   doc.setFontSize(9);
   doc.setFont("times", "normal");
   doc.setTextColor(...medGray);
-  const monthYear = formatted.header?.month_year || new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" });
-  doc.text(`(${monthYear})`, pageWidth / 2, y, { align: "center" });
+  doc.text("~ 1 ~", pageWidth / 2, y, { align: "center" });
+  y += 6;
 
-  // Volume/Issue/Pages
+  // WWJMRD citation line
+  const yr = formatted.header?.year || new Date().getFullYear().toString();
+  const vol = formatted.header?.volume || "11";
+  const iss = formatted.header?.issue || "1";
+  const pgRange = formatted.header?.page_range || "01-10";
+  doc.setFontSize(9);
+  doc.setFont("times", "bold");
+  doc.setTextColor(...brandBlue);
+  doc.text(`WWJMRD ${yr}; ${vol}(${iss}): ${pgRange}`, pageWidth / 2, y, { align: "center" });
   y += 5;
-  doc.setFontSize(8);
-  doc.setFont("times", "normal");
-  doc.setTextColor(...medGray);
-  if (formatted.header?.volume_issue_pages) {
-    doc.text(formatted.header.volume_issue_pages, pageWidth / 2, y, { align: "center" });
-    y += 4;
-  }
 
-  // Website
-  doc.setFontSize(8);
+  // www.wwjmrd.com
+  doc.setFontSize(9);
+  doc.setFont("times", "normal");
   doc.setTextColor(...brandBlue);
   doc.text("www.wwjmrd.com", pageWidth / 2, y, { align: "center" });
-  y += 4;
+  y += 5;
 
-  // Journal labels
-  doc.setFontSize(7);
+  // Journal labels stacked
+  const labels = [
+    "International Journal",
+    "Peer Reviewed Journal",
+    "Refereed Journal",
+    "Indexed Journal",
+  ];
+  doc.setFontSize(8);
   doc.setFont("times", "italic");
   doc.setTextColor(...medGray);
-  doc.text("International Journal  |  Peer Reviewed Journal  |  Refereed Journal  |  Indexed Journal", pageWidth / 2, y, { align: "center" });
-  y += 4;
+  for (const label of labels) {
+    doc.text(label, pageWidth / 2, y, { align: "center" });
+    y += 3.5;
+  }
 
   // Impact Factor
-  doc.setFontSize(7);
+  doc.setFontSize(8);
   doc.setFont("times", "bold");
   doc.setTextColor(...darkGray);
   doc.text("Impact Factor SJIF – 2017: 5.182  2018: 5.51,  (ISI) 2020-2021: 1.361", pageWidth / 2, y, { align: "center" });
-  y += 4;
+  y += 5;
 
   // E-ISSN
-  doc.setFontSize(8);
+  doc.setFontSize(9);
   doc.setFont("times", "bold");
-  doc.setTextColor(...darkBlue);
+  doc.setTextColor(...brandBlue);
   doc.text("E-ISSN: 2454-6615", pageWidth / 2, y, { align: "center" });
-  y += 3;
+  y += 4;
 
-  // Separator line (double)
+  // Double line separator
   doc.setDrawColor(...brandBlue);
   doc.setLineWidth(0.6);
   doc.line(marginLeft, y, pageWidth - marginRight, y);
   y += 1.5;
   doc.setLineWidth(0.2);
   doc.line(marginLeft, y, pageWidth - marginRight, y);
-  y += 8;
+  y += 6;
 
-  // ============ TITLE ============
-  doc.setFontSize(14);
-  doc.setFont("times", "bold");
-  doc.setTextColor(...black);
-  const titleLines = doc.splitTextToSize(formatted.title || article.title, contentWidth - 20);
-  for (const line of titleLines) {
-    checkPageBreak(7);
-    doc.text(line, pageWidth / 2, y, { align: "center" });
-    y += 7;
-  }
-  y += 3;
-
-  // ============ AUTHORS ============
+  // ===== AUTHOR DETAILS (Left Aligned Block) =====
   if (formatted.authors?.length > 0) {
-    // Author names on one line with superscript numbers
-    const authorNames = formatted.authors.map((a, i) => `${a.name}${formatted.authors.length > 1 ? String(i + 1) : ""}`).join(", ");
-    doc.setFontSize(11);
-    doc.setFont("times", "bold");
-    doc.setTextColor(...darkGray);
-    const nameLines = doc.splitTextToSize(authorNames, contentWidth - 10);
-    for (const line of nameLines) {
-      checkPageBreak(6);
-      doc.text(line, pageWidth / 2, y, { align: "center" });
-      y += 6;
-    }
-    y += 2;
-
-    // Affiliations
-    for (let i = 0; i < formatted.authors.length; i++) {
-      const author = formatted.authors[i];
-      if (author.affiliation) {
-        checkPageBreak(8);
-        doc.setFontSize(8);
+    for (const author of formatted.authors) {
+      checkPageBreak(10);
+      doc.setFontSize(10);
+      doc.setFont("times", "bold");
+      doc.setTextColor(...black);
+      doc.text(author.name, marginLeft, y);
+      y += 4.5;
+      if (author.designation) {
+        doc.setFontSize(9);
         doc.setFont("times", "italic");
         doc.setTextColor(...medGray);
-        const prefix = formatted.authors.length > 1 ? `${i + 1}` : "";
-        const affText = `${prefix}${author.affiliation}`;
-        const affLines = doc.splitTextToSize(affText, contentWidth - 20);
-        for (const line of affLines) {
-          doc.text(line, pageWidth / 2, y, { align: "center" });
+        const desLines = doc.splitTextToSize(author.designation, contentWidth);
+        for (const dl of desLines) {
+          doc.text(dl, marginLeft, y);
           y += 3.5;
         }
-        y += 1;
       }
+      y += 2;
+    }
+
+    // Correspondence
+    if (formatted.correspondence?.name) {
+      checkPageBreak(12);
+      y += 2;
+      doc.setFontSize(10);
+      doc.setFont("times", "bold");
+      doc.setTextColor(...black);
+      doc.text("Correspondence:", marginLeft, y);
+      y += 5;
+      doc.setFont("times", "bold");
+      doc.text(formatted.correspondence.name, marginLeft, y);
+      y += 4.5;
+      if (formatted.correspondence.designation) {
+        doc.setFontSize(9);
+        doc.setFont("times", "italic");
+        doc.setTextColor(...medGray);
+        const corrLines = doc.splitTextToSize(formatted.correspondence.designation, contentWidth);
+        for (const cl of corrLines) {
+          doc.text(cl, marginLeft, y);
+          y += 3.5;
+        }
+      }
+      y += 4;
+    }
+  }
+
+  // Thin separator
+  doc.setDrawColor(...medGray);
+  doc.setLineWidth(0.3);
+  doc.line(marginLeft, y, pageWidth - marginRight, y);
+  y += 6;
+
+  // ===== TITLE (Centered, Bold, in Quotation Marks) =====
+  checkPageBreak(15);
+  const titleText = `"${formatted.title || article.title}"`;
+  doc.setFontSize(13);
+  doc.setFont("times", "bold");
+  doc.setTextColor(...black);
+  const titleLines = doc.splitTextToSize(titleText, contentWidth - 10);
+  for (const tl of titleLines) {
+    checkPageBreak(7);
+    doc.text(tl, pageWidth / 2, y, { align: "center" });
+    y += 7;
+  }
+  y += 2;
+
+  // Author names in single line below title
+  if (formatted.authors?.length > 0) {
+    const authorLine = formatted.authors.map(a => a.name).join(", ");
+    doc.setFontSize(10);
+    doc.setFont("times", "normal");
+    doc.setTextColor(...darkGray);
+    const nameLines = doc.splitTextToSize(authorLine, contentWidth - 20);
+    for (const nl of nameLines) {
+      checkPageBreak(5);
+      doc.text(nl, pageWidth / 2, y, { align: "center" });
+      y += 5;
     }
     y += 4;
   }
 
-  // Thin separator
-  doc.setDrawColor(...lightGray);
-  doc.setLineWidth(0.3);
-  doc.line(marginLeft + 30, y, pageWidth - marginRight - 30, y);
-  y += 6;
-
-  // ============ ABSTRACT ============
+  // ===== ABSTRACT =====
   if (formatted.abstract || article.abstract) {
-    checkPageBreak(15);
+    checkPageBreak(12);
     doc.setFontSize(11);
     doc.setFont("times", "bold");
     doc.setTextColor(...black);
     doc.text("Abstract", marginLeft, y);
-    y += 5;
-
-    doc.setDrawColor(...brandBlue);
-    doc.setLineWidth(0.5);
-    doc.line(marginLeft, y, marginLeft + 15, y);
-    y += 4;
-
-    addJustifiedText(formatted.abstract || article.abstract || "", marginLeft, contentWidth, 10, darkGray, "normal", 4.5);
+    y += 6;
+    addText(formatted.abstract || article.abstract || "", marginLeft, contentWidth, 10, darkGray, "normal", 4.5);
     y += 4;
   }
 
-  // ============ KEYWORDS ============
+  // ===== KEYWORDS =====
   if (formatted.keywords?.length > 0 || article.keywords?.length > 0) {
-    checkPageBreak(12);
+    checkPageBreak(10);
     doc.setFontSize(10);
     doc.setFont("times", "bold");
     doc.setTextColor(...black);
-    doc.text("Keywords: ", marginLeft, y);
-    const kwLabelWidth = doc.getTextWidth("Keywords: ");
-    doc.setFont("times", "italic");
-    doc.setTextColor(...medGray);
-    const kw = (formatted.keywords || article.keywords || []).join("; ");
-    const kwLines = doc.splitTextToSize(kw, contentWidth - kwLabelWidth);
-    doc.text(kwLines[0] || "", marginLeft + kwLabelWidth, y);
+    const kwLabel = "Keywords: ";
+    doc.text(kwLabel, marginLeft, y);
+    const kwLabelW = doc.getTextWidth(kwLabel);
+    doc.setFont("times", "normal");
+    doc.setTextColor(...darkGray);
+    const kw = (formatted.keywords || article.keywords || []).join(", ");
+    const kwLines = doc.splitTextToSize(kw, contentWidth - kwLabelW);
+    doc.text(kwLines[0] || "", marginLeft + kwLabelW, y);
     y += 4.5;
     for (let i = 1; i < kwLines.length; i++) {
       doc.text(kwLines[i], marginLeft, y);
       y += 4.5;
     }
-    y += 5;
+    y += 4;
   }
 
-  // Section separator
-  doc.setDrawColor(...brandBlue);
-  doc.setLineWidth(0.4);
-  doc.line(marginLeft, y, pageWidth - marginRight, y);
-  y += 6;
-
-  // ============ SECTIONS ============
+  // ===== SECTIONS =====
   if (formatted.sections?.length > 0) {
     for (const section of formatted.sections) {
-      checkPageBreak(15);
-
+      checkPageBreak(12);
       // Section heading
       doc.setFontSize(11);
       doc.setFont("times", "bold");
       doc.setTextColor(...black);
-      doc.text(`${section.number}. ${section.heading}`, marginLeft, y);
-      y += 5;
-
-      // Underline for section heading
-      doc.setDrawColor(...brandBlue);
-      doc.setLineWidth(0.3);
-      const headingWidth = doc.getTextWidth(`${section.number}. ${section.heading}`);
-      doc.line(marginLeft, y, marginLeft + Math.min(headingWidth, contentWidth), y);
-      y += 4;
+      doc.text(section.heading, marginLeft, y);
+      y += 6;
 
       // Section content
-      if (section.content) {
-        addJustifiedText(section.content, marginLeft, contentWidth, 10, darkGray, "normal", 4.5);
+      if (section.content && section.content.trim()) {
+        addText(section.content, marginLeft, contentWidth, 10, darkGray, "normal", 4.5);
         y += 3;
-      }
-
-      // Subsections
-      if (section.subsections?.length) {
-        for (const sub of section.subsections) {
-          checkPageBreak(12);
-          doc.setFontSize(10);
-          doc.setFont("times", "bolditalic");
-          doc.setTextColor(...darkGray);
-          doc.text(`${sub.number} ${sub.heading}`, marginLeft + 3, y);
-          y += 5;
-
-          if (sub.content) {
-            addJustifiedText(sub.content, marginLeft, contentWidth, 10, darkGray, "normal", 4.5);
-            y += 3;
-          }
-        }
       }
       y += 2;
     }
   }
 
-  // ============ REFERENCES ============
-  if (formatted.references?.length > 0) {
-    checkPageBreak(15);
-    y += 4;
+  // ===== TABLES =====
+  if (formatted.tables?.length > 0) {
+    checkPageBreak(12);
+    doc.setFontSize(11);
+    doc.setFont("times", "bold");
+    doc.setTextColor(...black);
+    doc.text("Tables", marginLeft, y);
+    y += 6;
 
+    for (const table of formatted.tables) {
+      checkPageBreak(15);
+      // Table heading
+      doc.setFontSize(10);
+      doc.setFont("times", "bold");
+      doc.setTextColor(...black);
+      doc.text(`Table No.${table.number}: ${table.title}`, marginLeft, y);
+      y += 5;
+
+      // Table content
+      if (table.content) {
+        addText(table.content, marginLeft, contentWidth, 9, darkGray, "normal", 4);
+        y += 3;
+      }
+
+      // Interpretation
+      if (table.interpretation) {
+        addText(table.interpretation, marginLeft, contentWidth, 10, darkGray, "normal", 4.5);
+        y += 4;
+      }
+    }
+  }
+
+  // ===== GRAPHS =====
+  if (formatted.graphs?.length > 0) {
+    checkPageBreak(12);
+    doc.setFontSize(11);
+    doc.setFont("times", "bold");
+    doc.setTextColor(...black);
+    doc.text("Graphs", marginLeft, y);
+    y += 6;
+
+    for (const graph of formatted.graphs) {
+      checkPageBreak(12);
+      doc.setFontSize(10);
+      doc.setFont("times", "bold");
+      doc.setTextColor(...black);
+      doc.text(`Graph No. ${graph.label}: ${graph.title}`, marginLeft, y);
+      y += 5;
+
+      if (graph.description) {
+        addText(graph.description, marginLeft, contentWidth, 10, darkGray, "normal", 4.5);
+        y += 3;
+      }
+    }
+  }
+
+  // ===== REFERENCES =====
+  if (formatted.references?.length > 0) {
+    checkPageBreak(12);
+    y += 3;
     doc.setFontSize(11);
     doc.setFont("times", "bold");
     doc.setTextColor(...black);
     doc.text("References", marginLeft, y);
-    y += 5;
-    doc.setDrawColor(...brandBlue);
-    doc.setLineWidth(0.5);
-    doc.line(marginLeft, y, marginLeft + 20, y);
-    y += 5;
+    y += 6;
 
     for (let i = 0; i < formatted.references.length; i++) {
       checkPageBreak(8);
-      const refNum = `[${i + 1}]  `;
+      const refNum = `${i + 1}. `;
       doc.setFontSize(9);
-      doc.setFont("times", "bold");
-      doc.setTextColor(...darkGray);
-      doc.text(refNum, marginLeft, y);
-      const numWidth = doc.getTextWidth(refNum);
-
       doc.setFont("times", "normal");
-      doc.setTextColor(...medGray);
-      const refLines = doc.splitTextToSize(formatted.references[i], contentWidth - numWidth - 2);
+      doc.setTextColor(...darkGray);
+      const numW = doc.getTextWidth(refNum);
+      doc.text(refNum, marginLeft, y);
+      const refLines = doc.splitTextToSize(formatted.references[i], contentWidth - numW - 2);
       for (let j = 0; j < refLines.length; j++) {
-        doc.text(refLines[j], marginLeft + numWidth, y);
+        doc.text(refLines[j], marginLeft + numW, y);
         y += 4;
       }
-      y += 1.5;
+      y += 1;
     }
   }
 
-  // ============ FOOTERS & HEADERS ON ALL PAGES ============
+  // ===== FOOTERS & HEADERS ON ALL PAGES =====
   const totalPages = doc.getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
-
-    // Blue top bar on every page
-    doc.setFillColor(...brandBlue);
-    doc.rect(0, 0, pageWidth, 3, "F");
 
     // Running header on pages after first
     if (i > 1) {
@@ -411,9 +505,12 @@ function generateFormattedPdf(article: any, formatted: FormattedArticle): ArrayB
       doc.setFont("times", "italic");
       doc.setTextColor(...medGray);
       doc.text("World Wide Journal of Multidisciplinary Research and Development", pageWidth / 2, 8, { align: "center" });
+      doc.setDrawColor(...brandBlue);
+      doc.setLineWidth(0.3);
+      doc.line(marginLeft, 10, pageWidth - marginRight, 10);
     }
 
-    // Bottom separator line
+    // Bottom separator
     doc.setDrawColor(...brandBlue);
     doc.setLineWidth(0.4);
     doc.line(marginLeft, pageHeight - 14, pageWidth - marginRight, pageHeight - 14);
@@ -464,10 +561,7 @@ serve(async (req) => {
     if (!articleId) return jsonResponse({ error: "Article ID required" }, 400);
 
     // Update status to formatting
-    await supabase
-      .from("articles")
-      .update({ formatting_status: "formatting" })
-      .eq("id", articleId);
+    await supabase.from("articles").update({ formatting_status: "formatting" }).eq("id", articleId);
 
     const { data: article, error: articleError } = await supabase
       .from("articles")
@@ -509,7 +603,7 @@ serve(async (req) => {
           { role: "system", content: WWJMRD_TEMPLATE_DESCRIPTION },
           {
             role: "user",
-            content: `Please reformat this article into the WWJMRD publication style. Return the result as structured JSON.\n\n${contentToFormat}`,
+            content: `Please reformat this article into the WWJMRD publication style. Return the result as structured JSON using the provided function. Preserve ALL original content.\n\n${contentToFormat}`,
           },
         ],
         tools: [
@@ -517,63 +611,86 @@ serve(async (req) => {
             type: "function",
             function: {
               name: "format_article",
-              description: "Return the reformatted article in WWJMRD publication style with admin suggestions.",
+              description: "Return the reformatted article in WWJMRD publication style.",
               parameters: {
                 type: "object",
                 properties: {
                   header: {
                     type: "object",
                     properties: {
-                      month_year: { type: "string", description: "e.g. December-2025" },
-                      volume_issue_pages: { type: "string", description: "e.g. WWJMRD 2025; 11(12): 33-43" },
+                      year: { type: "string", description: "Publication year e.g. 2025" },
+                      volume: { type: "string", description: "Volume number e.g. 11" },
+                      issue: { type: "string", description: "Issue number e.g. 12" },
+                      page_range: { type: "string", description: "Page range e.g. 33-43" },
                     },
-                    required: ["month_year", "volume_issue_pages"],
+                    required: ["year", "volume", "issue", "page_range"],
                   },
-                  title: { type: "string" },
+                  title: { type: "string", description: "Article title without quotes" },
                   authors: {
                     type: "array",
                     items: {
                       type: "object",
                       properties: {
-                        name: { type: "string" },
-                        affiliation: { type: "string" },
+                        name: { type: "string", description: "Full name" },
+                        designation: { type: "string", description: "Designation, Institution, City, Country" },
                       },
-                      required: ["name", "affiliation"],
+                      required: ["name", "designation"],
                     },
                   },
-                  abstract: { type: "string" },
+                  correspondence: {
+                    type: "object",
+                    properties: {
+                      name: { type: "string" },
+                      designation: { type: "string" },
+                    },
+                    required: ["name", "designation"],
+                  },
+                  abstract: { type: "string", description: "Single paragraph abstract" },
                   keywords: { type: "array", items: { type: "string" } },
                   sections: {
+                    type: "array",
+                    description: "Sections in WWJMRD mandatory order: Introduction, Need of the Study, Aims And Objectives, Materials And Methodology, Study Design, Sample Size, Inclusion Criteria, Exclusion Criteria, Assessment Parameters, Flow Chart of Sampling Method, Result, Discussion, Conclusions, Limitations, Recommendations, Conflict Of Interest, Source of Funding, Ethical Clearance. Include heading even if content is empty.",
+                    items: {
+                      type: "object",
+                      properties: {
+                        heading: { type: "string" },
+                        content: { type: "string" },
+                      },
+                      required: ["heading", "content"],
+                    },
+                  },
+                  tables: {
                     type: "array",
                     items: {
                       type: "object",
                       properties: {
-                        number: { type: "string" },
-                        heading: { type: "string" },
-                        content: { type: "string" },
-                        subsections: {
-                          type: "array",
-                          items: {
-                            type: "object",
-                            properties: {
-                              number: { type: "string" },
-                              heading: { type: "string" },
-                              content: { type: "string" },
-                            },
-                            required: ["number", "heading", "content"],
-                          },
-                        },
+                        number: { type: "string", description: "Table number e.g. 1" },
+                        title: { type: "string" },
+                        content: { type: "string", description: "Table data as text" },
+                        interpretation: { type: "string", description: "Paragraph starting with Table No.X shows that..." },
                       },
-                      required: ["number", "heading", "content"],
+                      required: ["number", "title", "content", "interpretation"],
                     },
                   },
-                  references: { type: "array", items: { type: "string" } },
+                  graphs: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        label: { type: "string", description: "Graph label e.g. A, B, C or 1, 2, 3" },
+                        title: { type: "string" },
+                        description: { type: "string", description: "Paragraph starting with Graph No. X represents..." },
+                      },
+                      required: ["label", "title", "description"],
+                    },
+                  },
+                  references: { type: "array", items: { type: "string" }, description: "Numbered references. Keep raw URLs. Do NOT convert to APA." },
                   suggestions: {
                     type: "array",
                     items: {
                       type: "object",
                       properties: {
-                        type: { type: "string", description: "e.g. reference_format, missing_section, figure_caption, formatting" },
+                        type: { type: "string" },
                         message: { type: "string" },
                         severity: { type: "string", enum: ["info", "warning", "improvement"] },
                       },
@@ -581,7 +698,7 @@ serve(async (req) => {
                     },
                   },
                 },
-                required: ["title", "authors", "abstract", "keywords", "sections", "references", "suggestions"],
+                required: ["title", "authors", "correspondence", "abstract", "keywords", "sections", "tables", "graphs", "references", "suggestions"],
               },
             },
           },
@@ -593,15 +710,9 @@ serve(async (req) => {
     if (!aiResponse.ok) {
       const errText = await aiResponse.text();
       console.error("AI formatting error:", aiResponse.status, errText);
-      if (aiResponse.status === 429) {
-        await supabase.from("articles").update({ formatting_status: "failed" }).eq("id", articleId);
-        return jsonResponse({ error: "Rate limited. Please try again later." }, 429);
-      }
-      if (aiResponse.status === 402) {
-        await supabase.from("articles").update({ formatting_status: "failed" }).eq("id", articleId);
-        return jsonResponse({ error: "AI credits exhausted. Please add funds." }, 402);
-      }
       await supabase.from("articles").update({ formatting_status: "failed" }).eq("id", articleId);
+      if (aiResponse.status === 429) return jsonResponse({ error: "Rate limited. Please try again later." }, 429);
+      if (aiResponse.status === 402) return jsonResponse({ error: "AI credits exhausted." }, 402);
       return jsonResponse({ error: "AI formatting failed" }, 500);
     }
 
@@ -623,17 +734,13 @@ serve(async (req) => {
 
     console.log("AI formatting complete. Generating PDF...");
 
-    // Generate formatted PDF
     const pdfBuffer = generateFormattedPdf(article, formatted);
     const pdfBlob = new Blob([pdfBuffer], { type: "application/pdf" });
     const fileName = `formatted-${article.reference_number}-${Date.now()}.pdf`;
 
     const { error: uploadError } = await supabase.storage
       .from("formatted-articles")
-      .upload(fileName, pdfBlob, {
-        contentType: "application/pdf",
-        upsert: true,
-      });
+      .upload(fileName, pdfBlob, { contentType: "application/pdf", upsert: true });
 
     if (uploadError) {
       console.error("Upload error:", uploadError);
@@ -641,22 +748,14 @@ serve(async (req) => {
       return jsonResponse({ error: "Failed to upload formatted article" }, 500);
     }
 
-    // Update article with formatted document info
-    await supabase
-      .from("articles")
-      .update({
-        formatted_document_url: fileName,
-        formatting_status: "ready_for_review",
-        formatting_suggestions: formatted.suggestions || [],
-      })
-      .eq("id", articleId);
+    await supabase.from("articles").update({
+      formatted_document_url: fileName,
+      formatting_status: "ready_for_review",
+      formatting_suggestions: formatted.suggestions || [],
+    }).eq("id", articleId);
 
     // Notify admins
-    const { data: admins } = await supabase
-      .from("user_roles")
-      .select("user_id")
-      .eq("role", "admin");
-
+    const { data: admins } = await supabase.from("user_roles").select("user_id").eq("role", "admin");
     if (admins) {
       for (const admin of admins) {
         await supabase.from("notifications").insert({
@@ -681,21 +780,21 @@ serve(async (req) => {
       });
     }
 
-    // Send "Galley Proof" email notification to admin
+    // Email admin
     try {
       await supabase.functions.invoke("send-email", {
         body: {
           to: "wwjmrd@gmail.com",
           template: "custom",
           subject: `Galley Proof - ${article.reference_number}`,
-          html: `<h2>Galley Proof Ready for Review</h2><p>The galley proof for article "<strong>${article.title}</strong>" (${article.reference_number}) by ${(article.profiles as any)?.full_name || "Author"} has been generated and is ready for your review.</p><p><a href="https://wwjmrdai.lovable.app/admin/formatting">Review Galley Proof</a></p>`,
+          html: `<h2>Galley Proof Ready for Review</h2><p>Article "<strong>${article.title}</strong>" (${article.reference_number}) by ${authorProfile?.full_name || "Author"} is ready for review.</p><p><a href="https://wwjmrdai.lovable.app/admin/formatting">Review Galley Proof</a></p>`,
         },
       });
     } catch (emailErr) {
       console.error("Admin email notification failed:", emailErr);
     }
 
-    // Send "Galley Proof" email notification to author
+    // Email author
     if (authorProfile?.email) {
       try {
         await supabase.functions.invoke("send-email", {
@@ -703,7 +802,7 @@ serve(async (req) => {
             to: authorProfile.email,
             template: "custom",
             subject: `Galley Proof - ${article.reference_number}`,
-            html: `<h2>Galley Proof Generated</h2><p>Dear ${(article.profiles as any)?.full_name || "Author"},</p><p>The galley proof for your article "<strong>${article.title}</strong>" (${article.reference_number}) has been generated and is now pending admin review.</p><p>You will be notified once it has been approved.</p><p><a href="https://wwjmrdai.lovable.app/author/articles">View My Articles</a></p>`,
+            html: `<h2>Galley Proof Generated</h2><p>Dear ${authorProfile?.full_name || "Author"},</p><p>The galley proof for your article "<strong>${article.title}</strong>" (${article.reference_number}) has been generated and is pending admin review.</p><p><a href="https://wwjmrdai.lovable.app/author/articles">View My Articles</a></p>`,
           },
         });
       } catch (emailErr) {
