@@ -28,6 +28,7 @@ import AdminArticleDetail from "./pages/admin/AdminArticleDetail";
 import AdminFormatting from "./pages/admin/AdminFormatting";
 import AdminAuthorDetail from "./pages/admin/AdminAuthorDetail";
 import AdminReminderSettings from "./pages/admin/AdminReminderSettings";
+import AdminUSDTPayments from "./pages/admin/AdminUSDTPayments";
 import NotFound from "./pages/NotFound";
 import { ReferralPopup } from "./components/referral/ReferralPopup";
 import { CookieConsent } from "./components/CookieConsent";
@@ -203,6 +204,14 @@ const App = () => (
               element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <AdminReminderSettings />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/usdt-payments" 
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminUSDTPayments />
                 </ProtectedRoute>
               } 
             />

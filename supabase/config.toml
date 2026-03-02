@@ -41,3 +41,9 @@ verify_jwt = false
 
 [functions.auto-status-transition]
 verify_jwt = false
+
+[functions.create-binance-order]
+verify_jwt = false
+
+[functions.verify-binance-payment]
+verify_jwt = false
