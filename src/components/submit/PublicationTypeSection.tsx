@@ -8,6 +8,7 @@ interface PublicationTypeSectionProps {
   publicationType: 'normal' | 'fast_track';
   setPublicationType: (v: 'normal' | 'fast_track') => void;
   isIndian: boolean;
+  preferredCurrency?: 'INR' | 'USD' | 'USDT';
 }
 
 export function PublicationTypeSection({

@@ -519,6 +519,7 @@ export type Database = {
       }
       publication_fees: {
         Row: {
+          binance_wallet_address: string | null
           id: string
           indian_coauthor_fee: number | null
           indian_fast_track_fee: number | null
@@ -530,8 +531,13 @@ export type Database = {
           international_pro_fee: number | null
           updated_at: string | null
           updated_by: string | null
+          usdt_coauthor_fee: number | null
+          usdt_fast_track_fee: number | null
+          usdt_fee: number | null
+          usdt_pro_fee: number | null
         }
         Insert: {
+          binance_wallet_address?: string | null
           id?: string
           indian_coauthor_fee?: number | null
           indian_fast_track_fee?: number | null
@@ -543,8 +549,13 @@ export type Database = {
           international_pro_fee?: number | null
           updated_at?: string | null
           updated_by?: string | null
+          usdt_coauthor_fee?: number | null
+          usdt_fast_track_fee?: number | null
+          usdt_fee?: number | null
+          usdt_pro_fee?: number | null
         }
         Update: {
+          binance_wallet_address?: string | null
           id?: string
           indian_coauthor_fee?: number | null
           indian_fast_track_fee?: number | null
@@ -556,6 +567,10 @@ export type Database = {
           international_pro_fee?: number | null
           updated_at?: string | null
           updated_by?: string | null
+          usdt_coauthor_fee?: number | null
+          usdt_fast_track_fee?: number | null
+          usdt_fee?: number | null
+          usdt_pro_fee?: number | null
         }
         Relationships: [
           {
@@ -738,10 +753,10 @@ export type Database = {
         | "published"
         | "rejected"
       coauthor_payment_status: "pending" | "paid" | "failed"
-      currency_type: "INR" | "USD"
-      discount_currency: "INR" | "USD" | "BOTH"
+      currency_type: "INR" | "USD" | "USDT"
+      discount_currency: "INR" | "USD" | "BOTH" | "USDT"
       discount_type: "percentage" | "fixed"
-      payment_gateway: "razorpay" | "paypal"
+      payment_gateway: "razorpay" | "paypal" | "binance"
       payment_status: "pending" | "success" | "failed" | "under_review"
       user_role: "author" | "admin"
     }
@@ -882,10 +897,10 @@ export const Constants = {
         "rejected",
       ],
       coauthor_payment_status: ["pending", "paid", "failed"],
-      currency_type: ["INR", "USD"],
-      discount_currency: ["INR", "USD", "BOTH"],
+      currency_type: ["INR", "USD", "USDT"],
+      discount_currency: ["INR", "USD", "BOTH", "USDT"],
       discount_type: ["percentage", "fixed"],
-      payment_gateway: ["razorpay", "paypal"],
+      payment_gateway: ["razorpay", "paypal", "binance"],
       payment_status: ["pending", "success", "failed", "under_review"],
       user_role: ["author", "admin"],
     },
