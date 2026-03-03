@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { trackMauticEvent } from '@/lib/mautic-tracking';
 
 type UserRole = 'author' | 'admin' | null;
 
@@ -113,6 +114,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) {
       return { error };
     }
+
+    // Sync new contact to Mautic (fire & forget)
+    const nameParts = fullName.trim().split(' ');
+    const firstname = nameParts[0] || '';
+    const lastname = nameParts.slice(1).join(' ') || '';
+
+    supabase.functions.invoke('mautic-sync', {
+      body: {
+        action: 'create_contact',
+        data: {
+          email,
+          firstname,
+          lastname,
+          country,
+          company: affiliation,
+          tags: ['signup', 'author'],
+        },
+      },
+    }).catch(err => console.error('Mautic signup sync failed:', err));
+
+    // Track signup event
+    trackMauticEvent({ page_title: 'Signup', email });
 
     // Profile and role are automatically created by database trigger
     return { error: null };
