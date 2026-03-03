@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.verify-binance-payment]
 verify_jwt = false
+
+[functions.mautic-sync]
+verify_jwt = false

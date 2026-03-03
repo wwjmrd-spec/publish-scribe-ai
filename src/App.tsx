@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -33,8 +34,16 @@ import NotFound from "./pages/NotFound";
 import { ReferralPopup } from "./components/referral/ReferralPopup";
 import { CookieConsent } from "./components/CookieConsent";
 import { CountryCollectionModal } from "./components/auth/CountryCollectionModal";
+import { loadMauticTracking } from "./lib/mautic-tracking";
 
 const queryClient = new QueryClient();
+
+const MauticLoader = () => {
+  useEffect(() => {
+    loadMauticTracking();
+  }, []);
+  return null;
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -46,6 +55,7 @@ const App = () => (
         <Sonner />
         <ReferralPopup />
         <CookieConsent />
+        <MauticLoader />
         <CountryCollectionModal />
         <BrowserRouter>
           <Routes>
