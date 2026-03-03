@@ -82,6 +82,15 @@ serve(async (req) => {
     }
 
     const { action, data } = await req.json();
+
+    // Return tracking URL without needing OAuth token
+    if (action === 'get_tracking_url') {
+      return new Response(JSON.stringify({ success: true, trackingUrl: MAUTIC_BASE_URL }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const token = await getAccessToken(MAUTIC_BASE_URL, MAUTIC_CLIENT_ID, MAUTIC_CLIENT_SECRET);
 
     let result: unknown;
