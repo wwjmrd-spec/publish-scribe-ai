@@ -11,7 +11,6 @@ import { useGenerateSubject } from '@/hooks/useGenerateSubject';
 import { useRazorpay } from '@/hooks/useRazorpay';
 import { usePayment, type PaymentGateway } from '@/hooks/usePayment';
 import { supabase } from '@/integrations/supabase/client';
-import { trackMauticEvent } from '@/lib/mautic-tracking';
 import { ArticleDetailsSection } from '@/components/submit/ArticleDetailsSection';
 import { FileUploadSection } from '@/components/submit/FileUploadSection';
 import { CoAuthorsSection, type CoAuthor } from '@/components/submit/CoAuthorsSection';
@@ -369,25 +368,6 @@ export default function SubmitArticle() {
 
     setSubmittedRef(article.reference_number);
     setStep(3);
-
-    // Sync article submission to Mautic (fire & forget)
-    supabase.functions.invoke('mautic-sync', {
-      body: {
-        action: 'create_contact',
-        data: {
-          email: profile?.email || user.email,
-          firstname: articleAuthorName.split(' ')[0] || '',
-          lastname: articleAuthorName.split(' ').slice(1).join(' ') || '',
-          tags: ['article-submitted', articlePublicationType],
-          custom_fields: {
-            last_article_ref: article.reference_number,
-            last_article_title: articleTitle.trim(),
-          },
-        },
-      },
-    }).catch(err => console.error('Mautic article sync failed:', err));
-
-    trackMauticEvent({ page_title: 'Article Submitted', reference: article.reference_number });
   };
 
   // Validate form fields
