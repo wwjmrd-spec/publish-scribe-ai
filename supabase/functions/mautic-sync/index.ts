@@ -13,14 +13,22 @@ interface MauticTokenResponse {
 
 let cachedToken: { token: string; expiresAt: number } | null = null;
 
+function getMauticConfig() {
+  const baseUrl = Deno.env.get('VITE_MAUTIC_BASE_URL') || '';
+  const clientId = Deno.env.get('MAUTIC_CLIENT_ID') || '';
+  const clientSecret = Deno.env.get('MAUTIC_CLIENT_SECRET') || '';
+  return { baseUrl, clientId, clientSecret };
+}
+
 async function getAccessToken(): Promise<string> {
   if (cachedToken && Date.now() < cachedToken.expiresAt - 60000) {
     return cachedToken.token;
   }
 
-  const baseUrl = Deno.env.get('VITE_MAUTIC_BASE_URL')!;
-  const clientId = Deno.env.get('MAUTIC_CLIENT_ID')!;
-  const clientSecret = Deno.env.get('MAUTIC_CLIENT_SECRET')!;
+  const { baseUrl, clientId, clientSecret } = getMauticConfig();
+  if (!baseUrl || !clientId || !clientSecret) {
+    throw new Error('Mautic not configured');
+  }
 
   const response = await fetch(`${baseUrl}/oauth/v2/token`, {
     method: 'POST',
@@ -34,7 +42,8 @@ async function getAccessToken(): Promise<string> {
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`Mautic OAuth failed: ${response.status} ${text}`);
+    console.error('Mautic OAuth response:', text);
+    throw new Error(`Mautic OAuth failed: ${response.status}`);
   }
 
   const data: MauticTokenResponse = await response.json();
@@ -46,7 +55,7 @@ async function getAccessToken(): Promise<string> {
 }
 
 async function mauticRequest(path: string, method: string, body?: unknown) {
-  const baseUrl = Deno.env.get('VITE_MAUTIC_BASE_URL')!;
+  const { baseUrl } = getMauticConfig();
   const token = await getAccessToken();
 
   const options: RequestInit = {
@@ -82,7 +91,6 @@ serve(async (req) => {
 
     switch (action) {
       case 'sync_contact': {
-        // Create or update a contact in Mautic
         const { email, firstname, lastname, country, company, tags } = data;
         
         // Search for existing contact by email
@@ -112,23 +120,19 @@ serve(async (req) => {
       }
 
       case 'track_event': {
-        // Track a form submission or custom event via Mautic
         const { email, eventName, eventData } = data;
         
-        // Find the contact first
         const searchResult = await mauticRequest(`contacts?search=email:${encodeURIComponent(email)}`, 'GET');
         const contacts = searchResult.contacts || {};
         const contactId = Object.keys(contacts)[0];
 
         if (contactId) {
-          // Add a note to the contact as event tracking
           await mauticRequest(`contacts/${contactId}/notes/new`, 'POST', {
             lead: contactId,
             type: 'general',
             text: `Event: ${eventName} | Data: ${JSON.stringify(eventData)}`,
           });
 
-          // Add tags for the event
           const tagData = { tags: [eventName] };
           await mauticRequest(`contacts/${contactId}/edit`, 'PATCH', tagData);
         }
@@ -139,7 +143,7 @@ serve(async (req) => {
       }
 
       case 'get_mautic_url': {
-        const baseUrl = Deno.env.get('VITE_MAUTIC_BASE_URL') || '';
+        const { baseUrl } = getMauticConfig();
         return new Response(JSON.stringify({ url: baseUrl }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
