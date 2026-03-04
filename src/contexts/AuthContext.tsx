@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { useMauticSync } from '@/hooks/useMautic';
 
 type UserRole = 'author' | 'admin' | null;
 
@@ -23,6 +24,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [userRole, setUserRole] = useState<UserRole>(null);
   const [isIndian, setIsIndian] = useState(false);
   const [loading, setLoading] = useState(true);
+  const { syncContact } = useMauticSync();
 
   const fetchUserRole = async (userId: string) => {
     const { data } = await supabase
@@ -113,6 +115,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) {
       return { error };
     }
+
+    // Sync contact to Mautic (fire and forget)
+    const nameParts = fullName.trim().split(' ');
+    syncContact({
+      email,
+      firstname: nameParts[0] || '',
+      lastname: nameParts.slice(1).join(' ') || '',
+      country,
+      company: affiliation,
+      tags: ['signup', 'author'],
+    });
 
     // Profile and role are automatically created by database trigger
     return { error: null };

@@ -1,0 +1,161 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
+};
+
+interface MauticTokenResponse {
+  access_token: string;
+  expires_in: number;
+  token_type: string;
+}
+
+let cachedToken: { token: string; expiresAt: number } | null = null;
+
+async function getAccessToken(): Promise<string> {
+  if (cachedToken && Date.now() < cachedToken.expiresAt - 60000) {
+    return cachedToken.token;
+  }
+
+  const baseUrl = Deno.env.get('VITE_MAUTIC_BASE_URL')!;
+  const clientId = Deno.env.get('MAUTIC_CLIENT_ID')!;
+  const clientSecret = Deno.env.get('MAUTIC_CLIENT_SECRET')!;
+
+  const response = await fetch(`${baseUrl}/oauth/v2/token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'client_credentials',
+      client_id: clientId,
+      client_secret: clientSecret,
+    }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Mautic OAuth failed: ${response.status} ${text}`);
+  }
+
+  const data: MauticTokenResponse = await response.json();
+  cachedToken = {
+    token: data.access_token,
+    expiresAt: Date.now() + data.expires_in * 1000,
+  };
+  return data.access_token;
+}
+
+async function mauticRequest(path: string, method: string, body?: unknown) {
+  const baseUrl = Deno.env.get('VITE_MAUTIC_BASE_URL')!;
+  const token = await getAccessToken();
+
+  const options: RequestInit = {
+    method,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  };
+
+  if (body) {
+    options.body = JSON.stringify(body);
+  }
+
+  const response = await fetch(`${baseUrl}/api/${path}`, options);
+  
+  if (!response.ok) {
+    const text = await response.text();
+    console.error(`Mautic API error: ${response.status} ${text}`);
+    throw new Error(`Mautic API error: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const { action, data } = await req.json();
+
+    switch (action) {
+      case 'sync_contact': {
+        // Create or update a contact in Mautic
+        const { email, firstname, lastname, country, company, tags } = data;
+        
+        // Search for existing contact by email
+        const searchResult = await mauticRequest(`contacts?search=email:${encodeURIComponent(email)}`, 'GET');
+        const contacts = searchResult.contacts || {};
+        const existingId = Object.keys(contacts)[0];
+
+        const contactData: Record<string, unknown> = {
+          email,
+          firstname: firstname || '',
+          lastname: lastname || '',
+          country: country || '',
+          company: company || '',
+          tags: tags || [],
+        };
+
+        let result;
+        if (existingId) {
+          result = await mauticRequest(`contacts/${existingId}/edit`, 'PATCH', contactData);
+        } else {
+          result = await mauticRequest('contacts/new', 'POST', contactData);
+        }
+
+        return new Response(JSON.stringify({ success: true, contact: result.contact }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      case 'track_event': {
+        // Track a form submission or custom event via Mautic
+        const { email, eventName, eventData } = data;
+        
+        // Find the contact first
+        const searchResult = await mauticRequest(`contacts?search=email:${encodeURIComponent(email)}`, 'GET');
+        const contacts = searchResult.contacts || {};
+        const contactId = Object.keys(contacts)[0];
+
+        if (contactId) {
+          // Add a note to the contact as event tracking
+          await mauticRequest(`contacts/${contactId}/notes/new`, 'POST', {
+            lead: contactId,
+            type: 'general',
+            text: `Event: ${eventName} | Data: ${JSON.stringify(eventData)}`,
+          });
+
+          // Add tags for the event
+          const tagData = { tags: [eventName] };
+          await mauticRequest(`contacts/${contactId}/edit`, 'PATCH', tagData);
+        }
+
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      case 'get_mautic_url': {
+        const baseUrl = Deno.env.get('VITE_MAUTIC_BASE_URL') || '';
+        return new Response(JSON.stringify({ url: baseUrl }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      default:
+        return new Response(JSON.stringify({ error: 'Unknown action' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+    }
+  } catch (error) {
+    console.error('Mautic sync error:', error);
+    return new Response(JSON.stringify({ error: 'Internal server error' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+});
