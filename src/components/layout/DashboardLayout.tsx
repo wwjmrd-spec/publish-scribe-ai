@@ -22,6 +22,7 @@ import {
   UserCircle,
   Crown,
   Gift,
+  Megaphone,
 } from 'lucide-react';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { GuidedTour } from '@/components/onboarding/GuidedTour';
@@ -60,6 +61,7 @@ const adminNavItems: NavItem[] = [
   { label: 'Fee Settings', href: '/admin/fees', icon: Settings },
   { label: 'USDT Payments', href: '/admin/usdt-payments', icon: Settings },
   { label: 'Reminders', href: '/admin/reminders', icon: Bell },
+  { label: 'Notifications', href: '/admin/notifications', icon: Megaphone },
   { label: 'Profile', href: '/admin/profile', icon: UserCircle },
 ];
 
