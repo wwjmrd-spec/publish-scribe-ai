@@ -33,6 +33,7 @@ import NotFound from "./pages/NotFound";
 import { ReferralPopup } from "./components/referral/ReferralPopup";
 import { CookieConsent } from "./components/CookieConsent";
 import { CountryCollectionModal } from "./components/auth/CountryCollectionModal";
+import { MauticTrackingProvider } from "./components/MauticTrackingProvider";
 
 const queryClient = new QueryClient();
 
@@ -47,6 +48,7 @@ const App = () => (
         <ReferralPopup />
         <CookieConsent />
         <CountryCollectionModal />
+        <MauticTrackingProvider>
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
@@ -228,6 +230,7 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
+        </MauticTrackingProvider>
       </TooltipProvider>
     </CartProvider>
     </AuthProvider>

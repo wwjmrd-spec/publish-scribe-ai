@@ -11,6 +11,7 @@ import { useGenerateSubject } from '@/hooks/useGenerateSubject';
 import { useRazorpay } from '@/hooks/useRazorpay';
 import { usePayment, type PaymentGateway } from '@/hooks/usePayment';
 import { supabase } from '@/integrations/supabase/client';
+import { useMauticSync } from '@/hooks/useMautic';
 import { ArticleDetailsSection } from '@/components/submit/ArticleDetailsSection';
 import { FileUploadSection } from '@/components/submit/FileUploadSection';
 import { CoAuthorsSection, type CoAuthor } from '@/components/submit/CoAuthorsSection';
@@ -43,6 +44,7 @@ export default function SubmitArticle() {
   const { toast } = useToast();
   const { generateSubject, loading: generatingSubject } = useGenerateSubject();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { trackEvent } = useMauticSync();
 
   // Payment hooks
   const { isLoaded: razorpayLoaded } = useRazorpay();
@@ -365,6 +367,13 @@ export default function SubmitArticle() {
         },
       })
       .catch((err) => console.error('Failed to send admin email:', err));
+
+    // Track article submission in Mautic
+    trackEvent(profile?.email || user.email || '', 'article-submitted', {
+      title: article.title,
+      referenceNumber: article.reference_number,
+      publicationType: publicationType,
+    });
 
     setSubmittedRef(article.reference_number);
     setStep(3);
