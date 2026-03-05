@@ -14,7 +14,10 @@ interface MauticTokenResponse {
 let cachedToken: { token: string; expiresAt: number } | null = null;
 
 function getMauticConfig() {
-  const baseUrl = Deno.env.get('VITE_MAUTIC_BASE_URL') || '';
+  let baseUrl = Deno.env.get('VITE_MAUTIC_BASE_URL') || '';
+  // Strip any trailing path like /s/login — we only need the root URL
+  const pathMatch = baseUrl.match(/^(https?:\/\/[^/]+)/);
+  if (pathMatch) baseUrl = pathMatch[1];
   const clientId = Deno.env.get('MAUTIC_CLIENT_ID') || '';
   const clientSecret = Deno.env.get('MAUTIC_CLIENT_SECRET') || '';
   return { baseUrl, clientId, clientSecret };
@@ -40,13 +43,20 @@ async function getAccessToken(): Promise<string> {
     }),
   });
 
+  const text = await response.text();
+  
   if (!response.ok) {
-    const text = await response.text();
-    console.error('Mautic OAuth response:', text);
+    console.error('Mautic OAuth response:', response.status, text.substring(0, 500));
     throw new Error(`Mautic OAuth failed: ${response.status}`);
   }
 
-  const data: MauticTokenResponse = await response.json();
+  // Guard against HTML responses (redirects to login pages)
+  if (text.trimStart().startsWith('<')) {
+    console.error('Mautic OAuth returned HTML instead of JSON:', text.substring(0, 300));
+    throw new Error('Mautic OAuth returned HTML — check VITE_MAUTIC_BASE_URL');
+  }
+
+  const data: MauticTokenResponse = JSON.parse(text);
   cachedToken = {
     token: data.access_token,
     expiresAt: Date.now() + data.expires_in * 1000,
