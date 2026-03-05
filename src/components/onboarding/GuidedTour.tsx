@@ -181,12 +181,11 @@ export function GuidedTour({ type, onComplete }: GuidedTourProps) {
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[99999]">
+      <div className="fixed inset-0 z-[99999] pointer-events-none">
         {/* Overlay */}
         <div
-          className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+          className="absolute inset-0 bg-black/60 backdrop-blur-sm pointer-events-auto"
           onClick={handleSkip} />
-
 
         {/* Highlight ring */}
         <motion.div
@@ -197,7 +196,6 @@ export function GuidedTour({ type, onComplete }: GuidedTourProps) {
           style={highlightStyle}
           className="border-2 border-primary shadow-[0_0_20px_hsl(var(--primary)/0.5)] z-[100000] pointer-events-none" />
 
-
         {/* Tooltip */}
         <motion.div
           key={`tooltip-${currentStep}`}
@@ -206,7 +204,7 @@ export function GuidedTour({ type, onComplete }: GuidedTourProps) {
           exit={{ opacity: 0, y: 10 }}
           transition={{ duration: 0.3, delay: 0.1 }}
           style={tooltipStyle}
-          className="z-[100001] bg-card border border-border rounded-xl shadow-2xl p-4 sm:p-5 box-border overflow-hidden">
+          className="z-[100001] bg-card border border-border rounded-xl shadow-2xl p-4 sm:p-5 box-border overflow-hidden pointer-events-auto">
 
           {/* Step counter & skip */}
           <div className="flex items-center justify-between mb-3">
