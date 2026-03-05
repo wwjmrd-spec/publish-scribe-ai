@@ -60,11 +60,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         
-        if (session?.user) {
+      if (session?.user) {
           // Defer Supabase calls to avoid deadlock
           setTimeout(() => {
             fetchUserRole(session.user.id);
             fetchUserProfile(session.user.id);
+            // Sync to Mautic on any login/signup (including Google OAuth)
+            if (event === 'SIGNED_IN') {
+              const meta = session.user.user_metadata;
+              const email = session.user.email || '';
+              const fullName = meta?.full_name || meta?.name || '';
+              const nameParts = fullName.trim().split(' ');
+              syncContact({
+                email,
+                firstname: nameParts[0] || '',
+                lastname: nameParts.slice(1).join(' ') || '',
+                country: meta?.country || '',
+                company: meta?.affiliation || '',
+                tags: ['signup', 'author'],
+              });
+            }
           }, 0);
         } else {
           setUserRole(null);
