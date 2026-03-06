@@ -44,7 +44,7 @@ export default function SubmitArticle() {
   const { toast } = useToast();
   const { generateSubject, loading: generatingSubject } = useGenerateSubject();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { trackEvent } = useMauticSync();
+  const { trackEvent, addToSegment } = useMauticSync();
 
   // Payment hooks
   const { isLoaded: razorpayLoaded } = useRazorpay();
@@ -369,11 +369,14 @@ export default function SubmitArticle() {
       .catch((err) => console.error('Failed to send admin email:', err));
 
     // Track article submission in Mautic
-    trackEvent(profile?.email || user.email || '', 'article-submitted', {
+    const authorEmail = profile?.email || user.email || '';
+    trackEvent(authorEmail, 'article-submitted', {
       title: article.title,
       referenceNumber: article.reference_number,
       publicationType: publicationType,
     });
+    // Add to "New Article Submitters" segment
+    addToSegment(authorEmail, 'New Article Submitters');
 
     setSubmittedRef(article.reference_number);
     setStep(3);

@@ -63,5 +63,15 @@ export function useMauticSync() {
     }
   }, []);
 
-  return { syncContact, trackEvent };
+  const addToSegment = useCallback(async (email: string, segmentName: string) => {
+    try {
+      await supabase.functions.invoke('mautic-sync', {
+        body: { action: 'add_to_segment', data: { email, segmentName } },
+      });
+    } catch (err) {
+      console.error('Mautic segment assignment failed:', err);
+    }
+  }, []);
+
+  return { syncContact, trackEvent, addToSegment };
 }
