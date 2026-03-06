@@ -98,10 +98,12 @@ serve(async (req) => {
 
   try {
     const { action, data } = await req.json();
+    console.log('Mautic sync action:', action);
 
     switch (action) {
       case 'sync_contact': {
         const { email, firstname, lastname, country, company, tags } = data;
+        console.log('sync_contact called for:', email, 'tags:', tags);
         
         // Search for existing contact by email
         const searchResult = await mauticRequest(`contacts?search=email:${encodeURIComponent(email)}`, 'GET');
