@@ -154,6 +154,55 @@ serve(async (req) => {
         });
       }
 
+      case 'add_to_segment': {
+        const { email, segmentName } = data;
+        console.log('add_to_segment called for:', email, 'segment:', segmentName);
+
+        // Find contact by email
+        const contactSearch = await mauticRequest(`contacts?search=email:${encodeURIComponent(email)}`, 'GET');
+        const foundContacts = contactSearch.contacts || {};
+        const contactId = Object.keys(foundContacts)[0];
+
+        if (!contactId) {
+          console.error('Contact not found for segment assignment:', email);
+          return new Response(JSON.stringify({ success: false, error: 'Contact not found' }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        // Search for segment by name
+        const segmentSearch = await mauticRequest(`segments?search=${encodeURIComponent(segmentName)}`, 'GET');
+        const segments = segmentSearch.lists || {};
+        let segmentId: string | null = null;
+
+        for (const [id, seg] of Object.entries(segments)) {
+          if ((seg as any).name === segmentName) {
+            segmentId = id;
+            break;
+          }
+        }
+
+        if (!segmentId) {
+          // Create segment if it doesn't exist
+          console.log('Creating segment:', segmentName);
+          const newSegment = await mauticRequest('segments/new', 'POST', {
+            name: segmentName,
+            isPublished: true,
+          });
+          segmentId = newSegment.list?.id?.toString();
+        }
+
+        if (segmentId) {
+          await mauticRequest(`segments/${segmentId}/contact/${contactId}/add`, 'POST');
+          console.log('Added contact', contactId, 'to segment', segmentId);
+        }
+
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       case 'get_mautic_url': {
         const { baseUrl } = getMauticConfig();
         return new Response(JSON.stringify({ url: baseUrl }), {

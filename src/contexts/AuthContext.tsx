@@ -24,7 +24,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [userRole, setUserRole] = useState<UserRole>(null);
   const [isIndian, setIsIndian] = useState(false);
   const [loading, setLoading] = useState(true);
-  const { syncContact } = useMauticSync();
+  const { syncContact, addToSegment } = useMauticSync();
 
   const fetchUserRole = async (userId: string) => {
     const { data } = await supabase
@@ -140,6 +140,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       country,
       company: affiliation,
       tags: ['signup', 'author'],
+    }).then(() => {
+      // Add to "New Sign Up" segment after contact is synced
+      addToSegment(email, 'New Sign Up');
     });
 
     // Profile and role are automatically created by database trigger
