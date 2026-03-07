@@ -23,6 +23,7 @@ import {
   Crown,
   Gift,
   Megaphone,
+  Bug,
 } from 'lucide-react';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { GuidedTour } from '@/components/onboarding/GuidedTour';
@@ -62,6 +63,7 @@ const adminNavItems: NavItem[] = [
   { label: 'USDT Payments', href: '/admin/usdt-payments', icon: Settings },
   { label: 'Reminders', href: '/admin/reminders', icon: Bell },
   { label: 'Notifications', href: '/admin/notifications', icon: Megaphone },
+  { label: 'Bug Reports', href: '/admin/bug-reports', icon: Bug },
   { label: 'Profile', href: '/admin/profile', icon: UserCircle },
 ];
 

@@ -30,11 +30,13 @@ import AdminAuthorDetail from "./pages/admin/AdminAuthorDetail";
 import AdminReminderSettings from "./pages/admin/AdminReminderSettings";
 import AdminUSDTPayments from "./pages/admin/AdminUSDTPayments";
 import AdminNotifications from "./pages/admin/AdminNotifications";
+import AdminBugReports from "./pages/admin/AdminBugReports";
 import NotFound from "./pages/NotFound";
 import { ReferralPopup } from "./components/referral/ReferralPopup";
 import { CookieConsent } from "./components/CookieConsent";
 import { CountryCollectionModal } from "./components/auth/CountryCollectionModal";
 import { MauticTrackingProvider } from "./components/MauticTrackingProvider";
+import { BugReporter } from "./components/BugReporter";
 
 const queryClient = new QueryClient();
 
@@ -49,6 +51,7 @@ const App = () => (
         <ReferralPopup />
         <CookieConsent />
         <CountryCollectionModal />
+        <BugReporter />
         <BrowserRouter>
         <MauticTrackingProvider>
           <Routes>
@@ -223,6 +226,14 @@ const App = () => (
               element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <AdminNotifications />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/bug-reports" 
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminBugReports />
                 </ProtectedRoute>
               } 
             />

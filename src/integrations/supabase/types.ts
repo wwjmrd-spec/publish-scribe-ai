@@ -172,6 +172,59 @@ export type Database = {
           },
         ]
       }
+      bug_reports: {
+        Row: {
+          ai_response: string | null
+          created_at: string
+          description: string | null
+          error_stack: string | null
+          id: string
+          page_url: string | null
+          resolved_at: string | null
+          status: string
+          title: string
+          type: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          ai_response?: string | null
+          created_at?: string
+          description?: string | null
+          error_stack?: string | null
+          id?: string
+          page_url?: string | null
+          resolved_at?: string | null
+          status?: string
+          title: string
+          type?: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          ai_response?: string | null
+          created_at?: string
+          description?: string | null
+          error_stack?: string | null
+          id?: string
+          page_url?: string | null
+          resolved_at?: string | null
+          status?: string
+          title?: string
+          type?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bug_reports_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       co_author_certificates: {
         Row: {
           amount_paid: number | null
