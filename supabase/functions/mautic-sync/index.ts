@@ -139,7 +139,7 @@ serve(async (req) => {
         const contactId = Object.keys(contacts)[0];
 
         if (contactId) {
-          await mauticRequest(`contacts/${contactId}/notes/new`, 'POST', {
+          await mauticRequest('notes/new', 'POST', {
             lead: contactId,
             type: 'general',
             text: `Event: ${eventName} | Data: ${JSON.stringify(eventData)}`,
