@@ -102,7 +102,7 @@ serve(async (req) => {
 
     switch (action) {
       case 'sync_contact': {
-        const { email, firstname, lastname, country, company, tags } = data;
+        const { email, firstname, lastname, country, company, phone, tags } = data;
         console.log('sync_contact called for:', email, 'tags:', tags);
         
         // Search for existing contact by email
@@ -118,6 +118,11 @@ serve(async (req) => {
           company: company || '',
           tags: tags || [],
         };
+        
+        // Include phone if available
+        if (phone) {
+          contactData.phone = phone;
+        }
 
         let result;
         if (existingId) {
