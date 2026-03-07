@@ -42,6 +42,7 @@ export function useMauticSync() {
     lastname?: string;
     country?: string;
     company?: string;
+    phone?: string;
     tags?: string[];
   }) => {
     try {

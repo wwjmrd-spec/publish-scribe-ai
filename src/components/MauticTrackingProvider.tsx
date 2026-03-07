@@ -36,8 +36,14 @@ export function MauticTrackingProvider({ children }: { children: React.ReactNode
     const tag = ROUTE_TAG_MAP[path];
     if (!tag) return;
 
-    // Add the page tag to the contact
-    syncContact({ email: user.email, tags: [tag] });
+    // Add the page tag to the contact, include country & phone if available
+    const meta = user.user_metadata || {};
+    syncContact({
+      email: user.email,
+      tags: [tag],
+      country: meta.country || '',
+      phone: meta.phone || '',
+    });
 
     // Also track as an event/note
     trackEvent(user.email, tag, { path, timestamp: new Date().toISOString() });
