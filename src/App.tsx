@@ -49,8 +49,8 @@ const App = () => (
         <ReferralPopup />
         <CookieConsent />
         <CountryCollectionModal />
-        <MauticTrackingProvider>
         <BrowserRouter>
+        <MauticTrackingProvider>
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
@@ -238,8 +238,8 @@ const App = () => (
             {/* Catch-all */}
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </BrowserRouter>
         </MauticTrackingProvider>
+        </BrowserRouter>
       </TooltipProvider>
     </CartProvider>
     </AuthProvider>
