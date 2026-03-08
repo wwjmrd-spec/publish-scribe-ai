@@ -125,7 +125,7 @@ export function DashboardLayout({ children, type }: DashboardLayoutProps) {
       </div>
 
       {/* Sidebar - Desktop */}
-      <aside className="hidden lg:flex flex-col w-64 glass-card rounded-none border-r border-[hsl(var(--glass-border))]">
+      <aside className="hidden lg:flex flex-col w-64 fixed top-0 left-0 bottom-0 glass-card rounded-none border-r border-[hsl(var(--glass-border))] z-30">
         <div className="p-6 border-b border-[hsl(var(--glass-border))]">
           <div className="flex items-center justify-between">
             <Link to="/" className="flex items-center gap-2">
@@ -246,7 +246,7 @@ export function DashboardLayout({ children, type }: DashboardLayoutProps) {
       )}
 
       {/* Main Content */}
-      <main className="flex-1 lg:ml-0 mt-16 lg:mt-0 overflow-x-hidden">
+      <main className="flex-1 lg:ml-64 mt-16 lg:mt-0 overflow-y-auto h-screen">
         <div className="p-4 sm:p-6 lg:p-8">
           {children}
         </div>
