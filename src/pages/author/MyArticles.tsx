@@ -241,126 +241,123 @@ export default function MyArticles() {
                 transition={{ delay: index * 0.05 }}
               >
                 <GlassCard className="hover-glow-cyan">
-                  <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-                    {/* Article Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center flex-shrink-0">
-                          {getStatusIcon(article.status)}
-                        </div>
-                        <div className="min-w-0">
-                          <h3 className="font-semibold truncate">{article.title}</h3>
-                          <p className="text-sm text-muted-foreground">
-                            {article.reference_number}
-                          </p>
-                        </div>
+                  <div className="flex flex-col gap-4">
+                    {/* Top: Icon + Title + Status */}
+                    <div className="flex flex-col sm:flex-row sm:items-start gap-3">
+                      <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center flex-shrink-0">
+                        {getStatusIcon(article.status)}
                       </div>
-
-                      {article.abstract && (
-                        <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
-                          {article.abstract}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold truncate">{article.title}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {article.reference_number}
                         </p>
-                      )}
-
-                      <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-                        <span>Submitted: {formatDate(article.created_at)}</span>
-                        {article.publication_type === 'fast_track' && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-500/20 text-purple-400 border border-purple-500/30">
-                            ⚡ Fast Track (24hr)
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 sm:flex-shrink-0">
+                        {article.status === 'pending_fee' && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                            ✅ Manuscript Accepted
                           </span>
                         )}
-                        {article.co_authors && article.co_authors.length > 0 && (
-                          <span>
-                            Co-authors: {article.co_authors.length}
-                          </span>
-                        )}
-                        {article.keywords && article.keywords.length > 0 && (
-                          <div className="flex gap-1 flex-wrap">
-                            {article.keywords.slice(0, 3).map((kw: string, i: number) => (
-                              <span
-                                key={i}
-                                className="px-2 py-0.5 rounded-full bg-[hsl(var(--glass-bg-strong))] text-xs"
-                              >
-                                {kw}
-                              </span>
-                            ))}
-                            {article.keywords.length > 3 && (
-                              <span className="text-xs">
-                                +{article.keywords.length - 3} more
-                              </span>
-                            )}
-                          </div>
-                        )}
+                        <span className={getStatusBadge(article.status)}>
+                          {formatStatus(article.status)}
+                        </span>
                       </div>
                     </div>
 
-                    {/* Status & Actions */}
-                    <div className="flex flex-wrap items-center gap-3 lg:flex-shrink-0">
-                      {article.status === 'pending_fee' && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                          ✅ Manuscript Accepted
+                    {/* Abstract */}
+                    {article.abstract && (
+                      <p className="text-sm text-muted-foreground line-clamp-2">
+                        {article.abstract}
+                      </p>
+                    )}
+
+                    {/* Meta row */}
+                    <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                      <span>Submitted: {formatDate(article.created_at)}</span>
+                      {article.publication_type === 'fast_track' && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-500/20 text-purple-400 border border-purple-500/30">
+                          ⚡ Fast Track (24hr)
                         </span>
                       )}
-                      <span className={getStatusBadge(article.status)}>
-                        {formatStatus(article.status)}
-                      </span>
+                      {article.co_authors && article.co_authors.length > 0 && (
+                        <span>Co-authors: {article.co_authors.length}</span>
+                      )}
+                      {article.keywords && article.keywords.length > 0 && (
+                        <div className="flex gap-1 flex-wrap">
+                          {article.keywords.slice(0, 3).map((kw: string, i: number) => (
+                            <span
+                              key={i}
+                              className="px-2 py-0.5 rounded-full bg-[hsl(var(--glass-bg-strong))] text-xs"
+                            >
+                              {kw}
+                            </span>
+                          ))}
+                          {article.keywords.length > 3 && (
+                            <span className="text-xs">
+                              +{article.keywords.length - 3} more
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
 
-                      <div className="flex gap-2">
-                        {article.review_report_url && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDownloadReport(article.id)}
-                            disabled={!subscription.canDownloadReport}
-                          >
-                            {!subscription.canDownloadReport ? (
-                              <Lock className="w-4 h-4 mr-1" />
-                            ) : (
-                              <Download className="w-4 h-4 mr-1" />
-                            )}
-                            Report
-                          </Button>
-                        )}
-                        {(article as any).formatted_document_url && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDownloadGalleyProof(article.id)}
-                          >
+                    {/* Actions */}
+                    <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border/50">
+                      {article.review_report_url && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDownloadReport(article.id)}
+                          disabled={!subscription.canDownloadReport}
+                        >
+                          {!subscription.canDownloadReport ? (
+                            <Lock className="w-4 h-4 mr-1" />
+                          ) : (
                             <Download className="w-4 h-4 mr-1" />
-                            Galley Proof
-                          </Button>
-                        )}
-                        {article.certificate_url && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => navigate('/author/certificates')}
-                          >
-                            <Award className="w-4 h-4 mr-1" />
-                            Certificate
-                          </Button>
-                        )}
-                        {article.status === 'pending_fee' && (
-                          <Button
-                            size="sm"
-                            className="gradient-primary"
-                            onClick={() => navigate('/author/cart')}
-                          >
-                            Pay Now
-                          </Button>
-                        )}
-                        {article.status === 'rejected' && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => navigate('/author/resubmit', { state: { resubmit: article } })}
-                          >
-                            <Upload className="w-4 h-4 mr-1" />
-                            Resubmit
-                          </Button>
-                        )}
-                      </div>
+                          )}
+                          Report
+                        </Button>
+                      )}
+                      {(article as any).formatted_document_url && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDownloadGalleyProof(article.id)}
+                        >
+                          <Download className="w-4 h-4 mr-1" />
+                          Galley Proof
+                        </Button>
+                      )}
+                      {article.certificate_url && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => navigate('/author/certificates')}
+                        >
+                          <Award className="w-4 h-4 mr-1" />
+                          Certificate
+                        </Button>
+                      )}
+                      {article.status === 'pending_fee' && (
+                        <Button
+                          size="sm"
+                          className="gradient-primary ml-auto"
+                          onClick={() => navigate('/author/cart')}
+                        >
+                          Pay Now
+                        </Button>
+                      )}
+                      {article.status === 'rejected' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => navigate('/author/resubmit', { state: { resubmit: article } })}
+                        >
+                          <Upload className="w-4 h-4 mr-1" />
+                          Resubmit
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </GlassCard>
