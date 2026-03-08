@@ -140,7 +140,7 @@ export function DashboardLayout({ children, type }: DashboardLayoutProps) {
           </div>
         </div>
 
-        <nav className="flex-1 p-4 space-y-2">
+        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.href;
@@ -157,7 +157,7 @@ export function DashboardLayout({ children, type }: DashboardLayoutProps) {
                     : "text-muted-foreground hover:text-foreground hover:bg-[hsl(var(--glass-bg-strong))]"
                 )}
               >
-                <Icon className="w-5 h-5" />
+                <Icon className="w-5 h-5 shrink-0" />
                 <span className="font-medium">{item.label}</span>
               </Link>
             );
