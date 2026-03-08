@@ -349,6 +349,14 @@ const getStatusInfo = (status: string): { emoji: string; title: string; message:
           "Your article is now being reviewed by our editorial team. We will notify you once the review is complete.",
         color: "#eab308",
       };
+    case "manuscript_accepted":
+      return {
+        emoji: "✅",
+        title: "Manuscript Accepted",
+        message:
+          "Congratulations! Your manuscript has been accepted for publication. Please complete the publication fee payment to proceed.",
+        color: "#10b981",
+      };
     case "pending_fee":
       return {
         emoji: "💳",
@@ -377,6 +385,7 @@ const getStatusInfo = (status: string): { emoji: string; title: string; message:
 
 const getArticleStatusChangeTemplate = (data: EmailRequest["data"]): string => {
   const info = getStatusInfo(data?.status || "");
+  const isManuscriptAccepted = data?.status === "manuscript_accepted";
   const isPendingFee = data?.status === "pending_fee";
   const statusDisplay = (data?.status || "").replace(/_/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase());
 
@@ -393,7 +402,7 @@ const getArticleStatusChangeTemplate = (data: EmailRequest["data"]): string => {
       ].join(""),
     )}
     ${
-      isPendingFee
+      isPendingFee || isManuscriptAccepted
         ? emailP("Please log in to your dashboard to complete the payment and proceed with publication.") +
           emailButton("https://wwjmrdai.lovable.app/author/articles", "Pay Publication Fee")
         : emailButton("https://wwjmrdai.lovable.app/author/articles", "View My Articles")

@@ -115,6 +115,8 @@ export default function MyArticles() {
         return <Clock className="w-4 h-4" />;
       case 'under_review':
         return <Eye className="w-4 h-4" />;
+      case 'manuscript_accepted':
+        return <CheckCircle className="w-4 h-4" />;
       case 'pending_fee':
         return <AlertCircle className="w-4 h-4" />;
       case 'paid':
@@ -131,6 +133,7 @@ export default function MyArticles() {
     const statusMap: Record<string, string> = {
       submitted: 'status-submitted',
       under_review: 'status-under-review',
+      manuscript_accepted: 'status-published',
       pending_fee: 'status-pending-fee',
       paid: 'status-published',
       payment_under_review: 'status-under-review',
@@ -293,6 +296,11 @@ export default function MyArticles() {
 
                     {/* Status & Actions */}
                     <div className="flex flex-wrap items-center gap-3 lg:flex-shrink-0">
+                      {article.status === 'pending_fee' && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                          ✅ Manuscript Accepted
+                        </span>
+                      )}
                       <span className={getStatusBadge(article.status)}>
                         {formatStatus(article.status)}
                       </span>

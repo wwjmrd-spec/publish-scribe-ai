@@ -799,6 +799,7 @@ export type Database = {
       article_status:
         | "submitted"
         | "under_review"
+        | "manuscript_accepted"
         | "pending_fee"
         | "paid"
         | "payment_under_review"
@@ -942,6 +943,7 @@ export const Constants = {
       article_status: [
         "submitted",
         "under_review",
+        "manuscript_accepted",
         "pending_fee",
         "paid",
         "payment_under_review",

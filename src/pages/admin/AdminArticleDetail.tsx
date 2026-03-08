@@ -72,7 +72,7 @@ export default function AdminArticleDetail() {
         .eq('id', articleId!);
       if (error) throw error;
 
-      const notifyStatuses: ArticleStatus[] = ['under_review', 'pending_fee', 'rejected'];
+      const notifyStatuses: ArticleStatus[] = ['under_review', 'manuscript_accepted', 'pending_fee', 'rejected'];
       if (notifyStatuses.includes(status) && article) {
         const authorProfile = article.profiles as any;
         if (authorProfile?.email) {
@@ -223,6 +223,7 @@ export default function AdminArticleDetail() {
     const styles: Record<string, string> = {
       submitted: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
       under_review: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+      manuscript_accepted: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
       pending_fee: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
       paid: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
       published: 'bg-green-500/20 text-green-400 border-green-500/30',
@@ -463,6 +464,15 @@ export default function AdminArticleDetail() {
                   disabled={updateStatusMutation.isPending}
                 >
                   <Clock className="w-4 h-4 mr-2" /> Under Review
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-emerald-400 hover:text-emerald-300"
+                  onClick={() => updateStatusMutation.mutate({ status: 'manuscript_accepted' })}
+                  disabled={updateStatusMutation.isPending}
+                >
+                  <CheckCircle className="w-4 h-4 mr-2" /> Manuscript Accepted
                 </Button>
                 <Button
                   variant="outline"

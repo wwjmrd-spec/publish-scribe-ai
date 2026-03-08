@@ -58,6 +58,8 @@ export default function AuthorDashboard() {
         return <Clock className="w-4 h-4 text-primary" />;
       case 'under_review':
         return <Clock className="w-4 h-4 text-secondary" />;
+      case 'manuscript_accepted':
+        return <CheckCircle className="w-4 h-4 text-green-500" />;
       case 'pending_fee':
         return <AlertCircle className="w-4 h-4 text-yellow-500" />;
       case 'published':
@@ -71,6 +73,7 @@ export default function AuthorDashboard() {
     const statusMap: Record<string, string> = {
       submitted: 'status-submitted',
       under_review: 'status-under-review',
+      manuscript_accepted: 'status-published',
       pending_fee: 'status-pending-fee',
       published: 'status-published',
       rejected: 'status-rejected',
