@@ -296,6 +296,11 @@ export default function MyArticles() {
 
                     {/* Status & Actions */}
                     <div className="flex flex-wrap items-center gap-3 lg:flex-shrink-0">
+                      {article.status === 'pending_fee' && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                          ✅ Manuscript Accepted
+                        </span>
+                      )}
                       <span className={getStatusBadge(article.status)}>
                         {formatStatus(article.status)}
                       </span>

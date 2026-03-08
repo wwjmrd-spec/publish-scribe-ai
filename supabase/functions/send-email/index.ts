@@ -349,6 +349,14 @@ const getStatusInfo = (status: string): { emoji: string; title: string; message:
           "Your article is now being reviewed by our editorial team. We will notify you once the review is complete.",
         color: "#eab308",
       };
+    case "manuscript_accepted":
+      return {
+        emoji: "✅",
+        title: "Manuscript Accepted",
+        message:
+          "Congratulations! Your manuscript has been accepted for publication. Please complete the publication fee payment to proceed.",
+        color: "#10b981",
+      };
     case "pending_fee":
       return {
         emoji: "💳",

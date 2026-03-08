@@ -468,6 +468,15 @@ export default function AdminArticleDetail() {
                 <Button
                   variant="outline"
                   size="sm"
+                  className="text-emerald-400 hover:text-emerald-300"
+                  onClick={() => updateStatusMutation.mutate({ status: 'manuscript_accepted' })}
+                  disabled={updateStatusMutation.isPending}
+                >
+                  <CheckCircle className="w-4 h-4 mr-2" /> Manuscript Accepted
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
                   className="text-orange-400 hover:text-orange-300"
                   onClick={() => updateStatusMutation.mutate({ status: 'pending_fee' })}
                   disabled={updateStatusMutation.isPending}
