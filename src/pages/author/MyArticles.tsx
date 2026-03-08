@@ -133,6 +133,7 @@ export default function MyArticles() {
     const statusMap: Record<string, string> = {
       submitted: 'status-submitted',
       under_review: 'status-under-review',
+      manuscript_accepted: 'status-published',
       pending_fee: 'status-pending-fee',
       paid: 'status-published',
       payment_under_review: 'status-under-review',
