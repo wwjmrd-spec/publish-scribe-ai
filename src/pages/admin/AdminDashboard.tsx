@@ -281,6 +281,11 @@ export default function AdminDashboard() {
         </motion.div>
       </div>
 
+      {/* Weekly Report */}
+      <div className="mb-8">
+        <WeeklyReport />
+      </div>
+
       {/* Recent Articles */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
