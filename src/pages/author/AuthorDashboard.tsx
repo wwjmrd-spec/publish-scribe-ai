@@ -71,6 +71,7 @@ export default function AuthorDashboard() {
     const statusMap: Record<string, string> = {
       submitted: 'status-submitted',
       under_review: 'status-under-review',
+      manuscript_accepted: 'status-published',
       pending_fee: 'status-pending-fee',
       published: 'status-published',
       rejected: 'status-rejected',
