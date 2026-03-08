@@ -72,7 +72,7 @@ export default function AdminArticleDetail() {
         .eq('id', articleId!);
       if (error) throw error;
 
-      const notifyStatuses: ArticleStatus[] = ['under_review', 'pending_fee', 'rejected'];
+      const notifyStatuses: ArticleStatus[] = ['under_review', 'manuscript_accepted', 'pending_fee', 'rejected'];
       if (notifyStatuses.includes(status) && article) {
         const authorProfile = article.profiles as any;
         if (authorProfile?.email) {
