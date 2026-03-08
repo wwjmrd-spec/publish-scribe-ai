@@ -115,6 +115,8 @@ export default function MyArticles() {
         return <Clock className="w-4 h-4" />;
       case 'under_review':
         return <Eye className="w-4 h-4" />;
+      case 'manuscript_accepted':
+        return <CheckCircle className="w-4 h-4" />;
       case 'pending_fee':
         return <AlertCircle className="w-4 h-4" />;
       case 'paid':
