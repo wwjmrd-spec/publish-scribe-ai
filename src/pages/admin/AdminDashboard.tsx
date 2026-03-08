@@ -18,6 +18,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import { useNavigate } from 'react-router-dom';
+import { WeeklyReport } from '@/components/admin/WeeklyReport';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -278,6 +279,11 @@ export default function AdminDashboard() {
             </div>
           </GlassCard>
         </motion.div>
+      </div>
+
+      {/* Weekly Report */}
+      <div className="mb-8">
+        <WeeklyReport />
       </div>
 
       {/* Recent Articles */}
