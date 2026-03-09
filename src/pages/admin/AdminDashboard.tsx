@@ -137,7 +137,7 @@ export default function AdminDashboard() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
-          <GlassCard className="hover-glow-cyan">
+          <GlassCard className="hover-glow-cyan cursor-pointer" onClick={() => navigate('/admin/articles')}>
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center">
                 <FileText className="w-6 h-6 text-primary-foreground" />
@@ -155,7 +155,7 @@ export default function AdminDashboard() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
         >
-          <GlassCard className="hover-glow-purple">
+          <GlassCard className="hover-glow-purple cursor-pointer" onClick={() => navigate('/admin/authors')}>
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-secondary/20 flex items-center justify-center">
                 <Users className="w-6 h-6 text-secondary" />
@@ -173,7 +173,7 @@ export default function AdminDashboard() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          <GlassCard className="hover-glow-cyan">
+          <GlassCard className="hover-glow-cyan cursor-pointer" onClick={() => navigate('/admin/articles')}>
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-yellow-500/20 flex items-center justify-center">
                 <Clock className="w-6 h-6 text-yellow-500" />
@@ -191,7 +191,7 @@ export default function AdminDashboard() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.25 }}
         >
-          <GlassCard className="hover-glow-cyan">
+          <GlassCard className="hover-glow-cyan cursor-pointer" onClick={() => navigate('/admin/fees')}>
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center">
                 <DollarSign className="w-6 h-6 text-green-500" />
@@ -218,31 +218,23 @@ export default function AdminDashboard() {
               <h2 className="font-display text-xl font-semibold">Pending Actions</h2>
             </div>
             <div className="space-y-4">
-        <div className="flex items-center justify-between gap-2 p-3 sm:p-4 rounded-lg bg-[hsl(var(--glass-bg))]">
+        <div className="flex items-center justify-between gap-2 p-3 sm:p-4 rounded-lg bg-[hsl(var(--glass-bg))] cursor-pointer hover:bg-[hsl(var(--glass-bg-strong))] transition-colors" onClick={() => navigate('/admin/articles')}>
                 <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                   <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" />
                   <span className="text-sm sm:text-base truncate">Articles awaiting review</span>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <span className="text-xl sm:text-2xl font-bold">{stats.pendingReview}</span>
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    onClick={() => navigate('/admin/articles')}
-                    className="hidden sm:inline-flex"
-                  >
-                    Review
-                  </Button>
                 </div>
               </div>
-              <div className="flex items-center justify-between gap-2 p-3 sm:p-4 rounded-lg bg-[hsl(var(--glass-bg))]">
+              <div className="flex items-center justify-between gap-2 p-3 sm:p-4 rounded-lg bg-[hsl(var(--glass-bg))] cursor-pointer hover:bg-[hsl(var(--glass-bg-strong))] transition-colors" onClick={() => navigate('/admin/ai-review')}>
                 <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                   <Eye className="w-4 h-4 sm:w-5 sm:h-5 text-secondary shrink-0" />
                   <span className="text-sm sm:text-base truncate">Under AI review</span>
                 </div>
                 <span className="text-xl sm:text-2xl font-bold shrink-0">{stats.underReview}</span>
               </div>
-              <div className="flex items-center justify-between gap-2 p-3 sm:p-4 rounded-lg bg-[hsl(var(--glass-bg))]">
+              <div className="flex items-center justify-between gap-2 p-3 sm:p-4 rounded-lg bg-[hsl(var(--glass-bg))] cursor-pointer hover:bg-[hsl(var(--glass-bg-strong))] transition-colors" onClick={() => navigate('/admin/articles')}>
                 <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                   <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-500 shrink-0" />
                   <span className="text-sm sm:text-base truncate">Published articles</span>
