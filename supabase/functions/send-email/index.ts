@@ -334,7 +334,7 @@ const getReferralRewardTemplate = (data: EmailRequest["data"]): string => {
     </table>
     ${emailButton("https://wwjmrdai.lovable.app/author/rewards", isReferrer ? "View Your Rewards" : "View Your Referral Code")}
     ${emailDivider()}
-    ${emailFooterText("Keep sharing your referral code to earn more rewards. For any questions, contact us at info@wwjmrd.com")}
+    ${emailFooterText("Keep sharing your referral code to earn more rewards. For any questions, contact us at welcome@wwjmrd.com")}
   `;
   return wrapEmail(isReferrer ? "Referral Reward Earned!" : "Congratulations on Your Publication!", body);
 };
