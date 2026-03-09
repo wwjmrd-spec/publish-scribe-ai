@@ -136,7 +136,7 @@ export default function AuthorDashboard() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
         >
-          <GlassCard className="hover-glow-purple">
+          <GlassCard className="hover-glow-purple cursor-pointer" onClick={() => navigate('/author/articles')}>
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-secondary/20 flex items-center justify-center">
                 <Clock className="w-6 h-6 text-secondary" />
