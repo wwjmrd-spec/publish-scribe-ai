@@ -49,12 +49,12 @@ serve(async (req: Request) => {
         .from("articles")
         .select("id, title, reference_number, author_id, status, updated_at, profiles:author_id (full_name, email)")
         .eq("id", articleId)
-        .eq("status", "pending_fee")
+        .in("status", ["pending_fee", "manuscript_accepted"])
         .single();
 
       if (error || !data) {
         return new Response(
-          JSON.stringify({ error: "Article not found or not in pending_fee status" }),
+          JSON.stringify({ error: "Article not found or not in pending_fee/manuscript_accepted status" }),
           { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
         );
       }
@@ -76,7 +76,7 @@ serve(async (req: Request) => {
       const { data, error } = await supabase
         .from("articles")
         .select("id, title, reference_number, author_id, status, updated_at, profiles:author_id (full_name, email)")
-        .eq("status", "pending_fee");
+        .in("status", ["pending_fee", "manuscript_accepted"]);
 
       if (error) {
         console.error("Error fetching articles:", error);
