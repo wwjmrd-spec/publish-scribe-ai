@@ -574,7 +574,7 @@ function buildGalleyProofEmail(opts: {
       ${infoBox}
       ${btn("https://wwjmrdai.lovable.app/author/articles", "View My Articles")}
       ${divider()}
-      ${footer("If you have any questions, contact us at info@wwjmrd.com")}
+      ${footer("If you have any questions, contact us at welcome@wwjmrd.com")}
     `;
   }
 

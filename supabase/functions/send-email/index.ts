@@ -428,7 +428,7 @@ const getReviewReportReadyTemplate = (data: EmailRequest["data"]): string => {
     ${emailInfoBox("Review Summary", infoRows)}
     ${emailP("Log in to your dashboard to view the full review report and download it.")}
     ${emailDivider()}
-    ${emailFooterText("This is an automated notification from WWJMRD. If you have questions about the review, please contact us at wwjmrd@gmail.com.")}
+    ${emailFooterText("This is an automated notification from WWJMRD. If you have questions about the review, please contact us at welcome@wwjmrd.com.")}
   `;
   return wrapEmail("Review Report Ready", body);
 };
