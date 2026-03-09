@@ -49,7 +49,7 @@ serve(async (req: Request) => {
         .from("articles")
         .select("id, title, reference_number, author_id, status, updated_at, profiles:author_id (full_name, email)")
         .eq("id", articleId)
-        .eq("status", "pending_fee")
+        .in("status", ["pending_fee", "manuscript_accepted"])
         .single();
 
       if (error || !data) {
