@@ -118,7 +118,7 @@ export default function AuthorDashboard() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
-          <GlassCard className="hover-glow-cyan">
+          <GlassCard className="hover-glow-cyan cursor-pointer" onClick={() => navigate('/author/articles')}>
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center">
                 <FileText className="w-6 h-6 text-primary-foreground" />
@@ -136,7 +136,7 @@ export default function AuthorDashboard() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
         >
-          <GlassCard className="hover-glow-purple">
+          <GlassCard className="hover-glow-purple cursor-pointer" onClick={() => navigate('/author/articles')}>
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-secondary/20 flex items-center justify-center">
                 <Clock className="w-6 h-6 text-secondary" />
@@ -154,7 +154,7 @@ export default function AuthorDashboard() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          <GlassCard className="hover-glow-cyan">
+          <GlassCard className="hover-glow-cyan cursor-pointer" onClick={() => navigate('/author/cart')}>
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-yellow-500/20 flex items-center justify-center">
                 <ShoppingCart className="w-6 h-6 text-yellow-500" />
@@ -172,7 +172,7 @@ export default function AuthorDashboard() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.25 }}
         >
-          <GlassCard className="hover-glow-cyan">
+          <GlassCard className="hover-glow-cyan cursor-pointer" onClick={() => navigate('/author/certificates')}>
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center">
                 <CheckCircle className="w-6 h-6 text-green-500" />
