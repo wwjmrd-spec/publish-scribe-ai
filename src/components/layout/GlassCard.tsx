@@ -7,6 +7,7 @@ interface GlassCardProps {
   className?: string;
   hover?: boolean;
   gradient?: boolean;
+  onClick?: () => void;
 }
 
 export function GlassCard({ children, className, hover = false, gradient = false }: GlassCardProps) {
