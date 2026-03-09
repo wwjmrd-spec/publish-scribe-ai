@@ -448,7 +448,7 @@ const getPaymentReminderTemplate = (data: EmailRequest["data"]): string => {
     ${emailP("Please log in to your dashboard and complete the payment at your earliest convenience to avoid any delays in publishing your article.")}
     ${emailButton("https://wwjmrdai.lovable.app/author/articles", "Pay Publication Fee Now")}
     ${emailDivider()}
-    ${emailFooterText("If you've already made the payment, please disregard this email. For any queries, contact us at info@wwjmrd.com")}
+    ${emailFooterText("If you've already made the payment, please disregard this email. For any queries, contact us at welcome@wwjmrd.com")}
   `;
   return wrapEmail("Payment Reminder - WWJMRD", body);
 };
