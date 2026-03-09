@@ -408,7 +408,7 @@ const getArticleStatusChangeTemplate = (data: EmailRequest["data"]): string => {
         : emailButton("https://wwjmrdai.lovable.app/author/articles", "View My Articles")
     }
     ${emailDivider()}
-    ${emailFooterText("If you have any questions about this update, contact us at info@wwjmrd.com")}
+    ${emailFooterText("If you have any questions about this update, contact us at welcome@wwjmrd.com")}
   `;
   return wrapEmail(info.title, body);
 };
