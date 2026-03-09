@@ -218,21 +218,13 @@ export default function AdminDashboard() {
               <h2 className="font-display text-xl font-semibold">Pending Actions</h2>
             </div>
             <div className="space-y-4">
-        <div className="flex items-center justify-between gap-2 p-3 sm:p-4 rounded-lg bg-[hsl(var(--glass-bg))]">
+        <div className="flex items-center justify-between gap-2 p-3 sm:p-4 rounded-lg bg-[hsl(var(--glass-bg))] cursor-pointer hover:bg-[hsl(var(--glass-bg-strong))] transition-colors" onClick={() => navigate('/admin/articles')}>
                 <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                   <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" />
                   <span className="text-sm sm:text-base truncate">Articles awaiting review</span>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <span className="text-xl sm:text-2xl font-bold">{stats.pendingReview}</span>
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    onClick={() => navigate('/admin/articles')}
-                    className="hidden sm:inline-flex"
-                  >
-                    Review
-                  </Button>
                 </div>
               </div>
               <div className="flex items-center justify-between gap-2 p-3 sm:p-4 rounded-lg bg-[hsl(var(--glass-bg))]">
