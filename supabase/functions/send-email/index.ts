@@ -189,7 +189,7 @@ const getWelcomeTemplate = (loginUrl: string, userName: string = "there"): strin
     ${emailP("Congratulations! Your email has been verified and your WWJMRD account is now active. You're ready to start submitting your research articles for publication.")}
     ${emailButton(escapeHtml(loginUrl), "Go to Dashboard")}
     ${emailDivider()}
-    ${emailFooterText("If you have any questions, don't hesitate to reach out to our support team at info@wwjmrd.com.")}
+    ${emailFooterText("If you have any questions, don't hesitate to reach out to our support team at welcome@wwjmrd.com.")}
   `;
   return wrapEmail("Welcome to WWJMRD", body);
 };
