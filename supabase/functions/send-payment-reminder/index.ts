@@ -54,7 +54,7 @@ serve(async (req: Request) => {
 
       if (error || !data) {
         return new Response(
-          JSON.stringify({ error: "Article not found or not in pending_fee status" }),
+          JSON.stringify({ error: "Article not found or not in pending_fee/manuscript_accepted status" }),
           { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
         );
       }
