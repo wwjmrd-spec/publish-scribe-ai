@@ -234,7 +234,7 @@ export default function AdminDashboard() {
                 </div>
                 <span className="text-xl sm:text-2xl font-bold shrink-0">{stats.underReview}</span>
               </div>
-              <div className="flex items-center justify-between gap-2 p-3 sm:p-4 rounded-lg bg-[hsl(var(--glass-bg))]">
+              <div className="flex items-center justify-between gap-2 p-3 sm:p-4 rounded-lg bg-[hsl(var(--glass-bg))] cursor-pointer hover:bg-[hsl(var(--glass-bg-strong))] transition-colors" onClick={() => navigate('/admin/articles')}>
                 <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                   <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-500 shrink-0" />
                   <span className="text-sm sm:text-base truncate">Published articles</span>
