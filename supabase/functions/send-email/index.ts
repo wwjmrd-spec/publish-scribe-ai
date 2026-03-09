@@ -189,7 +189,7 @@ const getWelcomeTemplate = (loginUrl: string, userName: string = "there"): strin
     ${emailP("Congratulations! Your email has been verified and your WWJMRD account is now active. You're ready to start submitting your research articles for publication.")}
     ${emailButton(escapeHtml(loginUrl), "Go to Dashboard")}
     ${emailDivider()}
-    ${emailFooterText("If you have any questions, don't hesitate to reach out to our support team at info@wwjmrd.com.")}
+    ${emailFooterText("If you have any questions, don't hesitate to reach out to our support team at welcome@wwjmrd.com.")}
   `;
   return wrapEmail("Welcome to WWJMRD", body);
 };
@@ -228,7 +228,7 @@ const getArticleSubmissionTemplate = (data: EmailRequest["data"], isAdmin: boole
     `
     }
     ${emailDivider()}
-    ${emailFooterText("If you have any questions, contact us at info@wwjmrd.com")}
+${emailFooterText("If you have any questions, contact us at welcome@wwjmrd.com")}
   `;
   return wrapEmail(isAdmin ? "New Article Submitted" : "Article Submitted Successfully", body);
 };
@@ -295,7 +295,7 @@ const getPaymentConfirmationTemplate = (data: EmailRequest["data"], isAdmin: boo
     `
     }
     ${emailDivider()}
-    ${emailFooterText("This email serves as your payment receipt. For any queries, contact us at info@wwjmrd.com")}
+    ${emailFooterText("This email serves as your payment receipt. For any queries, contact us at welcome@wwjmrd.com")}
   `;
   return wrapEmail(isAdmin ? "Payment Received" : "Payment Successful", body);
 };
@@ -334,7 +334,7 @@ const getReferralRewardTemplate = (data: EmailRequest["data"]): string => {
     </table>
     ${emailButton("https://wwjmrdai.lovable.app/author/rewards", isReferrer ? "View Your Rewards" : "View Your Referral Code")}
     ${emailDivider()}
-    ${emailFooterText("Keep sharing your referral code to earn more rewards. For any questions, contact us at info@wwjmrd.com")}
+    ${emailFooterText("Keep sharing your referral code to earn more rewards. For any questions, contact us at welcome@wwjmrd.com")}
   `;
   return wrapEmail(isReferrer ? "Referral Reward Earned!" : "Congratulations on Your Publication!", body);
 };
@@ -408,7 +408,7 @@ const getArticleStatusChangeTemplate = (data: EmailRequest["data"]): string => {
         : emailButton("https://wwjmrdai.lovable.app/author/articles", "View My Articles")
     }
     ${emailDivider()}
-    ${emailFooterText("If you have any questions about this update, contact us at info@wwjmrd.com")}
+    ${emailFooterText("If you have any questions about this update, contact us at welcome@wwjmrd.com")}
   `;
   return wrapEmail(info.title, body);
 };
@@ -428,7 +428,7 @@ const getReviewReportReadyTemplate = (data: EmailRequest["data"]): string => {
     ${emailInfoBox("Review Summary", infoRows)}
     ${emailP("Log in to your dashboard to view the full review report and download it.")}
     ${emailDivider()}
-    ${emailFooterText("This is an automated notification from WWJMRD. If you have questions about the review, please contact us at wwjmrd@gmail.com.")}
+    ${emailFooterText("This is an automated notification from WWJMRD. If you have questions about the review, please contact us at welcome@wwjmrd.com.")}
   `;
   return wrapEmail("Review Report Ready", body);
 };
@@ -448,7 +448,7 @@ const getPaymentReminderTemplate = (data: EmailRequest["data"]): string => {
     ${emailP("Please log in to your dashboard and complete the payment at your earliest convenience to avoid any delays in publishing your article.")}
     ${emailButton("https://wwjmrdai.lovable.app/author/articles", "Pay Publication Fee Now")}
     ${emailDivider()}
-    ${emailFooterText("If you've already made the payment, please disregard this email. For any queries, contact us at info@wwjmrd.com")}
+    ${emailFooterText("If you've already made the payment, please disregard this email. For any queries, contact us at welcome@wwjmrd.com")}
   `;
   return wrapEmail("Payment Reminder - WWJMRD", body);
 };
@@ -471,7 +471,7 @@ const getArticleResubmissionTemplate = (data: EmailRequest["data"], isAdmin: boo
       : emailButton("https://wwjmrdai.lovable.app/author/articles", "Track Your Article")
     }
     ${emailDivider()}
-    ${emailFooterText("If you have any questions, contact us at info@wwjmrd.com")}
+    ${emailFooterText("If you have any questions, contact us at welcome@wwjmrd.com")}
   `;
   return wrapEmail(isAdmin ? "Article Resubmitted" : "Article Resubmitted Successfully", body);
 };
@@ -559,7 +559,7 @@ const handler = async (req: Request): Promise<Response> => {
       console.log("Test mode: sending test email to admin");
       try {
         const testResult = await resend.emails.send({
-          from: "WWJMRD <info@wwjmrd.com>",
+      from: "WWJMRD <welcome@wwjmrd.com>",
           to: ["shubhmeena23@gmail.com"],
           subject: "WWJMRD Test Email ✅",
           html: wrapEmail("Test Email", `
@@ -652,7 +652,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Sending ${template} email to: ${to}, subject: ${emailSubject}, isAdmin: ${isAdmin}`);
 
     const emailResponse = await resend.emails.send({
-      from: from || "WWJMRD <info@wwjmrd.com>",
+      from: from || "WWJMRD <welcome@wwjmrd.com>",
       to: [to],
       subject: emailSubject,
       html: emailHtml,
