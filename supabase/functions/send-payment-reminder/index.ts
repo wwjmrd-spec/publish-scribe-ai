@@ -76,7 +76,7 @@ serve(async (req: Request) => {
       const { data, error } = await supabase
         .from("articles")
         .select("id, title, reference_number, author_id, status, updated_at, profiles:author_id (full_name, email)")
-        .eq("status", "pending_fee");
+        .in("status", ["pending_fee", "manuscript_accepted"]);
 
       if (error) {
         console.error("Error fetching articles:", error);
