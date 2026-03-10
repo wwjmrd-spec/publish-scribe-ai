@@ -564,7 +564,7 @@ function buildGalleyProofEmail(opts: {
       ${infoBox}
       ${btn("https://wwjmrdai.lovable.app/admin/formatting", "Review Galley Proof")}
       ${divider()}
-      ${footer("This is an automated notification from WWJMRD. For any queries, contact welcome@wwjmrd.com")}
+      ${footer("This is an automated notification from WWJMRD. For any queries, contact noreply@wwjmrdai.online")}
     `;
   } else {
     body = `
