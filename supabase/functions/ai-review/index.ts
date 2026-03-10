@@ -402,7 +402,7 @@ function generateReviewReportPdf(article: any, reviewData: any, authorName: stri
       pageWidth / 2, pageHeight - 10, { align: "center" }
     );
     doc.text(
-      "WWJMRD • wwjmrd@gmail.com • www.wwjmrd.com",
+      "WWJMRD • support@wwjmrd.com • www.wwjmrd.com",
       pageWidth / 2, pageHeight - 6, { align: "center" }
     );
 

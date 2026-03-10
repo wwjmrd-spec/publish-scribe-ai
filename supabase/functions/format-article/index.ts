@@ -564,7 +564,7 @@ function buildGalleyProofEmail(opts: {
       ${infoBox}
       ${btn("https://wwjmrdai.lovable.app/admin/formatting", "Review Galley Proof")}
       ${divider()}
-      ${footer("This is an automated notification from WWJMRD. For any queries, contact noreply@wwjmrdai.online")}
+      ${footer("This is an automated notification from WWJMRD. For any queries, contact support@wwjmrd.com")}
     `;
   } else {
     body = `
@@ -574,7 +574,7 @@ function buildGalleyProofEmail(opts: {
       ${infoBox}
       ${btn("https://wwjmrdai.lovable.app/author/articles", "View My Articles")}
       ${divider()}
-      ${footer("If you have any questions, contact us at noreply@wwjmrdai.online")}
+      ${footer("If you have any questions, contact us at support@wwjmrd.com")}
     `;
   }
 
@@ -847,7 +847,7 @@ serve(async (req) => {
       });
       await supabase.functions.invoke("send-email", {
         body: {
-          to: "wwjmrd@gmail.com",
+          to: "support@wwjmrd.com",
           template: "custom",
           subject: `Galley Proof - ${article.reference_number}`,
           html: adminEmailHtml,
