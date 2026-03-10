@@ -228,7 +228,7 @@ const getArticleSubmissionTemplate = (data: EmailRequest["data"], isAdmin: boole
     `
     }
     ${emailDivider()}
-${emailFooterText("If you have any questions, contact us at noreply@wwjmrdai.online")}
+${emailFooterText("If you have any questions, contact us at support@wwjmrd.com")}
   `;
   return wrapEmail(isAdmin ? "New Article Submitted" : "Article Submitted Successfully", body);
 };
