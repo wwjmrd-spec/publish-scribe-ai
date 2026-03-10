@@ -559,7 +559,7 @@ const handler = async (req: Request): Promise<Response> => {
       console.log("Test mode: sending test email to admin");
       try {
         const testResult = await resend.emails.send({
-      from: "WWJMRD <welcome@wwjmrd.com>",
+      from: "WWJMRD <noreply@wwjmrdai.online>",
           to: ["shubhmeena23@gmail.com"],
           subject: "WWJMRD Test Email ✅",
           html: wrapEmail("Test Email", `
