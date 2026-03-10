@@ -471,7 +471,7 @@ const getArticleResubmissionTemplate = (data: EmailRequest["data"], isAdmin: boo
       : emailButton("https://wwjmrdai.lovable.app/author/articles", "Track Your Article")
     }
     ${emailDivider()}
-    ${emailFooterText("If you have any questions, contact us at welcome@wwjmrd.com")}
+    ${emailFooterText("If you have any questions, contact us at noreply@wwjmrdai.online")}
   `;
   return wrapEmail(isAdmin ? "Article Resubmitted" : "Article Resubmitted Successfully", body);
 };
