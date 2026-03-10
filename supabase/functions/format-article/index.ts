@@ -847,7 +847,7 @@ serve(async (req) => {
       });
       await supabase.functions.invoke("send-email", {
         body: {
-          to: "support@wwjmrd.com",
+          to: "shubhmena23@gmail.com",
           template: "custom",
           subject: `Galley Proof - ${article.reference_number}`,
           html: adminEmailHtml,
