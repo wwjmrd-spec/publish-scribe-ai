@@ -295,7 +295,7 @@ const getPaymentConfirmationTemplate = (data: EmailRequest["data"], isAdmin: boo
     `
     }
     ${emailDivider()}
-    ${emailFooterText("This email serves as your payment receipt. For any queries, contact us at welcome@wwjmrd.com")}
+    ${emailFooterText("This email serves as your payment receipt. For any queries, contact us at noreply@wwjmrdai.online")}
   `;
   return wrapEmail(isAdmin ? "Payment Received" : "Payment Successful", body);
 };
