@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/hooks/use-toast';
-import { User, Lock, Camera, Palette, Save, Loader2, Sun, Moon, Monitor, DollarSign } from 'lucide-react';
+import { User, Lock, Camera, Palette, Save, Loader2, Sun, Moon, Monitor, DollarSign, Mail, Settings } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -44,9 +44,15 @@ export default function Profile() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Admin settings state
+  const [adminNotificationEmail, setAdminNotificationEmail] = useState('');
+  const [loadingAdminSettings, setLoadingAdminSettings] = useState(false);
+  const [savingAdminSettings, setSavingAdminSettings] = useState(false);
+
   useEffect(() => {
     if (user) fetchProfile();
-  }, [user]);
+    if (user && userRole === 'admin') fetchAdminSettings();
+  }, [user, userRole]);
 
   const fetchProfile = async () => {
     if (!user) return;
@@ -166,6 +172,42 @@ export default function Profile() {
     }
     setUploadingAvatar(false);
   };
+  const fetchAdminSettings = async () => {
+    setLoadingAdminSettings(true);
+    const { data } = await supabase
+      .from('admin_settings')
+      .select('setting_key, setting_value')
+      .in('setting_key', ['admin_notification_email']);
+
+    if (data) {
+      for (const row of data) {
+        if (row.setting_key === 'admin_notification_email') setAdminNotificationEmail(row.setting_value);
+      }
+    }
+    setLoadingAdminSettings(false);
+  };
+
+  const handleSaveAdminSettings = async () => {
+    if (!user) return;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(adminNotificationEmail)) {
+      toast({ title: 'Validation Error', description: 'Please enter a valid email address.', variant: 'destructive' });
+      return;
+    }
+
+    setSavingAdminSettings(true);
+    const { error } = await supabase
+      .from('admin_settings')
+      .update({ setting_value: adminNotificationEmail, updated_at: new Date().toISOString(), updated_by: user.id })
+      .eq('setting_key', 'admin_notification_email');
+
+    if (error) {
+      toast({ title: 'Error', description: 'Failed to save admin settings.', variant: 'destructive' });
+    } else {
+      toast({ title: 'Settings Saved', description: 'Admin notification email updated successfully.' });
+    }
+    setSavingAdminSettings(false);
+  };
 
   const initials = fullName
     ? fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
@@ -188,9 +230,9 @@ export default function Profile() {
         <h1 className="text-3xl font-display font-bold gradient-text mb-8">My Profile</h1>
 
         <Tabs defaultValue="details" className="space-y-6">
-          <TabsList className="glass-card-strong w-full grid grid-cols-2 sm:grid-cols-4 h-auto p-1 gap-1">
+          <TabsList className={cn("glass-card-strong w-full grid h-auto p-1 gap-1", userRole === 'admin' ? 'grid-cols-2 sm:grid-cols-5' : 'grid-cols-2 sm:grid-cols-4')}>
             <TabsTrigger value="details" className="gap-1.5 py-2.5 text-xs sm:text-sm data-[state=active]:bg-primary/20 data-[state=active]:text-primary">
-              <User className="w-4 h-4" /> <span className="hidden xs:inline">Details</span><span className="xs:hidden">Details</span>
+              <User className="w-4 h-4" /> Details
             </TabsTrigger>
             <TabsTrigger value="password" className="gap-1.5 py-2.5 text-xs sm:text-sm data-[state=active]:bg-primary/20 data-[state=active]:text-primary">
               <Lock className="w-4 h-4" /> Password
@@ -201,6 +243,11 @@ export default function Profile() {
             <TabsTrigger value="theme" className="gap-1.5 py-2.5 text-xs sm:text-sm data-[state=active]:bg-primary/20 data-[state=active]:text-primary">
               <Palette className="w-4 h-4" /> Theme
             </TabsTrigger>
+            {userRole === 'admin' && (
+              <TabsTrigger value="admin-settings" className="gap-1.5 py-2.5 text-xs sm:text-sm data-[state=active]:bg-primary/20 data-[state=active]:text-primary">
+                <Settings className="w-4 h-4" /> Admin
+              </TabsTrigger>
+            )}
           </TabsList>
 
           {/* Profile Details */}
@@ -392,6 +439,35 @@ export default function Profile() {
               </div>
             </div>
           </TabsContent>
+          {userRole === 'admin' && (
+            <TabsContent value="admin-settings">
+              <div className="glass-card p-6 space-y-6">
+                <h2 className="text-xl font-display font-semibold text-foreground">Admin Email Settings</h2>
+                <p className="text-sm text-muted-foreground">Configure the email address where admin notifications (new submissions, payments, etc.) are sent.</p>
+                <div className="space-y-4 max-w-md">
+                  <div className="space-y-2">
+                    <Label htmlFor="adminNotificationEmail">Notification Email</Label>
+                    <Input
+                      id="adminNotificationEmail"
+                      type="email"
+                      value={adminNotificationEmail}
+                      onChange={(e) => setAdminNotificationEmail(e.target.value)}
+                      placeholder="admin@example.com"
+                      className="glass-input"
+                      disabled={loadingAdminSettings}
+                    />
+                    <p className="text-xs text-muted-foreground">All admin notification emails will be sent to this address.</p>
+                  </div>
+                </div>
+                <div className="flex justify-end">
+                  <Button onClick={handleSaveAdminSettings} disabled={savingAdminSettings || loadingAdminSettings}>
+                    {savingAdminSettings ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Mail className="w-4 h-4 mr-2" />}
+                    Save Email Settings
+                  </Button>
+                </div>
+              </div>
+            </TabsContent>
+          )}
         </Tabs>
       </motion.div>
     </DashboardLayout>

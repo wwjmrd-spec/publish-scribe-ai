@@ -837,6 +837,14 @@ serve(async (req) => {
     }
 
     // Email admin
+    // Get admin notification email from settings
+    const { data: adminEmailSetting } = await supabase
+      .from('admin_settings')
+      .select('setting_value')
+      .eq('setting_key', 'admin_notification_email')
+      .single();
+    const adminNotifEmail = adminEmailSetting?.setting_value || 'shubhmeena23@gmail.com';
+
     try {
       const adminEmailHtml = buildGalleyProofEmail({
         isAdmin: true,
@@ -847,7 +855,7 @@ serve(async (req) => {
       });
       await supabase.functions.invoke("send-email", {
         body: {
-          to: "shubhmena23@gmail.com",
+          to: adminNotifEmail,
           template: "custom",
           subject: `Galley Proof - ${article.reference_number}`,
           html: adminEmailHtml,

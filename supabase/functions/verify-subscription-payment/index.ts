@@ -192,6 +192,14 @@ serve(async (req) => {
       console.error('Failed to send subscription email:', emailError);
     }
 
+    // Get admin notification email from settings
+    const { data: adminEmailSetting } = await serviceClient
+      .from('admin_settings')
+      .select('setting_value')
+      .eq('setting_key', 'admin_notification_email')
+      .single();
+    const adminEmail = adminEmailSetting?.setting_value || 'shubhmeena23@gmail.com';
+
     // Send email to admin
     try {
       await fetch(`${supabaseUrl}/functions/v1/send-email`, {
@@ -201,7 +209,7 @@ serve(async (req) => {
           'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
         },
         body: JSON.stringify({
-          to: 'shubhmena23@gmail.com',
+          to: adminEmail,
           template: 'payment-confirmation',
           data: {
             paymentId: payment.id,
