@@ -69,11 +69,19 @@ export default function AdminDashboard() {
     const published = articles?.filter(a => a.status === 'published').length || 0;
     const totalAuthors = profiles?.length || 0;
     
-    const totalRevenue = payments?.reduce((sum, p) => {
-      if (p.currency === 'USD') {
-        return sum + (Number(p.final_amount) * 83); // Convert USD to INR approx
-      }
-      return sum + Number(p.final_amount);
+    const revenueINR = payments?.reduce((sum, p) => {
+      if (p.currency === 'INR') return sum + Number(p.final_amount);
+      return sum;
+    }, 0) || 0;
+
+    const revenueUSD = payments?.reduce((sum, p) => {
+      if (p.currency === 'USD') return sum + Number(p.final_amount);
+      return sum;
+    }, 0) || 0;
+
+    const revenueUSDT = payments?.reduce((sum, p) => {
+      if (p.currency === 'USDT') return sum + Number(p.final_amount);
+      return sum;
     }, 0) || 0;
 
     return {
@@ -82,7 +90,9 @@ export default function AdminDashboard() {
       underReview,
       published,
       totalAuthors,
-      totalRevenue,
+      revenueINR,
+      revenueUSD,
+      revenueUSDT,
     };
   }, [articles, profiles, payments]);
 
