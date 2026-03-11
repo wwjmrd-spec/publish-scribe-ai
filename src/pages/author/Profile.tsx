@@ -209,7 +209,7 @@ export default function Profile() {
     setSavingAdminSettings(false);
   };
 
-
+  const initials = fullName
     ? fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
     : '?';
 
