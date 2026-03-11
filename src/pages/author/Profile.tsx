@@ -439,6 +439,35 @@ export default function Profile() {
               </div>
             </div>
           </TabsContent>
+          {userRole === 'admin' && (
+            <TabsContent value="admin-settings">
+              <div className="glass-card p-6 space-y-6">
+                <h2 className="text-xl font-display font-semibold text-foreground">Admin Email Settings</h2>
+                <p className="text-sm text-muted-foreground">Configure the email address where admin notifications (new submissions, payments, etc.) are sent.</p>
+                <div className="space-y-4 max-w-md">
+                  <div className="space-y-2">
+                    <Label htmlFor="adminNotificationEmail">Notification Email</Label>
+                    <Input
+                      id="adminNotificationEmail"
+                      type="email"
+                      value={adminNotificationEmail}
+                      onChange={(e) => setAdminNotificationEmail(e.target.value)}
+                      placeholder="admin@example.com"
+                      className="glass-input"
+                      disabled={loadingAdminSettings}
+                    />
+                    <p className="text-xs text-muted-foreground">All admin notification emails will be sent to this address.</p>
+                  </div>
+                </div>
+                <div className="flex justify-end">
+                  <Button onClick={handleSaveAdminSettings} disabled={savingAdminSettings || loadingAdminSettings}>
+                    {savingAdminSettings ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Mail className="w-4 h-4 mr-2" />}
+                    Save Email Settings
+                  </Button>
+                </div>
+              </div>
+            </TabsContent>
+          )}
         </Tabs>
       </motion.div>
     </DashboardLayout>
