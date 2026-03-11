@@ -172,8 +172,44 @@ export default function Profile() {
     }
     setUploadingAvatar(false);
   };
+  const fetchAdminSettings = async () => {
+    setLoadingAdminSettings(true);
+    const { data } = await supabase
+      .from('admin_settings')
+      .select('setting_key, setting_value')
+      .in('setting_key', ['admin_notification_email']);
 
-  const initials = fullName
+    if (data) {
+      for (const row of data) {
+        if (row.setting_key === 'admin_notification_email') setAdminNotificationEmail(row.setting_value);
+      }
+    }
+    setLoadingAdminSettings(false);
+  };
+
+  const handleSaveAdminSettings = async () => {
+    if (!user) return;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(adminNotificationEmail)) {
+      toast({ title: 'Validation Error', description: 'Please enter a valid email address.', variant: 'destructive' });
+      return;
+    }
+
+    setSavingAdminSettings(true);
+    const { error } = await supabase
+      .from('admin_settings')
+      .update({ setting_value: adminNotificationEmail, updated_at: new Date().toISOString(), updated_by: user.id })
+      .eq('setting_key', 'admin_notification_email');
+
+    if (error) {
+      toast({ title: 'Error', description: 'Failed to save admin settings.', variant: 'destructive' });
+    } else {
+      toast({ title: 'Settings Saved', description: 'Admin notification email updated successfully.' });
+    }
+    setSavingAdminSettings(false);
+  };
+
+
     ? fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
     : '?';
 
