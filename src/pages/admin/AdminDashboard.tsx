@@ -13,6 +13,7 @@ import {
   TrendingUp,
   AlertTriangle,
   Eye,
+  IndianRupee,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -68,11 +69,19 @@ export default function AdminDashboard() {
     const published = articles?.filter(a => a.status === 'published').length || 0;
     const totalAuthors = profiles?.length || 0;
     
-    const totalRevenue = payments?.reduce((sum, p) => {
-      if (p.currency === 'USD') {
-        return sum + (Number(p.final_amount) * 83); // Convert USD to INR approx
-      }
-      return sum + Number(p.final_amount);
+    const revenueINR = payments?.reduce((sum, p) => {
+      if (p.currency === 'INR') return sum + Number(p.final_amount);
+      return sum;
+    }, 0) || 0;
+
+    const revenueUSD = payments?.reduce((sum, p) => {
+      if (p.currency === 'USD') return sum + Number(p.final_amount);
+      return sum;
+    }, 0) || 0;
+
+    const revenueUSDT = payments?.reduce((sum, p) => {
+      if (p.currency === 'USDT') return sum + Number(p.final_amount);
+      return sum;
     }, 0) || 0;
 
     return {
@@ -81,7 +90,9 @@ export default function AdminDashboard() {
       underReview,
       published,
       totalAuthors,
-      totalRevenue,
+      revenueINR,
+      revenueUSD,
+      revenueUSDT,
     };
   }, [articles, profiles, payments]);
 
@@ -131,7 +142,7 @@ export default function AdminDashboard() {
       </motion.div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -175,8 +186,8 @@ export default function AdminDashboard() {
         >
           <GlassCard className="hover-glow-cyan cursor-pointer" onClick={() => navigate('/admin/articles')}>
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-yellow-500/20 flex items-center justify-center">
-                <Clock className="w-6 h-6 text-yellow-500" />
+              <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center">
+                <Clock className="w-6 h-6 text-amber-500" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Pending Review</p>
@@ -185,7 +196,10 @@ export default function AdminDashboard() {
             </div>
           </GlassCard>
         </motion.div>
+      </div>
 
+      {/* Revenue Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -193,12 +207,48 @@ export default function AdminDashboard() {
         >
           <GlassCard className="hover-glow-cyan cursor-pointer" onClick={() => navigate('/admin/fees')}>
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center">
-                <DollarSign className="w-6 h-6 text-green-500" />
+              <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                <IndianRupee className="w-6 h-6 text-emerald-500" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Revenue (₹)</p>
-                <p className="text-2xl font-bold">₹{stats.totalRevenue.toLocaleString()}</p>
+                <p className="text-sm text-muted-foreground">Revenue (INR)</p>
+                <p className="text-2xl font-bold">₹{stats.revenueINR.toLocaleString()}</p>
+              </div>
+            </div>
+          </GlassCard>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <GlassCard className="hover-glow-cyan cursor-pointer" onClick={() => navigate('/admin/fees')}>
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                <DollarSign className="w-6 h-6 text-blue-500" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Revenue (USD)</p>
+                <p className="text-2xl font-bold">${stats.revenueUSD.toLocaleString()}</p>
+              </div>
+            </div>
+          </GlassCard>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+        >
+          <GlassCard className="hover-glow-cyan cursor-pointer" onClick={() => navigate('/admin/fees')}>
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-teal-500/20 flex items-center justify-center">
+                <DollarSign className="w-6 h-6 text-teal-500" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Revenue (USDT)</p>
+                <p className="text-2xl font-bold">${stats.revenueUSDT.toLocaleString()}</p>
               </div>
             </div>
           </GlassCard>

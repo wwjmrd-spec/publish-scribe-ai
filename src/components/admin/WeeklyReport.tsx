@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { GlassCard } from '@/components/layout/GlassCard';
-import { CalendarDays, FileText, Users, DollarSign, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { CalendarDays, FileText, Users, DollarSign, TrendingUp, TrendingDown, Minus, IndianRupee } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
@@ -47,15 +47,16 @@ export function WeeklyReport() {
       const thisWeekAuthors = profilesRes.data?.filter(p => inRange(p.created_at, thisWeekStart, thisWeekEnd)).length || 0;
       const lastWeekAuthors = profilesRes.data?.filter(p => inRange(p.created_at, lastWeekStart, lastWeekEnd)).length || 0;
 
-      const calcRevenue = (payments: typeof paymentsRes.data, start: Date, end: Date) => {
-        return payments?.filter(p => inRange(p.created_at, start, end)).reduce((sum, p) => {
-          if (p.currency === 'USD') return sum + (Number(p.final_amount) * 83);
+      const calcRevenueByCurrency = (payments: typeof paymentsRes.data, start: Date, end: Date, currency: string) => {
+        return payments?.filter(p => inRange(p.created_at, start, end) && p.currency === currency).reduce((sum, p) => {
           return sum + Number(p.final_amount);
         }, 0) || 0;
       };
 
-      const thisWeekRevenue = calcRevenue(paymentsRes.data, thisWeekStart, thisWeekEnd);
-      const lastWeekRevenue = calcRevenue(paymentsRes.data, lastWeekStart, lastWeekEnd);
+      const thisWeekRevenueINR = calcRevenueByCurrency(paymentsRes.data, thisWeekStart, thisWeekEnd, 'INR');
+      const lastWeekRevenueINR = calcRevenueByCurrency(paymentsRes.data, lastWeekStart, lastWeekEnd, 'INR');
+      const thisWeekRevenueUSD = calcRevenueByCurrency(paymentsRes.data, thisWeekStart, thisWeekEnd, 'USD');
+      const lastWeekRevenueUSD = calcRevenueByCurrency(paymentsRes.data, lastWeekStart, lastWeekEnd, 'USD');
 
       const thisWeekPublished = articlesRes.data?.filter(a => a.status === 'published' && inRange(a.created_at, thisWeekStart, thisWeekEnd)).length || 0;
       const lastWeekPublished = articlesRes.data?.filter(a => a.status === 'published' && inRange(a.created_at, lastWeekStart, lastWeekEnd)).length || 0;
@@ -63,7 +64,8 @@ export function WeeklyReport() {
       return {
         articles: { thisWeek: thisWeekArticles, lastWeek: lastWeekArticles },
         authors: { thisWeek: thisWeekAuthors, lastWeek: lastWeekAuthors },
-        revenue: { thisWeek: thisWeekRevenue, lastWeek: lastWeekRevenue },
+        revenueINR: { thisWeek: thisWeekRevenueINR, lastWeek: lastWeekRevenueINR },
+        revenueUSD: { thisWeek: thisWeekRevenueUSD, lastWeek: lastWeekRevenueUSD },
         published: { thisWeek: thisWeekPublished, lastWeek: lastWeekPublished },
       };
     },
@@ -94,10 +96,17 @@ export function WeeklyReport() {
     },
     {
       label: 'Revenue (₹)',
-      thisWeek: weeklyData?.revenue.thisWeek || 0,
-      lastWeek: weeklyData?.revenue.lastWeek || 0,
-      icon: <DollarSign className="w-4 h-4" />,
+      thisWeek: weeklyData?.revenueINR.thisWeek || 0,
+      lastWeek: weeklyData?.revenueINR.lastWeek || 0,
+      icon: <IndianRupee className="w-4 h-4" />,
       prefix: '₹',
+    },
+    {
+      label: 'Revenue ($)',
+      thisWeek: weeklyData?.revenueUSD.thisWeek || 0,
+      lastWeek: weeklyData?.revenueUSD.lastWeek || 0,
+      icon: <DollarSign className="w-4 h-4" />,
+      prefix: '$',
     },
     {
       label: 'Published',
@@ -136,7 +145,7 @@ export function WeeklyReport() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           {metrics.map((metric) => {
             const trend = getTrend(metric.thisWeek, metric.lastWeek);
             return (
