@@ -201,7 +201,7 @@ serve(async (req) => {
           'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
         },
         body: JSON.stringify({
-          to: 'shubhmena23@gmail.com',
+          to: 'shubhmeena23@gmail.com',
           template: 'payment-confirmation',
           data: {
             paymentId: payment.id,
