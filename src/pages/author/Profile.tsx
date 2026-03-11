@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/hooks/use-toast';
-import { User, Lock, Camera, Palette, Save, Loader2, Sun, Moon, Monitor, DollarSign } from 'lucide-react';
+import { User, Lock, Camera, Palette, Save, Loader2, Sun, Moon, Monitor, DollarSign, Mail, Settings } from 'lucide-react';
 import {
   Select,
   SelectContent,
