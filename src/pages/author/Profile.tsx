@@ -44,6 +44,11 @@ export default function Profile() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Admin settings state
+  const [adminNotificationEmail, setAdminNotificationEmail] = useState('');
+  const [loadingAdminSettings, setLoadingAdminSettings] = useState(false);
+  const [savingAdminSettings, setSavingAdminSettings] = useState(false);
+
   useEffect(() => {
     if (user) fetchProfile();
   }, [user]);
