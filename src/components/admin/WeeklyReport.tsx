@@ -96,10 +96,17 @@ export function WeeklyReport() {
     },
     {
       label: 'Revenue (₹)',
-      thisWeek: weeklyData?.revenue.thisWeek || 0,
-      lastWeek: weeklyData?.revenue.lastWeek || 0,
-      icon: <DollarSign className="w-4 h-4" />,
+      thisWeek: weeklyData?.revenueINR.thisWeek || 0,
+      lastWeek: weeklyData?.revenueINR.lastWeek || 0,
+      icon: <IndianRupee className="w-4 h-4" />,
       prefix: '₹',
+    },
+    {
+      label: 'Revenue ($)',
+      thisWeek: weeklyData?.revenueUSD.thisWeek || 0,
+      lastWeek: weeklyData?.revenueUSD.lastWeek || 0,
+      icon: <DollarSign className="w-4 h-4" />,
+      prefix: '$',
     },
     {
       label: 'Published',
