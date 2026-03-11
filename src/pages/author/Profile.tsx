@@ -51,7 +51,8 @@ export default function Profile() {
 
   useEffect(() => {
     if (user) fetchProfile();
-  }, [user]);
+    if (user && userRole === 'admin') fetchAdminSettings();
+  }, [user, userRole]);
 
   const fetchProfile = async () => {
     if (!user) return;
