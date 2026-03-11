@@ -230,9 +230,9 @@ export default function Profile() {
         <h1 className="text-3xl font-display font-bold gradient-text mb-8">My Profile</h1>
 
         <Tabs defaultValue="details" className="space-y-6">
-          <TabsList className="glass-card-strong w-full grid grid-cols-2 sm:grid-cols-4 h-auto p-1 gap-1">
+          <TabsList className={cn("glass-card-strong w-full grid h-auto p-1 gap-1", userRole === 'admin' ? 'grid-cols-2 sm:grid-cols-5' : 'grid-cols-2 sm:grid-cols-4')}>
             <TabsTrigger value="details" className="gap-1.5 py-2.5 text-xs sm:text-sm data-[state=active]:bg-primary/20 data-[state=active]:text-primary">
-              <User className="w-4 h-4" /> <span className="hidden xs:inline">Details</span><span className="xs:hidden">Details</span>
+              <User className="w-4 h-4" /> Details
             </TabsTrigger>
             <TabsTrigger value="password" className="gap-1.5 py-2.5 text-xs sm:text-sm data-[state=active]:bg-primary/20 data-[state=active]:text-primary">
               <Lock className="w-4 h-4" /> Password
@@ -243,6 +243,11 @@ export default function Profile() {
             <TabsTrigger value="theme" className="gap-1.5 py-2.5 text-xs sm:text-sm data-[state=active]:bg-primary/20 data-[state=active]:text-primary">
               <Palette className="w-4 h-4" /> Theme
             </TabsTrigger>
+            {userRole === 'admin' && (
+              <TabsTrigger value="admin-settings" className="gap-1.5 py-2.5 text-xs sm:text-sm data-[state=active]:bg-primary/20 data-[state=active]:text-primary">
+                <Settings className="w-4 h-4" /> Admin
+              </TabsTrigger>
+            )}
           </TabsList>
 
           {/* Profile Details */}
