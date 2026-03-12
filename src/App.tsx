@@ -245,6 +245,7 @@ const App = () => (
                   <AdminRevenue />
                 </ProtectedRoute>
               } 
+            />
             <Route 
               path="/admin/profile" 
               element={
