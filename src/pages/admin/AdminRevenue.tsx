@@ -73,7 +73,7 @@ export default function AdminRevenue() {
     <DashboardLayout type="admin">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
         <h1 className="font-display text-3xl font-bold mb-2">Revenue</h1>
-        <p className="text-muted-foreground">All payments from Co-Author Certificates & Pro Plan subscriptions</p>
+        <p className="text-muted-foreground">All payments received — Article Fees, Co-Author Certificates & Pro Plan subscriptions</p>
       </motion.div>
 
       {/* Revenue Summary */}
