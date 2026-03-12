@@ -59,6 +59,7 @@ const adminNavItems: NavItem[] = [
   { label: 'Formatting', href: '/admin/formatting', icon: FileText },
   { label: 'Authors', href: '/admin/authors', icon: Users },
   { label: 'Discount Codes', href: '/admin/discounts', icon: Tag },
+  { label: 'Revenue', href: '/admin/revenue', icon: BarChart3 },
   { label: 'Fee Settings', href: '/admin/fees', icon: Settings },
   { label: 'USDT Payments', href: '/admin/usdt-payments', icon: Settings },
   { label: 'Reminders', href: '/admin/reminders', icon: Bell },
