@@ -6,9 +6,10 @@ import { useCart } from '@/contexts/CartContext';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { GlassCard } from '@/components/layout/GlassCard';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import { useSubscription } from '@/hooks/useSubscription';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import {
@@ -21,6 +22,7 @@ import {
   Clock,
   Sparkles,
   ShoppingCart,
+  RefreshCw,
 } from 'lucide-react';
 
 export default function Subscription() {
@@ -28,6 +30,7 @@ export default function Subscription() {
   const { subscription, isLoading } = useSubscription();
   const { addItem, hasItem } = useCart();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const currencySymbol = isIndian ? '₹' : '$';
 
   const { data: fees } = useQuery({
@@ -41,6 +44,39 @@ export default function Subscription() {
       if (error) throw error;
       return data;
     },
+  });
+
+  // Get active subscription record for auto-renew toggle
+  const { data: activeSubRecord } = useQuery({
+    queryKey: ['active-sub-record', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('user_subscriptions')
+        .select('*')
+        .eq('user_id', user!.id)
+        .eq('is_active', true)
+        .eq('plan_type', 'pro')
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  const toggleAutoRenew = useMutation({
+    mutationFn: async (newValue: boolean) => {
+      if (!activeSubRecord) throw new Error('No active subscription');
+      const { error } = await supabase
+        .from('user_subscriptions')
+        .update({ auto_renew: newValue } as any)
+        .eq('id', activeSubRecord.id);
+      if (error) throw error;
+    },
+    onSuccess: (_, newValue) => {
+      queryClient.invalidateQueries({ queryKey: ['active-sub-record'] });
+      toast.success(newValue ? 'Auto-pay enabled! You will be charged automatically.' : 'Auto-pay disabled.');
+    },
+    onError: () => toast.error('Failed to update auto-pay setting'),
   });
 
   const proFee = fees
@@ -82,6 +118,7 @@ export default function Subscription() {
   }
 
   const isPro = subscription.plan === 'pro';
+  const autoRenewEnabled = (activeSubRecord as any)?.auto_renew ?? false;
 
   return (
     <DashboardLayout type={userRole === 'admin' ? 'admin' : 'author'}>
@@ -120,10 +157,30 @@ export default function Subscription() {
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Clock className="w-4 h-4" />
-                  {Math.max(0, Math.ceil((new Date(subscription.expiresAt!).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))} days remaining
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Clock className="w-4 h-4" />
+                    {Math.max(0, Math.ceil((new Date(subscription.expiresAt!).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))} days remaining
+                  </div>
                 </div>
+              </div>
+
+              {/* Auto-Pay Toggle */}
+              <div className="mt-4 pt-4 border-t border-border/50 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <RefreshCw className="w-5 h-5 text-primary" />
+                  <div>
+                    <p className="font-medium text-sm">Auto-Pay (Auto-Renew)</p>
+                    <p className="text-xs text-muted-foreground">
+                      Automatically renew your Pro plan for {currencySymbol}{proFee}/month
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  checked={autoRenewEnabled}
+                  onCheckedChange={(val) => toggleAutoRenew.mutate(val)}
+                  disabled={toggleAutoRenew.isPending}
+                />
               </div>
             </GlassCard>
           </motion.div>
