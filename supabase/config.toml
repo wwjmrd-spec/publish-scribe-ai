@@ -50,3 +50,15 @@ verify_jwt = false
 
 [functions.mautic-sync]
 verify_jwt = false
+
+[functions.create-recurring-subscription]
+verify_jwt = false
+
+[functions.razorpay-subscription-webhook]
+verify_jwt = false
+
+[functions.paypal-subscription-webhook]
+verify_jwt = false
+
+[functions.cancel-recurring-subscription]
+verify_jwt = false

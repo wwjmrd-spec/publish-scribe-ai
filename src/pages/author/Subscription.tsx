@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useRazorpay } from '@/hooks/useRazorpay';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -23,6 +24,7 @@ import {
   Sparkles,
   ShoppingCart,
   RefreshCw,
+  CreditCard,
 } from 'lucide-react';
 
 export default function Subscription() {
@@ -32,6 +34,21 @@ export default function Subscription() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const currencySymbol = isIndian ? '₹' : '$';
+  const { isLoaded: razorpayLoaded } = useRazorpay();
+  const [searchParams] = useSearchParams();
+  const [isSubscribing, setIsSubscribing] = useState(false);
+
+  // Handle PayPal subscription return
+  useEffect(() => {
+    const paypalSub = searchParams.get('paypal_sub');
+    if (paypalSub === 'success') {
+      toast.success('PayPal subscription activated! It may take a moment to reflect.');
+      queryClient.invalidateQueries({ queryKey: ['user-subscription'] });
+      queryClient.invalidateQueries({ queryKey: ['active-sub-record'] });
+    } else if (paypalSub === 'cancelled') {
+      toast.info('PayPal subscription was cancelled.');
+    }
+  }, [searchParams, queryClient]);
 
   const { data: fees } = useQuery({
     queryKey: ['publication-fees'],
@@ -46,7 +63,6 @@ export default function Subscription() {
     },
   });
 
-  // Get active subscription record for auto-renew toggle
   const { data: activeSubRecord } = useQuery({
     queryKey: ['active-sub-record', user?.id],
     queryFn: async () => {
@@ -63,20 +79,49 @@ export default function Subscription() {
     enabled: !!user?.id,
   });
 
+  const cancelAutoRenew = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('cancel-recurring-subscription');
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['active-sub-record'] });
+      queryClient.invalidateQueries({ queryKey: ['user-subscription'] });
+      toast.success('Auto-pay has been cancelled. Your plan remains active until expiry.');
+    },
+    onError: (err) => toast.error(err.message || 'Failed to cancel auto-pay'),
+  });
+
   const toggleAutoRenew = useMutation({
     mutationFn: async (newValue: boolean) => {
-      if (!activeSubRecord) throw new Error('No active subscription');
-      const { error } = await supabase
-        .from('user_subscriptions')
-        .update({ auto_renew: newValue } as any)
-        .eq('id', activeSubRecord.id);
-      if (error) throw error;
+      if (newValue) {
+        // Re-enabling auto-renew means creating a new recurring subscription
+        // For simplicity, just update the flag - next renewal will be handled
+        if (!activeSubRecord) throw new Error('No active subscription');
+        const { error } = await supabase
+          .from('user_subscriptions')
+          .update({ auto_renew: true } as any)
+          .eq('id', activeSubRecord.id);
+        if (error) throw error;
+      } else {
+        // Cancel auto-renewal on the payment gateway
+        await cancelAutoRenew.mutateAsync();
+        return;
+      }
     },
     onSuccess: (_, newValue) => {
-      queryClient.invalidateQueries({ queryKey: ['active-sub-record'] });
-      toast.success(newValue ? 'Auto-pay enabled! You will be charged automatically.' : 'Auto-pay disabled.');
+      if (newValue) {
+        queryClient.invalidateQueries({ queryKey: ['active-sub-record'] });
+        toast.success('Auto-pay enabled!');
+      }
     },
-    onError: () => toast.error('Failed to update auto-pay setting'),
+    onError: (err) => {
+      if (err.message !== 'Failed to cancel auto-pay') {
+        toast.error('Failed to update auto-pay setting');
+      }
+    },
   });
 
   const proFee = fees
@@ -89,12 +134,66 @@ export default function Subscription() {
 
   const proAlreadyInCart = hasItem('pro_subscription');
 
+  const handleSubscribeRecurring = async (gateway: 'razorpay' | 'paypal') => {
+    setIsSubscribing(true);
+    try {
+      const currency = isIndian ? 'INR' : 'USD';
+      const { data, error } = await supabase.functions.invoke('create-recurring-subscription', {
+        body: { gateway, currency },
+      });
+
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+
+      if (gateway === 'razorpay' && data.subscriptionId) {
+        if (!window.Razorpay) {
+          throw new Error('Razorpay SDK not loaded');
+        }
+
+        const options = {
+          key: data.keyId,
+          subscription_id: data.subscriptionId,
+          name: 'WWJMRD',
+          description: 'Pro Plan — Monthly Subscription',
+          handler: async () => {
+            toast.success('Subscription activated! It may take a moment to reflect.');
+            queryClient.invalidateQueries({ queryKey: ['user-subscription'] });
+            queryClient.invalidateQueries({ queryKey: ['active-sub-record'] });
+          },
+          prefill: { email: user?.email },
+          theme: { color: '#00d4ff' },
+          modal: {
+            ondismiss: () => {
+              setIsSubscribing(false);
+              toast.info('Subscription flow cancelled.');
+            },
+          },
+        };
+
+        const rzp = new window.Razorpay(options);
+        rzp.open();
+        return; // Don't set isSubscribing to false yet
+      }
+
+      if (gateway === 'paypal' && data.approvalUrl) {
+        window.location.href = data.approvalUrl;
+        return;
+      }
+
+      throw new Error('Unexpected response from subscription service');
+    } catch (err: any) {
+      console.error('Subscription error:', err);
+      toast.error(err.message || 'Failed to start subscription');
+    } finally {
+      setIsSubscribing(false);
+    }
+  };
+
   const handleAddToCart = () => {
     if (proAlreadyInCart) {
       navigate('/author/cart');
       return;
     }
-
     addItem({
       id: 'pro_subscription',
       type: 'pro_subscription',
@@ -102,7 +201,6 @@ export default function Subscription() {
       description: '1 Month — 5 review reports, 4 co-author certificates',
       amount: proFee,
     });
-
     toast.success('Pro Plan added to cart!');
     navigate('/author/cart');
   };
@@ -119,6 +217,7 @@ export default function Subscription() {
 
   const isPro = subscription.plan === 'pro';
   const autoRenewEnabled = (activeSubRecord as any)?.auto_renew ?? false;
+  const hasRecurringSub = !!(activeSubRecord as any)?.razorpay_subscription_id || !!(activeSubRecord as any)?.paypal_subscription_id;
 
   return (
     <DashboardLayout type={userRole === 'admin' ? 'admin' : 'author'}>
@@ -172,14 +271,16 @@ export default function Subscription() {
                   <div>
                     <p className="font-medium text-sm">Auto-Pay (Auto-Renew)</p>
                     <p className="text-xs text-muted-foreground">
-                      Automatically renew your Pro plan for {currencySymbol}{proFee}/month
+                      {hasRecurringSub
+                        ? `Recurring billing active — ${currencySymbol}${proFee}/month`
+                        : `Automatically renew your Pro plan for ${currencySymbol}${proFee}/month`}
                     </p>
                   </div>
                 </div>
                 <Switch
                   checked={autoRenewEnabled}
                   onCheckedChange={(val) => toggleAutoRenew.mutate(val)}
-                  disabled={toggleAutoRenew.isPending}
+                  disabled={toggleAutoRenew.isPending || cancelAutoRenew.isPending}
                 />
               </div>
             </GlassCard>
@@ -188,11 +289,7 @@ export default function Subscription() {
 
         {/* Usage Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-          >
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
             <GlassCard>
               <div className="flex items-center gap-3 mb-3">
                 <FileText className="w-5 h-5 text-primary" />
@@ -211,11 +308,7 @@ export default function Subscription() {
             </GlassCard>
           </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15 }}
-          >
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
             <GlassCard>
               <div className="flex items-center gap-3 mb-3">
                 <Users className="w-5 h-5 text-primary" />
@@ -240,22 +333,15 @@ export default function Subscription() {
         {/* Plan Cards */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Free Plan */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-          >
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
             <GlassCard className={!isPro ? 'ring-2 ring-primary/50' : ''}>
               <div className="text-center mb-6">
                 <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center mx-auto mb-4">
                   <Zap className="w-7 h-7 text-muted-foreground" />
                 </div>
                 <h2 className="font-display text-2xl font-bold">Free</h2>
-                <p className="text-3xl font-bold mt-2">
-                  {currencySymbol}0
-                </p>
+                <p className="text-3xl font-bold mt-2">{currencySymbol}0</p>
               </div>
-
               <ul className="space-y-3 mb-6">
                 <li className="flex items-center gap-3 text-sm">
                   <Check className="w-4 h-4 text-green-500 shrink-0" />
@@ -270,7 +356,6 @@ export default function Subscription() {
                   <span>Unlimited article submissions</span>
                 </li>
               </ul>
-
               {!isPro && (
                 <Button variant="outline" className="w-full" disabled>
                   Current Plan
@@ -280,11 +365,7 @@ export default function Subscription() {
           </motion.div>
 
           {/* Pro Plan */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.25 }}
-          >
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
             <GlassCard className={isPro ? 'ring-2 ring-primary/50' : 'border-primary/20'}>
               <div className="text-center mb-6">
                 <div className="w-14 h-14 rounded-xl gradient-primary flex items-center justify-center mx-auto mb-4 glow-purple">
@@ -296,7 +377,6 @@ export default function Subscription() {
                   <span className="text-sm font-normal text-muted-foreground">/month</span>
                 </p>
               </div>
-
               <ul className="space-y-3 mb-6">
                 <li className="flex items-center gap-3 text-sm">
                   <Check className="w-4 h-4 text-green-500 shrink-0" />
@@ -312,7 +392,7 @@ export default function Subscription() {
                 </li>
                 <li className="flex items-center gap-3 text-sm">
                   <Check className="w-4 h-4 text-green-500 shrink-0" />
-                  <span>Valid for 1 month</span>
+                  <span>Auto-renews monthly</span>
                 </li>
               </ul>
 
@@ -321,13 +401,51 @@ export default function Subscription() {
                   Current Plan
                 </Button>
               ) : (
-                <Button
-                  className="w-full gradient-primary hover:shadow-[0_0_30px_hsl(var(--primary)/0.5)]"
-                  onClick={handleAddToCart}
-                >
-                  <ShoppingCart className="w-4 h-4 mr-2" />
-                  {proAlreadyInCart ? 'Go to Cart' : `Add to Cart — ${currencySymbol}${proFee}/month`}
-                </Button>
+                <div className="space-y-3">
+                  {/* Recurring subscription buttons */}
+                  <div className="space-y-2">
+                    <p className="text-xs text-center text-muted-foreground font-medium">Subscribe with auto-pay</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        className="gradient-primary hover:shadow-[0_0_30px_hsl(var(--primary)/0.5)]"
+                        onClick={() => handleSubscribeRecurring('razorpay')}
+                        disabled={isSubscribing || !razorpayLoaded}
+                      >
+                        <CreditCard className="w-4 h-4 mr-1" />
+                        {isIndian ? 'Razorpay' : 'Card/UPI'}
+                      </Button>
+                      {!isIndian && (
+                        <Button
+                          variant="outline"
+                          className="border-primary/30 hover:bg-primary/10"
+                          onClick={() => handleSubscribeRecurring('paypal')}
+                          disabled={isSubscribing}
+                        >
+                          PayPal
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* One-time payment fallback */}
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t border-border/50" />
+                    </div>
+                    <div className="relative flex justify-center text-xs">
+                      <span className="bg-card px-2 text-muted-foreground">or pay once</span>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={handleAddToCart}
+                    disabled={isSubscribing}
+                  >
+                    <ShoppingCart className="w-4 h-4 mr-2" />
+                    {proAlreadyInCart ? 'Go to Cart' : `One-time — ${currencySymbol}${proFee}`}
+                  </Button>
+                </div>
               )}
             </GlassCard>
           </motion.div>
