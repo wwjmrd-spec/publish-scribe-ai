@@ -35,11 +35,17 @@ export default function AdminRevenue() {
 
   const proPayments = payments?.filter(p => p.discount_code === 'PRO_SUBSCRIPTION') || [];
 
+  const articlePayments = payments?.filter(p => {
+    const items = p.payment_items as any[];
+    const isCoAuthor = items?.some((item: any) => item.type === 'coauthor_certificate' || item.type === 'co_author_certificate');
+    const isPro = p.discount_code === 'PRO_SUBSCRIPTION';
+    return !isCoAuthor && !isPro;
+  }) || [];
+
   const displayPayments = activeTab === 'coauthor' ? coAuthorPayments
     : activeTab === 'pro' ? proPayments
-    : [...coAuthorPayments, ...proPayments].sort((a, b) => 
-        new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime()
-      );
+    : activeTab === 'articles' ? articlePayments
+    : payments || [];
 
   const totalINR = displayPayments.reduce((s, p) => p.currency === 'INR' ? s + Number(p.final_amount) : s, 0);
   const totalUSD = displayPayments.reduce((s, p) => p.currency === 'USD' ? s + Number(p.final_amount) : s, 0);
