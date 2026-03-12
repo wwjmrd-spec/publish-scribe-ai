@@ -842,7 +842,7 @@ export type Database = {
       currency_type: "INR" | "USD" | "USDT"
       discount_currency: "INR" | "USD" | "BOTH" | "USDT"
       discount_type: "percentage" | "fixed"
-      payment_gateway: "razorpay" | "paypal" | "binance"
+      payment_gateway: "razorpay" | "paypal" | "binance" | "manual"
       payment_status: "pending" | "success" | "failed" | "under_review"
       user_role: "author" | "admin"
     }
@@ -987,7 +987,7 @@ export const Constants = {
       currency_type: ["INR", "USD", "USDT"],
       discount_currency: ["INR", "USD", "BOTH", "USDT"],
       discount_type: ["percentage", "fixed"],
-      payment_gateway: ["razorpay", "paypal", "binance"],
+      payment_gateway: ["razorpay", "paypal", "binance", "manual"],
       payment_status: ["pending", "success", "failed", "under_review"],
       user_role: ["author", "admin"],
     },
