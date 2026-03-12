@@ -55,6 +55,7 @@ export default function AdminRevenue() {
     if (payment.discount_code === 'PRO_SUBSCRIPTION') return 'Pro Plan';
     const items = payment.payment_items as any[];
     if (items?.some((i: any) => i.type === 'coauthor_certificate' || i.type === 'co_author_certificate')) return 'Co-Author Certificate';
+    if (items?.some((i: any) => i.type === 'article_fee')) return 'Article Fee';
     return 'Other';
   };
 
