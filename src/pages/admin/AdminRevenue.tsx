@@ -5,7 +5,7 @@ import { GlassCard } from '@/components/layout/GlassCard';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { IndianRupee, DollarSign, Crown, Award, TrendingUp } from 'lucide-react';
+import { IndianRupee, DollarSign, Crown, Award, TrendingUp, FileText } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
