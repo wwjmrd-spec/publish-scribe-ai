@@ -1,0 +1,1 @@
+ALTER TABLE public.user_subscriptions ADD COLUMN auto_renew boolean NOT NULL DEFAULT false;

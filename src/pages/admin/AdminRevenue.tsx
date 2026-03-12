@@ -4,14 +4,16 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { GlassCard } from '@/components/layout/GlassCard';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { IndianRupee, DollarSign, Crown, Award, TrendingUp, FileText } from 'lucide-react';
+import { IndianRupee, DollarSign, Crown, Award, TrendingUp, FileText, Search } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { AddManualPaymentDialog } from '@/components/admin/AddManualPaymentDialog';
 
 export default function AdminRevenue() {
   const [activeTab, setActiveTab] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const { data: payments, isLoading } = useQuery({
     queryKey: ['admin-revenue-payments'],
@@ -43,10 +45,22 @@ export default function AdminRevenue() {
     return !isCoAuthor && !isPro;
   }) || [];
 
-  const displayPayments = activeTab === 'coauthor' ? coAuthorPayments
+  const filteredByTab = activeTab === 'coauthor' ? coAuthorPayments
     : activeTab === 'pro' ? proPayments
     : activeTab === 'articles' ? articlePayments
     : payments || [];
+
+  const displayPayments = searchQuery.trim()
+    ? filteredByTab.filter((p) => {
+        const profile = p.profiles as any;
+        const q = searchQuery.toLowerCase();
+        return (
+          profile?.full_name?.toLowerCase().includes(q) ||
+          profile?.email?.toLowerCase().includes(q) ||
+          p.transaction_id?.toLowerCase().includes(q)
+        );
+      })
+    : filteredByTab;
 
   const totalINR = displayPayments.reduce((s, p) => p.currency === 'INR' ? s + Number(p.final_amount) : s, 0);
   const totalUSD = displayPayments.reduce((s, p) => p.currency === 'USD' ? s + Number(p.final_amount) : s, 0);
@@ -79,6 +93,17 @@ export default function AdminRevenue() {
         </div>
         <AddManualPaymentDialog />
       </motion.div>
+
+      {/* Search Bar */}
+      <div className="mb-6 relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          placeholder="Search by author name, email, or transaction ID..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-10"
+        />
+      </div>
 
       {/* Revenue Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
