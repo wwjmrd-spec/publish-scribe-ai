@@ -5,7 +5,7 @@ import { GlassCard } from '@/components/layout/GlassCard';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { IndianRupee, DollarSign, Crown, Award, TrendingUp } from 'lucide-react';
+import { IndianRupee, DollarSign, Crown, Award, TrendingUp, FileText } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -35,11 +35,17 @@ export default function AdminRevenue() {
 
   const proPayments = payments?.filter(p => p.discount_code === 'PRO_SUBSCRIPTION') || [];
 
+  const articlePayments = payments?.filter(p => {
+    const items = p.payment_items as any[];
+    const isCoAuthor = items?.some((item: any) => item.type === 'coauthor_certificate' || item.type === 'co_author_certificate');
+    const isPro = p.discount_code === 'PRO_SUBSCRIPTION';
+    return !isCoAuthor && !isPro;
+  }) || [];
+
   const displayPayments = activeTab === 'coauthor' ? coAuthorPayments
     : activeTab === 'pro' ? proPayments
-    : [...coAuthorPayments, ...proPayments].sort((a, b) => 
-        new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime()
-      );
+    : activeTab === 'articles' ? articlePayments
+    : payments || [];
 
   const totalINR = displayPayments.reduce((s, p) => p.currency === 'INR' ? s + Number(p.final_amount) : s, 0);
   const totalUSD = displayPayments.reduce((s, p) => p.currency === 'USD' ? s + Number(p.final_amount) : s, 0);
@@ -49,6 +55,7 @@ export default function AdminRevenue() {
     if (payment.discount_code === 'PRO_SUBSCRIPTION') return 'Pro Plan';
     const items = payment.payment_items as any[];
     if (items?.some((i: any) => i.type === 'coauthor_certificate' || i.type === 'co_author_certificate')) return 'Co-Author Certificate';
+    if (items?.some((i: any) => i.type === 'article_fee')) return 'Article Fee';
     return 'Other';
   };
 
@@ -66,7 +73,7 @@ export default function AdminRevenue() {
     <DashboardLayout type="admin">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
         <h1 className="font-display text-3xl font-bold mb-2">Revenue</h1>
-        <p className="text-muted-foreground">All payments from Co-Author Certificates & Pro Plan subscriptions</p>
+        <p className="text-muted-foreground">All payments received — Article Fees, Co-Author Certificates & Pro Plan subscriptions</p>
       </motion.div>
 
       {/* Revenue Summary */}
@@ -112,6 +119,9 @@ export default function AdminRevenue() {
           <TabsList className="mb-4">
             <TabsTrigger value="all" className="gap-2">
               <TrendingUp className="w-4 h-4" /> All
+            </TabsTrigger>
+            <TabsTrigger value="articles" className="gap-2">
+              <FileText className="w-4 h-4" /> Article Fees
             </TabsTrigger>
             <TabsTrigger value="coauthor" className="gap-2">
               <Award className="w-4 h-4" /> Co-Author Certs
