@@ -120,6 +120,9 @@ export default function AdminRevenue() {
             <TabsTrigger value="all" className="gap-2">
               <TrendingUp className="w-4 h-4" /> All
             </TabsTrigger>
+            <TabsTrigger value="articles" className="gap-2">
+              <FileText className="w-4 h-4" /> Article Fees
+            </TabsTrigger>
             <TabsTrigger value="coauthor" className="gap-2">
               <Award className="w-4 h-4" /> Co-Author Certs
             </TabsTrigger>
