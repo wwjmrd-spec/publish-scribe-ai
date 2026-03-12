@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { IndianRupee, DollarSign, Crown, Award, TrendingUp, FileText } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { AddManualPaymentDialog } from '@/components/admin/AddManualPaymentDialog';
 
 export default function AdminRevenue() {
   const [activeTab, setActiveTab] = useState('all');
