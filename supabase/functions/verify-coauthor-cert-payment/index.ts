@@ -409,6 +409,110 @@ serve(async (req) => {
 
     console.log("Co-author PDF certificate generated:", fileName);
 
+    // Get author profile for notifications
+    const { data: authorProfile } = await serviceClient
+      .from("profiles")
+      .select("full_name, email")
+      .eq("id", user.id)
+      .single();
+
+    // Send notification to author
+    await serviceClient
+      .from("notifications")
+      .insert({
+        user_id: user.id,
+        title: "Co-Author Certificate Payment Successful ✅",
+        message: `Payment for co-author certificate of "${coAuthorName}" for article "${articleTitle}" has been confirmed. Certificate is ready!`,
+        type: "success",
+        link: "/author/certificates",
+      });
+
+    // Send notification to all admins
+    const { data: adminRoles } = await serviceClient
+      .from("user_roles")
+      .select("user_id")
+      .eq("role", "admin");
+
+    if (adminRoles) {
+      for (const admin of adminRoles) {
+        await serviceClient
+          .from("notifications")
+          .insert({
+            user_id: admin.user_id,
+            title: "Co-Author Certificate Payment Received 💰",
+            message: `${authorProfile?.full_name || "An author"} paid for co-author certificate of "${coAuthorName}" for article "${articleTitle}".`,
+            type: "info",
+            link: "/admin/revenue",
+          });
+      }
+    }
+
+    // Send email to author
+    try {
+      await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        },
+        body: JSON.stringify({
+          to: authorProfile?.email,
+          template: "payment-confirmation",
+          data: {
+            paymentId: certRecordId,
+            amount: certRecord.amount_paid,
+            currency: certRecord.currency || "INR",
+            finalAmount: certRecord.amount_paid,
+            transactionId: razorpayPaymentId,
+            paymentDate: new Date().toLocaleDateString(),
+            authorName: authorProfile?.full_name || "Author",
+            authorEmail: authorProfile?.email,
+            articleTitles: [`Co-Author Certificate: ${coAuthorName} - ${articleTitle}`],
+          },
+          isAdmin: false,
+        }),
+      });
+    } catch (emailError) {
+      console.error("Failed to send author email:", emailError);
+    }
+
+    // Get admin notification email
+    const { data: adminEmailSetting } = await serviceClient
+      .from("admin_settings")
+      .select("setting_value")
+      .eq("setting_key", "admin_notification_email")
+      .single();
+    const adminEmail = adminEmailSetting?.setting_value || "shubhmeena23@gmail.com";
+
+    // Send email to admin
+    try {
+      await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        },
+        body: JSON.stringify({
+          to: adminEmail,
+          template: "payment-confirmation",
+          data: {
+            paymentId: certRecordId,
+            amount: certRecord.amount_paid,
+            currency: certRecord.currency || "INR",
+            finalAmount: certRecord.amount_paid,
+            transactionId: razorpayPaymentId,
+            paymentDate: new Date().toLocaleDateString(),
+            authorName: authorProfile?.full_name || "Author",
+            authorEmail: authorProfile?.email,
+            articleTitles: [`Co-Author Certificate: ${coAuthorName} - ${articleTitle}`],
+          },
+          isAdmin: true,
+        }),
+      });
+    } catch (emailError) {
+      console.error("Failed to send admin email:", emailError);
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
