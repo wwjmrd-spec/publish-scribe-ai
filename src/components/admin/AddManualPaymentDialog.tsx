@@ -62,7 +62,7 @@ export function AddManualPaymentDialog({ onSuccess }: Props) {
         amount,
         final_amount: amount,
         currency: form.currency,
-        payment_gateway: 'razorpay' as any, // Using razorpay as fallback since 'manual' isn't in enum
+        payment_gateway: 'manual',
         payment_status: 'success',
         payment_items: paymentItems,
         transaction_id: form.transactionId || `MANUAL-${Date.now()}`,
