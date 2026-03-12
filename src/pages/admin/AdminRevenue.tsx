@@ -13,6 +13,7 @@ import { AddManualPaymentDialog } from '@/components/admin/AddManualPaymentDialo
 
 export default function AdminRevenue() {
   const [activeTab, setActiveTab] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const { data: payments, isLoading } = useQuery({
     queryKey: ['admin-revenue-payments'],
