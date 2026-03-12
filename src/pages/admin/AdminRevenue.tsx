@@ -45,10 +45,22 @@ export default function AdminRevenue() {
     return !isCoAuthor && !isPro;
   }) || [];
 
-  const displayPayments = activeTab === 'coauthor' ? coAuthorPayments
+  const filteredByTab = activeTab === 'coauthor' ? coAuthorPayments
     : activeTab === 'pro' ? proPayments
     : activeTab === 'articles' ? articlePayments
     : payments || [];
+
+  const displayPayments = searchQuery.trim()
+    ? filteredByTab.filter((p) => {
+        const profile = p.profiles as any;
+        const q = searchQuery.toLowerCase();
+        return (
+          profile?.full_name?.toLowerCase().includes(q) ||
+          profile?.email?.toLowerCase().includes(q) ||
+          p.transaction_id?.toLowerCase().includes(q)
+        );
+      })
+    : filteredByTab;
 
   const totalINR = displayPayments.reduce((s, p) => p.currency === 'INR' ? s + Number(p.final_amount) : s, 0);
   const totalUSD = displayPayments.reduce((s, p) => p.currency === 'USD' ? s + Number(p.final_amount) : s, 0);
