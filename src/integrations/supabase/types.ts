@@ -770,7 +770,9 @@ export type Database = {
           id: string
           is_active: boolean
           payment_id: string | null
+          paypal_subscription_id: string | null
           plan_type: string
+          razorpay_subscription_id: string | null
           starts_at: string
           user_id: string
         }
@@ -781,7 +783,9 @@ export type Database = {
           id?: string
           is_active?: boolean
           payment_id?: string | null
+          paypal_subscription_id?: string | null
           plan_type?: string
+          razorpay_subscription_id?: string | null
           starts_at?: string
           user_id: string
         }
@@ -792,7 +796,9 @@ export type Database = {
           id?: string
           is_active?: boolean
           payment_id?: string | null
+          paypal_subscription_id?: string | null
           plan_type?: string
+          razorpay_subscription_id?: string | null
           starts_at?: string
           user_id?: string
         }
