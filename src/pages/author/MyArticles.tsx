@@ -364,6 +364,17 @@ export default function MyArticles() {
                           Resubmit
                         </Button>
                       )}
+                      {article.status && !['withdrawn', 'rejected', 'published'].includes(article.status) && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-destructive hover:text-destructive ml-auto"
+                          onClick={() => setWithdrawArticle(article)}
+                        >
+                          <Ban className="w-4 h-4 mr-1" />
+                          Withdraw
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </GlassCard>
