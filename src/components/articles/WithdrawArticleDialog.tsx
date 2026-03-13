@@ -126,38 +126,106 @@ export function WithdrawArticleDialog({
   );
 }
 
+const font = `-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif`;
+
+const emailH1 = (text: string) =>
+  `<h1 style="font-family:${font}; font-size:24px; font-weight:600; color:#ffffff; text-align:center; margin:0 0 24px;">${text}</h1>`;
+
+const emailP = (text: string) =>
+  `<p style="font-family:${font}; font-size:16px; line-height:26px; color:#d1d5db; margin:16px 0;">${text}</p>`;
+
+const emailDivider = () =>
+  `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:24px 0;"><tr><td style="border-top:1px solid rgba(255,255,255,0.1);"></td></tr></table>`;
+
+const emailInfoRow = (label: string, value: string, valueStyle = "") =>
+  `<tr><td style="font-family:${font}; font-size:14px; color:#9ca3af; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.06);">${label}</td><td align="right" style="font-family:${font}; font-size:14px; color:#ffffff; font-weight:500; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.06);${valueStyle}">${value}</td></tr>`;
+
+const emailInfoBox = (title: string, rows: string) =>
+  `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#1a2340" style="background-color:#1a2340; border-radius:8px; margin:20px 0;"><tr><td style="padding:20px;"><p style="font-family:${font}; font-size:16px; font-weight:600; color:#ffffff; margin:0 0 12px;">${title}</p><table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">${rows}</table></td></tr></table>`;
+
+const emailButton = (href: string, label: string) =>
+  `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:28px 0;"><tr><td align="center"><a href="${href}" target="_blank" style="display:inline-block; background-color:#00d4ff; color:#0d1528; font-family:${font}; font-size:16px; font-weight:600; text-decoration:none; padding:14px 32px; border-radius:8px;">${label}</a></td></tr></table>`;
+
+const emailFooterText = (text: string) =>
+  `<p style="font-family:${font}; font-size:14px; line-height:22px; color:#9ca3af; margin:16px 0 0;">${text}</p>`;
+
+const wrapEmail = (title: string, bodyContent: string): string => `
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${title}</title>
+</head>
+<body style="margin:0; padding:0; background-color:#0d1528; width:100%;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0d1528" style="background-color:#0d1528;">
+    <tr>
+      <td align="center" style="padding:40px 16px;">
+        <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="max-width:560px; width:100%;">
+          <tr>
+            <td align="center" style="padding-bottom:32px;">
+              <img src="https://myjbbbytbzzzsaaiohrz.supabase.co/storage/v1/object/public/email-assets/logo.png?v=1" alt="WWJMRD Logo" width="200" style="display:block; max-width:200px; height:auto;" />
+            </td>
+          </tr>
+          <tr>
+            <td bgcolor="#151d35" style="background-color:#151d35; border-radius:12px; padding:32px 28px; border:1px solid rgba(255,255,255,0.08);">
+              ${bodyContent}
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding-top:24px;">
+              <p style="font-family:${font}; font-size:12px; color:#6b7280; margin:0;">&copy; ${new Date().getFullYear()} WWJMRD. All rights reserved.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+`;
+
 function buildAuthorEmailHtml(title: string, refNum: string, showFeeNote: boolean): string {
-  const feeNote = showFeeNote
-    ? `<tr><td style="padding:16px 24px; background-color:rgba(239,68,68,0.1); border-left:4px solid #ef4444; margin:16px 0; border-radius:4px;">
-        <p style="color:#fbbf24; font-weight:600; margin:0 0 8px 0;">⚠️ Important</p>
-        <p style="color:#94a3b8; margin:0; font-size:14px; line-height:1.6;">
-          The publication fee will <strong style="color:#f1f5f9;">not</strong> be refunded. You may submit and get published any other article within <strong style="color:#f1f5f9;">3 months</strong> from the date the payment was made.
-        </p>
-      </td></tr>`
+  const feeWarning = showFeeNote
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:20px 0;">
+        <tr><td style="background-color:rgba(239,68,68,0.1); border-left:4px solid #ef4444; border-radius:8px; padding:16px 20px;">
+          <p style="font-family:${font}; font-size:14px; font-weight:600; color:#fbbf24; margin:0 0 8px;">⚠️ Important – Non-Refundable</p>
+          <p style="font-family:${font}; font-size:14px; line-height:22px; color:#d1d5db; margin:0;">The publication fee will <strong style="color:#ffffff;">not</strong> be refunded. However, you may submit and get published any other article within <strong style="color:#ffffff;">3 months</strong> from the date the payment was made.</p>
+        </td></tr>
+      </table>`
     : '';
 
-  return `
-    <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;color:#94a3b8;">
-      <h2 style="color:#f1f5f9;">Article Withdrawn</h2>
-      <p>Your article <strong style="color:#f1f5f9;">"${title}"</strong> (Ref: ${refNum}) has been successfully withdrawn.</p>
-      ${feeNote}
-      <p style="margin-top:16px;">If you have any questions, please contact us at <a href="mailto:support@wwjmrd.com" style="color:#06b6d4;">support@wwjmrd.com</a>.</p>
-    </div>
+  const body = `
+    ${emailH1("Article Withdrawn 📋")}
+    ${emailP("Your article has been successfully withdrawn from WWJMRD.")}
+    ${emailInfoBox("Withdrawal Details:", [
+      emailInfoRow("Title", title),
+      emailInfoRow("Reference Number", refNum),
+      emailInfoRow("Status", "Withdrawn", " color:#ef4444; font-weight:700;"),
+      emailInfoRow("Date", new Date().toLocaleDateString()),
+    ].join(""))}
+    ${feeWarning}
+    ${emailButton("https://wwjmrdai.lovable.app/author/articles", "View My Articles")}
+    ${emailDivider()}
+    ${emailFooterText("If you have any questions, contact us at support@wwjmrd.com")}
   `;
+  return wrapEmail("Article Withdrawn", body);
 }
 
 function buildAdminEmailHtml(title: string, refNum: string, authorEmail: string, hadPaidFee: boolean): string {
-  return `
-    <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;color:#94a3b8;">
-      <h2 style="color:#f1f5f9;">Article Withdrawal Notice</h2>
-      <p>An author has withdrawn their article:</p>
-      <ul style="color:#f1f5f9;">
-        <li><strong>Title:</strong> ${title}</li>
-        <li><strong>Ref:</strong> ${refNum}</li>
-        <li><strong>Author:</strong> ${authorEmail}</li>
-        <li><strong>Fee was paid:</strong> ${hadPaidFee ? 'Yes' : 'No'}</li>
-      </ul>
-      <p>Please review if any follow-up action is needed.</p>
-    </div>
+  const body = `
+    ${emailH1("Article Withdrawal Notice 🔔")}
+    ${emailP("An author has withdrawn their article. Please review if any follow-up action is needed.")}
+    ${emailInfoBox("Withdrawal Details:", [
+      emailInfoRow("Title", title),
+      emailInfoRow("Reference Number", refNum),
+      emailInfoRow("Author Email", authorEmail),
+      emailInfoRow("Fee Was Paid", hadPaidFee ? '<span style="color:#ef4444; font-weight:700;">Yes</span>' : "No"),
+      emailInfoRow("Withdrawn On", new Date().toLocaleDateString()),
+    ].join(""))}
+    ${emailButton("https://wwjmrdai.lovable.app/admin/articles", "Review Articles")}
+    ${emailDivider()}
+    ${emailFooterText("This is an automated notification from WWJMRD.")}
   `;
+  return wrapEmail("Article Withdrawal Notice", body);
 }
