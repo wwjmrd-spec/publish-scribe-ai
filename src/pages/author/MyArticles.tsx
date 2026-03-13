@@ -383,6 +383,14 @@ export default function MyArticles() {
           </div>
         )}
       </motion.div>
+
+      {withdrawArticle && (
+        <WithdrawArticleDialog
+          open={!!withdrawArticle}
+          onOpenChange={(open) => !open && setWithdrawArticle(null)}
+          article={withdrawArticle}
+        />
+      )}
     </DashboardLayout>
   );
 }
