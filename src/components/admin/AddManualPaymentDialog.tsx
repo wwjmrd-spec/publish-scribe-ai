@@ -25,7 +25,7 @@ export function AddManualPaymentDialog({ onSuccess }: Props) {
     amount: '',
     currency: 'USD' as 'INR' | 'USD' | 'USDT',
     paymentType: 'article_fee',
-    gateway: 'manual',
+    gateway: 'manual' as 'manual' | 'razorpay' | 'paypal' | 'binance',
     transactionId: '',
     notes: '',
   });
@@ -62,7 +62,7 @@ export function AddManualPaymentDialog({ onSuccess }: Props) {
         amount,
         final_amount: amount,
         currency: form.currency,
-        payment_gateway: 'manual',
+        payment_gateway: form.gateway,
         payment_status: 'success',
         payment_items: paymentItems,
         transaction_id: form.transactionId || `MANUAL-${Date.now()}`,
@@ -150,7 +150,21 @@ export function AddManualPaymentDialog({ onSuccess }: Props) {
           </div>
 
           <div className="space-y-2">
-            <Label>Transaction ID (optional)</Label>
+            <Label>Payment Gateway</Label>
+            <Select value={form.gateway} onValueChange={(v) => setForm(prev => ({ ...prev, gateway: v as any }))}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="manual">Manual / Bank Transfer</SelectItem>
+                <SelectItem value="razorpay">Razorpay</SelectItem>
+                <SelectItem value="paypal">PayPal</SelectItem>
+                <SelectItem value="binance">Binance (USDT)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
             <Input
               placeholder="e.g. TXN-12345"
               value={form.transactionId}
