@@ -22,13 +22,16 @@ import {
   Crown,
   Lock,
   Award,
+  Ban,
 } from 'lucide-react';
+import { WithdrawArticleDialog } from '@/components/articles/WithdrawArticleDialog';
 
 export default function MyArticles() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { subscription, isLoading: subLoading } = useSubscription();
+  const [withdrawArticle, setWithdrawArticle] = React.useState<any>(null);
 
   const handleDownloadGalleyProof = async (articleId: string) => {
     try {
@@ -124,6 +127,8 @@ export default function MyArticles() {
         return <CheckCircle className="w-4 h-4" />;
       case 'rejected':
         return <XCircle className="w-4 h-4" />;
+      case 'withdrawn':
+        return <Ban className="w-4 h-4" />;
       default:
         return <Clock className="w-4 h-4" />;
     }
@@ -140,6 +145,7 @@ export default function MyArticles() {
       failed_payment: 'status-rejected',
       published: 'status-published',
       rejected: 'status-rejected',
+      withdrawn: 'status-rejected',
     };
     return statusMap[status] || 'status-submitted';
   };
@@ -358,6 +364,17 @@ export default function MyArticles() {
                           Resubmit
                         </Button>
                       )}
+                      {article.status && !['withdrawn', 'rejected', 'published'].includes(article.status) && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-destructive hover:text-destructive ml-auto"
+                          onClick={() => setWithdrawArticle(article)}
+                        >
+                          <Ban className="w-4 h-4 mr-1" />
+                          Withdraw
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </GlassCard>
@@ -366,6 +383,14 @@ export default function MyArticles() {
           </div>
         )}
       </motion.div>
+
+      {withdrawArticle && (
+        <WithdrawArticleDialog
+          open={!!withdrawArticle}
+          onOpenChange={(open) => !open && setWithdrawArticle(null)}
+          article={withdrawArticle}
+        />
+      )}
     </DashboardLayout>
   );
 }
