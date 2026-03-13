@@ -127,6 +127,8 @@ export default function MyArticles() {
         return <CheckCircle className="w-4 h-4" />;
       case 'rejected':
         return <XCircle className="w-4 h-4" />;
+      case 'withdrawn':
+        return <Ban className="w-4 h-4" />;
       default:
         return <Clock className="w-4 h-4" />;
     }
