@@ -25,7 +25,7 @@ export function AddManualPaymentDialog({ onSuccess }: Props) {
     amount: '',
     currency: 'USD' as 'INR' | 'USD' | 'USDT',
     paymentType: 'article_fee',
-    gateway: 'manual',
+    gateway: 'manual' as 'manual' | 'razorpay' | 'paypal' | 'binance',
     transactionId: '',
     notes: '',
   });
