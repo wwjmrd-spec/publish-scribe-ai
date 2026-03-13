@@ -847,6 +847,7 @@ export type Database = {
         | "failed_payment"
         | "published"
         | "rejected"
+        | "withdrawn"
       coauthor_payment_status: "pending" | "paid" | "failed"
       currency_type: "INR" | "USD" | "USDT"
       discount_currency: "INR" | "USD" | "BOTH" | "USDT"
@@ -991,6 +992,7 @@ export const Constants = {
         "failed_payment",
         "published",
         "rejected",
+        "withdrawn",
       ],
       coauthor_payment_status: ["pending", "paid", "failed"],
       currency_type: ["INR", "USD", "USDT"],
