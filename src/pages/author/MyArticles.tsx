@@ -31,6 +31,7 @@ export default function MyArticles() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { subscription, isLoading: subLoading } = useSubscription();
+  const [withdrawArticle, setWithdrawArticle] = React.useState<any>(null);
 
   const handleDownloadGalleyProof = async (articleId: string) => {
     try {
