@@ -22,7 +22,9 @@ import {
   Crown,
   Lock,
   Award,
+  Ban,
 } from 'lucide-react';
+import { WithdrawArticleDialog } from '@/components/articles/WithdrawArticleDialog';
 
 export default function MyArticles() {
   const { user } = useAuth();
