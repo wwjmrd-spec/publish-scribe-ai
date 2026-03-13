@@ -145,6 +145,7 @@ export default function MyArticles() {
       failed_payment: 'status-rejected',
       published: 'status-published',
       rejected: 'status-rejected',
+      withdrawn: 'status-rejected',
     };
     return statusMap[status] || 'status-submitted';
   };
