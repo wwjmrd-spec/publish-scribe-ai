@@ -150,7 +150,21 @@ export function AddManualPaymentDialog({ onSuccess }: Props) {
           </div>
 
           <div className="space-y-2">
-            <Label>Transaction ID (optional)</Label>
+            <Label>Payment Gateway</Label>
+            <Select value={form.gateway} onValueChange={(v) => setForm(prev => ({ ...prev, gateway: v as any }))}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="manual">Manual / Bank Transfer</SelectItem>
+                <SelectItem value="razorpay">Razorpay</SelectItem>
+                <SelectItem value="paypal">PayPal</SelectItem>
+                <SelectItem value="binance">Binance (USDT)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
             <Input
               placeholder="e.g. TXN-12345"
               value={form.transactionId}
