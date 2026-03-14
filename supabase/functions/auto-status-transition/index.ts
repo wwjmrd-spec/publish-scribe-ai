@@ -16,7 +16,6 @@ serve(async (req: Request) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Auth: only allow service role key (cron/admin)
     const authHeader = req.headers.get("Authorization");
     const token = authHeader?.replace("Bearer ", "");
     if (!token || token !== serviceRoleKey) {
@@ -27,166 +26,273 @@ serve(async (req: Request) => {
     }
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
-
     const now = new Date();
-    const results = { 
-      normalToUnderReview: 0, 
-      fastTrackToUnderReview: 0, 
-      fastTrackAiReviewed: 0,
-      errors: [] as string[] 
+    const results = {
+      step1_submittedToUnderReview: 0,
+      step2_aiReviewTriggered: 0,
+      step3_toManuscriptAccepted: 0,
+      step4_toPendingFee: 0,
+      errors: [] as string[],
     };
 
-    // ===== 1. Normal articles: submitted > 10 min ago → under_review =====
-    const tenMinAgo = new Date(now.getTime() - 10 * 60 * 1000).toISOString();
-    const { data: normalArticles, error: normalErr } = await supabase
-      .from("articles")
-      .select("id, title, reference_number")
-      .eq("status", "submitted")
-      .eq("publication_type", "normal")
-      .lte("submission_date", tenMinAgo);
-
-    if (normalErr) {
-      console.error("Error fetching normal articles:", normalErr);
-    } else if (normalArticles?.length) {
-      const ids = normalArticles.map(a => a.id);
-      const { error: updateErr } = await supabase
-        .from("articles")
-        .update({ status: "under_review" })
-        .in("id", ids);
-
-      if (updateErr) {
-        results.errors.push(`Normal update error: ${updateErr.message}`);
-      } else {
-        results.normalToUnderReview = ids.length;
-        console.log(`Moved ${ids.length} normal article(s) to under_review`);
-      }
-    }
-
-    // ===== 2. Fast track articles: submitted > 5 min ago → under_review =====
-    const fiveMinAgo = new Date(now.getTime() - 5 * 60 * 1000).toISOString();
-    const { data: fastTrackSubmitted, error: ftErr } = await supabase
-      .from("articles")
-      .select("id, title, reference_number")
-      .eq("status", "submitted")
-      .eq("publication_type", "fast_track")
-      .lte("submission_date", fiveMinAgo);
-
-    if (ftErr) {
-      console.error("Error fetching fast track articles:", ftErr);
-    } else if (fastTrackSubmitted?.length) {
-      const ids = fastTrackSubmitted.map(a => a.id);
-      const { error: updateErr } = await supabase
-        .from("articles")
-        .update({ status: "under_review" })
-        .in("id", ids);
-
-      if (updateErr) {
-        results.errors.push(`Fast track update error: ${updateErr.message}`);
-      } else {
-        results.fastTrackToUnderReview = ids.length;
-        console.log(`Moved ${ids.length} fast track article(s) to under_review`);
-      }
-    }
-
-    // ===== 3. Fast track articles: under_review > 2 min ago AND no AI review yet → trigger AI review =====
-    const twoMinAgo = new Date(now.getTime() - 2 * 60 * 1000).toISOString();
-    const { data: fastTrackReviewable, error: frErr } = await supabase
-      .from("articles")
-      .select("id, title, reference_number, author_id, document_url, profiles:author_id (full_name, email)")
-      .eq("status", "under_review")
-      .eq("publication_type", "fast_track")
-      .lte("updated_at", twoMinAgo);
-
-    if (frErr) {
-      console.error("Error fetching reviewable fast track articles:", frErr);
-    } else if (fastTrackReviewable?.length) {
-      for (const article of fastTrackReviewable) {
-        // Check if AI review already exists
-        const { data: existingReview } = await supabase
-          .from("article_reviews")
-          .select("id")
-          .eq("article_id", article.id)
-          .eq("review_type", "ai")
-          .limit(1);
-
-        if (existingReview && existingReview.length > 0) {
-          continue; // Already reviewed
-        }
-
-        console.log(`Triggering AI review for fast track article: ${article.reference_number}`);
-
-        try {
-          // Call the ai-review edge function
-          const aiReviewResponse = await fetch(`${supabaseUrl}/functions/v1/ai-review`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${serviceRoleKey}`,
-            },
-            body: JSON.stringify({ articleId: article.id }),
+    // ===== Helper: notify all admins =====
+    async function notifyAdmins(title: string, message: string, link?: string) {
+      const { data: admins } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "admin");
+      if (admins) {
+        for (const admin of admins) {
+          await supabase.from("notifications").insert({
+            user_id: admin.user_id, title, message, type: "info", link,
           });
+        }
+      }
+    }
 
-          if (!aiReviewResponse.ok) {
-            const errText = await aiReviewResponse.text();
-            results.errors.push(`AI review failed for ${article.reference_number}: ${errText}`);
-            continue;
-          }
+    // ===== Helper: send email via edge function =====
+    async function sendEmail(to: string, template: string, data: Record<string, any>) {
+      await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceRoleKey}` },
+        body: JSON.stringify({ to, template, data }),
+      });
+    }
 
-          results.fastTrackAiReviewed++;
-          console.log(`AI review completed for fast track article: ${article.reference_number}`);
+    // ===== STEP 1: submitted → under_review (5 min) =====
+    const fiveMinAgo = new Date(now.getTime() - 5 * 60 * 1000).toISOString();
+    {
+      const { data: articles, error } = await supabase
+        .from("articles")
+        .select("id, title, reference_number, author_id, profiles:author_id (full_name, email)")
+        .eq("status", "submitted")
+        .lte("submission_date", fiveMinAgo);
 
-          // Send email to author about auto AI review
-          const profile = article.profiles as any;
-          if (profile?.email) {
-            await fetch(`${supabaseUrl}/functions/v1/send-email`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${serviceRoleKey}`,
-              },
-              body: JSON.stringify({
-                to: profile.email,
-                template: "review-report-ready",
-                data: {
-                  authorName: profile.full_name || "Author",
-                  articleTitle: article.title,
-                  referenceNumber: article.reference_number,
-                  overallScore: "See report",
-                  recommendation: "Auto-reviewed (Fast Track)",
-                },
-              }),
+      if (error) {
+        results.errors.push(`Step1 fetch: ${error.message}`);
+      } else if (articles?.length) {
+        const ids = articles.map((a: any) => a.id);
+        const { error: updateErr } = await supabase
+          .from("articles")
+          .update({ status: "under_review" })
+          .in("id", ids);
+
+        if (updateErr) {
+          results.errors.push(`Step1 update: ${updateErr.message}`);
+        } else {
+          results.step1_submittedToUnderReview = ids.length;
+          for (const article of articles) {
+            const profile = (article as any).profiles;
+            // Author notification
+            await supabase.from("notifications").insert({
+              user_id: article.author_id,
+              title: "Article Under Review 📝",
+              message: `Your article "${article.title}" is now under review.`,
+              type: "info",
+              link: "/author/articles",
             });
-          }
-
-          // Notify admins
-          const { data: admins } = await supabase
-            .from("user_roles")
-            .select("user_id")
-            .eq("role", "admin");
-
-          if (admins) {
-            for (const admin of admins) {
-              await supabase.from("notifications").insert({
-                user_id: admin.user_id,
-                title: "Fast Track AI Review Complete 🚀",
-                message: `Auto AI review completed for fast track article "${article.title}" (${article.reference_number}).`,
-                type: "info",
-                link: `/admin/articles/${article.id}`,
+            // Admin notification
+            await notifyAdmins(
+              "Article Under Review 📝",
+              `Article "${article.title}" (${article.reference_number}) is now under review.`,
+              `/admin/articles/${article.id}`
+            );
+            // Author email
+            if (profile?.email) {
+              await sendEmail(profile.email, "status-update", {
+                authorName: profile.full_name || "Author",
+                articleTitle: article.title,
+                referenceNumber: article.reference_number,
+                newStatus: "Under Review",
+                message: "Your article has been received and is now under review by our editorial team.",
               });
             }
           }
+        }
+      }
+    }
 
-          // Notify author
+    // ===== STEP 2: under_review → AI review (2 hours) =====
+    const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString();
+    {
+      const { data: articles, error } = await supabase
+        .from("articles")
+        .select("id, title, reference_number, author_id, document_url, profiles:author_id (full_name, email)")
+        .eq("status", "under_review")
+        .lte("updated_at", twoHoursAgo);
+
+      if (error) {
+        results.errors.push(`Step2 fetch: ${error.message}`);
+      } else if (articles?.length) {
+        for (const article of articles) {
+          // Check if AI review already exists
+          const { data: existing } = await supabase
+            .from("article_reviews")
+            .select("id")
+            .eq("article_id", article.id)
+            .eq("review_type", "ai")
+            .limit(1);
+
+          if (existing && existing.length > 0) continue;
+
+          try {
+            const resp = await fetch(`${supabaseUrl}/functions/v1/ai-review`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceRoleKey}` },
+              body: JSON.stringify({ articleId: article.id }),
+            });
+
+            if (!resp.ok) {
+              results.errors.push(`Step2 AI review failed for ${article.reference_number}: ${await resp.text()}`);
+              continue;
+            }
+
+            results.step2_aiReviewTriggered++;
+            const profile = (article as any).profiles;
+
+            // Author notification
+            await supabase.from("notifications").insert({
+              user_id: article.author_id,
+              title: "AI Review Report Ready 📋",
+              message: `Your AI Review Report for "${article.title}" is ready.`,
+              type: "success",
+              link: "/author/articles",
+            });
+            // Admin notification
+            await notifyAdmins(
+              "AI Review Completed 🤖",
+              `AI Review completed for "${article.title}" (${article.reference_number}).`,
+              `/admin/articles/${article.id}`
+            );
+            // Author email
+            if (profile?.email) {
+              await sendEmail(profile.email, "review-report-ready", {
+                authorName: profile.full_name || "Author",
+                articleTitle: article.title,
+                referenceNumber: article.reference_number,
+                overallScore: "See report",
+                recommendation: "AI Review Complete",
+              });
+            }
+          } catch (err: any) {
+            results.errors.push(`Step2 error for ${article.reference_number}: ${err.message}`);
+          }
+        }
+      }
+    }
+
+    // ===== STEP 3: under_review + AI review exists (5 min old) → manuscript_accepted =====
+    {
+      const { data: articles, error } = await supabase
+        .from("articles")
+        .select("id, title, reference_number, author_id, profiles:author_id (full_name, email)")
+        .eq("status", "under_review");
+
+      if (error) {
+        results.errors.push(`Step3 fetch: ${error.message}`);
+      } else if (articles?.length) {
+        for (const article of articles) {
+          const { data: reviews } = await supabase
+            .from("article_reviews")
+            .select("id, reviewed_at")
+            .eq("article_id", article.id)
+            .eq("review_type", "ai")
+            .limit(1);
+
+          if (!reviews || reviews.length === 0) continue;
+
+          const reviewedAt = new Date(reviews[0].reviewed_at);
+          if (now.getTime() - reviewedAt.getTime() < 5 * 60 * 1000) continue;
+
+          const { error: updateErr } = await supabase
+            .from("articles")
+            .update({ status: "manuscript_accepted" })
+            .eq("id", article.id);
+
+          if (updateErr) {
+            results.errors.push(`Step3 update ${article.reference_number}: ${updateErr.message}`);
+            continue;
+          }
+
+          results.step3_toManuscriptAccepted++;
+          const profile = (article as any).profiles;
+
+          // Author notification
           await supabase.from("notifications").insert({
             user_id: article.author_id,
-            title: "AI Review Report Ready 📋",
-            message: `Your fast track article "${article.title}" has been automatically reviewed. Check your review report.`,
+            title: "Manuscript Accepted! 🎉",
+            message: `Your manuscript "${article.title}" has been accepted!`,
             type: "success",
             link: "/author/articles",
           });
+          // Admin notification
+          await notifyAdmins(
+            "Manuscript Accepted ✅",
+            `Article "${article.title}" (${article.reference_number}) has been accepted.`,
+            `/admin/articles/${article.id}`
+          );
+          // Author email
+          if (profile?.email) {
+            await sendEmail(profile.email, "status-update", {
+              authorName: profile.full_name || "Author",
+              articleTitle: article.title,
+              referenceNumber: article.reference_number,
+              newStatus: "Manuscript Accepted",
+              message: "Congratulations! Your manuscript has been accepted for publication. Please proceed with the publication fee payment.",
+            });
+          }
+        }
+      }
+    }
 
-        } catch (err: any) {
-          results.errors.push(`AI review error for ${article.reference_number}: ${err.message}`);
+    // ===== STEP 4: manuscript_accepted (5 min) → pending_fee =====
+    {
+      const { data: articles, error } = await supabase
+        .from("articles")
+        .select("id, title, reference_number, author_id, updated_at, profiles:author_id (full_name, email)")
+        .eq("status", "manuscript_accepted")
+        .lte("updated_at", fiveMinAgo);
+
+      if (error) {
+        results.errors.push(`Step4 fetch: ${error.message}`);
+      } else if (articles?.length) {
+        const ids = articles.map((a: any) => a.id);
+        const { error: updateErr } = await supabase
+          .from("articles")
+          .update({ status: "pending_fee" })
+          .in("id", ids);
+
+        if (updateErr) {
+          results.errors.push(`Step4 update: ${updateErr.message}`);
+        } else {
+          results.step4_toPendingFee = ids.length;
+          for (const article of articles) {
+            const profile = (article as any).profiles;
+            // Author notification
+            await supabase.from("notifications").insert({
+              user_id: article.author_id,
+              title: "Publication Fee Pending 💳",
+              message: `Your publication fee for "${article.title}" is pending. Please pay your publication fee.`,
+              type: "warning",
+              link: "/author/cart",
+            });
+            // Admin notification
+            await notifyAdmins(
+              "Article Pending Fee 💳",
+              `Article "${article.title}" (${article.reference_number}) is now pending fee payment.`,
+              `/admin/articles/${article.id}`
+            );
+            // Author email
+            if (profile?.email) {
+              await sendEmail(profile.email, "status-update", {
+                authorName: profile.full_name || "Author",
+                articleTitle: article.title,
+                referenceNumber: article.reference_number,
+                newStatus: "Pending Fee",
+                message: "Your publication fee is pending. Please pay your publication fee to proceed with the publication process.",
+              });
+            }
+          }
         }
       }
     }
