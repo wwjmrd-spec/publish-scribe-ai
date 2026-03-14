@@ -106,6 +106,7 @@ export type Database = {
       articles: {
         Row: {
           abstract: string | null
+          allow_withdrawal: boolean
           author_id: string
           author_name: string | null
           certificate_url: string | null
@@ -136,6 +137,7 @@ export type Database = {
         }
         Insert: {
           abstract?: string | null
+          allow_withdrawal?: boolean
           author_id: string
           author_name?: string | null
           certificate_url?: string | null
@@ -166,6 +168,7 @@ export type Database = {
         }
         Update: {
           abstract?: string | null
+          allow_withdrawal?: boolean
           author_id?: string
           author_name?: string | null
           certificate_url?: string | null
