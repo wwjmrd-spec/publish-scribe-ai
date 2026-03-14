@@ -364,7 +364,7 @@ export default function MyArticles() {
                           Resubmit
                         </Button>
                       )}
-                      {article.status && !['withdrawn', 'rejected', 'published'].includes(article.status) && (
+                      {article.status && !['withdrawn', 'rejected', 'published'].includes(article.status) && (article as any).allow_withdrawal && (
                         <Button
                           size="sm"
                           variant="ghost"
