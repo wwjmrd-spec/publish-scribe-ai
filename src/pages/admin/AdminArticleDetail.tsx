@@ -514,6 +514,24 @@ export default function AdminArticleDetail() {
                     {sendReminderMutation.isPending ? 'Sending...' : 'Send Payment Reminder'}
                   </Button>
                 )}
+                <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                  <span className="text-sm text-muted-foreground">Allow Withdrawal</span>
+                  <Switch
+                    checked={(article as any).allow_withdrawal || false}
+                    onCheckedChange={async (checked) => {
+                      const { error } = await supabase
+                        .from('articles')
+                        .update({ allow_withdrawal: checked } as any)
+                        .eq('id', article.id);
+                      if (error) {
+                        toast.error('Failed to update withdrawal permission');
+                      } else {
+                        toast.success(checked ? 'Withdrawal enabled for author' : 'Withdrawal disabled');
+                        queryClient.invalidateQueries({ queryKey: ['admin-article-detail', articleId] });
+                      }
+                    }}
+                  />
+                </div>
               </div>
             </GlassCard>
 
