@@ -146,7 +146,7 @@ export function ReferralPopup() {
             Have a Referral Code?
           </DialogTitle>
           <DialogDescription className="text-center">
-            If someone referred you, enter their code below. When your article gets published, they'll earn bonus review report downloads!
+            If someone referred you, enter their code below. When your article gets published, you'll get a <strong>$10 discount</strong> on your publication fee, and your referrer earns up to <strong>$50 off</strong>!
           </DialogDescription>
         </DialogHeader>
 
