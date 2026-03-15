@@ -64,6 +64,8 @@ interface EmailRequest {
     referredEmail?: string;
     bonusDownloads?: number;
     rewardType?: "referrer" | "referred";
+    referralDiscountCode?: string;
+    referralDiscountAmount?: number;
     // Article status change
     status?: string;
   };
