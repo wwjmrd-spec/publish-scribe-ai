@@ -298,6 +298,94 @@ serve(async (req: Request) => {
       }
     }
 
+    // ===== STEP 5: Send referral reward emails for recently rewarded referrals =====
+    {
+      // Find referrals rewarded in the last 5 minutes that haven't had emails sent yet
+      const fiveMinAgoISO = new Date(now.getTime() - 5 * 60 * 1000).toISOString();
+      const { data: rewardedReferrals, error } = await supabase
+        .from("referrals")
+        .select("id, referrer_id, referred_id, rewarded_at")
+        .eq("reward_granted", true)
+        .gte("rewarded_at", fiveMinAgoISO);
+
+      if (error) {
+        results.errors.push(`Step5 fetch: ${error.message}`);
+      } else if (rewardedReferrals?.length) {
+        for (const ref of rewardedReferrals) {
+          try {
+            // Get referrer profile
+            const { data: referrerProfile } = await supabase
+              .from("profiles")
+              .select("full_name, email")
+              .eq("id", ref.referrer_id)
+              .single();
+
+            // Get referred profile
+            const { data: referredProfile } = await supabase
+              .from("profiles")
+              .select("full_name, email")
+              .eq("id", ref.referred_id)
+              .single();
+
+            if (!referrerProfile || !referredProfile) continue;
+
+            // Count total rewarded for this referrer to determine tier
+            const { count: totalRewarded } = await supabase
+              .from("referrals")
+              .select("id", { count: "exact", head: true })
+              .eq("referrer_id", ref.referrer_id)
+              .eq("reward_granted", true);
+
+            let discountAmount = 10;
+            if ((totalRewarded || 0) >= 3) discountAmount = 50;
+            else if ((totalRewarded || 0) === 2) discountAmount = 30;
+
+            // Find the referrer's discount code created around the same time
+            const { data: referrerCodes } = await supabase
+              .from("discount_codes")
+              .select("code, discount_value")
+              .eq("created_by", ref.referrer_id)
+              .like("code", "REF-%")
+              .order("created_at", { ascending: false })
+              .limit(1);
+
+            const referrerCode = referrerCodes?.[0]?.code || "N/A";
+
+            // Find the referred author's discount code
+            const { data: referredCodes } = await supabase
+              .from("discount_codes")
+              .select("code, discount_value")
+              .eq("created_by", ref.referred_id)
+              .like("code", "WELCOME-%")
+              .order("created_at", { ascending: false })
+              .limit(1);
+
+            const referredCode = referredCodes?.[0]?.code || "N/A";
+
+            // Send email to referrer
+            await sendEmail(referrerProfile.email, "referral-reward", {
+              rewardType: "referrer",
+              referrerName: referrerProfile.full_name,
+              referredName: referredProfile.full_name,
+              referralDiscountCode: referrerCode,
+              referralDiscountAmount: discountAmount,
+            });
+
+            // Send email to referred author
+            await sendEmail(referredProfile.email, "referral-reward", {
+              rewardType: "referred",
+              referredName: referredProfile.full_name,
+              referrerName: referrerProfile.full_name,
+              referralDiscountCode: referredCode,
+              referralDiscountAmount: 10,
+            });
+          } catch (err: any) {
+            results.errors.push(`Step5 email error: ${err.message}`);
+          }
+        }
+      }
+    }
+
     console.log("Auto status transition results:", JSON.stringify(results));
 
     return new Response(JSON.stringify({ success: true, ...results }), {

@@ -64,6 +64,8 @@ interface EmailRequest {
     referredEmail?: string;
     bonusDownloads?: number;
     rewardType?: "referrer" | "referred";
+    referralDiscountCode?: string;
+    referralDiscountAmount?: number;
     // Article status change
     status?: string;
   };
@@ -302,6 +304,8 @@ const getPaymentConfirmationTemplate = (data: EmailRequest["data"], isAdmin: boo
 
 const getReferralRewardTemplate = (data: EmailRequest["data"]): string => {
   const isReferrer = data?.rewardType === "referrer";
+  const discountCode = data?.referralDiscountCode || "N/A";
+  const discountAmount = data?.referralDiscountAmount || 10;
 
   const body = `
     ${emailH1(isReferrer ? "Referral Reward Earned! 🎉" : "Congratulations on Your Publication! 🎉")}
@@ -312,29 +316,38 @@ const getReferralRewardTemplate = (data: EmailRequest["data"]): string => {
       ${emailP(`Great news! Your referred author <strong style="color:#ffffff;">${escapeHtml(data?.referredName || "an author")}</strong> just got their article published on WWJMRD.`)}
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#1f1535" style="background-color:rgba(168,85,247,0.12); border-radius:8px; margin:20px 0;">
         <tr><td align="center" style="padding:20px;">
-          <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:14px; color:#a855f7; margin:0;">REWARD EARNED</p>
-          <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:36px; font-weight:700; color:#a855f7; margin:8px 0;">+${data?.bonusDownloads || 2}</p>
-          <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:14px; color:#d1d5db; margin:0;">Bonus Review Report Downloads</p>
+          <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:14px; color:#a855f7; margin:0;">YOUR DISCOUNT CODE</p>
+          <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:32px; font-weight:700; color:#a855f7; margin:8px 0; letter-spacing:0.15em;">${escapeHtml(discountCode)}</p>
+          <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:24px; font-weight:700; color:#ffffff; margin:4px 0;">$${discountAmount} OFF</p>
+          <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:14px; color:#d1d5db; margin:4px 0 0;">on your next publication fee</p>
         </td></tr>
       </table>
-      ${emailP("These bonus downloads have been automatically added to your account. You can use them to download AI review reports for your articles.")}
+      ${emailP("Use this code at checkout when paying your next publication fee. The discount will be applied automatically.")}
     `
         : `
       ${emailP(`Your article <strong style="color:#ffffff;">"${escapeHtml(data?.articleTitle || "")}"</strong> has been published on WWJMRD!`)}
-      ${emailP(`Thanks to your publication, the author who referred you (<strong style="color:#ffffff;">${escapeHtml(data?.referrerName || "your referrer")}</strong>) has also earned bonus review report downloads as a reward.`)}
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#0d2233" style="background-color:rgba(0,212,255,0.08); border-radius:8px; margin:20px 0;">
+        <tr><td align="center" style="padding:20px;">
+          <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:14px; color:#00d4ff; margin:0;">YOUR WELCOME DISCOUNT</p>
+          <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:32px; font-weight:700; color:#00d4ff; margin:8px 0; letter-spacing:0.15em;">${escapeHtml(discountCode)}</p>
+          <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:24px; font-weight:700; color:#ffffff; margin:4px 0;">$10 OFF</p>
+          <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:14px; color:#d1d5db; margin:4px 0 0;">on your next publication fee</p>
+        </td></tr>
+      </table>
+      ${emailP(`Thanks to your publication, the author who referred you (<strong style="color:#ffffff;">${escapeHtml(data?.referrerName || "your referrer")}</strong>) has also earned a discount reward.`)}
     `
     }
     <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#1a2340" style="background-color:#1a2340; border-radius:8px; margin:20px 0;">
       <tr><td style="padding:20px;">
-        <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:16px; font-weight:600; color:#ffffff; margin:0 0 12px;">Keep Earning Rewards:</p>
-        ${emailFeatureItem("🔗 Share your unique referral code with other researchers")}
-        ${emailFeatureItem('📝 When they sign up and get published, you earn <strong style="color:#ffffff;">+2 bonus downloads</strong>')}
-        ${emailFeatureItem("🏆 There's no limit to how many rewards you can earn!")}
+        <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:16px; font-weight:600; color:#ffffff; margin:0 0 12px;">Referral Reward Tiers:</p>
+        ${emailFeatureItem('🥉 1 successful referral → <strong style="color:#ffffff;">$10 discount</strong>')}
+        ${emailFeatureItem('🥈 2 successful referrals → <strong style="color:#ffffff;">$30 discount</strong>')}
+        ${emailFeatureItem('🥇 3 successful referrals → <strong style="color:#ffffff;">$50 discount</strong>')}
       </td></tr>
     </table>
     ${emailButton("https://wwjmrdai.lovable.app/author/rewards", isReferrer ? "View Your Rewards" : "View Your Referral Code")}
     ${emailDivider()}
-    ${emailFooterText("Keep sharing your referral code to earn more rewards. For any questions, contact us at support@wwjmrd.com")}
+    ${emailFooterText("Discount codes are valid for 1 year and can be used once. For any questions, contact us at support@wwjmrd.com")}
   `;
   return wrapEmail(isReferrer ? "Referral Reward Earned!" : "Congratulations on Your Publication!", body);
 };
