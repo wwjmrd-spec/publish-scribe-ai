@@ -82,13 +82,17 @@ async function mauticRequest(path: string, method: string, body?: unknown) {
 
   const response = await fetch(`${baseUrl}/api/${path}`, options);
   
+  const text = await response.text();
+  
   if (!response.ok) {
-    const text = await response.text();
     console.error(`Mautic API error: ${response.status} ${text}`);
-    throw new Error(`Mautic API error: ${response.status}`);
+    const err = new Error(`Mautic API error: ${response.status}`) as any;
+    err.status = response.status;
+    err.body = text;
+    throw err;
   }
 
-  return response.json();
+  return JSON.parse(text);
 }
 
 serve(async (req) => {
