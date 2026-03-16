@@ -226,7 +226,7 @@ export default function Rewards() {
               <div className="w-10 h-10 rounded-full gradient-accent flex items-center justify-center text-accent-foreground font-bold">3</div>
               <h3 className="font-semibold">Both Earn Discounts</h3>
               <p className="text-sm text-muted-foreground">
-                You get up to <strong>$50 off</strong> and they get <strong>$10 off</strong> their publication fee
+                You get up to <strong>{referral.isIndian ? '₹1,500' : '$50'} off</strong> and they get <strong>{referral.isIndian ? '₹500' : '$10'} off</strong> their publication fee
               </p>
             </div>
           </div>
