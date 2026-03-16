@@ -169,7 +169,7 @@ export default function Rewards() {
           </div>
           {referral.nextTierDiscount && (
             <p className="text-sm text-muted-foreground mt-4 text-center">
-              🎯 {referral.referralsToNextTier} more successful referral{referral.referralsToNextTier > 1 ? 's' : ''} to unlock <strong className="text-foreground">${referral.nextTierDiscount} discount</strong>!
+              🎯 {referral.referralsToNextTier} more successful referral{referral.referralsToNextTier > 1 ? 's' : ''} to unlock <strong className="text-foreground">{sym}{referral.nextTierDiscount} discount</strong>!
             </p>
           )}
         </GlassCard>
