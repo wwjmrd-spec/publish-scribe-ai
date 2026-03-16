@@ -84,17 +84,21 @@ export function useReferral() {
     enabled: !!user?.id,
   });
 
+  const isIndian = profile?.is_indian ?? false;
   const totalReferred = referrals.length;
   const totalRewarded = referrals.filter((r: any) => r.reward_granted).length;
-  const tier = getTierInfo(totalRewarded);
+  const tier = getTierInfo(totalRewarded, isIndian);
+  const currencySymbol = isIndian ? '₹' : '$';
 
   const info: ReferralInfo = {
     referralCode: profile?.referral_code ?? null,
+    isIndian,
     totalReferred,
     totalRewarded,
     currentTierDiscount: tier.current,
     nextTierDiscount: tier.next,
     referralsToNextTier: tier.remaining,
+    currencySymbol,
     discountCodes: discountCodes as any,
     referrals: referrals.map((r: any) => ({
       id: r.id,
