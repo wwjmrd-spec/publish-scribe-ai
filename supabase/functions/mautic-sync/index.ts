@@ -187,19 +187,30 @@ serve(async (req) => {
       case 'track_event': {
         const { email, eventName, eventData } = data;
         
-        const searchResult = await mauticRequest(`contacts?search=email:${encodeURIComponent(email)}`, 'GET');
-        const contacts = searchResult.contacts || {};
-        const contactId = Object.keys(contacts)[0];
+        try {
+          const searchResult = await mauticRequest(`contacts?search=email:${encodeURIComponent(email)}`, 'GET');
+          const contacts = searchResult.contacts || {};
+          const contactId = Object.keys(contacts)[0];
 
-        if (contactId) {
-          await mauticRequest('notes/new', 'POST', {
-            lead: contactId,
-            type: 'general',
-            text: `Event: ${eventName} | Data: ${JSON.stringify(eventData)}`,
-          });
+          if (contactId) {
+            try {
+              await mauticRequest('notes/new', 'POST', {
+                lead: contactId,
+                type: 'general',
+                text: `Event: ${eventName} | Data: ${JSON.stringify(eventData)}`,
+              });
+            } catch (noteErr) {
+              console.warn('Failed to create note:', noteErr);
+            }
 
-          const tagData = { tags: [eventName] };
-          await mauticRequest(`contacts/${contactId}/edit`, 'PATCH', tagData);
+            try {
+              await mauticRequest(`contacts/${contactId}/edit`, 'PATCH', { tags: [eventName] });
+            } catch (tagErr) {
+              console.warn('Failed to add tag:', tagErr);
+            }
+          }
+        } catch (searchErr) {
+          console.warn('Track event search failed:', searchErr);
         }
 
         return new Response(JSON.stringify({ success: true }), {
