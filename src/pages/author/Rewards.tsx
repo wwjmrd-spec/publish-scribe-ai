@@ -192,7 +192,9 @@ export default function Rewards() {
                     </div>
                     <div>
                       <p className="font-mono font-bold text-sm">{dc.code}</p>
-                      <p className="text-xs text-muted-foreground">${dc.discount_value} off</p>
+                      <p className="text-xs text-muted-foreground">
+                        {dc.currency === 'INR' ? '₹' : '$'}{dc.discount_value} off
+                      </p>
                     </div>
                   </div>
                   <span className={dc.is_active && (dc.used_count ?? 0) === 0 ? 'status-submitted' : 'status-published'}>
