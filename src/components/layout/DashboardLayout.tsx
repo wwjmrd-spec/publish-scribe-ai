@@ -279,7 +279,7 @@ export function DashboardLayout({ children, type }: DashboardLayoutProps) {
             onClick={() => navigate('/author/rewards')}
           >
             <Gift className="w-4 h-4" />
-            <span>🎉 <strong>Refer &amp; Earn</strong> — Invite friends and get up to <strong>₹1,500 / $50 off</strong> your next publication!</span>
+            <span>🎉 <strong>Refer &amp; Earn</strong> — Invite friends and get up to <strong>{isIndian ? '₹1,500' : '$50'} off</strong> your next publication!</span>
             <button
               onClick={(e) => {
                 e.stopPropagation();
