@@ -193,52 +193,73 @@ serve(async (req) => {
       case 'sync_contact': {
         const { email, firstname, lastname, country, company, phone, tags } = data;
         console.log('sync_contact called for:', email, 'tags:', tags);
-        
-        const contactData: Record<string, unknown> = {
-          email,
-          firstname: firstname || '',
-          lastname: lastname || '',
-          country: country || '',
-          company: company || '',
-          tags: tags || [],
-        };
-        if (phone) contactData.phone = phone;
 
-        // Search for existing contact by email
-        let existingId: string | null = null;
+        const createPayload = buildContactPayload(
+          { email, firstname, lastname, country, company, phone, tags },
+          true,
+        );
+        const updatePayload = buildContactPayload(
+          { email, firstname, lastname, country, company, phone, tags },
+          false,
+        );
+
+        let result: any = null;
+
         try {
-          const searchResult = await mauticRequest(`contacts?search=email:${encodeURIComponent(email)}`, 'GET');
-          const contacts = searchResult.contacts || {};
-          existingId = Object.keys(contacts)[0] || null;
-        } catch (e) {
-          console.warn('Contact search failed, will try create:', e);
-        }
+          const existingContact = await findContactByEmail(email);
 
-        let result;
-        if (existingId) {
-          result = await mauticRequest(`contacts/${existingId}/edit`, 'PATCH', contactData);
-        } else {
-          try {
-            result = await mauticRequest('contacts/new', 'POST', contactData);
-          } catch (e: any) {
-            // 422 = email already exists (race condition) — retry as search+patch
-            if (e.status === 422) {
-              console.log('Contact already exists (422), retrying as PATCH');
-              const retrySearch = await mauticRequest(`contacts?search=email:${encodeURIComponent(email)}`, 'GET');
-              const retryContacts = retrySearch.contacts || {};
-              const retryId = Object.keys(retryContacts)[0];
-              if (retryId) {
-                result = await mauticRequest(`contacts/${retryId}/edit`, 'PATCH', contactData);
-              } else {
-                throw e;
+          if (existingContact.contactId) {
+            if (Object.keys(updatePayload).length > 0) {
+              try {
+                result = await mauticRequest(`contacts/${existingContact.contactId}/edit`, 'PATCH', updatePayload);
+              } catch (error) {
+                if (isDuplicateEmailError(error)) {
+                  console.warn('Duplicate email returned while updating existing contact; treating sync as successful');
+                  result = { contact: existingContact.contact };
+                } else {
+                  throw error;
+                }
               }
             } else {
-              throw e;
+              result = { contact: existingContact.contact };
+            }
+          } else {
+            try {
+              result = await mauticRequest('contacts/new', 'POST', createPayload);
+            } catch (error) {
+              if (!isDuplicateEmailError(error)) {
+                throw error;
+              }
+
+              console.warn('Duplicate email returned during create; retrying by looking up the existing contact');
+              const retryContact = await findContactByEmail(email);
+
+              if (!retryContact.contactId) {
+                throw error;
+              }
+
+              if (Object.keys(updatePayload).length > 0) {
+                try {
+                  result = await mauticRequest(`contacts/${retryContact.contactId}/edit`, 'PATCH', updatePayload);
+                } catch (retryError) {
+                  if (isDuplicateEmailError(retryError)) {
+                    console.warn('Duplicate email returned again on retry update; treating sync as successful');
+                    result = { contact: retryContact.contact };
+                  } else {
+                    throw retryError;
+                  }
+                }
+              } else {
+                result = { contact: retryContact.contact };
+              }
             }
           }
+        } catch (searchError) {
+          console.warn('Contact search/update flow failed; falling back to create', searchError);
+          result = await mauticRequest('contacts/new', 'POST', createPayload);
         }
 
-        return new Response(JSON.stringify({ success: true, contact: result?.contact }), {
+        return new Response(JSON.stringify({ success: true, contact: result?.contact ?? null }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
