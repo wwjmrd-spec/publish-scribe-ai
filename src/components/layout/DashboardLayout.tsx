@@ -3,6 +3,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import {
   FileText,
@@ -86,7 +88,20 @@ export function DashboardLayout({ children, type }: DashboardLayoutProps) {
     return true;
   });
 
-  // Show tour for first-time users
+  const { data: profileData } = useQuery({
+    queryKey: ['profile-is-indian', user?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('is_indian')
+        .eq('id', user!.id)
+        .single();
+      return data;
+    },
+    enabled: !!user?.id && type === 'author',
+  });
+  const isIndian = profileData?.is_indian ?? false;
+
   React.useEffect(() => {
     if (user) {
       const tourKey = `pubportal_tour_seen_${user.id}`;
@@ -264,7 +279,7 @@ export function DashboardLayout({ children, type }: DashboardLayoutProps) {
             onClick={() => navigate('/author/rewards')}
           >
             <Gift className="w-4 h-4" />
-            <span>🎉 <strong>Refer &amp; Earn</strong> — Invite friends and get up to <strong>₹1,500 / $50 off</strong> your next publication!</span>
+            <span>🎉 <strong>Refer &amp; Earn</strong> — Invite friends and get up to <strong>{isIndian ? '₹1,500' : '$50'} off</strong> your next publication!</span>
             <button
               onClick={(e) => {
                 e.stopPropagation();
