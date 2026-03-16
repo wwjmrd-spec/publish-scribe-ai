@@ -79,6 +79,12 @@ export function DashboardLayout({ children, type }: DashboardLayoutProps) {
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const [showTour, setShowTour] = React.useState(false);
+  const [showReferBanner, setShowReferBanner] = React.useState(() => {
+    if (typeof window !== 'undefined' && user?.id) {
+      return !localStorage.getItem(`refer_banner_dismissed_${user?.id}`);
+    }
+    return true;
+  });
 
   // Show tour for first-time users
   React.useEffect(() => {
