@@ -42,11 +42,18 @@ export default function Rewards() {
     );
   }
 
-  const tiers = [
-    { referrals: 1, discount: 10, reached: referral.totalRewarded >= 1 },
-    { referrals: 2, discount: 30, reached: referral.totalRewarded >= 2 },
-    { referrals: 3, discount: 50, reached: referral.totalRewarded >= 3 },
-  ];
+  const sym = referral.currencySymbol;
+  const tiers = referral.isIndian
+    ? [
+        { referrals: 1, discount: 500, reached: referral.totalRewarded >= 1 },
+        { referrals: 2, discount: 1000, reached: referral.totalRewarded >= 2 },
+        { referrals: 3, discount: 1500, reached: referral.totalRewarded >= 3 },
+      ]
+    : [
+        { referrals: 1, discount: 10, reached: referral.totalRewarded >= 1 },
+        { referrals: 2, discount: 30, reached: referral.totalRewarded >= 2 },
+        { referrals: 3, discount: 50, reached: referral.totalRewarded >= 3 },
+      ];
 
   return (
     <DashboardLayout type="author">
@@ -128,7 +135,7 @@ export default function Rewards() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Current Tier Discount</p>
-                <p className="text-2xl font-bold">${referral.currentTierDiscount}</p>
+                <p className="text-2xl font-bold">{sym}{referral.currentTierDiscount}</p>
               </div>
             </div>
           </GlassCard>
@@ -155,14 +162,14 @@ export default function Rewards() {
                 <p className="text-sm text-muted-foreground mb-1">
                   {tier.referrals} successful referral{tier.referrals > 1 ? 's' : ''}
                 </p>
-                <p className="text-3xl font-bold gradient-text">${tier.discount}</p>
+                <p className="text-3xl font-bold gradient-text">{sym}{tier.discount}</p>
                 <p className="text-xs text-muted-foreground mt-1">discount on next publication</p>
               </div>
             ))}
           </div>
           {referral.nextTierDiscount && (
             <p className="text-sm text-muted-foreground mt-4 text-center">
-              🎯 {referral.referralsToNextTier} more successful referral{referral.referralsToNextTier > 1 ? 's' : ''} to unlock <strong className="text-foreground">${referral.nextTierDiscount} discount</strong>!
+              🎯 {referral.referralsToNextTier} more successful referral{referral.referralsToNextTier > 1 ? 's' : ''} to unlock <strong className="text-foreground">{sym}{referral.nextTierDiscount} discount</strong>!
             </p>
           )}
         </GlassCard>
@@ -185,7 +192,9 @@ export default function Rewards() {
                     </div>
                     <div>
                       <p className="font-mono font-bold text-sm">{dc.code}</p>
-                      <p className="text-xs text-muted-foreground">${dc.discount_value} off</p>
+                      <p className="text-xs text-muted-foreground">
+                        {dc.currency === 'INR' ? '₹' : '$'}{dc.discount_value} off
+                      </p>
                     </div>
                   </div>
                   <span className={dc.is_active && (dc.used_count ?? 0) === 0 ? 'status-submitted' : 'status-published'}>
@@ -217,7 +226,7 @@ export default function Rewards() {
               <div className="w-10 h-10 rounded-full gradient-accent flex items-center justify-center text-accent-foreground font-bold">3</div>
               <h3 className="font-semibold">Both Earn Discounts</h3>
               <p className="text-sm text-muted-foreground">
-                You get up to <strong>$50 off</strong> and they get <strong>$10 off</strong> their publication fee
+                You get up to <strong>{referral.isIndian ? '₹1,500' : '$50'} off</strong> and they get <strong>{referral.isIndian ? '₹500' : '$10'} off</strong> their publication fee
               </p>
             </div>
           </div>

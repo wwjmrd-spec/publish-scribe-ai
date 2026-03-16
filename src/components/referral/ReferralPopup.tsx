@@ -146,7 +146,7 @@ export function ReferralPopup() {
             Have a Referral Code?
           </DialogTitle>
           <DialogDescription className="text-center">
-            If someone referred you, enter their code below. When your article gets published, you'll get a <strong>$10 discount</strong> on your publication fee, and your referrer earns up to <strong>$50 off</strong>!
+            If someone referred you, enter their code below. When your article gets published, you'll get a discount on your publication fee (<strong>₹500</strong> for Indian authors / <strong>$10</strong> for international), and your referrer earns up to <strong>₹1,500 / $50 off</strong>!
           </DialogDescription>
         </DialogHeader>
 
