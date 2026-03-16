@@ -79,6 +79,12 @@ export function DashboardLayout({ children, type }: DashboardLayoutProps) {
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const [showTour, setShowTour] = React.useState(false);
+  const [showReferBanner, setShowReferBanner] = React.useState(() => {
+    if (typeof window !== 'undefined' && user?.id) {
+      return !localStorage.getItem(`refer_banner_dismissed_${user?.id}`);
+    }
+    return true;
+  });
 
   // Show tour for first-time users
   React.useEffect(() => {
@@ -248,6 +254,30 @@ export function DashboardLayout({ children, type }: DashboardLayoutProps) {
 
       {/* Main Content */}
       <main className="flex-1 lg:ml-64 mt-16 lg:mt-0 overflow-y-auto h-screen">
+        {/* Refer & Earn Banner */}
+        {type === 'author' && showReferBanner && location.pathname !== '/author/rewards' && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="relative cursor-pointer gradient-secondary px-4 py-2.5 flex items-center justify-center gap-2 text-sm font-medium text-secondary-foreground"
+            onClick={() => navigate('/author/rewards')}
+          >
+            <Gift className="w-4 h-4" />
+            <span>🎉 <strong>Refer &amp; Earn</strong> — Invite friends and get up to <strong>₹1,500 / $50 off</strong> your next publication!</span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowReferBanner(false);
+                if (user?.id) localStorage.setItem(`refer_banner_dismissed_${user.id}`, 'true');
+              }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-secondary-foreground/10 transition-colors"
+              aria-label="Dismiss"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </motion.div>
+        )}
         <div className="p-4 sm:p-6 lg:p-8">
           {children}
         </div>
