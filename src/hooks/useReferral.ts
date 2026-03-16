@@ -74,7 +74,7 @@ export function useReferral() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('discount_codes')
-        .select('code, discount_value, is_active, used_count')
+        .select('code, discount_value, currency, is_active, used_count')
         .eq('created_by', user!.id)
         .like('code', 'REF-%')
         .order('created_at', { ascending: false });
