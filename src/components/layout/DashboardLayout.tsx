@@ -88,7 +88,20 @@ export function DashboardLayout({ children, type }: DashboardLayoutProps) {
     return true;
   });
 
-  // Show tour for first-time users
+  const { data: profileData } = useQuery({
+    queryKey: ['profile-is-indian', user?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('is_indian')
+        .eq('id', user!.id)
+        .single();
+      return data;
+    },
+    enabled: !!user?.id && type === 'author',
+  });
+  const isIndian = profileData?.is_indian ?? false;
+
   React.useEffect(() => {
     if (user) {
       const tourKey = `pubportal_tour_seen_${user.id}`;
