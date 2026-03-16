@@ -135,7 +135,7 @@ export default function Rewards() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Current Tier Discount</p>
-                <p className="text-2xl font-bold">${referral.currentTierDiscount}</p>
+                <p className="text-2xl font-bold">{sym}{referral.currentTierDiscount}</p>
               </div>
             </div>
           </GlassCard>
