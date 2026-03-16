@@ -162,7 +162,7 @@ export default function Rewards() {
                 <p className="text-sm text-muted-foreground mb-1">
                   {tier.referrals} successful referral{tier.referrals > 1 ? 's' : ''}
                 </p>
-                <p className="text-3xl font-bold gradient-text">${tier.discount}</p>
+                <p className="text-3xl font-bold gradient-text">{sym}{tier.discount}</p>
                 <p className="text-xs text-muted-foreground mt-1">discount on next publication</p>
               </div>
             ))}
