@@ -135,11 +135,6 @@ serve(async (req) => {
         const { email, firstname, lastname, country, company, phone, tags } = data;
         console.log('sync_contact called for:', email, 'tags:', tags);
         
-        // Search for existing contact by email
-        const searchResult = await mauticRequest(`contacts?search=email:${encodeURIComponent(email)}`, 'GET');
-        const contacts = searchResult.contacts || {};
-        const existingId = Object.keys(contacts)[0];
-
         const contactData: Record<string, unknown> = {
           email,
           firstname: firstname || '',
@@ -148,20 +143,43 @@ serve(async (req) => {
           company: company || '',
           tags: tags || [],
         };
-        
-        // Include phone if available
-        if (phone) {
-          contactData.phone = phone;
+        if (phone) contactData.phone = phone;
+
+        // Search for existing contact by email
+        let existingId: string | null = null;
+        try {
+          const searchResult = await mauticRequest(`contacts?search=email:${encodeURIComponent(email)}`, 'GET');
+          const contacts = searchResult.contacts || {};
+          existingId = Object.keys(contacts)[0] || null;
+        } catch (e) {
+          console.warn('Contact search failed, will try create:', e);
         }
 
         let result;
         if (existingId) {
           result = await mauticRequest(`contacts/${existingId}/edit`, 'PATCH', contactData);
         } else {
-          result = await mauticRequest('contacts/new', 'POST', contactData);
+          try {
+            result = await mauticRequest('contacts/new', 'POST', contactData);
+          } catch (e: any) {
+            // 422 = email already exists (race condition) — retry as search+patch
+            if (e.status === 422) {
+              console.log('Contact already exists (422), retrying as PATCH');
+              const retrySearch = await mauticRequest(`contacts?search=email:${encodeURIComponent(email)}`, 'GET');
+              const retryContacts = retrySearch.contacts || {};
+              const retryId = Object.keys(retryContacts)[0];
+              if (retryId) {
+                result = await mauticRequest(`contacts/${retryId}/edit`, 'PATCH', contactData);
+              } else {
+                throw e;
+              }
+            } else {
+              throw e;
+            }
+          }
         }
 
-        return new Response(JSON.stringify({ success: true, contact: result.contact }), {
+        return new Response(JSON.stringify({ success: true, contact: result?.contact }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
