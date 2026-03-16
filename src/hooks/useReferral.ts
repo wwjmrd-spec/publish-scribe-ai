@@ -46,7 +46,7 @@ export function useReferral() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('referral_code')
+        .select('referral_code, is_indian')
         .eq('id', user!.id)
         .single();
       if (error) throw error;
