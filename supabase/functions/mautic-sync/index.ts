@@ -64,6 +64,11 @@ async function getAccessToken(): Promise<string> {
   return data.access_token;
 }
 
+type MauticApiError = Error & {
+  status?: number;
+  body?: string;
+};
+
 async function mauticRequest(path: string, method: string, body?: unknown) {
   const { baseUrl } = getMauticConfig();
   const token = await getAccessToken();
@@ -81,18 +86,72 @@ async function mauticRequest(path: string, method: string, body?: unknown) {
   }
 
   const response = await fetch(`${baseUrl}/api/${path}`, options);
-  
   const text = await response.text();
-  
+
   if (!response.ok) {
     console.error(`Mautic API error: ${response.status} ${text}`);
-    const err = new Error(`Mautic API error: ${response.status}`) as any;
+    const err = new Error(`Mautic API error: ${response.status}`) as MauticApiError;
     err.status = response.status;
     err.body = text;
     throw err;
   }
 
-  return JSON.parse(text);
+  return text ? JSON.parse(text) : {};
+}
+
+function isDuplicateEmailError(error: unknown) {
+  if (!error || typeof error !== 'object') return false;
+
+  const mauticError = error as MauticApiError;
+  const body = mauticError.body?.toLowerCase() || '';
+  return mauticError.status === 422 && body.includes('email') && body.includes('unique');
+}
+
+function buildContactPayload(
+  data: {
+    email: string;
+    firstname?: string;
+    lastname?: string;
+    country?: string;
+    company?: string;
+    phone?: string;
+    tags?: string[];
+  },
+  includeEmail: boolean,
+) {
+  const payload: Record<string, unknown> = {};
+
+  if (includeEmail) {
+    payload.email = data.email;
+  }
+
+  const firstname = data.firstname?.trim();
+  const lastname = data.lastname?.trim();
+  const country = data.country?.trim();
+  const company = data.company?.trim();
+  const phone = data.phone?.trim();
+  const tags = Array.from(new Set((data.tags || []).filter(Boolean)));
+
+  if (firstname) payload.firstname = firstname;
+  if (lastname) payload.lastname = lastname;
+  if (country) payload.country = country;
+  if (company) payload.company = company;
+  if (phone) payload.phone = phone;
+  if (tags.length > 0) payload.tags = tags;
+
+  return payload;
+}
+
+async function findContactByEmail(email: string) {
+  const search = new URLSearchParams({ search: `email:${email}` }).toString();
+  const searchResult = await mauticRequest(`contacts?${search}`, 'GET');
+  const contacts = searchResult.contacts || {};
+  const contactId = Object.keys(contacts)[0] || null;
+
+  return {
+    contactId,
+    contact: contactId ? contacts[contactId] : null,
+  };
 }
 
 serve(async (req) => {
