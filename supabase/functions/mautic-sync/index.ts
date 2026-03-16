@@ -256,7 +256,18 @@ serve(async (req) => {
           }
         } catch (searchError) {
           console.warn('Contact search/update flow failed; falling back to create', searchError);
-          result = await mauticRequest('contacts/new', 'POST', createPayload);
+
+          try {
+            result = await mauticRequest('contacts/new', 'POST', createPayload);
+          } catch (fallbackError) {
+            if (!isDuplicateEmailError(fallbackError)) {
+              throw fallbackError;
+            }
+
+            console.warn('Fallback create also hit duplicate email; treating sync as successful');
+            const fallbackContact = await findContactByEmail(email);
+            result = { contact: fallbackContact.contact };
+          }
         }
 
         return new Response(JSON.stringify({ success: true, contact: result?.contact ?? null }), {
