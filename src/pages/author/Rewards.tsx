@@ -42,11 +42,18 @@ export default function Rewards() {
     );
   }
 
-  const tiers = [
-    { referrals: 1, discount: 10, reached: referral.totalRewarded >= 1 },
-    { referrals: 2, discount: 30, reached: referral.totalRewarded >= 2 },
-    { referrals: 3, discount: 50, reached: referral.totalRewarded >= 3 },
-  ];
+  const sym = referral.currencySymbol;
+  const tiers = referral.isIndian
+    ? [
+        { referrals: 1, discount: 500, reached: referral.totalRewarded >= 1 },
+        { referrals: 2, discount: 1000, reached: referral.totalRewarded >= 2 },
+        { referrals: 3, discount: 1500, reached: referral.totalRewarded >= 3 },
+      ]
+    : [
+        { referrals: 1, discount: 10, reached: referral.totalRewarded >= 1 },
+        { referrals: 2, discount: 30, reached: referral.totalRewarded >= 2 },
+        { referrals: 3, discount: 50, reached: referral.totalRewarded >= 3 },
+      ];
 
   return (
     <DashboardLayout type="author">
