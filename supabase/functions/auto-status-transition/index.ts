@@ -16,15 +16,20 @@ serve(async (req: Request) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const authHeader = req.headers.get("Authorization");
-    const token = authHeader?.replace("Bearer ", "");
+    // Validate caller: accept service role key or anon key
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
+    const authHeader = req.headers.get("Authorization") || "";
+    const token = authHeader.replace("Bearer ", "").trim();
+    
     if (!token || (token !== serviceRoleKey && token !== anonKey)) {
+      console.error("Auth failed. Token length:", token?.length, "Anon key length:", anonKey?.length, "Match:", token === anonKey);
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+    
+    console.log("Auth passed, starting auto-status-transition");
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
     const now = new Date();
