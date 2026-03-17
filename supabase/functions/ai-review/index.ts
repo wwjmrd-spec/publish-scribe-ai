@@ -428,24 +428,27 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const lovableApiKey = Deno.env.get("LOVABLE_API_KEY")!;
 
-    // Auth: verify JWT using anon key client + getClaims
-    const authClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) return jsonResponse({ error: "Unauthorized" }, 401);
-
-    const userId = claimsData.claims.sub as string;
+    // Auth: allow service role key (for internal cron calls) or verify JWT for admin
+    const token = authHeader.replace("Bearer ", "").trim();
+    const isServiceRole = token === supabaseServiceKey;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { data: roleData } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .single();
+    if (!isServiceRole) {
+      const authClient = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(token);
+      if (claimsError || !claimsData?.claims) return jsonResponse({ error: "Unauthorized" }, 401);
 
-    if (roleData?.role !== "admin") return jsonResponse({ error: "Admin access required" }, 403);
+      const userId = claimsData.claims.sub as string;
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId)
+        .single();
+
+      if (roleData?.role !== "admin") return jsonResponse({ error: "Admin access required" }, 403);
+    }
 
     const { articleId } = await req.json();
     if (!articleId) return jsonResponse({ error: "Article ID required" }, 400);
