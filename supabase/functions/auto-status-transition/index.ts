@@ -146,8 +146,8 @@ serve(async (req: Request) => {
             // Author notification
             await supabase.from("notifications").insert({
               user_id: article.author_id,
-              title: "AI Review Report Ready 📋",
-              message: `Your AI Review Report for "${article.title}" is ready.`,
+              title: "Review Report Ready 📋",
+              message: `Your Review Report for "${article.title}" is ready.`,
               type: "success",
               link: "/author/articles",
             });
