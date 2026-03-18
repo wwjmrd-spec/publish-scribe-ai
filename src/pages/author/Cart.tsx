@@ -713,11 +713,24 @@ export default function Cart() {
                     )}
                   </div>
 
+                  {/* Refund & Cancellation Policy */}
+                  <div className="flex items-start gap-3 p-3 rounded-lg bg-[hsl(var(--glass-bg))] border border-[hsl(var(--glass-border))]">
+                    <Checkbox
+                      id="policy-accept"
+                      checked={policyAccepted}
+                      onCheckedChange={(checked) => setPolicyAccepted(checked === true)}
+                      className="mt-0.5"
+                    />
+                    <label htmlFor="policy-accept" className="text-xs text-muted-foreground cursor-pointer leading-relaxed">
+                      I have read and accept the <strong className="text-foreground">Refund & Cancellation Policy</strong>. I understand that all payments are non-refundable once the article has been processed, and cancellations must be requested before the article enters the review stage.
+                    </label>
+                  </div>
+
                   {/* Payment Button */}
                   <Button
                     className={`w-full ${preferredCurrency === 'USDT' ? 'bg-amber-500 hover:bg-amber-600 text-black' : 'gradient-primary hover:shadow-[0_0_30px_hsl(var(--primary)/0.5)]'}`}
                     size="lg"
-                    disabled={totalItemCount === 0 || isProcessing}
+                    disabled={totalItemCount === 0 || isProcessing || !policyAccepted}
                     onClick={handlePayment}
                   >
                     {isProcessing ? (
