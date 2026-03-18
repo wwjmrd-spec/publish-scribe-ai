@@ -722,7 +722,10 @@ export default function Cart() {
                       className="mt-0.5"
                     />
                     <label htmlFor="policy-accept" className="text-xs text-muted-foreground cursor-pointer leading-relaxed">
-                      I have read and accept the <strong className="text-foreground">Refund & Cancellation Policy</strong>. I understand that all payments are non-refundable once the article has been processed, and cancellations must be requested before the article enters the review stage.
+                      I have read and accept the Refund & Cancellation Policy.{' '}
+                      <a href="https://wwjmrd.com/refund-and-cancellation" target="_blank" rel="noopener noreferrer" className="text-primary underline hover:text-primary/80">
+                        Click here to read
+                      </a>
                     </label>
                   </div>
 
