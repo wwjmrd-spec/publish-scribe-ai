@@ -63,6 +63,7 @@ export default function Cart() {
   const [applyingDiscount, setApplyingDiscount] = useState(false);
   const [txHash, setTxHash] = useState('');
   const [copied, setCopied] = useState(false);
+  const [policyAccepted, setPolicyAccepted] = useState(false);
 
   const currency = preferredCurrency;
   const currencySymbol = preferredCurrency === 'INR' ? '₹' : preferredCurrency === 'USDT' ? '₮' : '$';
