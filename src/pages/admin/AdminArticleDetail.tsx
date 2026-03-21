@@ -619,6 +619,15 @@ export default function AdminArticleDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Galley Proof Dialog */}
+      {article && (
+        <SendGalleyProofDialog
+          open={isGalleyProofDialogOpen}
+          onOpenChange={setIsGalleyProofDialogOpen}
+          article={article}
+        />
+      )}
     </DashboardLayout>
   );
 }

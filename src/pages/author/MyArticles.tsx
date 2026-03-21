@@ -25,6 +25,7 @@ import {
   Ban,
 } from 'lucide-react';
 import { WithdrawArticleDialog } from '@/components/articles/WithdrawArticleDialog';
+import { GalleyProofReviewSection } from '@/components/articles/GalleyProofReviewSection';
 
 export default function MyArticles() {
   const { user } = useAuth();
