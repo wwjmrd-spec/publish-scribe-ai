@@ -517,6 +517,18 @@ export default function AdminArticleDetail() {
                     {sendReminderMutation.isPending ? 'Sending...' : 'Send Payment Reminder'}
                   </Button>
                 )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-primary hover:text-primary"
+                  onClick={() => setIsGalleyProofDialogOpen(true)}
+                >
+                  <Send className="w-4 h-4 mr-2" /> Send Galley Proof
+                </Button>
+                {(article as any).galley_proof_status && (
+                  <div className="text-xs text-muted-foreground px-1">
+                    Galley Proof: <span className="capitalize font-medium text-foreground">{(article as any).galley_proof_status?.replace(/_/g, ' ')}</span>
+                  </div>
                 <div className="flex items-center justify-between pt-2 border-t border-border/50">
                   <span className="text-sm text-muted-foreground">Allow Withdrawal</span>
                   <Switch
