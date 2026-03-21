@@ -17,6 +17,7 @@ import {
   Clock,
   ArrowLeft,
   Mail,
+  Send,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -31,6 +32,7 @@ import {
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
+import { SendGalleyProofDialog } from '@/components/admin/SendGalleyProofDialog';
 
 type ArticleStatus = Database['public']['Enums']['article_status'];
 
@@ -39,6 +41,7 @@ export default function AdminArticleDetail() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
+  const [isGalleyProofDialogOpen, setIsGalleyProofDialogOpen] = useState(false);
   const [publishDetails, setPublishDetails] = useState({
     volume: '',
     issue: '',
@@ -514,6 +517,19 @@ export default function AdminArticleDetail() {
                     {sendReminderMutation.isPending ? 'Sending...' : 'Send Payment Reminder'}
                   </Button>
                 )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-primary hover:text-primary"
+                  onClick={() => setIsGalleyProofDialogOpen(true)}
+                >
+                  <Send className="w-4 h-4 mr-2" /> Send Galley Proof
+                </Button>
+                {(article as any).galley_proof_status && (
+                  <div className="text-xs text-muted-foreground px-1">
+                    Galley Proof: <span className="capitalize font-medium text-foreground">{(article as any).galley_proof_status?.replace(/_/g, ' ')}</span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between pt-2 border-t border-border/50">
                   <span className="text-sm text-muted-foreground">Allow Withdrawal</span>
                   <Switch
@@ -603,6 +619,15 @@ export default function AdminArticleDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Galley Proof Dialog */}
+      {article && (
+        <SendGalleyProofDialog
+          open={isGalleyProofDialogOpen}
+          onOpenChange={setIsGalleyProofDialogOpen}
+          article={article}
+        />
+      )}
     </DashboardLayout>
   );
 }

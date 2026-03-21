@@ -25,6 +25,7 @@ import {
   Ban,
 } from 'lucide-react';
 import { WithdrawArticleDialog } from '@/components/articles/WithdrawArticleDialog';
+import { GalleyProofReviewSection } from '@/components/articles/GalleyProofReviewSection';
 
 export default function MyArticles() {
   const { user } = useAuth();
@@ -376,6 +377,11 @@ export default function MyArticles() {
                         </Button>
                       )}
                     </div>
+
+                    {/* Galley Proof Review */}
+                    {(article as any).galley_proof_status && (
+                      <GalleyProofReviewSection article={article} />
+                    )}
                   </div>
                 </GlassCard>
               </motion.div>

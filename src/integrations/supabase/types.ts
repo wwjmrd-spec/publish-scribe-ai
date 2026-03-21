@@ -117,6 +117,13 @@ export type Database = {
           formatting_approved_at: string | null
           formatting_status: string | null
           formatting_suggestions: Json | null
+          galley_proof_consent: boolean | null
+          galley_proof_deadline: string | null
+          galley_proof_pdf_url: string | null
+          galley_proof_revision_url: string | null
+          galley_proof_sent_at: string | null
+          galley_proof_status: string | null
+          galley_proof_word_url: string | null
           id: string
           issue: string | null
           keywords: string[] | null
@@ -148,6 +155,13 @@ export type Database = {
           formatting_approved_at?: string | null
           formatting_status?: string | null
           formatting_suggestions?: Json | null
+          galley_proof_consent?: boolean | null
+          galley_proof_deadline?: string | null
+          galley_proof_pdf_url?: string | null
+          galley_proof_revision_url?: string | null
+          galley_proof_sent_at?: string | null
+          galley_proof_status?: string | null
+          galley_proof_word_url?: string | null
           id?: string
           issue?: string | null
           keywords?: string[] | null
@@ -179,6 +193,13 @@ export type Database = {
           formatting_approved_at?: string | null
           formatting_status?: string | null
           formatting_suggestions?: Json | null
+          galley_proof_consent?: boolean | null
+          galley_proof_deadline?: string | null
+          galley_proof_pdf_url?: string | null
+          galley_proof_revision_url?: string | null
+          galley_proof_sent_at?: string | null
+          galley_proof_status?: string | null
+          galley_proof_word_url?: string | null
           id?: string
           issue?: string | null
           keywords?: string[] | null

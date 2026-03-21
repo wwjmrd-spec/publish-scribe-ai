@@ -31,6 +31,7 @@ type EmailTemplate =
   | "article-status-change"
   | "review-report-ready"
   | "payment-reminder"
+  | "galley-proof-review"
   | "custom";
 
 interface EmailRequest {
@@ -489,6 +490,52 @@ const getArticleResubmissionTemplate = (data: EmailRequest["data"], isAdmin: boo
   return wrapEmail(isAdmin ? "Article Resubmitted" : "Article Resubmitted Successfully", body);
 };
 
+const getGalleyProofReviewTemplate = (data: EmailRequest["data"]): string => {
+  const deadline = escapeHtml((data as any)?.deadline || "N/A");
+  const wordUrl = (data as any)?.wordDownloadUrl || "#";
+  const pdfUrl = (data as any)?.pdfDownloadUrl || "#";
+
+  const body = `
+    ${emailH1("Galley Proof Ready for Review 📄")}
+    ${emailP(`Dear ${escapeHtml(data?.authorName || "Author")},`)}
+    ${emailP(`Your galley proof for the article <strong style="color:#ffffff;">"${escapeHtml(data?.articleTitle || "")}"</strong> (Ref: ${escapeHtml(data?.referenceNumber || "N/A")}) is ready for your review.`)}
+    
+    ${emailInfoBox("Review Instructions:", [
+      emailInfoRow("Deadline", deadline, " color:#f97316; font-weight:600;"),
+      emailInfoRow("Reference", escapeHtml(data?.referenceNumber || "N/A")),
+    ].join(""))}
+    
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#1a2340" style="background-color:#1a2340; border-radius:8px; margin:20px 0;">
+      <tr><td style="padding:20px;">
+        <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:16px; font-weight:600; color:#ffffff; margin:0 0 12px;">What you need to do:</p>
+        ${emailFeatureItem('1️⃣ Download and review both files below')}
+        ${emailFeatureItem('2️⃣ Corrections are highlighted in <strong style="color:#ef4444;">RED</strong> — please review carefully')}
+        ${emailFeatureItem('3️⃣ Missing information is highlighted in <strong style="color:#eab308;">YELLOW</strong> — replace with correct details')}
+        ${emailFeatureItem('4️⃣ If corrections needed: upload the revised Word file in your dashboard')}
+        ${emailFeatureItem('5️⃣ If everything looks good: click "Approve Galley Proof" in your dashboard')}
+      </td></tr>
+    </table>
+    
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:24px 0;">
+      <tr>
+        <td align="center" style="padding:0 4px;">
+          <a href="${escapeHtml(wordUrl)}" target="_blank" style="display:inline-block; background-color:#2563eb; color:#ffffff; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:14px; font-weight:600; text-decoration:none; padding:12px 24px; border-radius:8px;">📥 Download Word File</a>
+        </td>
+        <td align="center" style="padding:0 4px;">
+          <a href="${escapeHtml(pdfUrl)}" target="_blank" style="display:inline-block; background-color:#dc2626; color:#ffffff; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:14px; font-weight:600; text-decoration:none; padding:12px 24px; border-radius:8px;">📥 Download PDF File</a>
+        </td>
+      </tr>
+    </table>
+    
+    ${emailButton("https://wwjmrdai.lovable.app/author/articles", "Review in Dashboard")}
+    
+    ${emailDivider()}
+    ${emailFooterText(`⏰ Please respond by ${deadline}. You can still submit after the deadline, but timely responses help us publish faster.`)}
+    ${emailFooterText("For any questions, contact us at support@wwjmrd.com")}
+  `;
+  return wrapEmail("Galley Proof Ready for Review", body);
+};
+
 function getEmailContent(
   template: EmailTemplate,
   data?: EmailRequest["data"],
@@ -552,6 +599,11 @@ function getEmailContent(
       return {
         subject: `Payment Reminder: ${data?.articleTitle || "Your Article"} - WWJMRD`,
         html: getPaymentReminderTemplate(data),
+      };
+    case "galley-proof-review":
+      return {
+        subject: `Galley Proof Ready: ${data?.articleTitle || "Your Article"} - WWJMRD`,
+        html: getGalleyProofReviewTemplate(data),
       };
     default:
       throw new Error(`Unknown email template: ${template}`);
