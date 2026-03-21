@@ -31,6 +31,7 @@ type EmailTemplate =
   | "article-status-change"
   | "review-report-ready"
   | "payment-reminder"
+  | "galley-proof-review"
   | "custom";
 
 interface EmailRequest {
