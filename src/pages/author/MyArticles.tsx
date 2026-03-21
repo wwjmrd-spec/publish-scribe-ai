@@ -377,6 +377,11 @@ export default function MyArticles() {
                         </Button>
                       )}
                     </div>
+
+                    {/* Galley Proof Review */}
+                    {(article as any).galley_proof_status && (
+                      <GalleyProofReviewSection article={article} />
+                    )}
                   </div>
                 </GlassCard>
               </motion.div>
