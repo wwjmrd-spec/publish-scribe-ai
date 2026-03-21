@@ -41,6 +41,7 @@ export default function AdminArticleDetail() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
+  const [isGalleyProofDialogOpen, setIsGalleyProofDialogOpen] = useState(false);
   const [publishDetails, setPublishDetails] = useState({
     volume: '',
     issue: '',
