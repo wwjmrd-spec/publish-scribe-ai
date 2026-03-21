@@ -529,6 +529,7 @@ export default function AdminArticleDetail() {
                   <div className="text-xs text-muted-foreground px-1">
                     Galley Proof: <span className="capitalize font-medium text-foreground">{(article as any).galley_proof_status?.replace(/_/g, ' ')}</span>
                   </div>
+                )}
                 <div className="flex items-center justify-between pt-2 border-t border-border/50">
                   <span className="text-sm text-muted-foreground">Allow Withdrawal</span>
                   <Switch
