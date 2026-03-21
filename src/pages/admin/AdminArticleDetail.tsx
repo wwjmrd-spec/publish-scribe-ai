@@ -17,7 +17,22 @@ import {
   Clock,
   ArrowLeft,
   Mail,
+  Send,
 } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { GlassSpinner } from '@/components/ui/GlassSpinner';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { toast } from 'sonner';
+import type { Database } from '@/integrations/supabase/types';
+import { SendGalleyProofDialog } from '@/components/admin/SendGalleyProofDialog';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
