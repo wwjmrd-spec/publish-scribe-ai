@@ -600,6 +600,11 @@ function getEmailContent(
         subject: `Payment Reminder: ${data?.articleTitle || "Your Article"} - WWJMRD`,
         html: getPaymentReminderTemplate(data),
       };
+    case "galley-proof-review":
+      return {
+        subject: `Galley Proof Ready: ${data?.articleTitle || "Your Article"} - WWJMRD`,
+        html: getGalleyProofReviewTemplate(data),
+      };
     default:
       throw new Error(`Unknown email template: ${template}`);
   }
