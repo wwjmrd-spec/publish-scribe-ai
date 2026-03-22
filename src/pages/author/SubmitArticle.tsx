@@ -742,6 +742,11 @@ export default function SubmitArticle() {
                 </p>
               </div>
 
+              {/* Honeypot - hidden from real users */}
+              <div className="absolute opacity-0 h-0 overflow-hidden" aria-hidden="true" tabIndex={-1}>
+                <input type="text" name="company_url" autoComplete="off" value={honeypot} onChange={(e) => setHoneypot(e.target.value)} tabIndex={-1} />
+              </div>
+
               <ArticleDetailsSection
                 title={title}
                 setTitle={setTitle}
