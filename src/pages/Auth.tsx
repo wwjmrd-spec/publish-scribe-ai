@@ -10,6 +10,8 @@ import { FileText, Mail, Lock, User, Building, Globe, AlertCircle } from 'lucide
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
 import { lovable } from '@/integrations/lovable';
+import { isHoneypotFilled, isSubmissionTooFast } from '@/lib/antispam';
+import { lovable } from '@/integrations/lovable';
 
 const signInSchema = z.object({
   email: z.string().email('Invalid email address'),
