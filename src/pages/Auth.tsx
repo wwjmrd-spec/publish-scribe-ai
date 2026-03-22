@@ -30,6 +30,8 @@ export default function Auth() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [formLoadTime] = useState(Date.now());
+  const [honeypot, setHoneypot] = useState('');
 
   // Form fields
   const [email, setEmail] = useState('');
