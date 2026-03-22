@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { WithdrawArticleDialog } from '@/components/articles/WithdrawArticleDialog';
 import { GalleyProofReviewSection } from '@/components/articles/GalleyProofReviewSection';
+import { CopyrightFormSection } from '@/components/articles/CopyrightFormSection';
 
 export default function MyArticles() {
   const { user } = useAuth();
