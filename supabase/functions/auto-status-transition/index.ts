@@ -90,7 +90,7 @@ serve(async (req: Request) => {
               `Article "${article.title}" (${article.reference_number}) is now under review.`,
               `/admin/articles/${article.id}`
             );
-            // Author email
+            // Author email - status update
             if (profile?.email) {
               await sendEmail(profile.email, "status-update", {
                 authorName: profile.full_name || "Author",
@@ -99,7 +99,21 @@ serve(async (req: Request) => {
                 newStatus: "Under Review",
                 message: "Your article has been received and is now under review by our editorial team.",
               });
+              // Copyright form request email
+              await sendEmail(profile.email, "copyright-form-request", {
+                authorName: profile.full_name || "Author",
+                articleTitle: article.title,
+                referenceNumber: article.reference_number,
+              });
             }
+            // Copyright form notification
+            await supabase.from("notifications").insert({
+              user_id: article.author_id,
+              title: "Copyright Form Required 📝",
+              message: `Please submit the copyright transfer form for "${article.title}".`,
+              type: "warning",
+              link: "/author/articles",
+            });
           }
         }
       }

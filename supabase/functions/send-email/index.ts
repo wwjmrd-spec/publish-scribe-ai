@@ -629,6 +629,11 @@ function getEmailContent(
         subject: `Galley Proof Ready: ${data?.articleTitle || "Your Article"} - WWJMRD`,
         html: getGalleyProofReviewTemplate(data),
       };
+    case "copyright-form-request":
+      return {
+        subject: `Copyright Form Required: ${data?.articleTitle || "Your Article"} - WWJMRD`,
+        html: getCopyrightFormRequestTemplate(data),
+      };
     default:
       throw new Error(`Unknown email template: ${template}`);
   }
