@@ -22,6 +22,7 @@ import { Label } from '@/components/ui/label';
 import { ArrowRight, ArrowLeft, Upload, FileText, CheckCircle, Sparkles, Bot, CreditCard, IndianRupee, DollarSign } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import mammoth from 'mammoth';
+import { isHoneypotFilled, isSubmissionTooFast, validateArticleContent } from '@/lib/antispam';
 
 type Step = 1 | 2 | 3;
 
@@ -68,6 +69,8 @@ export default function SubmitArticle() {
   const [submissionTarget, setSubmissionTarget] = useState('');
   const [publicationType, setPublicationType] = useState<'normal' | 'fast_track'>('normal');
   const [paymentMethod, setPaymentMethod] = useState<PaymentGateway>('razorpay');
+  const [honeypot, setHoneypot] = useState('');
+  const [formLoadTime] = useState(Date.now());
 
   const currency = isIndian ? 'INR' : 'USD';
   const currencySymbol = isIndian ? '₹' : '$';
@@ -433,11 +436,28 @@ export default function SubmitArticle() {
       }
     }
 
+    // Anti-spam: content validation
+    const spamCheck = validateArticleContent(title, abstract);
+    if (!spamCheck.valid) {
+      toast({ title: 'Submission Blocked', description: spamCheck.reason, variant: 'destructive' });
+      return false;
+    }
+
     return true;
   };
 
   const handleSubmit = async () => {
     if (!validateForm()) return;
+
+    // Anti-bot checks
+    if (isHoneypotFilled(honeypot)) {
+      toast({ title: 'Article submitted!', description: 'Your article has been submitted successfully.' });
+      return; // Silently reject
+    }
+    if (isSubmissionTooFast(formLoadTime, 10)) {
+      toast({ title: 'Please take your time', description: 'The form was submitted too quickly. Please review your details.', variant: 'destructive' });
+      return;
+    }
 
     if (publicationType === 'fast_track') {
       await handleFastTrackSubmit();
@@ -720,6 +740,11 @@ export default function SubmitArticle() {
                 <p className="text-foreground">
                   <span className="font-semibold">AI has pre-filled</span> the details below from your document. Please review and correct any fields before submitting.
                 </p>
+              </div>
+
+              {/* Honeypot - hidden from real users */}
+              <div className="absolute opacity-0 h-0 overflow-hidden" aria-hidden="true" tabIndex={-1}>
+                <input type="text" name="company_url" autoComplete="off" value={honeypot} onChange={(e) => setHoneypot(e.target.value)} tabIndex={-1} />
               </div>
 
               <ArticleDetailsSection

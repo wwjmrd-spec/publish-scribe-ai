@@ -10,6 +10,7 @@ import { FileText, Mail, Lock, User, Building, Globe, AlertCircle } from 'lucide
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
 import { lovable } from '@/integrations/lovable';
+import { isHoneypotFilled, isSubmissionTooFast } from '@/lib/antispam';
 
 const signInSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -28,6 +29,8 @@ export default function Auth() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [formLoadTime] = useState(Date.now());
+  const [honeypot, setHoneypot] = useState('');
 
   // Form fields
   const [email, setEmail] = useState('');
@@ -74,6 +77,19 @@ export default function Auth() {
     setLoading(true);
 
     try {
+      // Anti-bot checks
+      if (isHoneypotFilled(honeypot)) {
+        // Silently reject - don't tell bot it was caught
+        setLoading(false);
+        toast({ title: isSignUp ? 'Account created!' : 'Success', description: 'Please check your email.' });
+        return;
+      }
+      if (isSignUp && isSubmissionTooFast(formLoadTime, 3)) {
+        setError('Please take a moment to fill the form properly.');
+        setLoading(false);
+        return;
+      }
+
       if (isSignUp) {
         const validation = signUpSchema.safeParse({ email, password, fullName, country, affiliation });
         if (!validation.success) {
@@ -344,6 +360,18 @@ export default function Auth() {
                   className="pl-10 h-11 bg-muted/50 border-border focus:border-primary" />
 
               </div>
+            </div>
+
+            {/* Honeypot - hidden from real users */}
+            <div className="absolute opacity-0 h-0 overflow-hidden" aria-hidden="true" tabIndex={-1}>
+              <input
+                type="text"
+                name="website_url"
+                autoComplete="off"
+                value={honeypot}
+                onChange={(e) => setHoneypot(e.target.value)}
+                tabIndex={-1}
+              />
             </div>
 
             <Button
