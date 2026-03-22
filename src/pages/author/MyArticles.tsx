@@ -326,7 +326,7 @@ export default function MyArticles() {
                           Report
                         </Button>
                       )}
-                      {(article as any).formatted_document_url && (
+                      {(article as any).formatted_document_url && !(article as any).galley_proof_pdf_url && !(article as any).galley_proof_word_url && (
                         <Button
                           variant="outline"
                           size="sm"
