@@ -78,6 +78,19 @@ export default function Auth() {
     setLoading(true);
 
     try {
+      // Anti-bot checks
+      if (isHoneypotFilled(honeypot)) {
+        // Silently reject - don't tell bot it was caught
+        setLoading(false);
+        toast({ title: isSignUp ? 'Account created!' : 'Success', description: 'Please check your email.' });
+        return;
+      }
+      if (isSignUp && isSubmissionTooFast(formLoadTime, 3)) {
+        setError('Please take a moment to fill the form properly.');
+        setLoading(false);
+        return;
+      }
+
       if (isSignUp) {
         const validation = signUpSchema.safeParse({ email, password, fullName, country, affiliation });
         if (!validation.success) {
