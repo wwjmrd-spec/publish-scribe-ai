@@ -32,6 +32,7 @@ type EmailTemplate =
   | "review-report-ready"
   | "payment-reminder"
   | "galley-proof-review"
+  | "copyright-form-request"
   | "custom";
 
 interface EmailRequest {
