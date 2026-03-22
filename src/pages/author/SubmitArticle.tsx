@@ -69,6 +69,8 @@ export default function SubmitArticle() {
   const [submissionTarget, setSubmissionTarget] = useState('');
   const [publicationType, setPublicationType] = useState<'normal' | 'fast_track'>('normal');
   const [paymentMethod, setPaymentMethod] = useState<PaymentGateway>('razorpay');
+  const [honeypot, setHoneypot] = useState('');
+  const [formLoadTime] = useState(Date.now());
 
   const currency = isIndian ? 'INR' : 'USD';
   const currencySymbol = isIndian ? '₹' : '$';
