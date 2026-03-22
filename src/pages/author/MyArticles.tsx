@@ -373,6 +373,9 @@ export default function MyArticles() {
                     {(article as any).galley_proof_status && (
                       <GalleyProofReviewSection article={article} />
                     )}
+
+                    {/* Copyright Form Upload */}
+                    <CopyrightFormSection article={article} />
                   </div>
                 </GlassCard>
               </motion.div>

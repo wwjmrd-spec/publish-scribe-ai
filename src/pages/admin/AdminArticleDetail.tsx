@@ -559,6 +559,14 @@ export default function AdminArticleDetail() {
                     <Download className="w-4 h-4 mr-2" /> Document
                   </Button>
                 )}
+                {(article as any).copyright_form_url && (
+                  <Button variant="outline" size="sm" onClick={() => downloadMutation.mutate({ fileType: 'copyright_form' })} disabled={downloadMutation.isPending}>
+                    <FileText className="w-4 h-4 mr-2" /> Copyright Form
+                  </Button>
+                )}
+                {!(article as any).copyright_form_url && (
+                  <span className="text-xs text-amber-400 px-1">⚠ Copyright form not submitted</span>
+                )}
                 {article.certificate_url && (
                   <Button variant="outline" size="sm" onClick={() => downloadMutation.mutate({ fileType: 'certificate' })} disabled={downloadMutation.isPending}>
                     <Award className="w-4 h-4 mr-2" /> Certificate
