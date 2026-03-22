@@ -22,6 +22,7 @@ import { Label } from '@/components/ui/label';
 import { ArrowRight, ArrowLeft, Upload, FileText, CheckCircle, Sparkles, Bot, CreditCard, IndianRupee, DollarSign } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import mammoth from 'mammoth';
+import { isHoneypotFilled, isSubmissionTooFast, validateArticleContent } from '@/lib/antispam';
 
 type Step = 1 | 2 | 3;
 
