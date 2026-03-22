@@ -436,11 +436,28 @@ export default function SubmitArticle() {
       }
     }
 
+    // Anti-spam: content validation
+    const spamCheck = validateArticleContent(title, abstract);
+    if (!spamCheck.valid) {
+      toast({ title: 'Submission Blocked', description: spamCheck.reason, variant: 'destructive' });
+      return false;
+    }
+
     return true;
   };
 
   const handleSubmit = async () => {
     if (!validateForm()) return;
+
+    // Anti-bot checks
+    if (isHoneypotFilled(honeypot)) {
+      toast({ title: 'Article submitted!', description: 'Your article has been submitted successfully.' });
+      return; // Silently reject
+    }
+    if (isSubmissionTooFast(formLoadTime, 10)) {
+      toast({ title: 'Please take your time', description: 'The form was submitted too quickly. Please review your details.', variant: 'destructive' });
+      return;
+    }
 
     if (publicationType === 'fast_track') {
       await handleFastTrackSubmit();
