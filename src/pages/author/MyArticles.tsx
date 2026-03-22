@@ -326,16 +326,6 @@ export default function MyArticles() {
                           Report
                         </Button>
                       )}
-                      {(article as any).formatted_document_url && !(article as any).galley_proof_pdf_url && !(article as any).galley_proof_word_url && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDownloadGalleyProof(article.id)}
-                        >
-                          <Download className="w-4 h-4 mr-1" />
-                          Galley Proof
-                        </Button>
-                      )}
                       {article.certificate_url && (
                         <Button
                           variant="outline"
