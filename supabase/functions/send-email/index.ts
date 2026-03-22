@@ -32,6 +32,7 @@ type EmailTemplate =
   | "review-report-ready"
   | "payment-reminder"
   | "galley-proof-review"
+  | "copyright-form-request"
   | "custom";
 
 interface EmailRequest {
@@ -536,6 +537,29 @@ const getGalleyProofReviewTemplate = (data: EmailRequest["data"]): string => {
   return wrapEmail("Galley Proof Ready for Review", body);
 };
 
+const getCopyrightFormRequestTemplate = (data: EmailRequest["data"]): string => {
+  const body = `
+    ${emailH1("Copyright Form Required 📝")}
+    ${emailP(`Dear ${escapeHtml(data?.authorName || "Author")},`)}
+    ${emailP(`Thank you for submitting your article <strong style="color:#ffffff;">"${escapeHtml(data?.articleTitle || "")}"</strong> (Ref: ${escapeHtml(data?.referenceNumber || "N/A")}) to WWJMRD.`)}
+    ${emailP("To proceed with the publication process, we require you to submit a signed <strong style='color:#ffffff;'>Copyright Transfer Form</strong>.")}
+    
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#1a2340" style="background-color:#1a2340; border-radius:8px; margin:20px 0;">
+      <tr><td style="padding:20px;">
+        <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:16px; font-weight:600; color:#ffffff; margin:0 0 12px;">How to submit:</p>
+        ${emailFeatureItem('1️⃣ Download and fill out the copyright form')}
+        ${emailFeatureItem('2️⃣ Sign the form and save it as a PDF')}
+        ${emailFeatureItem('3️⃣ Upload the signed PDF from your dashboard')}
+      </td></tr>
+    </table>
+    
+    ${emailButton("https://wwjmrdai.lovable.app/author/articles", "Submit Copyright Form")}
+    ${emailDivider()}
+    ${emailFooterText("If you have any questions about the copyright form, contact us at support@wwjmrd.com")}
+  `;
+  return wrapEmail("Copyright Form Required - WWJMRD", body);
+};
+
 function getEmailContent(
   template: EmailTemplate,
   data?: EmailRequest["data"],
@@ -604,6 +628,11 @@ function getEmailContent(
       return {
         subject: `Galley Proof Ready: ${data?.articleTitle || "Your Article"} - WWJMRD`,
         html: getGalleyProofReviewTemplate(data),
+      };
+    case "copyright-form-request":
+      return {
+        subject: `Copyright Form Required: ${data?.articleTitle || "Your Article"} - WWJMRD`,
+        html: getCopyrightFormRequestTemplate(data),
       };
     default:
       throw new Error(`Unknown email template: ${template}`);

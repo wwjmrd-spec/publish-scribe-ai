@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { WithdrawArticleDialog } from '@/components/articles/WithdrawArticleDialog';
 import { GalleyProofReviewSection } from '@/components/articles/GalleyProofReviewSection';
+import { CopyrightFormSection } from '@/components/articles/CopyrightFormSection';
 
 export default function MyArticles() {
   const { user } = useAuth();
@@ -372,6 +373,9 @@ export default function MyArticles() {
                     {(article as any).galley_proof_status && (
                       <GalleyProofReviewSection article={article} />
                     )}
+
+                    {/* Copyright Form Upload */}
+                    <CopyrightFormSection article={article} />
                   </div>
                 </GlassCard>
               </motion.div>

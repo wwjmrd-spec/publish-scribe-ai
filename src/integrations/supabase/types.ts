@@ -110,6 +110,7 @@ export type Database = {
           author_id: string
           author_name: string | null
           certificate_url: string | null
+          copyright_form_url: string | null
           country: string | null
           created_at: string | null
           document_url: string | null
@@ -148,6 +149,7 @@ export type Database = {
           author_id: string
           author_name?: string | null
           certificate_url?: string | null
+          copyright_form_url?: string | null
           country?: string | null
           created_at?: string | null
           document_url?: string | null
@@ -186,6 +188,7 @@ export type Database = {
           author_id?: string
           author_name?: string | null
           certificate_url?: string | null
+          copyright_form_url?: string | null
           country?: string | null
           created_at?: string | null
           document_url?: string | null
