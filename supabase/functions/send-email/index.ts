@@ -228,6 +228,14 @@ const getArticleSubmissionTemplate = (data: EmailRequest["data"], isAdmin: boole
           ${emailFeatureItem("4️⃣ After payment, you'll receive your publication certificate")}
         </td></tr>
       </table>
+      ${emailP('<strong style="color:#ffffff;">📝 Important:</strong> Please download and submit the Copyright Transfer Form as soon as possible.')}
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:10px 0 20px;">
+        <tr>
+          <td align="center">
+            <a href="https://wwjmrdai.lovable.app/copyright-form.doc" download style="display:inline-block; background-color:#1a2340; color:#00d4ff; padding:10px 20px; border-radius:6px; text-decoration:none; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:14px; font-weight:600; border:1px solid rgba(0,212,255,0.3);">📥 Download Copyright Form</a>
+          </td>
+        </tr>
+      </table>
       ${emailButton("https://wwjmrdai.lovable.app/author/articles", "Track Your Article")}
     `
     }

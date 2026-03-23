@@ -526,6 +526,26 @@ export default function AdminArticleDetail() {
                 >
                   <Send className="w-4 h-4 mr-2" /> Send Galley Proof
                 </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-destructive hover:text-destructive border-destructive/30"
+                  onClick={async () => {
+                    if (!confirm('Are you sure you want to permanently delete this article? This action cannot be undone.')) return;
+                    try {
+                      await supabase.from('co_authors').delete().eq('article_id', article.id);
+                      await supabase.from('article_reviews').delete().eq('article_id', article.id);
+                      const { error } = await supabase.from('articles').delete().eq('id', article.id);
+                      if (error) throw error;
+                      toast.success('Article deleted successfully');
+                      navigate('/admin/articles');
+                    } catch (err: any) {
+                      toast.error('Failed to delete article: ' + err.message);
+                    }
+                  }}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" /> Delete Article
+                </Button>
                 {(article as any).galley_proof_status && (
                   <div className="text-xs text-muted-foreground px-1">
                     Galley Proof: <span className="capitalize font-medium text-foreground">{(article as any).galley_proof_status?.replace(/_/g, ' ')}</span>
