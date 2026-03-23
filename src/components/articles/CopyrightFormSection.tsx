@@ -69,7 +69,14 @@ export function CopyrightFormSection({ article }: CopyrightFormSectionProps) {
           </span>
         ) : (
           <>
-            <span className="text-sm text-amber-400">Not submitted</span>
+            <a
+              href="/copyright-form.doc"
+              download="COPYRIGHT_AGREEMENT_FORM.doc"
+              className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+            >
+              <Download className="w-4 h-4" />
+              Download Form
+            </a>
             <label className="cursor-pointer">
               <input
                 type="file"

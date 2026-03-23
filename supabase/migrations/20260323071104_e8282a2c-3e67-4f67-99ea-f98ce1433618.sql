@@ -1,0 +1,2 @@
+CREATE POLICY "Admins can delete co_authors" ON public.co_authors FOR DELETE TO authenticated USING (public.has_role(auth.uid(), 'admin'::user_role));
+CREATE POLICY "Admins can delete article_reviews" ON public.article_reviews FOR DELETE TO authenticated USING (public.has_role(auth.uid(), 'admin'::user_role));
