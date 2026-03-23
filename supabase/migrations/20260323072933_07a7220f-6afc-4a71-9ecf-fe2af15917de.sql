@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "Users can update their own usage" ON public.plan_usage;
