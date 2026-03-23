@@ -231,7 +231,7 @@ export function DashboardLayout({ children, type }: DashboardLayoutProps) {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
-          className="lg:hidden fixed top-16 left-0 right-0 z-40 glass-card-strong rounded-none border-b border-[hsl(var(--glass-border))]"
+          className="lg:hidden fixed top-16 left-0 right-0 bottom-0 z-40 glass-card-strong rounded-none border-b border-[hsl(var(--glass-border))] overflow-y-auto"
         >
           <nav className="p-4 space-y-2">
             {navItems.map((item) => {
