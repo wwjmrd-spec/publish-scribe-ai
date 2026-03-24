@@ -344,7 +344,12 @@ export default function AdminArticles() {
                   </div>
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <span className="font-mono">{article.reference_number}</span>
-                    <span>{new Date(article.created_at || '').toLocaleDateString()}</span>
+                    <div className="flex items-center gap-2">
+                      {(article as any).page_count && (
+                        <span>📄 {(article as any).page_count}pg</span>
+                      )}
+                      <span>{new Date(article.created_at || '').toLocaleDateString()}</span>
+                    </div>
                   </div>
                 </div>
               ))}
