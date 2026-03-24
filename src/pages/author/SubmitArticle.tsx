@@ -71,6 +71,7 @@ export default function SubmitArticle() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentGateway>('razorpay');
   const [honeypot, setHoneypot] = useState('');
   const [formLoadTime] = useState(Date.now());
+  const [pageCount, setPageCount] = useState<number | null>(null);
 
   const currency = isIndian ? 'INR' : 'USD';
   const currencySymbol = isIndian ? '₹' : '$';
