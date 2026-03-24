@@ -376,6 +376,13 @@ export default function AdminArticles() {
                       <td className="py-3 px-4 text-sm">
                         {(article.profiles as any)?.full_name || 'Unknown'}
                       </td>
+                      <td className="py-3 px-4 text-sm text-center">
+                        {(article as any).page_count ? (
+                          <span className="px-2 py-0.5 rounded-full text-xs bg-muted">{(article as any).page_count}</span>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">—</span>
+                        )}
+                      </td>
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-2">
                           <span className={`px-2 py-1 rounded-full text-xs border whitespace-nowrap ${getStatusBadge(article.status || '')}`}>
