@@ -315,7 +315,8 @@ export default function SubmitArticle() {
         reason_of_research: articleReasonOfResearch.trim() || null,
         submission_target: articleSubmissionTarget.trim() || null,
         publication_type: articlePublicationType,
-      })
+        page_count: pageCount,
+      } as any)
       .select()
       .single();
 

@@ -166,6 +166,12 @@ serve(async (req) => {
 
     const metadata = JSON.parse(toolCall.function.arguments);
 
+    // Estimate page count from text if AI didn't provide it
+    if (!metadata.page_count && truncatedText) {
+      const wordCount = truncatedText.split(/\s+/).length;
+      metadata.page_count = Math.max(1, Math.ceil(wordCount / 275));
+    }
+
     return new Response(
       JSON.stringify({ metadata }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
