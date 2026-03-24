@@ -313,6 +313,12 @@ export default function AdminArticleDetail() {
                       <p className="text-sm">{article.author_name}</p>
                     </div>
                   )}
+                  {(article as any).page_count && (
+                    <div>
+                      <label className="text-xs text-muted-foreground">Page Count</label>
+                      <p className="text-sm">📄 {(article as any).page_count} pages</p>
+                    </div>
+                  )}
                   {article.country && (
                     <div>
                       <label className="text-xs text-muted-foreground">Article Country</label>
