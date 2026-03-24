@@ -745,6 +745,13 @@ export default function SubmitArticle() {
                 </p>
               </div>
 
+              {/* Page count info */}
+              {pageCount && (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border border-border/50 text-sm">
+                  📄 <span className="text-foreground"><span className="font-semibold">{pageCount} pages</span> detected in your document</span>
+                </div>
+              )}
+
               {/* Honeypot - hidden from real users */}
               <div className="absolute opacity-0 h-0 overflow-hidden" aria-hidden="true" tabIndex={-1}>
                 <input type="text" name="company_url" autoComplete="off" value={honeypot} onChange={(e) => setHoneypot(e.target.value)} tabIndex={-1} />
