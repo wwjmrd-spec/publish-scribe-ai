@@ -216,6 +216,7 @@ export default function SubmitArticle() {
       if (meta.subject) setSubject(meta.subject);
       if (meta.author_name && !authorName) setAuthorName(meta.author_name);
       if (meta.reason_of_research) setReasonOfResearch(meta.reason_of_research);
+      if (meta.page_count) setPageCount(meta.page_count);
 
       if (meta.co_authors && Array.isArray(meta.co_authors) && meta.co_authors.length > 0) {
         const newCoAuthors: CoAuthor[] = meta.co_authors.map((ca: any) => ({
