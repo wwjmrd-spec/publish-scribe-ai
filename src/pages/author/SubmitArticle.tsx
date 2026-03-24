@@ -71,6 +71,7 @@ export default function SubmitArticle() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentGateway>('razorpay');
   const [honeypot, setHoneypot] = useState('');
   const [formLoadTime] = useState(Date.now());
+  const [pageCount, setPageCount] = useState<number | null>(null);
 
   const currency = isIndian ? 'INR' : 'USD';
   const currencySymbol = isIndian ? '₹' : '$';
@@ -216,6 +217,7 @@ export default function SubmitArticle() {
       if (meta.subject) setSubject(meta.subject);
       if (meta.author_name && !authorName) setAuthorName(meta.author_name);
       if (meta.reason_of_research) setReasonOfResearch(meta.reason_of_research);
+      if (meta.page_count) setPageCount(meta.page_count);
 
       if (meta.co_authors && Array.isArray(meta.co_authors) && meta.co_authors.length > 0) {
         const newCoAuthors: CoAuthor[] = meta.co_authors.map((ca: any) => ({
@@ -313,7 +315,8 @@ export default function SubmitArticle() {
         reason_of_research: articleReasonOfResearch.trim() || null,
         submission_target: articleSubmissionTarget.trim() || null,
         publication_type: articlePublicationType,
-      })
+        page_count: pageCount,
+      } as any)
       .select()
       .single();
 
@@ -741,6 +744,13 @@ export default function SubmitArticle() {
                   <span className="font-semibold">AI has pre-filled</span> the details below from your document. Please review and correct any fields before submitting.
                 </p>
               </div>
+
+              {/* Page count info */}
+              {pageCount && (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border border-border/50 text-sm">
+                  📄 <span className="text-foreground"><span className="font-semibold">{pageCount} pages</span> detected in your document</span>
+                </div>
+              )}
 
               {/* Honeypot - hidden from real users */}
               <div className="absolute opacity-0 h-0 overflow-hidden" aria-hidden="true" tabIndex={-1}>

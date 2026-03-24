@@ -291,6 +291,9 @@ export default function MyArticles() {
                       {article.co_authors && article.co_authors.length > 0 && (
                         <span>Co-authors: {article.co_authors.length}</span>
                       )}
+                      {(article as any).page_count && (
+                        <span>📄 {(article as any).page_count} pages</span>
+                      )}
                       {article.keywords && article.keywords.length > 0 && (
                         <div className="flex gap-1 flex-wrap">
                           {article.keywords.slice(0, 3).map((kw: string, i: number) => (

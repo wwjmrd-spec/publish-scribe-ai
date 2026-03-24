@@ -122,6 +122,10 @@ serve(async (req) => {
                       type: "string",
                       description: "The motivation or reason behind the research, extracted from introduction or objectives",
                     },
+                    page_count: {
+                      type: "integer",
+                      description: "The estimated number of pages in the article. Count page breaks, or estimate from content length (approximately 250-300 words per page).",
+                    },
                   },
                   required: ["title"],
                   additionalProperties: false,
@@ -161,6 +165,12 @@ serve(async (req) => {
     }
 
     const metadata = JSON.parse(toolCall.function.arguments);
+
+    // Estimate page count from text if AI didn't provide it
+    if (!metadata.page_count && truncatedText) {
+      const wordCount = truncatedText.split(/\s+/).length;
+      metadata.page_count = Math.max(1, Math.ceil(wordCount / 275));
+    }
 
     return new Response(
       JSON.stringify({ metadata }),
