@@ -344,7 +344,12 @@ export default function AdminArticles() {
                   </div>
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <span className="font-mono">{article.reference_number}</span>
-                    <span>{new Date(article.created_at || '').toLocaleDateString()}</span>
+                    <div className="flex items-center gap-2">
+                      {(article as any).page_count && (
+                        <span>📄 {(article as any).page_count}pg</span>
+                      )}
+                      <span>{new Date(article.created_at || '').toLocaleDateString()}</span>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -357,6 +362,7 @@ export default function AdminArticles() {
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Reference</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Title</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Author</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Pages</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Status</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Date</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Actions</th>
@@ -369,6 +375,13 @@ export default function AdminArticles() {
                       <td className="py-3 px-4 max-w-[200px] truncate">{article.title}</td>
                       <td className="py-3 px-4 text-sm">
                         {(article.profiles as any)?.full_name || 'Unknown'}
+                      </td>
+                      <td className="py-3 px-4 text-sm text-center">
+                        {(article as any).page_count ? (
+                          <span className="px-2 py-0.5 rounded-full text-xs bg-muted">{(article as any).page_count}</span>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">—</span>
+                        )}
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-2">
