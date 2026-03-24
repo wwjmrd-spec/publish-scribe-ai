@@ -128,6 +128,7 @@ export type Database = {
           id: string
           issue: string | null
           keywords: string[] | null
+          page_count: number | null
           page_number: string | null
           publication_type: string
           publication_year: string | null
@@ -167,6 +168,7 @@ export type Database = {
           id?: string
           issue?: string | null
           keywords?: string[] | null
+          page_count?: number | null
           page_number?: string | null
           publication_type?: string
           publication_year?: string | null
@@ -206,6 +208,7 @@ export type Database = {
           id?: string
           issue?: string | null
           keywords?: string[] | null
+          page_count?: number | null
           page_number?: string | null
           publication_type?: string
           publication_year?: string | null

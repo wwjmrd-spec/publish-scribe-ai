@@ -1,0 +1,1 @@
+ALTER TABLE public.articles ADD COLUMN page_count integer DEFAULT NULL;
