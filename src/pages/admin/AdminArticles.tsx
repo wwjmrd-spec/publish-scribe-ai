@@ -362,6 +362,7 @@ export default function AdminArticles() {
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Reference</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Title</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Author</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Pages</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Status</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Date</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Actions</th>
