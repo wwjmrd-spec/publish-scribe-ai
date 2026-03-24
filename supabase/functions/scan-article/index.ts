@@ -122,6 +122,10 @@ serve(async (req) => {
                       type: "string",
                       description: "The motivation or reason behind the research, extracted from introduction or objectives",
                     },
+                    page_count: {
+                      type: "integer",
+                      description: "The estimated number of pages in the article. Count page breaks, or estimate from content length (approximately 250-300 words per page).",
+                    },
                   },
                   required: ["title"],
                   additionalProperties: false,
