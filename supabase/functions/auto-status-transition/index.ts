@@ -262,12 +262,13 @@ serve(async (req: Request) => {
       }
     }
 
-    // ===== STEP 4: manuscript_accepted (5 min) → pending_fee =====
+    // ===== STEP 4: manuscript_accepted (5 min) → pending_fee (NORMAL publications only, skip fast_track) =====
     {
       const { data: articles, error } = await supabase
         .from("articles")
-        .select("id, title, reference_number, author_id, updated_at, profiles:author_id (full_name, email)")
+        .select("id, title, reference_number, author_id, updated_at, publication_type, profiles:author_id (full_name, email)")
         .eq("status", "manuscript_accepted")
+        .eq("publication_type", "normal")
         .lte("updated_at", fiveMinAgo);
 
       if (error) {
