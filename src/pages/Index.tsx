@@ -5,47 +5,47 @@ import { PageLayout } from '@/components/layout/PageLayout';
 import { GlassCard } from '@/components/layout/GlassCard';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { 
-  FileText, 
-  Upload, 
-  CheckCircle, 
-  Users, 
+import {
+  FileText,
+  Upload,
+  CheckCircle,
+  Users,
   ArrowRight,
   Shield,
   Zap,
-  Globe,
-} from 'lucide-react';
+  Globe } from
+'lucide-react';
 import { useEffect } from 'react';
 
 const features = [
-  {
-    icon: Upload,
-    title: 'Easy Submission',
-    description: 'Upload your .docx articles with a simple drag-and-drop interface',
-  },
-  {
-    icon: Zap,
-    title: 'AI-Powered Review',
-    description: 'Get instant AI-powered feedback on your articles',
-  },
-  {
-    icon: Shield,
-    title: 'Secure Payments',
-    description: 'Multiple payment options with enterprise-grade security',
-  },
-  {
-    icon: Globe,
-    title: 'Global Reach',
-    description: 'International authors welcome with USD and INR support',
-  },
-];
+{
+  icon: Upload,
+  title: 'Easy Submission',
+  description: 'Upload your .docx articles with a simple drag-and-drop interface'
+},
+{
+  icon: Zap,
+  title: 'AI-Powered Review',
+  description: 'Get instant AI-powered feedback on your articles'
+},
+{
+  icon: Shield,
+  title: 'Secure Payments',
+  description: 'Multiple payment options with enterprise-grade security'
+},
+{
+  icon: Globe,
+  title: 'Global Reach',
+  description: 'International authors welcome with USD and INR support'
+}];
+
 
 const stats = [
-  { value: '10K+', label: 'Articles Published' },
-  { value: '5K+', label: 'Authors Worldwide' },
-  { value: '98%', label: 'Satisfaction Rate' },
-  { value: '24h', label: 'Avg. Review Time' },
-];
+{ value: '10K+', label: 'Articles Published' },
+{ value: '5K+', label: 'Authors Worldwide' },
+{ value: '98%', label: 'Satisfaction Rate' },
+{ value: '24h', label: 'Avg. Review Time' }];
+
 
 export default function Index() {
   const { user, userRole, loading } = useAuth();
@@ -67,8 +67,8 @@ export default function Index() {
       <motion.nav
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="fixed top-0 left-0 right-0 z-50 glass-card rounded-none border-b border-[hsl(var(--glass-border))]"
-      >
+        className="fixed top-0 left-0 right-0 z-50 glass-card rounded-none border-b border-[hsl(var(--glass-border))]">
+        
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
             <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center glow-cyan">
@@ -101,11 +101,11 @@ export default function Index() {
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-          >
+            transition={{ duration: 0.6 }}>
+            
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[hsl(var(--glass-bg-strong))] border border-[hsl(var(--glass-border))] mb-6">
               <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-              <span className="text-sm text-muted-foreground">AI-Powered Article Review</span>
+              <span className="text-sm text-muted-foreground">AI-Powered Article Publication</span>
             </div>
 
             <h1 className="font-display text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight">
@@ -137,14 +137,14 @@ export default function Index() {
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.3 }}
-            className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8"
-          >
-            {stats.map((stat, index) => (
-              <div key={index} className="text-center">
+            className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
+            
+            {stats.map((stat, index) =>
+            <div key={index} className="text-center">
                 <p className="text-3xl md:text-4xl font-bold gradient-text">{stat.value}</p>
                 <p className="text-sm md:text-base text-muted-foreground mt-1">{stat.label}</p>
               </div>
-            ))}
+            )}
           </motion.div>
         </div>
       </section>
@@ -156,8 +156,8 @@ export default function Index() {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-center mb-12"
-          >
+            className="text-center mb-12">
+            
             <h2 className="font-display text-3xl md:text-4xl font-bold mb-4">
               Why Choose <span className="gradient-text">PubPortal</span>?
             </h2>
@@ -175,8 +175,8 @@ export default function Index() {
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
-                  transition={{ delay: index * 0.1 }}
-                >
+                  transition={{ delay: index * 0.1 }}>
+                  
                   <GlassCard hover className="h-full text-center">
                     <div className="w-14 h-14 rounded-2xl gradient-primary flex items-center justify-center mx-auto mb-4 glow-cyan">
                       <Icon className="w-7 h-7 text-primary-foreground" />
@@ -184,8 +184,8 @@ export default function Index() {
                     <h3 className="font-display text-lg font-semibold mb-2">{feature.title}</h3>
                     <p className="text-sm text-muted-foreground">{feature.description}</p>
                   </GlassCard>
-                </motion.div>
-              );
+                </motion.div>);
+
             })}
           </div>
         </div>
@@ -198,8 +198,8 @@ export default function Index() {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-center mb-12"
-          >
+            className="text-center mb-12">
+            
             <h2 className="font-display text-3xl md:text-4xl font-bold mb-4">
               How It <span className="gradient-text">Works</span>
             </h2>
@@ -208,30 +208,30 @@ export default function Index() {
           <div className="max-w-4xl mx-auto">
             <div className="grid md:grid-cols-3 gap-8">
               {[
-                { step: '01', title: 'Submit', desc: 'Upload your article in .docx format with co-author details' },
-                { step: '02', title: 'Review', desc: 'AI-powered review with detailed feedback report' },
-                { step: '03', title: 'Publish', desc: 'Pay the fee and receive your publication certificate' },
-              ].map((item, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: index * 0.15 }}
-                  className="relative"
-                >
+              { step: '01', title: 'Submit', desc: 'Upload your article in .docx format with co-author details' },
+              { step: '02', title: 'Review', desc: 'AI-powered review with detailed feedback report' },
+              { step: '03', title: 'Publish', desc: 'Pay the fee and receive your publication certificate' }].
+              map((item, index) =>
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.15 }}
+                className="relative">
+                
                   <GlassCard className="text-center">
                     <div className="text-5xl font-bold gradient-text mb-4">{item.step}</div>
                     <h3 className="font-display text-xl font-semibold mb-2">{item.title}</h3>
                     <p className="text-sm text-muted-foreground">{item.desc}</p>
                   </GlassCard>
-                  {index < 2 && (
-                    <div className="hidden md:block absolute top-1/2 -right-4 transform translate-x-1/2">
+                  {index < 2 &&
+                <div className="hidden md:block absolute top-1/2 -right-4 transform translate-x-1/2">
                       <ArrowRight className="w-8 h-8 text-primary/30" />
                     </div>
-                  )}
+                }
                 </motion.div>
-              ))}
+              )}
             </div>
           </div>
         </div>
@@ -243,8 +243,8 @@ export default function Index() {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-          >
+            viewport={{ once: true }}>
+            
             <GlassCard className="text-center py-10 sm:py-12 md:py-16 px-4 sm:px-6 gradient-border">
               <h2 className="font-display text-2xl sm:text-3xl md:text-4xl font-bold mb-4">
                 Ready to <span className="gradient-text">Publish</span>?
@@ -277,6 +277,6 @@ export default function Index() {
           </p>
         </div>
       </footer>
-    </PageLayout>
-  );
+    </PageLayout>);
+
 }
