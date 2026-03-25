@@ -173,6 +173,19 @@ export function GalleyProofReviewSection({ article }: GalleyProofReviewSectionPr
           )}
         </div>
 
+        {/* Sent date */}
+        {(article as any).galley_proof_sent_at && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <CheckCircle className="w-4 h-4 text-primary" />
+            <span>
+              Galley Proof Sent: {new Date((article as any).galley_proof_sent_at).toLocaleString('en-US', {
+                year: 'numeric', month: 'short', day: 'numeric',
+                hour: '2-digit', minute: '2-digit',
+              })}
+            </span>
+          </div>
+        )}
+
         {/* Deadline */}
         {deadline && (
           <div className={`flex items-center gap-2 text-sm ${isExpired ? 'text-red-400' : 'text-muted-foreground'}`}>
