@@ -156,6 +156,9 @@ serve(async (req) => {
     } else if (fileType === "formatted_document") {
       bucket = "formatted-articles";
       filePath = article.formatted_document_url || null;
+    } else if (fileType === "galley_proof_revision") {
+      bucket = "formatted-articles";
+      filePath = article.galley_proof_revision_url || null;
     } else if (fileType === "copyright_form") {
       filePath = article.copyright_form_url || null;
     }
