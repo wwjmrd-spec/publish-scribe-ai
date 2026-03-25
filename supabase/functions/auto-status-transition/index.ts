@@ -24,16 +24,18 @@ function decodeJwtPayload(token: string) {
 function isAuthorizedSchedulerToken({
   token,
   anonKey,
+  publishableKeys,
   serviceRoleKey,
   projectRef,
 }: {
   token: string | null;
   anonKey: string;
+  publishableKeys: string[];
   serviceRoleKey: string;
   projectRef: string;
 }) {
   if (!token) return false;
-  if (token === anonKey || token === serviceRoleKey) return true;
+  if (token === anonKey || token === serviceRoleKey || publishableKeys.includes(token)) return true;
 
   const claims = decodeJwtPayload(token);
   if (!claims) return false;
@@ -54,11 +56,16 @@ serve(async (req: Request) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const projectRef = new URL(supabaseUrl).hostname.split(".")[0];
+    const publishableKeys = [
+      Deno.env.get("SUPABASE_PUBLISHABLE_KEY"),
+      Deno.env.get("VITE_SUPABASE_PUBLISHABLE_KEY"),
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15amJiYnl0Ynp6enNhYWlvaHJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAxMjMyMjksImV4cCI6MjA4NTY5OTIyOX0.9aPaE465Gbtchb2FHN6hlxmM2UjfQbGXWHnOyw1zDvY",
+    ].filter((value): value is string => Boolean(value));
 
     // Authenticate scheduled requests safely
     const authHeader = req.headers.get("Authorization");
     const token = authHeader?.replace("Bearer ", "");
-    if (!isAuthorizedSchedulerToken({ token: token ?? null, anonKey, serviceRoleKey, projectRef })) {
+    if (!isAuthorizedSchedulerToken({ token: token ?? null, anonKey, publishableKeys, serviceRoleKey, projectRef })) {
       console.error("Unauthorized scheduler request");
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
