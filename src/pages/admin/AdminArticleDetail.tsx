@@ -444,6 +444,11 @@ export default function AdminArticleDetail() {
                 <span className={`inline-block px-3 py-1.5 rounded-full text-sm border ${getStatusBadge(article.status || '')}`}>
                   {formatStatus(article.status || '')}
                 </span>
+                {(article as any).galley_proof_status === 'revision_submitted' && (
+                  <span className="inline-block px-3 py-1.5 rounded-full text-sm border bg-primary/20 text-primary border-primary/30">
+                    Revised Galley Proof Submitted
+                  </span>
+                )}
                 {article.publication_type === 'fast_track' && (
                   <span className="inline-block px-3 py-1.5 rounded-full text-sm border bg-purple-500/20 text-purple-400 border-purple-500/30">
                     ⚡ Fast Track
@@ -602,6 +607,11 @@ export default function AdminArticleDetail() {
                 {article.review_report_url && (
                   <Button variant="outline" size="sm" onClick={() => downloadMutation.mutate({ fileType: 'review_report' })} disabled={downloadMutation.isPending}>
                     <FileText className="w-4 h-4 mr-2" /> Review Report
+                  </Button>
+                )}
+                {(article as any).galley_proof_revision_url && (
+                  <Button variant="outline" size="sm" onClick={() => downloadMutation.mutate({ fileType: 'galley_proof_revision' })} disabled={downloadMutation.isPending}>
+                    <Download className="w-4 h-4 mr-2" /> Revised Galley Proof
                   </Button>
                 )}
                 <Button variant="outline" size="sm" onClick={() => navigate(`/admin/ai-review?articleId=${article.id}`)}>

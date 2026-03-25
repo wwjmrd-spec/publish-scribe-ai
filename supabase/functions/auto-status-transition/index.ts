@@ -7,6 +7,43 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+function decodeJwtPayload(token: string) {
+  try {
+    const [, payload] = token.split(".");
+    if (!payload) return null;
+
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), "=");
+
+    return JSON.parse(atob(padded));
+  } catch {
+    return null;
+  }
+}
+
+function isAuthorizedSchedulerToken({
+  token,
+  anonKey,
+  serviceRoleKey,
+  projectRef,
+}: {
+  token: string | null;
+  anonKey: string;
+  serviceRoleKey: string;
+  projectRef: string;
+}) {
+  if (!token) return false;
+  if (token === anonKey || token === serviceRoleKey) return true;
+
+  const claims = decodeJwtPayload(token);
+  if (!claims) return false;
+
+  return (
+    claims.ref === projectRef &&
+    (claims.role === "anon" || claims.role === "service_role")
+  );
+}
+
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -16,11 +53,13 @@ serve(async (req: Request) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const projectRef = new URL(supabaseUrl).hostname.split(".")[0];
 
-    // Authenticate: allow calls with either the service role key or the anon key (cron uses anon key)
+    // Authenticate scheduled requests safely
     const authHeader = req.headers.get("Authorization");
     const token = authHeader?.replace("Bearer ", "");
-    if (token !== serviceRoleKey && token !== anonKey) {
+    if (!isAuthorizedSchedulerToken({ token: token ?? null, anonKey, serviceRoleKey, projectRef })) {
+      console.error("Unauthorized scheduler request");
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { "Content-Type": "application/json", ...corsHeaders },
@@ -33,9 +72,9 @@ serve(async (req: Request) => {
     const now = new Date();
     const results = {
       step1_submittedToUnderReview: 0,
-      step2_aiReviewTriggered: 0,
-      step3_toManuscriptAccepted: 0,
-      step4_toPendingFee: 0,
+      step2_toManuscriptAccepted: 0,
+      step3_toPendingFee: 0,
+      step4_referralRewardEmails: 0,
       errors: [] as string[],
     };
 
@@ -130,140 +169,61 @@ serve(async (req: Request) => {
       }
     }
 
-    // ===== STEP 2: under_review → AI review (2 hours) =====
+    // ===== STEP 2: under_review → manuscript_accepted (2 hours) =====
     const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString();
     {
       const { data: articles, error } = await supabase
         .from("articles")
-        .select("id, title, reference_number, author_id, document_url, profiles:author_id (full_name, email)")
+        .select("id, title, reference_number, author_id, profiles:author_id (full_name, email)")
         .eq("status", "under_review")
         .lte("updated_at", twoHoursAgo);
 
       if (error) {
         results.errors.push(`Step2 fetch: ${error.message}`);
       } else if (articles?.length) {
-        for (const article of articles) {
-          // Check if AI review already exists
-          const { data: existing } = await supabase
-            .from("article_reviews")
-            .select("id")
-            .eq("article_id", article.id)
-            .eq("review_type", "ai")
-            .limit(1);
+        const ids = articles.map((article: any) => article.id);
+        const { error: updateErr } = await supabase
+          .from("articles")
+          .update({ status: "manuscript_accepted" })
+          .in("id", ids);
 
-          if (existing && existing.length > 0) continue;
+        if (updateErr) {
+          results.errors.push(`Step2 update: ${updateErr.message}`);
+        } else {
+          results.step2_toManuscriptAccepted = ids.length;
 
-          try {
-            const resp = await fetch(`${supabaseUrl}/functions/v1/ai-review`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceRoleKey}` },
-              body: JSON.stringify({ articleId: article.id }),
-            });
-
-            if (!resp.ok) {
-              results.errors.push(`Step2 AI review failed for ${article.reference_number}: ${await resp.text()}`);
-              continue;
-            }
-
-            results.step2_aiReviewTriggered++;
+          for (const article of articles) {
             const profile = (article as any).profiles;
 
-            // Author notification
             await supabase.from("notifications").insert({
               user_id: article.author_id,
-              title: "Review Report Ready 📋",
-              message: `Your Review Report for "${article.title}" is ready.`,
+              title: "Manuscript Accepted! 🎉",
+              message: `Your manuscript "${article.title}" has been accepted!`,
               type: "success",
               link: "/author/articles",
             });
-            // Admin notification
+
             await notifyAdmins(
-              "AI Review Completed 🤖",
-              `AI Review completed for "${article.title}" (${article.reference_number}).`,
+              "Manuscript Accepted ✅",
+              `Article "${article.title}" (${article.reference_number}) has been accepted.`,
               `/admin/articles/${article.id}`
             );
-            // Author email
+
             if (profile?.email) {
-              await sendEmail(profile.email, "review-report-ready", {
+              await sendEmail(profile.email, "status-update", {
                 authorName: profile.full_name || "Author",
                 articleTitle: article.title,
                 referenceNumber: article.reference_number,
-                overallScore: "See report",
-                recommendation: "AI Review Complete",
+                newStatus: "Manuscript Accepted",
+                message: "Congratulations! Your manuscript has been accepted for publication.",
               });
             }
-          } catch (err: any) {
-            results.errors.push(`Step2 error for ${article.reference_number}: ${err.message}`);
           }
         }
       }
     }
 
-    // ===== STEP 3: under_review + AI review exists (5 min old) → manuscript_accepted =====
-    {
-      const { data: articles, error } = await supabase
-        .from("articles")
-        .select("id, title, reference_number, author_id, profiles:author_id (full_name, email)")
-        .eq("status", "under_review");
-
-      if (error) {
-        results.errors.push(`Step3 fetch: ${error.message}`);
-      } else if (articles?.length) {
-        for (const article of articles) {
-          const { data: reviews } = await supabase
-            .from("article_reviews")
-            .select("id, reviewed_at")
-            .eq("article_id", article.id)
-            .eq("review_type", "ai")
-            .limit(1);
-
-          if (!reviews || reviews.length === 0) continue;
-
-          const reviewedAt = new Date(reviews[0].reviewed_at);
-          if (now.getTime() - reviewedAt.getTime() < 5 * 60 * 1000) continue;
-
-          const { error: updateErr } = await supabase
-            .from("articles")
-            .update({ status: "manuscript_accepted" })
-            .eq("id", article.id);
-
-          if (updateErr) {
-            results.errors.push(`Step3 update ${article.reference_number}: ${updateErr.message}`);
-            continue;
-          }
-
-          results.step3_toManuscriptAccepted++;
-          const profile = (article as any).profiles;
-
-          // Author notification
-          await supabase.from("notifications").insert({
-            user_id: article.author_id,
-            title: "Manuscript Accepted! 🎉",
-            message: `Your manuscript "${article.title}" has been accepted!`,
-            type: "success",
-            link: "/author/articles",
-          });
-          // Admin notification
-          await notifyAdmins(
-            "Manuscript Accepted ✅",
-            `Article "${article.title}" (${article.reference_number}) has been accepted.`,
-            `/admin/articles/${article.id}`
-          );
-          // Author email
-          if (profile?.email) {
-            await sendEmail(profile.email, "status-update", {
-              authorName: profile.full_name || "Author",
-              articleTitle: article.title,
-              referenceNumber: article.reference_number,
-              newStatus: "Manuscript Accepted",
-              message: "Congratulations! Your manuscript has been accepted for publication. Please proceed with the publication fee payment.",
-            });
-          }
-        }
-      }
-    }
-
-    // ===== STEP 4: manuscript_accepted (5 min) → pending_fee (NORMAL publications only, skip fast_track) =====
+    // ===== STEP 3: manuscript_accepted (5 min) → pending_fee (NORMAL publications only) =====
     {
       const { data: articles, error } = await supabase
         .from("articles")
@@ -273,7 +233,7 @@ serve(async (req: Request) => {
         .lte("updated_at", fiveMinAgo);
 
       if (error) {
-        results.errors.push(`Step4 fetch: ${error.message}`);
+        results.errors.push(`Step3 fetch: ${error.message}`);
       } else if (articles?.length) {
         const ids = articles.map((a: any) => a.id);
         const { error: updateErr } = await supabase
@@ -282,9 +242,9 @@ serve(async (req: Request) => {
           .in("id", ids);
 
         if (updateErr) {
-          results.errors.push(`Step4 update: ${updateErr.message}`);
+          results.errors.push(`Step3 update: ${updateErr.message}`);
         } else {
-          results.step4_toPendingFee = ids.length;
+          results.step3_toPendingFee = ids.length;
           for (const article of articles) {
             const profile = (article as any).profiles;
             // Author notification
@@ -316,7 +276,7 @@ serve(async (req: Request) => {
       }
     }
 
-    // ===== STEP 5: Send referral reward emails for recently rewarded referrals =====
+    // ===== STEP 4: Send referral reward emails for recently rewarded referrals =====
     {
       // Find referrals rewarded in the last 5 minutes that haven't had emails sent yet
       const fiveMinAgoISO = new Date(now.getTime() - 5 * 60 * 1000).toISOString();
@@ -397,8 +357,10 @@ serve(async (req: Request) => {
               referralDiscountCode: referredCode,
               referralDiscountAmount: 10,
             });
+
+            results.step4_referralRewardEmails++;
           } catch (err: any) {
-            results.errors.push(`Step5 email error: ${err.message}`);
+            results.errors.push(`Step4 email error: ${err.message}`);
           }
         }
       }
