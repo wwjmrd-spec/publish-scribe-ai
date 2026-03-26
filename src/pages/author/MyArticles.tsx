@@ -82,6 +82,33 @@ export default function MyArticles() {
       // Increment usage
       await incrementUsage(user.id, 'review_reports_used');
       queryClient.invalidateQueries({ queryKey: ['plan-usage'] });
+      queryClient.invalidateQueries({ queryKey: ['plan-usage-lifetime'] });
+
+      // Check if free plan user just exhausted their limit (2 reports)
+      if (subscription.plan === 'free' && subscription.reviewReportsUsed + 1 >= subscription.reviewReportsLimit) {
+        // Send upgrade notification & email
+        try {
+          const { data: profile } = await supabase.from('profiles').select('full_name, email').eq('id', user.id).single();
+          await supabase.from('notifications').insert({
+            user_id: user.id,
+            title: 'Upgrade to Pro Plan 🚀',
+            message: "You've used all 2 free review report downloads. Upgrade to Pro for 5 monthly downloads, co-author certificates, and more!",
+            type: 'warning',
+            link: '/author/subscription',
+          });
+          if (profile?.email) {
+            supabase.functions.invoke('send-email', {
+              body: {
+                to: profile.email,
+                template: 'upgrade-to-pro',
+                data: { authorName: profile.full_name || 'Author' },
+              },
+            }).catch(console.error);
+          }
+        } catch (err) {
+          console.error('Failed to send upgrade notification:', err);
+        }
+      }
 
       const link = document.createElement('a');
       link.href = response.data.url;
