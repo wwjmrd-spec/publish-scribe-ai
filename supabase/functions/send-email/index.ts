@@ -33,6 +33,7 @@ type EmailTemplate =
   | "payment-reminder"
   | "galley-proof-review"
   | "copyright-form-request"
+  | "upgrade-to-pro"
   | "custom";
 
 interface EmailRequest {
@@ -393,7 +394,7 @@ const getStatusInfo = (status: string): { emoji: string; title: string; message:
         emoji: "❌",
         title: "Article Not Accepted",
         message:
-          "Unfortunately, your article did not meet our publication criteria at this time. You are welcome to revise and resubmit.",
+          "Unfortunately, your article did not meet our publication criteria due to a low score in the review report. Please download your review report from your dashboard, review the feedback carefully, revise your manuscript accordingly, and resubmit it for consideration.",
         color: "#ef4444",
       };
     default:
@@ -410,6 +411,7 @@ const getArticleStatusChangeTemplate = (data: EmailRequest["data"]): string => {
   const info = getStatusInfo(data?.status || "");
   const isManuscriptAccepted = data?.status === "manuscript_accepted";
   const isPendingFee = data?.status === "pending_fee";
+  const isRejected = data?.status === "rejected";
   const statusDisplay = (data?.status || "").replace(/_/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase());
 
   const body = `
@@ -424,8 +426,18 @@ const getArticleStatusChangeTemplate = (data: EmailRequest["data"]): string => {
         emailInfoRow("Status", statusDisplay, ` color:${info.color}; font-weight:600;`),
       ].join(""),
     )}
-    ${
-      isPendingFee || isManuscriptAccepted
+    ${isRejected ? `
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#1a2340" style="background-color:#1a2340; border-radius:8px; margin:20px 0;">
+        <tr><td style="padding:20px;">
+          <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:16px; font-weight:600; color:#ffffff; margin:0 0 12px;">Next Steps:</p>
+          ${emailFeatureItem('1️⃣ Log in to your dashboard and download your review report')}
+          ${emailFeatureItem('2️⃣ Review the detailed feedback and scores')}
+          ${emailFeatureItem('3️⃣ Revise your manuscript based on the recommendations')}
+          ${emailFeatureItem('4️⃣ Resubmit your revised article for reconsideration')}
+        </td></tr>
+      </table>
+      ${emailButton("https://wwjmrdai.lovable.app/author/articles", "Download Review Report & Revise")}
+    ` : isPendingFee || isManuscriptAccepted
         ? emailP("Please log in to your dashboard to complete the payment and proceed with publication.") +
           emailButton("https://wwjmrdai.lovable.app/author/articles", "Pay Publication Fee")
         : emailButton("https://wwjmrdai.lovable.app/author/articles", "View My Articles")
