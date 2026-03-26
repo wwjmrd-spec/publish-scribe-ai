@@ -580,6 +580,29 @@ const getCopyrightFormRequestTemplate = (data: EmailRequest["data"]): string => 
   return wrapEmail("Copyright Form Required - WWJMRD", body);
 };
 
+const getUpgradeToProTemplate = (data: EmailRequest["data"]): string => {
+  const body = `
+    ${emailH1("Upgrade to Pro Plan 🚀")}
+    ${emailP(`Hi ${escapeHtml(data?.authorName || "Author")},`)}
+    ${emailP("You've used all <strong style='color:#ffffff;'>2 free review report downloads</strong> available on the Free plan. Upgrade to the Pro plan to unlock more benefits!")}
+    
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#1a2340" style="background-color:#1a2340; border-radius:8px; margin:20px 0;">
+      <tr><td style="padding:20px;">
+        <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:16px; font-weight:600; color:#ffffff; margin:0 0 12px;">Pro Plan Benefits:</p>
+        ${emailFeatureItem('📊 <strong style="color:#ffffff;">5 review report downloads</strong> per month')}
+        ${emailFeatureItem('👥 <strong style="color:#ffffff;">4 co-author certificates</strong> per month')}
+        ${emailFeatureItem('🔄 Monthly limit resets automatically')}
+        ${emailFeatureItem('⚡ Priority support and features')}
+      </td></tr>
+    </table>
+    
+    ${emailButton("https://wwjmrdai.lovable.app/author/subscription", "Upgrade to Pro")}
+    ${emailDivider()}
+    ${emailFooterText("If you have any questions about the Pro plan, contact us at support@wwjmrd.com")}
+  `;
+  return wrapEmail("Upgrade to Pro - WWJMRD", body);
+};
+
 function getEmailContent(
   template: EmailTemplate,
   data?: EmailRequest["data"],
@@ -653,6 +676,11 @@ function getEmailContent(
       return {
         subject: `Copyright Form Required: ${data?.articleTitle || "Your Article"} - WWJMRD`,
         html: getCopyrightFormRequestTemplate(data),
+      };
+    case "upgrade-to-pro":
+      return {
+        subject: "Upgrade to Pro Plan - Unlock More Benefits! 🚀 - WWJMRD",
+        html: getUpgradeToProTemplate(data),
       };
     default:
       throw new Error(`Unknown email template: ${template}`);
