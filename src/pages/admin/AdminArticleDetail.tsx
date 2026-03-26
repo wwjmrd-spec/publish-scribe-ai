@@ -19,6 +19,9 @@ import {
   Mail,
   Send,
   Trash2,
+  PauseCircle,
+  PlayCircle,
+  RotateCcw,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -562,6 +565,63 @@ export default function AdminArticleDetail() {
                     Galley Proof: <span className="capitalize font-medium text-foreground">{(article as any).galley_proof_status?.replace(/_/g, ' ')}</span>
                   </div>
                 )}
+
+                {/* Email Tracking */}
+                <div className="pt-2 border-t border-border/50 space-y-1">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase">Email Tracking</p>
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <Mail className="w-3 h-3" />
+                    <span className="text-muted-foreground">Acceptance Email:</span>
+                    {(article as any).manuscript_accepted_email_sent_at ? (
+                      <span className="text-emerald-400">{new Date((article as any).manuscript_accepted_email_sent_at).toLocaleString()}</span>
+                    ) : (
+                      <span className="text-muted-foreground">Not sent</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <Mail className="w-3 h-3" />
+                    <span className="text-muted-foreground">Fee Reminder:</span>
+                    {(article as any).fee_reminder_email_sent_at ? (
+                      <span className="text-orange-400">{new Date((article as any).fee_reminder_email_sent_at).toLocaleString()}</span>
+                    ) : (
+                      <span className="text-muted-foreground">Not sent</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Automation Control */}
+                <div className="pt-2 border-t border-border/50 space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase">Automation Control</p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">
+                      {(article as any).automation_paused ? '⏸ Automation Paused' : '▶ Automation Active'}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={(article as any).automation_paused ? 'text-emerald-400' : 'text-amber-400'}
+                      onClick={async () => {
+                        const { error } = await supabase
+                          .from('articles')
+                          .update({ automation_paused: !(article as any).automation_paused } as any)
+                          .eq('id', article.id);
+                        if (error) {
+                          toast.error('Failed to update automation');
+                        } else {
+                          toast.success((article as any).automation_paused ? 'Automation resumed' : 'Automation paused');
+                          queryClient.invalidateQueries({ queryKey: ['admin-article-detail', articleId] });
+                        }
+                      }}
+                    >
+                      {(article as any).automation_paused ? (
+                        <><PlayCircle className="w-4 h-4 mr-1" /> Resume</>
+                      ) : (
+                        <><PauseCircle className="w-4 h-4 mr-1" /> Pause</>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
                 <div className="flex items-center justify-between pt-2 border-t border-border/50">
                   <span className="text-sm text-muted-foreground">Allow Withdrawal</span>
                   <Switch

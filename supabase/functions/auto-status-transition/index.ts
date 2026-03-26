@@ -116,6 +116,7 @@ serve(async (req: Request) => {
         .from("articles")
         .select("id, title, reference_number, author_id, profiles:author_id (full_name, email)")
         .eq("status", "submitted")
+        .eq("automation_paused", false)
         .lte("submission_date", fiveMinAgo);
 
       if (error) {
@@ -183,6 +184,7 @@ serve(async (req: Request) => {
         .from("articles")
         .select("id, title, reference_number, author_id, profiles:author_id (full_name, email)")
         .eq("status", "under_review")
+        .eq("automation_paused", false)
         .lte("updated_at", twoHoursAgo);
 
       if (error) {
@@ -201,6 +203,9 @@ serve(async (req: Request) => {
 
           for (const article of articles) {
             const profile = (article as any).profiles;
+
+            // Track manuscript accepted email sent
+            await supabase.from("articles").update({ manuscript_accepted_email_sent_at: new Date().toISOString() }).eq("id", article.id);
 
             await supabase.from("notifications").insert({
               user_id: article.author_id,
@@ -237,6 +242,7 @@ serve(async (req: Request) => {
         .select("id, title, reference_number, author_id, updated_at, publication_type, profiles:author_id (full_name, email)")
         .eq("status", "manuscript_accepted")
         .eq("publication_type", "normal")
+        .eq("automation_paused", false)
         .lte("updated_at", fiveMinAgo);
 
       if (error) {
@@ -254,6 +260,8 @@ serve(async (req: Request) => {
           results.step3_toPendingFee = ids.length;
           for (const article of articles) {
             const profile = (article as any).profiles;
+            // Track fee reminder email sent
+            await supabase.from("articles").update({ fee_reminder_email_sent_at: new Date().toISOString() }).eq("id", article.id);
             // Author notification
             await supabase.from("notifications").insert({
               user_id: article.author_id,

@@ -17,6 +17,7 @@ import { FileUploadSection } from '@/components/submit/FileUploadSection';
 import { CoAuthorsSection, type CoAuthor } from '@/components/submit/CoAuthorsSection';
 import { PublicationTypeSection } from '@/components/submit/PublicationTypeSection';
 import { useQuery } from '@tanstack/react-query';
+import { useSubscription } from '@/hooks/useSubscription';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { ArrowRight, ArrowLeft, Upload, FileText, CheckCircle, Sparkles, Bot, CreditCard, IndianRupee, DollarSign } from 'lucide-react';
@@ -46,6 +47,7 @@ export default function SubmitArticle() {
   const { generateSubject, loading: generatingSubject } = useGenerateSubject();
   const [searchParams, setSearchParams] = useSearchParams();
   const { trackEvent, addToSegment } = useMauticSync();
+  const { subscription } = useSubscription();
 
   // Payment hooks
   const { isLoaded: razorpayLoaded } = useRazorpay();
@@ -443,6 +445,16 @@ export default function SubmitArticle() {
     const spamCheck = validateArticleContent(title, abstract);
     if (!spamCheck.valid) {
       toast({ title: 'Submission Blocked', description: spamCheck.reason, variant: 'destructive' });
+      return false;
+    }
+
+    // 2-page articles require review report download limit
+    if (pageCount !== null && pageCount <= 2 && !subscription.canDownloadReport) {
+      toast({
+        title: 'Review report limit reached',
+        description: 'Articles with 2 or fewer pages require available review report downloads. Please upgrade to Pro plan.',
+        variant: 'destructive',
+      });
       return false;
     }
 
