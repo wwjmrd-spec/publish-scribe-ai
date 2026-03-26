@@ -109,11 +109,13 @@ export type Database = {
           allow_withdrawal: boolean
           author_id: string
           author_name: string | null
+          automation_paused: boolean
           certificate_url: string | null
           copyright_form_url: string | null
           country: string | null
           created_at: string | null
           document_url: string | null
+          fee_reminder_email_sent_at: string | null
           formatted_document_url: string | null
           formatting_approved_at: string | null
           formatting_status: string | null
@@ -128,6 +130,7 @@ export type Database = {
           id: string
           issue: string | null
           keywords: string[] | null
+          manuscript_accepted_email_sent_at: string | null
           page_count: number | null
           page_number: string | null
           publication_type: string
@@ -149,11 +152,13 @@ export type Database = {
           allow_withdrawal?: boolean
           author_id: string
           author_name?: string | null
+          automation_paused?: boolean
           certificate_url?: string | null
           copyright_form_url?: string | null
           country?: string | null
           created_at?: string | null
           document_url?: string | null
+          fee_reminder_email_sent_at?: string | null
           formatted_document_url?: string | null
           formatting_approved_at?: string | null
           formatting_status?: string | null
@@ -168,6 +173,7 @@ export type Database = {
           id?: string
           issue?: string | null
           keywords?: string[] | null
+          manuscript_accepted_email_sent_at?: string | null
           page_count?: number | null
           page_number?: string | null
           publication_type?: string
@@ -189,11 +195,13 @@ export type Database = {
           allow_withdrawal?: boolean
           author_id?: string
           author_name?: string | null
+          automation_paused?: boolean
           certificate_url?: string | null
           copyright_form_url?: string | null
           country?: string | null
           created_at?: string | null
           document_url?: string | null
+          fee_reminder_email_sent_at?: string | null
           formatted_document_url?: string | null
           formatting_approved_at?: string | null
           formatting_status?: string | null
@@ -208,6 +216,7 @@ export type Database = {
           id?: string
           issue?: string | null
           keywords?: string[] | null
+          manuscript_accepted_email_sent_at?: string | null
           page_count?: number | null
           page_number?: string | null
           publication_type?: string
