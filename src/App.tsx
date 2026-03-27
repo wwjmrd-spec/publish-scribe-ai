@@ -32,6 +32,7 @@ import AdminUSDTPayments from "./pages/admin/AdminUSDTPayments";
 import AdminNotifications from "./pages/admin/AdminNotifications";
 import AdminBugReports from "./pages/admin/AdminBugReports";
 import AdminRevenue from "./pages/admin/AdminRevenue";
+import AdminPaymentActivity from "./pages/admin/AdminPaymentActivity";
 import NotFound from "./pages/NotFound";
 import { ReferralPopup } from "./components/referral/ReferralPopup";
 import { CookieConsent } from "./components/CookieConsent";
