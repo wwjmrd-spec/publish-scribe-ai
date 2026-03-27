@@ -158,6 +158,10 @@ serve(async (req: Request) => {
       }
 
       try {
+        const pageCount = (article as any).page_count || 0;
+        const pageMessage = pageCount > 2 
+          ? ` Your article has ${pageCount} pages, which exceeds the 2-page free publication limit.`
+          : '';
         const { error: emailError } = await supabase.functions.invoke("send-email", {
           body: {
             to: profile.email,
@@ -166,6 +170,7 @@ serve(async (req: Request) => {
               authorName: profile.full_name || "Author",
               articleTitle: article.title,
               referenceNumber: article.reference_number,
+              extraMessage: pageMessage,
             },
           },
         });
