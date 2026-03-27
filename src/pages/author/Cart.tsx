@@ -97,6 +97,17 @@ export default function Cart() {
     },
   });
 
+  // Track cart visit
+  useEffect(() => {
+    if (!user?.id) return;
+    supabase.from('payment_activity').insert({
+      user_id: user.id,
+      user_email: user.email || '',
+      user_name: user.user_metadata?.full_name || user.email || '',
+      event_type: 'cart_visit',
+    }).then(() => {});
+  }, [user?.id]);
+
   // Handle PayPal return
   useEffect(() => {
     const paypalStatus = searchParams.get('paypal');
@@ -273,6 +284,42 @@ export default function Cart() {
         coAuthorId: item.coAuthorId,
       })),
     ];
+
+    // Track pay_clicked for each selected article
+    if (user?.id) {
+      const trackingRows: any[] = [];
+      for (const artId of selectedArticles) {
+        const art = pendingArticles?.find(a => a.id === artId);
+        trackingRows.push({
+          user_id: user.id,
+          user_email: user.email || '',
+          user_name: user.user_metadata?.full_name || user.email || '',
+          event_type: 'pay_clicked',
+          product_type: 'article_fee',
+          article_id: artId,
+          article_title: art?.title || '',
+          article_reference: art?.reference_number || '',
+          payment_gateway: paymentMethod,
+          currency,
+          amount: feePerArticle,
+        });
+      }
+      for (const item of validCartItems) {
+        trackingRows.push({
+          user_id: user.id,
+          user_email: user.email || '',
+          user_name: user.user_metadata?.full_name || user.email || '',
+          event_type: 'pay_clicked',
+          product_type: item.type,
+          payment_gateway: paymentMethod,
+          currency,
+          amount: item.amount,
+        });
+      }
+      if (trackingRows.length > 0) {
+        supabase.from('payment_activity').insert(trackingRows).then(() => {});
+      }
+    }
 
     const paymentData = {
       items,

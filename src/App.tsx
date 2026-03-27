@@ -32,6 +32,7 @@ import AdminUSDTPayments from "./pages/admin/AdminUSDTPayments";
 import AdminNotifications from "./pages/admin/AdminNotifications";
 import AdminBugReports from "./pages/admin/AdminBugReports";
 import AdminRevenue from "./pages/admin/AdminRevenue";
+import AdminPaymentActivity from "./pages/admin/AdminPaymentActivity";
 import NotFound from "./pages/NotFound";
 import { ReferralPopup } from "./components/referral/ReferralPopup";
 import { CookieConsent } from "./components/CookieConsent";
@@ -243,6 +244,14 @@ const App = () => (
               element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <AdminRevenue />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/payment-activity" 
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminPaymentActivity />
                 </ProtectedRoute>
               } 
             />

@@ -66,6 +66,7 @@ const adminNavItems: NavItem[] = [
   { label: 'USDT Payments', href: '/admin/usdt-payments', icon: Settings },
   { label: 'Reminders', href: '/admin/reminders', icon: Bell },
   { label: 'Notifications', href: '/admin/notifications', icon: Megaphone },
+  { label: 'Payment Activity', href: '/admin/payment-activity', icon: ShoppingCart },
   { label: 'Bug Reports', href: '/admin/bug-reports', icon: Bug },
   { label: 'Profile', href: '/admin/profile', icon: UserCircle },
 ];
