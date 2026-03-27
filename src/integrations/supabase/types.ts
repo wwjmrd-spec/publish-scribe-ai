@@ -482,6 +482,72 @@ export type Database = {
           },
         ]
       }
+      payment_activity: {
+        Row: {
+          amount: number | null
+          article_id: string | null
+          article_reference: string | null
+          article_title: string | null
+          created_at: string
+          currency: string | null
+          event_type: string
+          id: string
+          metadata: Json | null
+          payment_gateway: string | null
+          product_type: string | null
+          user_email: string | null
+          user_id: string
+          user_name: string | null
+        }
+        Insert: {
+          amount?: number | null
+          article_id?: string | null
+          article_reference?: string | null
+          article_title?: string | null
+          created_at?: string
+          currency?: string | null
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          payment_gateway?: string | null
+          product_type?: string | null
+          user_email?: string | null
+          user_id: string
+          user_name?: string | null
+        }
+        Update: {
+          amount?: number | null
+          article_id?: string | null
+          article_reference?: string | null
+          article_title?: string | null
+          created_at?: string
+          currency?: string | null
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          payment_gateway?: string | null
+          product_type?: string | null
+          user_email?: string | null
+          user_id?: string
+          user_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_activity_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_activity_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_reminders: {
         Row: {
           article_id: string
