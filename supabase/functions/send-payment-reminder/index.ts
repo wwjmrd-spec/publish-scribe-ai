@@ -80,7 +80,7 @@ serve(async (req: Request) => {
       // Manual trigger: send reminder for a specific article
       const { data, error } = await supabase
         .from("articles")
-        .select("id, title, reference_number, author_id, status, updated_at, profiles:author_id (full_name, email)")
+        .select("id, title, reference_number, author_id, status, updated_at, page_count, profiles:author_id (full_name, email)")
         .eq("id", articleId)
         .in("status", ["pending_fee", "manuscript_accepted"])
         .single();
@@ -106,10 +106,12 @@ serve(async (req: Request) => {
     } else {
       // Auto trigger (cron): find all articles pending_fee
       // that are within the max_days window from when they became pending_fee
+      // Only auto-send for articles with more than 2 pages
       const { data, error } = await supabase
         .from("articles")
-        .select("id, title, reference_number, author_id, status, updated_at, profiles:author_id (full_name, email)")
-        .in("status", ["pending_fee", "manuscript_accepted"]);
+        .select("id, title, reference_number, author_id, status, updated_at, page_count, profiles:author_id (full_name, email)")
+        .in("status", ["pending_fee", "manuscript_accepted"])
+        .gt("page_count", 2);
 
       if (error) {
         console.error("Error fetching articles:", error);
