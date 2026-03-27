@@ -97,6 +97,17 @@ export default function Cart() {
     },
   });
 
+  // Track cart visit
+  useEffect(() => {
+    if (!user?.id) return;
+    supabase.from('payment_activity').insert({
+      user_id: user.id,
+      user_email: user.email || '',
+      user_name: user.user_metadata?.full_name || user.email || '',
+      event_type: 'cart_visit',
+    }).then(() => {});
+  }, [user?.id]);
+
   // Handle PayPal return
   useEffect(() => {
     const paypalStatus = searchParams.get('paypal');
