@@ -235,11 +235,11 @@ serve(async (req: Request) => {
       }
     }
 
-    // ===== STEP 3: manuscript_accepted (5 min) → pending_fee (NORMAL publications only) =====
+    // ===== STEP 3: manuscript_accepted (5 min) → pending_fee (NORMAL publications, >2 pages only) =====
     {
       const { data: articles, error } = await supabase
         .from("articles")
-        .select("id, title, reference_number, author_id, updated_at, publication_type, profiles:author_id (full_name, email)")
+        .select("id, title, reference_number, author_id, updated_at, publication_type, page_count, profiles:author_id (full_name, email)")
         .eq("status", "manuscript_accepted")
         .eq("publication_type", "normal")
         .eq("automation_paused", false)
@@ -248,43 +248,49 @@ serve(async (req: Request) => {
       if (error) {
         results.errors.push(`Step3 fetch: ${error.message}`);
       } else if (articles?.length) {
-        const ids = articles.map((a: any) => a.id);
-        const { error: updateErr } = await supabase
-          .from("articles")
-          .update({ status: "pending_fee" })
-          .in("id", ids);
+        // Only move articles with more than 2 pages to pending_fee
+        const eligibleArticles = articles.filter((a: any) => (a.page_count || 0) > 2);
+        
+        if (eligibleArticles.length) {
+          const ids = eligibleArticles.map((a: any) => a.id);
+          const { error: updateErr } = await supabase
+            .from("articles")
+            .update({ status: "pending_fee" })
+            .in("id", ids);
 
-        if (updateErr) {
-          results.errors.push(`Step3 update: ${updateErr.message}`);
-        } else {
-          results.step3_toPendingFee = ids.length;
-          for (const article of articles) {
-            const profile = (article as any).profiles;
-            // Track fee reminder email sent
-            await supabase.from("articles").update({ fee_reminder_email_sent_at: new Date().toISOString() }).eq("id", article.id);
-            // Author notification
-            await supabase.from("notifications").insert({
-              user_id: article.author_id,
-              title: "Publication Fee Pending 💳",
-              message: `Your publication fee for "${article.title}" is pending. Please pay your publication fee.`,
-              type: "warning",
-              link: "/author/cart",
-            });
-            // Admin notification
-            await notifyAdmins(
-              "Article Pending Fee 💳",
-              `Article "${article.title}" (${article.reference_number}) is now pending fee payment.`,
-              `/admin/articles/${article.id}`
-            );
-            // Author email
-            if (profile?.email) {
-              await sendEmail(profile.email, "status-update", {
-                authorName: profile.full_name || "Author",
-                articleTitle: article.title,
-                referenceNumber: article.reference_number,
-                newStatus: "Pending Fee",
-                message: "Your publication fee is pending. Please pay your publication fee to proceed with the publication process.",
+          if (updateErr) {
+            results.errors.push(`Step3 update: ${updateErr.message}`);
+          } else {
+            results.step3_toPendingFee = ids.length;
+            for (const article of eligibleArticles) {
+              const profile = (article as any).profiles;
+              const pageCount = (article as any).page_count || 0;
+              // Track fee reminder email sent
+              await supabase.from("articles").update({ fee_reminder_email_sent_at: new Date().toISOString() }).eq("id", article.id);
+              // Author notification
+              await supabase.from("notifications").insert({
+                user_id: article.author_id,
+                title: "Publication Fee Pending 💳",
+                message: `Your article "${article.title}" has ${pageCount} pages which exceeds the 2-page free publication limit. Please pay the publication fee to proceed.`,
+                type: "warning",
+                link: "/author/cart",
               });
+              // Admin notification
+              await notifyAdmins(
+                "Article Pending Fee 💳",
+                `Article "${article.title}" (${article.reference_number}) has ${pageCount} pages and is now pending fee payment.`,
+                `/admin/articles/${article.id}`
+              );
+              // Author email
+              if (profile?.email) {
+                await sendEmail(profile.email, "status-update", {
+                  authorName: profile.full_name || "Author",
+                  articleTitle: article.title,
+                  referenceNumber: article.reference_number,
+                  newStatus: "Pending Fee",
+                  message: `Your article has ${pageCount} pages, which exceeds the 2-page free publication limit. Articles with more than 2 pages require a publication fee. Please pay your publication fee to proceed with the publication process.`,
+                });
+              }
             }
           }
         }

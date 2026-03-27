@@ -80,7 +80,7 @@ serve(async (req: Request) => {
       // Manual trigger: send reminder for a specific article
       const { data, error } = await supabase
         .from("articles")
-        .select("id, title, reference_number, author_id, status, updated_at, profiles:author_id (full_name, email)")
+        .select("id, title, reference_number, author_id, status, updated_at, page_count, profiles:author_id (full_name, email)")
         .eq("id", articleId)
         .in("status", ["pending_fee", "manuscript_accepted"])
         .single();
@@ -106,10 +106,12 @@ serve(async (req: Request) => {
     } else {
       // Auto trigger (cron): find all articles pending_fee
       // that are within the max_days window from when they became pending_fee
+      // Only auto-send for articles with more than 2 pages
       const { data, error } = await supabase
         .from("articles")
-        .select("id, title, reference_number, author_id, status, updated_at, profiles:author_id (full_name, email)")
-        .in("status", ["pending_fee", "manuscript_accepted"]);
+        .select("id, title, reference_number, author_id, status, updated_at, page_count, profiles:author_id (full_name, email)")
+        .in("status", ["pending_fee", "manuscript_accepted"])
+        .gt("page_count", 2);
 
       if (error) {
         console.error("Error fetching articles:", error);
@@ -156,6 +158,10 @@ serve(async (req: Request) => {
       }
 
       try {
+        const pageCount = (article as any).page_count || 0;
+        const pageMessage = pageCount > 2 
+          ? ` Your article has ${pageCount} pages, which exceeds the 2-page free publication limit.`
+          : '';
         const { error: emailError } = await supabase.functions.invoke("send-email", {
           body: {
             to: profile.email,
@@ -164,6 +170,7 @@ serve(async (req: Request) => {
               authorName: profile.full_name || "Author",
               articleTitle: article.title,
               referenceNumber: article.reference_number,
+              extraMessage: pageMessage,
             },
           },
         });
