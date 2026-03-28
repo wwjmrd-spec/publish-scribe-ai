@@ -178,11 +178,12 @@ serve(async (req: Request) => {
     }
 
     // ===== STEP 2: under_review → manuscript_accepted (2 hours) =====
+    // Score thresholds: 1-page articles NEVER auto-accepted, ≤2 pages need ≥90%, >2 pages need ≥80%
     const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString();
     {
       const { data: articles, error } = await supabase
         .from("articles")
-        .select("id, title, reference_number, author_id, profiles:author_id (full_name, email)")
+        .select("id, title, reference_number, author_id, page_count, profiles:author_id (full_name, email)")
         .eq("status", "under_review")
         .eq("automation_paused", false)
         .lte("updated_at", twoHoursAgo);
@@ -190,45 +191,78 @@ serve(async (req: Request) => {
       if (error) {
         results.errors.push(`Step2 fetch: ${error.message}`);
       } else if (articles?.length) {
-        const ids = articles.map((article: any) => article.id);
-        const { error: updateErr } = await supabase
-          .from("articles")
-          .update({ status: "manuscript_accepted" })
-          .in("id", ids);
+        const eligibleForAcceptance: any[] = [];
 
-        if (updateErr) {
-          results.errors.push(`Step2 update: ${updateErr.message}`);
-        } else {
-          results.step2_toManuscriptAccepted = ids.length;
+        for (const article of articles) {
+          const pageCount = (article as any).page_count || 0;
 
-          for (const article of articles) {
-            const profile = (article as any).profiles;
+          // 1-page articles are NEVER auto-accepted
+          if (pageCount <= 1) {
+            console.log(`Skipping article ${article.id}: 1-page articles cannot be auto-accepted`);
+            continue;
+          }
 
-            // Track manuscript accepted email sent
-            await supabase.from("articles").update({ manuscript_accepted_email_sent_at: new Date().toISOString() }).eq("id", article.id);
+          // Check review score
+          const { data: review } = await supabase
+            .from("article_reviews")
+            .select("overall_score")
+            .eq("article_id", article.id)
+            .order("reviewed_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
 
-            await supabase.from("notifications").insert({
-              user_id: article.author_id,
-              title: "Manuscript Accepted! 🎉",
-              message: `Your manuscript "${article.title}" has been accepted!`,
-              type: "success",
-              link: "/author/articles",
-            });
+          const overallScore = review?.overall_score ?? 0;
+          const requiredScore = pageCount <= 2 ? 90 : 80;
 
-            await notifyAdmins(
-              "Manuscript Accepted ✅",
-              `Article "${article.title}" (${article.reference_number}) has been accepted.`,
-              `/admin/articles/${article.id}`
-            );
+          if (overallScore < requiredScore) {
+            console.log(`Skipping article ${article.id}: score ${overallScore} below ${requiredScore}% threshold (${pageCount} pages)`);
+            continue;
+          }
 
-            if (profile?.email) {
-              await sendEmail(profile.email, "status-update", {
-                authorName: profile.full_name || "Author",
-                articleTitle: article.title,
-                referenceNumber: article.reference_number,
-                newStatus: "Manuscript Accepted",
-                message: "Congratulations! Your manuscript has been accepted for publication.",
+          eligibleForAcceptance.push(article);
+        }
+
+        if (eligibleForAcceptance.length) {
+          const ids = eligibleForAcceptance.map((a: any) => a.id);
+          const { error: updateErr } = await supabase
+            .from("articles")
+            .update({ status: "manuscript_accepted" })
+            .in("id", ids);
+
+          if (updateErr) {
+            results.errors.push(`Step2 update: ${updateErr.message}`);
+          } else {
+            results.step2_toManuscriptAccepted = ids.length;
+
+            for (const article of eligibleForAcceptance) {
+              const profile = (article as any).profiles;
+
+              // Track manuscript accepted email sent
+              await supabase.from("articles").update({ manuscript_accepted_email_sent_at: new Date().toISOString() }).eq("id", article.id);
+
+              await supabase.from("notifications").insert({
+                user_id: article.author_id,
+                title: "Manuscript Accepted! 🎉",
+                message: `Your manuscript "${article.title}" has been accepted!`,
+                type: "success",
+                link: "/author/articles",
               });
+
+              await notifyAdmins(
+                "Manuscript Accepted ✅",
+                `Article "${article.title}" (${article.reference_number}) has been accepted.`,
+                `/admin/articles/${article.id}`
+              );
+
+              if (profile?.email) {
+                await sendEmail(profile.email, "status-update", {
+                  authorName: profile.full_name || "Author",
+                  articleTitle: article.title,
+                  referenceNumber: article.reference_number,
+                  newStatus: "Manuscript Accepted",
+                  message: "Congratulations! Your manuscript has been accepted for publication.",
+                });
+              }
             }
           }
         }
