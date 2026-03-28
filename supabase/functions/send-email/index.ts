@@ -700,6 +700,11 @@ function getEmailContent(
         subject: "Upgrade to Pro Plan - Unlock More Benefits! 🚀 - WWJMRD",
         html: getUpgradeToProTemplate(data),
       };
+    case "manuscript-revise":
+      return {
+        subject: `Manuscript Revision Required: ${data?.articleTitle || "Your Article"} - WWJMRD`,
+        html: getManuscriptReviseTemplate(data),
+      };
     default:
       throw new Error(`Unknown email template: ${template}`);
   }
