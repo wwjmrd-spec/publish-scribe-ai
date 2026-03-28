@@ -34,6 +34,7 @@ type EmailTemplate =
   | "galley-proof-review"
   | "copyright-form-request"
   | "upgrade-to-pro"
+  | "manuscript-revise"
   | "custom";
 
 interface EmailRequest {
