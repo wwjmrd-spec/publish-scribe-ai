@@ -274,6 +274,18 @@ export function DashboardLayout({ children, type }: DashboardLayoutProps) {
 
       {/* Main Content */}
       <main className="flex-1 lg:ml-64 mt-16 lg:mt-0 overflow-y-auto h-screen">
+        {/* Upgrade to Pro Banner */}
+        {showUpgradeBanner && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="cursor-pointer bg-gradient-to-r from-amber-500/90 to-orange-500/90 px-4 py-2.5 flex items-center justify-center gap-2 text-sm font-medium text-white"
+            onClick={() => navigate('/author/subscription')}
+          >
+            <Crown className="w-4 h-4" />
+            <span>🚀 <strong>Upgrade to Pro</strong> — Download review reports, submit free articles &amp; get co-author certificates!</span>
+          </motion.div>
+        )}
         {/* Refer & Earn Banner */}
         {type === 'author' && showReferBanner && location.pathname !== '/author/rewards' && (
           <motion.div
