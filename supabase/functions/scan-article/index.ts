@@ -54,7 +54,12 @@ serve(async (req) => {
       throw new Error("AI service is not configured");
     }
 
-    const truncatedText = text.trim().substring(0, 15000);
+    const fullText = text.trim();
+    const truncatedText = fullText.substring(0, 15000);
+
+    // More accurate page count: count words in full text, ~275 words per page
+    const totalWordCount = fullText.split(/\s+/).filter(w => w.length > 0).length;
+    const estimatedPageCount = Math.max(1, Math.ceil(totalWordCount / 275));
 
     const response = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",
