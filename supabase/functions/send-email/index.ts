@@ -449,23 +449,41 @@ const getArticleStatusChangeTemplate = (data: EmailRequest["data"]): string => {
 };
 
 const getReviewReportReadyTemplate = (data: EmailRequest["data"]): string => {
+  const overallScore = (data as any)?.overallScore ?? 0;
+  const isLowScore = (data as any)?.isLowScore === true || overallScore < 90;
+
   const infoRows = [
     emailInfoRow("Reference Number", escapeHtml(data?.referenceNumber || "N/A")),
     emailInfoRow("Title", escapeHtml(data?.articleTitle || "N/A")),
-    emailInfoRow("Overall Score", `${(data as any)?.overallScore ?? "N/A"}%`),
+    emailInfoRow("Overall Score", `${overallScore}%`, overallScore < 90 ? " color:#ef4444; font-weight:600;" : " color:#10b981; font-weight:600;"),
     emailInfoRow("Recommendation", escapeHtml(((data as any)?.recommendation || "N/A").replace(/_/g, " "))),
   ].join("");
 
   const body = `
-    ${emailH1("Review Report Ready 📊")}
+    ${emailH1(isLowScore ? "Review Report Ready — Revision Recommended 📝" : "Review Report Ready 📊")}
     ${emailP(`Dear ${escapeHtml(data?.authorName || "Author")},`)}
-    ${emailP(`The AI review report for your article has been generated and is now available for download in your dashboard.`)}
+    ${emailP(`The review report for your article has been generated and is now available for download in your dashboard.`)}
     ${emailInfoBox("Review Summary", infoRows)}
-    ${emailP("Log in to your dashboard to view the full review report and download it.")}
+    ${isLowScore ? `
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#2d1a1a" style="background-color:#2d1a1a; border-radius:8px; margin:20px 0; border:1px solid rgba(239,68,60,0.3);">
+        <tr><td style="padding:20px;">
+          <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:16px; font-weight:600; color:#ef4444; margin:0 0 12px;">⚠️ Revision Recommended</p>
+          <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:14px; color:#d1d5db; line-height:22px; margin:0 0 8px;">Your article scored <strong style="color:#ef4444;">${overallScore}%</strong>, which is below the 90% threshold. We strongly recommend you:</p>
+          ${emailFeatureItem('1️⃣ Download your review report from your dashboard')}
+          ${emailFeatureItem('2️⃣ Carefully review all feedback and suggestions')}
+          ${emailFeatureItem('3️⃣ Revise your manuscript addressing the identified issues')}
+          ${emailFeatureItem('4️⃣ Resubmit your revised article for reconsideration')}
+        </td></tr>
+      </table>
+      ${emailButton("https://wwjmrdai.lovable.app/author/articles", "Download Report & Revise Article")}
+    ` : `
+      ${emailP("Log in to your dashboard to view the full review report and download it.")}
+      ${emailButton("https://wwjmrdai.lovable.app/author/articles", "View Review Report")}
+    `}
     ${emailDivider()}
     ${emailFooterText("This is an automated notification from WWJMRD. If you have questions about the review, please contact us at support@wwjmrd.com.")}
   `;
-  return wrapEmail("Review Report Ready", body);
+  return wrapEmail(isLowScore ? "Revision Recommended - Review Report" : "Review Report Ready", body);
 };
 const getPaymentReminderTemplate = (data: EmailRequest["data"]): string => {
   const body = `

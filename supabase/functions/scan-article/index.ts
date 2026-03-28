@@ -54,7 +54,12 @@ serve(async (req) => {
       throw new Error("AI service is not configured");
     }
 
-    const truncatedText = text.trim().substring(0, 15000);
+    const fullText = text.trim();
+    const truncatedText = fullText.substring(0, 15000);
+
+    // More accurate page count: count words in full text, ~275 words per page
+    const totalWordCount = fullText.split(/\s+/).filter(w => w.length > 0).length;
+    const estimatedPageCount = Math.max(1, Math.ceil(totalWordCount / 275));
 
     const response = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",
@@ -124,7 +129,7 @@ serve(async (req) => {
                     },
                     page_count: {
                       type: "integer",
-                      description: "The estimated number of pages in the article. Count page breaks, or estimate from content length (approximately 250-300 words per page).",
+                      description: "The number of pages in the article. Look for page numbers, page breaks, headers/footers with page indicators. If page markers are found, use the highest page number. Otherwise leave empty and the system will estimate from word count.",
                     },
                   },
                   required: ["title"],
@@ -166,10 +171,9 @@ serve(async (req) => {
 
     const metadata = JSON.parse(toolCall.function.arguments);
 
-    // Estimate page count from text if AI didn't provide it
-    if (!metadata.page_count && truncatedText) {
-      const wordCount = truncatedText.split(/\s+/).length;
-      metadata.page_count = Math.max(1, Math.ceil(wordCount / 275));
+    // Use AI-detected page count, or fall back to word-count estimate from full text
+    if (!metadata.page_count || metadata.page_count < 1) {
+      metadata.page_count = estimatedPageCount;
     }
 
     return new Response(

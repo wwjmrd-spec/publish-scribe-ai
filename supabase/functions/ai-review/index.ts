@@ -621,6 +621,10 @@ Provide your response as a valid JSON object with this exact structure:
     try {
       const authorProfile = article.profiles as any;
       if (authorProfile?.email) {
+        // Determine if score is below 90% for revise request
+        const overallScore = reviewData.overallScore || 0;
+        const isLowScore = overallScore < 90;
+
         await fetch(`${supabaseUrl}/functions/v1/send-email`, {
           method: "POST",
           headers: {
@@ -636,6 +640,7 @@ Provide your response as a valid JSON object with this exact structure:
               referenceNumber: article.reference_number,
               overallScore: reviewData.overallScore,
               recommendation: (reviewData.detailedFeedback?.recommendation || "N/A").replace(/_/g, " "),
+              isLowScore,
             },
           }),
         });
