@@ -621,6 +621,31 @@ const getUpgradeToProTemplate = (data: EmailRequest["data"]): string => {
   return wrapEmail("Upgrade to Pro - WWJMRD", body);
 };
 
+const getManuscriptReviseTemplate = (data: EmailRequest["data"]): string => {
+  const body = `
+    ${emailH1("Manuscript Revision Required ✏️")}
+    ${emailP(`Hi ${escapeHtml(data?.authorName || "Author")},`)}
+    ${emailP(`Your article <strong style="color:#ffffff;">"${escapeHtml(data?.articleTitle || "")}"</strong> (Ref: ${escapeHtml(data?.referenceNumber || "N/A")}) requires revision before it can be accepted for publication.`)}
+    ${emailP(`Your article has <strong style="color:#ffffff;">${escapeHtml(String(data?.pageCount || "N/A"))} pages</strong>. Please review the feedback in your review report, revise your manuscript accordingly, and resubmit it through your author dashboard.`)}
+    ${emailP("To improve your chances of acceptance:")}
+    
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#1a2340" style="background-color:#1a2340; border-radius:8px; margin:20px 0;">
+      <tr><td style="padding:20px;">
+        ${emailFeatureItem('📊 Download your review report for detailed feedback')}
+        ${emailFeatureItem('✏️ Address all highlighted issues in the report')}
+        ${emailFeatureItem('📄 Resubmit the revised manuscript from your dashboard')}
+        ${emailFeatureItem('🔍 Ensure your article meets quality standards')}
+      </td></tr>
+    </table>
+    
+    ${emailButton("https://wwjmrdai.lovable.app/author/articles", "Go to My Articles")}
+    ${emailDivider()}
+    ${emailFooterText("If you have any questions, contact us at support@wwjmrd.com")}
+  `;
+  return wrapEmail("Manuscript Revision Required - WWJMRD", body);
+};
+
+
 function getEmailContent(
   template: EmailTemplate,
   data?: EmailRequest["data"],
