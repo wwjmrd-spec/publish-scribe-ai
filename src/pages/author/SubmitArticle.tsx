@@ -451,10 +451,13 @@ export default function SubmitArticle() {
     // 2-page articles require review report download limit
     if (pageCount !== null && pageCount <= 2 && !subscription.canDownloadReport) {
       toast({
-        title: 'Review report limit reached',
-        description: 'Articles with 2 or fewer pages require available review report downloads. Please upgrade to Pro plan.',
+        title: 'Upgrade to Pro Plan Required',
+        description: `You've used all ${subscription.reviewReportsLimit} free review report downloads. Articles with 2 or fewer pages require available review reports. Upgrade to Pro to get 5 reports/month and submit unlimited articles.`,
         variant: 'destructive',
+        duration: 8000,
       });
+      // Navigate to subscription page after a short delay
+      setTimeout(() => navigate('/author/subscription'), 3000);
       return false;
     }
 
