@@ -346,14 +346,23 @@ export default function MyArticles() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleDownloadReport(article.id)}
-                          disabled={!subscription.canDownloadReport}
+                          onClick={() => {
+                            if (!subscription.canDownloadReport) {
+                              toast(
+                                <div className="flex flex-col gap-2">
+                                  <p className="font-semibold">Review report quota exhausted</p>
+                                  <p className="text-sm text-muted-foreground">Upgrade to Pro for 5 monthly downloads, co-author certificates, and submit free articles.</p>
+                                  <Button size="sm" className="gradient-primary mt-1 w-fit" onClick={() => navigate('/author/subscription')}>
+                                    <Crown className="w-4 h-4 mr-1" /> Upgrade to Pro
+                                  </Button>
+                                </div>
+                              );
+                              return;
+                            }
+                            handleDownloadReport(article.id);
+                          }}
                         >
-                          {!subscription.canDownloadReport ? (
-                            <Lock className="w-4 h-4 mr-1" />
-                          ) : (
-                            <Download className="w-4 h-4 mr-1" />
-                          )}
+                          <Download className="w-4 h-4 mr-1" />
                           Report
                         </Button>
                       )}

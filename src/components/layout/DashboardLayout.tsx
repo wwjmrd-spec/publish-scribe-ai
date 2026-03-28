@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { GuidedTour } from '@/components/onboarding/GuidedTour';
+import { useSubscription } from '@/hooks/useSubscription';
 
 interface NavItem {
   label: string;
