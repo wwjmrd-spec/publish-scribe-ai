@@ -90,6 +90,9 @@ export function DashboardLayout({ children, type }: DashboardLayoutProps) {
     return true;
   });
 
+  const { subscription } = useSubscription();
+  const showUpgradeBanner = type === 'author' && !subscription.canDownloadReport && subscription.plan === 'free';
+
   const { data: profileData } = useQuery({
     queryKey: ['profile-is-indian', user?.id],
     queryFn: async () => {
