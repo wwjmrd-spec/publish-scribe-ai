@@ -129,7 +129,7 @@ serve(async (req) => {
                     },
                     page_count: {
                       type: "integer",
-                      description: "The estimated number of pages in the article. Count page breaks, or estimate from content length (approximately 250-300 words per page).",
+                      description: "The number of pages in the article. Look for page numbers, page breaks, headers/footers with page indicators. If page markers are found, use the highest page number. Otherwise leave empty and the system will estimate from word count.",
                     },
                   },
                   required: ["title"],
