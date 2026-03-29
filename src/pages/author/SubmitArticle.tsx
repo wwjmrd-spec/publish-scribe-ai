@@ -893,6 +893,12 @@ export default function SubmitArticle() {
                 onUpdate={updateCoAuthor}
               />
 
+              {pageCount && pageCount > 2 && (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-yellow-100 border border-yellow-400 text-sm text-yellow-800 dark:bg-yellow-900/30 dark:border-yellow-600 dark:text-yellow-300">
+                  ⚠️ <span>Your article has more than 2 pages. It will <strong>not</strong> be considered under free publication. A publication fee will be required after manuscript acceptance.</span>
+                </div>
+              )}
+
               <div className="flex justify-between gap-4">
                 <Button
                   type="button"
