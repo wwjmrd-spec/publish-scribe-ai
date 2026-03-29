@@ -762,12 +762,12 @@ export default function SubmitArticle() {
 
               {/* Page count info */}
               {pageCount && (
-                <div className={`flex items-center gap-2 p-3 rounded-lg border text-sm ${pageCount > 2 ? 'bg-destructive/10 border-destructive/30' : 'bg-muted/50 border-border/50'}`}>
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border border-border/50 text-sm">
                   📄 <span className="text-foreground"><span className="font-semibold">{pageCount} pages</span> detected in your document</span>
                 </div>
               )}
               {pageCount && pageCount > 2 && (
-                <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/30 text-sm text-destructive">
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-yellow-100 border border-yellow-400 text-sm text-yellow-800 dark:bg-yellow-900/30 dark:border-yellow-600 dark:text-yellow-300">
                   ⚠️ <span>Your article has more than 2 pages. It will <strong>not</strong> be considered under free publication. A publication fee will be required after manuscript acceptance.</span>
                 </div>
               )}
