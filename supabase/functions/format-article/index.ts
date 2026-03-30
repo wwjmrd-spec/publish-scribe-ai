@@ -73,14 +73,12 @@ Designation, Institution, City, Country.
 • Followed by author names in single line
 
 4. SECTION ORDER (MANDATORY)
-Maintain EXACT section order:
-Abstract, Keywords, Introduction, Need of the Study, Aims And Objectives,
-Materials And Methodology, Study Design, Sample Size, Inclusion Criteria,
-Exclusion Criteria, Assessment Parameters, Flow Chart of Sampling Method,
-Result, Tables, Graphs, Discussion, Conclusions, Limitations,
-Recommendations, Conflict Of Interest, Source of Funding, Ethical Clearance, References
-
-Do NOT change order. If a section is missing from content, include the heading but leave content empty.
+Use numbered headings (1., 2., 3., etc.) or Roman numerals (I., II., III.) for main sections.
+Use lettered sub-headings (A., B., C.) under main sections.
+Maintain logical section order from the original manuscript.
+Common sections: Introduction, Literature Review / Background, Materials and Methods, Results, Discussion, Conclusions, Limitations, Recommendations, Conflict of Interest, Source of Funding, Ethical Clearance, References.
+If original has custom sections, keep them in original order.
+Do NOT add sections that don't exist in the original content. Only include headings that have content.
 
 5. ABSTRACT FORMAT
 • Single paragraph
