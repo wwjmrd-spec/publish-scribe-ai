@@ -13,7 +13,9 @@ import {
   Clock,
   FileText,
   AlertTriangle,
+  Edit3,
 } from 'lucide-react';
+import { RichTextEditor } from '@/components/ui/RichTextEditor';
 
 interface GalleyProofReviewSectionProps {
   article: any;
@@ -25,6 +27,8 @@ export function GalleyProofReviewSection({ article }: GalleyProofReviewSectionPr
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [approving, setApproving] = useState(false);
+  const [showEditor, setShowEditor] = useState(false);
+  const [editorContent, setEditorContent] = useState('');
 
   const galleyStatus = (article as any).galley_proof_status;
   const deadline = (article as any).galley_proof_deadline;
@@ -150,6 +154,22 @@ export function GalleyProofReviewSection({ article }: GalleyProofReviewSectionPr
     }
   };
 
+  const handleOpenEditor = () => {
+    // Build initial content from article data
+    let html = `<h1>${article.title || 'Untitled'}</h1>`;
+    if (article.author_name) {
+      html += `<p><strong>${article.author_name}</strong></p>`;
+    }
+    if (article.abstract) {
+      html += `<h2>Abstract</h2><p>${article.abstract}</p>`;
+    }
+    if (article.keywords?.length > 0) {
+      html += `<p><strong>Keywords:</strong> ${article.keywords.join(', ')}</p>`;
+    }
+    setEditorContent(html);
+    setShowEditor(true);
+  };
+
   return (
     <GlassCard className="border-primary/20">
       <div className="space-y-4">
@@ -207,7 +227,7 @@ export function GalleyProofReviewSection({ article }: GalleyProofReviewSectionPr
             <p>• Review the galley proof files carefully</p>
             <p>• Corrections are highlighted in <span className="text-red-400 font-semibold">RED</span> — please review</p>
             <p>• Missing information is highlighted in <span className="text-yellow-400 font-semibold">YELLOW</span> — please fill in the correct details</p>
-            <p>• If corrections needed: upload the revised Word file below</p>
+            <p>• If corrections needed: upload the revised Word file below or use the editor</p>
             <p>• If everything looks good: click "Approve Galley Proof"</p>
           </div>
         )}
@@ -230,7 +250,33 @@ export function GalleyProofReviewSection({ article }: GalleyProofReviewSectionPr
             <Download className="w-4 h-4 mr-1" />
             PDF File
           </Button>
+          {galleyStatus === 'sent' && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleOpenEditor}
+              className="text-primary"
+            >
+              <Edit3 className="w-4 h-4 mr-1" />
+              Edit Article
+            </Button>
+          )}
         </div>
+
+        {/* Rich Text Editor */}
+        {showEditor && galleyStatus === 'sent' && (
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-foreground">Edit Article Content:</p>
+            <RichTextEditor
+              content={editorContent}
+              onChange={setEditorContent}
+              className="min-h-[250px]"
+            />
+            <p className="text-xs text-muted-foreground">
+              Edit your article content here. Changes will be visible for your reference. Upload the final revised Word file below to submit.
+            </p>
+          </div>
+        )}
 
         {/* Actions (only if not yet responded) */}
         {galleyStatus === 'sent' && (
