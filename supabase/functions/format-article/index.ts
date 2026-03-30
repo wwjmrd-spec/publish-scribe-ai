@@ -16,12 +16,19 @@ function jsonResponse(body: object, status = 200) {
 }
 
 async function extractDocxText(supabase: any, documentUrl: string): Promise<string> {
+  console.log("Downloading document:", documentUrl);
   const { data: fileData, error: downloadError } = await supabase.storage
     .from("documents")
     .download(documentUrl);
-  if (downloadError || !fileData) throw new Error("Failed to download document");
-  const arrayBuffer = await fileData.arrayBuffer();
-  const result = await mammoth.extractRawText({ arrayBuffer });
+  if (downloadError || !fileData) {
+    console.error("Download error:", downloadError?.message);
+    throw new Error("Failed to download document: " + (downloadError?.message || "no data"));
+  }
+  const ab = await fileData.arrayBuffer();
+  const buffer = new Uint8Array(ab);
+  console.log("Document downloaded, size:", buffer.length, "bytes");
+  // mammoth npm in Deno needs { buffer } (Buffer-like) not { arrayBuffer }
+  const result = await mammoth.extractRawText({ buffer });
   return result.value;
 }
 
