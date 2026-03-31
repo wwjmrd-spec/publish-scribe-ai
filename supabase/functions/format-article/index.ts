@@ -903,7 +903,10 @@ serve(async (req) => {
       return jsonResponse({ error: "Failed to parse AI formatted result" }, 500);
     }
 
-    console.log("AI formatting complete. Generating PDF...");
+    console.log("AI formatting complete. Generating PDF and HTML content...");
+
+    // Generate HTML content for admin editing
+    const htmlContent = generateFormattedHtml(formatted, article);
 
     const pdfBuffer = generateFormattedPdf(article, formatted);
     const pdfBlob = new Blob([pdfBuffer], { type: "application/pdf" });
@@ -923,7 +926,8 @@ serve(async (req) => {
       formatted_document_url: fileName,
       formatting_status: "ready_for_review",
       formatting_suggestions: formatted.suggestions || [],
-    }).eq("id", articleId);
+      formatted_content: htmlContent,
+    } as any).eq("id", articleId);
 
     // Notify admins
     const { data: admins } = await supabase.from("user_roles").select("user_id").eq("role", "admin");
