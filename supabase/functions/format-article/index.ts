@@ -178,6 +178,68 @@ interface FormattedArticle {
   }>;
 }
 
+function generateFormattedHtml(formatted: FormattedArticle, article: any): string {
+  const authors = formatted.authors || [];
+  const authorNames = authors.map(a => a.name).join(", ");
+  const authorDetails = authors.map(a => `<p style="margin:2px 0;"><strong>${a.name}</strong><br/><em>${a.designation || ''}</em></p>`).join("");
+  const correspondence = formatted.correspondence;
+  const corrBlock = correspondence?.name ? `<p style="margin:8px 0;"><strong>Correspondence:</strong><br/><strong>${correspondence.name}</strong><br/><em>${correspondence.designation || ''}</em></p>` : '';
+  const title = formatted.title || article.title;
+  const abstract = formatted.abstract || article.abstract || '';
+  const keywords = (formatted.keywords || article.keywords || []).join(", ");
+  
+  const sectionsHtml = (formatted.sections || []).map(s => 
+    `<h2 style="font-size:14px;font-weight:bold;margin:16px 0 8px;">${s.heading}</h2><p style="text-align:justify;margin:4px 0;">${s.content}</p>`
+  ).join("");
+
+  const tablesHtml = (formatted.tables || []).map(t =>
+    `<h3 style="font-size:13px;font-weight:bold;margin:12px 0 6px;">Table No.${t.number}: ${t.title}</h3><p style="margin:4px 0;font-size:12px;">${t.content}</p><p style="text-align:justify;margin:4px 0;">${t.interpretation}</p>`
+  ).join("");
+
+  const graphsHtml = (formatted.graphs || []).map(g =>
+    `<h3 style="font-size:13px;font-weight:bold;margin:12px 0 6px;">Graph No. ${g.label}: ${g.title}</h3><p style="text-align:justify;margin:4px 0;">${g.description}</p>`
+  ).join("");
+
+  const refsHtml = (formatted.references || []).length > 0
+    ? `<h2 style="font-size:14px;font-weight:bold;margin:16px 0 8px;">References</h2><ol style="margin:4px 0;padding-left:20px;">${formatted.references.map(r => `<li style="margin:2px 0;font-size:12px;">${r}</li>`).join("")}</ol>`
+    : '';
+
+  return `
+<div style="font-family:'Times New Roman',serif;max-width:800px;margin:0 auto;">
+  <div style="text-align:center;background:#008c8c;color:white;padding:16px;border-radius:8px;margin-bottom:16px;">
+    <h1 style="font-size:18px;margin:0;">WORLD WIDE JOURNAL OF MULTIDISCIPLINARY RESEARCH AND DEVELOPMENT</h1>
+  </div>
+  
+  <div style="display:flex;gap:16px;margin-bottom:16px;">
+    <div style="flex:0 0 200px;font-size:11px;">
+      <p style="margin:2px 0;"><strong>WWJMRD ${formatted.header?.year || new Date().getFullYear()}; ${formatted.header?.volume || '12'}(${formatted.header?.issue || '01'}): ${formatted.header?.page_range || '01-10'}</strong></p>
+      <p style="margin:2px 0;">www.wwjmrd.com</p>
+      <p style="margin:2px 0;"><em>International Journal</em></p>
+      <p style="margin:2px 0;"><em>Peer Reviewed Journal</em></p>
+      <p style="margin:2px 0;"><em>Refereed Journal</em></p>
+      <p style="margin:2px 0;"><em>Indexed Journal</em></p>
+      <p style="margin:2px 0;"><em>Impact Factor SJIF 2017: 5.182 2018: 5.51, (ISI) 2020-2021: 1.361</em></p>
+      <p style="margin:2px 0;"><em>E-ISSN: 2454-6615</em></p>
+      <hr style="margin:8px 0;"/>
+      ${authorDetails}
+    </div>
+    <div style="flex:1;">
+      ${corrBlock}
+      <h1 style="font-size:16px;text-align:center;font-weight:bold;margin:12px 0;">${title}</h1>
+      <p style="text-align:center;font-weight:bold;margin:4px 0;">${authorNames}</p>
+      <h3 style="font-size:13px;font-weight:bold;margin:12px 0 6px;">Abstract</h3>
+      <p style="text-align:justify;margin:4px 0;">${abstract}</p>
+      <p style="margin:8px 0;"><strong>Keywords:</strong> ${keywords}</p>
+    </div>
+  </div>
+  
+  ${sectionsHtml}
+  ${tablesHtml}
+  ${graphsHtml}
+  ${refsHtml}
+</div>`;
+}
+
 function generateFormattedPdf(article: any, formatted: FormattedArticle): ArrayBuffer {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth(); // 210
@@ -903,7 +965,10 @@ serve(async (req) => {
       return jsonResponse({ error: "Failed to parse AI formatted result" }, 500);
     }
 
-    console.log("AI formatting complete. Generating PDF...");
+    console.log("AI formatting complete. Generating PDF and HTML content...");
+
+    // Generate HTML content for admin editing
+    const htmlContent = generateFormattedHtml(formatted, article);
 
     const pdfBuffer = generateFormattedPdf(article, formatted);
     const pdfBlob = new Blob([pdfBuffer], { type: "application/pdf" });
@@ -923,83 +988,20 @@ serve(async (req) => {
       formatted_document_url: fileName,
       formatting_status: "ready_for_review",
       formatting_suggestions: formatted.suggestions || [],
-    }).eq("id", articleId);
+      formatted_content: htmlContent,
+    } as any).eq("id", articleId);
 
-    // Notify admins
+    // Notify admins that formatting is ready for review (no galley proof email yet)
     const { data: admins } = await supabase.from("user_roles").select("user_id").eq("role", "admin");
     if (admins) {
       for (const admin of admins) {
         await supabase.from("notifications").insert({
           user_id: admin.user_id,
-          title: "Galley Proof Ready for Review 📝",
-          message: `Galley proof for "${article.title}" (${article.reference_number}) is ready for review.`,
+          title: "Article Formatted - Ready for Review ✏️",
+          message: `"${article.title}" (${article.reference_number}) has been formatted. Please review and edit before approving.`,
           type: "info",
           link: `/admin/formatting`,
         });
-      }
-    }
-
-    // Notify author
-    const authorProfile = article.profiles as any;
-    if (authorProfile?.email) {
-      await supabase.from("notifications").insert({
-        user_id: article.author_id,
-        title: "Galley Proof Generated 📄",
-        message: `The galley proof for your article "${article.title}" has been generated and is pending admin review.`,
-        type: "info",
-        link: "/author/articles",
-      });
-    }
-
-    // Email admin
-    // Get admin notification email from settings
-    const { data: adminEmailSetting } = await supabase
-      .from('admin_settings')
-      .select('setting_value')
-      .eq('setting_key', 'admin_notification_email')
-      .single();
-    const adminNotifEmail = adminEmailSetting?.setting_value || 'shubhmeena23@gmail.com';
-
-    try {
-      const adminEmailHtml = buildGalleyProofEmail({
-        isAdmin: true,
-        articleTitle: article.title,
-        referenceNumber: article.reference_number,
-        authorName: authorProfile?.full_name || "Author",
-        authorEmail: authorProfile?.email || "N/A",
-      });
-      await supabase.functions.invoke("send-email", {
-        body: {
-          to: adminNotifEmail,
-          template: "custom",
-          subject: `Galley Proof - ${article.reference_number}`,
-          html: adminEmailHtml,
-        },
-      });
-    } catch (emailErr) {
-      console.error("Admin email notification failed:", emailErr);
-    }
-
-    // Email author
-    if (authorProfile?.email) {
-      try {
-        const authorEmailHtml = buildGalleyProofEmail({
-          isAdmin: false,
-          articleTitle: article.title,
-          referenceNumber: article.reference_number,
-          authorName: authorProfile?.full_name || "Author",
-          authorEmail: authorProfile?.email,
-        });
-        await supabase.functions.invoke("send-email", {
-          body: {
-            to: authorProfile.email,
-            template: "custom",
-            subject: `Galley Proof - ${article.reference_number}`,
-            html: authorEmailHtml,
-          },
-        });
-      } catch (emailErr) {
-        console.error("Author email notification failed:", emailErr);
       }
     }
 

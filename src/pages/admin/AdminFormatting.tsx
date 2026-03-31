@@ -18,6 +18,7 @@ import {
   RefreshCw,
   ChevronDown,
   ChevronUp,
+  Edit,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -26,8 +27,8 @@ import { toast } from 'sonner';
 import {
   Collapsible,
   CollapsibleContent,
-  CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import { ArticleContentEditor } from '@/components/admin/ArticleContentEditor';
 
 type FormattingStatus = 'pending' | 'formatting' | 'ready_for_review' | 'approved' | 'failed';
 
@@ -40,6 +41,7 @@ interface Suggestion {
 export default function AdminFormatting() {
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedArticle, setExpandedArticle] = useState<string | null>(null);
+  const [editingArticle, setEditingArticle] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const { data: articles, isLoading } = useQuery({
@@ -64,30 +66,10 @@ export default function AdminFormatting() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-formatting-articles'] });
-      toast.success('Article formatted successfully! Review the suggestions below.');
+      toast.success('Article formatted! You can now edit and review it below.');
     },
     onError: (error) => {
       toast.error('Formatting failed: ' + error.message);
-    },
-  });
-
-  const approveMutation = useMutation({
-    mutationFn: async (articleId: string) => {
-      const { error } = await supabase
-        .from('articles')
-        .update({
-          formatting_status: 'approved',
-          formatting_approved_at: new Date().toISOString(),
-        } as any)
-        .eq('id', articleId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-formatting-articles'] });
-      toast.success('Formatted article approved!');
-    },
-    onError: (error) => {
-      toast.error('Approval failed: ' + error.message);
     },
   });
 
@@ -124,8 +106,8 @@ export default function AdminFormatting() {
     const config: Record<FormattingStatus, { icon: any; label: string; variant: string }> = {
       pending: { icon: Clock, label: 'Not Formatted', variant: 'secondary' },
       formatting: { icon: RefreshCw, label: 'Formatting...', variant: 'default' },
-      ready_for_review: { icon: AlertTriangle, label: 'Ready for Review', variant: 'destructive' },
-      approved: { icon: CheckCircle, label: 'Approved', variant: 'default' },
+      ready_for_review: { icon: Edit, label: 'Ready to Edit & Review', variant: 'destructive' },
+      approved: { icon: CheckCircle, label: 'Approved & Sent', variant: 'default' },
       failed: { icon: XCircle, label: 'Failed', variant: 'destructive' },
     };
     const c = config[s] || config.pending;
@@ -169,7 +151,7 @@ export default function AdminFormatting() {
           <div className="min-w-0">
             <h1 className="font-display text-2xl sm:text-3xl font-bold">Article Formatting</h1>
             <p className="text-muted-foreground text-sm sm:text-base truncate">
-              AI-powered article reformatting to WWJMRD publication style
+              AI-powered formatting → Edit like Word → Approve & Send Galley Proof
             </p>
           </div>
         </div>
@@ -192,6 +174,7 @@ export default function AdminFormatting() {
           const status = (article as any).formatting_status as FormattingStatus || 'pending';
           const suggestions: Suggestion[] = ((article as any).formatting_suggestions as Suggestion[]) || [];
           const formattedUrl = (article as any).formatted_document_url;
+          const formattedContent = (article as any).formatted_content as string | null;
 
           return (
             <motion.div
@@ -248,6 +231,17 @@ export default function AdminFormatting() {
                       </Button>
                     )}
 
+                    {(status === 'ready_for_review' || status === 'approved') && formattedContent && (
+                      <Button
+                        variant={editingArticle === article.id ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setEditingArticle(editingArticle === article.id ? null : article.id)}
+                      >
+                        <Edit className="w-4 h-4 mr-2" />
+                        {editingArticle === article.id ? 'Close Editor' : 'Edit Article'}
+                      </Button>
+                    )}
+
                     {formattedUrl && (
                       <Button
                         variant="outline"
@@ -255,19 +249,7 @@ export default function AdminFormatting() {
                         onClick={() => handleDownloadFormatted(article.id, formattedUrl)}
                       >
                         <Download className="w-4 h-4 mr-2" />
-                        Download
-                      </Button>
-                    )}
-
-                    {status === 'ready_for_review' && (
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onClick={() => approveMutation.mutate(article.id)}
-                        disabled={approveMutation.isPending}
-                      >
-                        <CheckCircle className="w-4 h-4 mr-2" />
-                        Approve
+                        Download PDF
                       </Button>
                     )}
 
@@ -289,6 +271,17 @@ export default function AdminFormatting() {
                   </div>
                 </div>
 
+                {/* Editor Panel */}
+                {editingArticle === article.id && formattedContent && (
+                  <ArticleContentEditor
+                    articleId={article.id}
+                    initialContent={formattedContent}
+                    articleTitle={article.title}
+                    referenceNumber={article.reference_number}
+                    onClose={() => setEditingArticle(null)}
+                  />
+                )}
+
                 {/* Suggestions (expanded) */}
                 <Collapsible open={expandedArticle === article.id}>
                   <CollapsibleContent>
@@ -296,7 +289,7 @@ export default function AdminFormatting() {
                       <div className="mt-6 pt-6 border-t border-[hsl(var(--glass-border))]">
                         <h4 className="font-medium mb-3 flex items-center gap-2">
                           <Info className="w-4 h-4 text-primary" />
-                          AI Formatting Suggestions (Academic Guidelines)
+                          AI Formatting Suggestions
                         </h4>
                         <div className="space-y-2">
                           {suggestions.map((s, i) => (
@@ -324,9 +317,6 @@ export default function AdminFormatting() {
                             </div>
                           ))}
                         </div>
-                        <p className="text-xs text-muted-foreground mt-3">
-                          These suggestions follow academic guidelines and are shown here for admin reference only — they are NOT included in the formatted article file.
-                        </p>
                       </div>
                     )}
                   </CollapsibleContent>
