@@ -929,81 +929,17 @@ serve(async (req) => {
       formatted_content: htmlContent,
     } as any).eq("id", articleId);
 
-    // Notify admins
+    // Notify admins that formatting is ready for review (no galley proof email yet)
     const { data: admins } = await supabase.from("user_roles").select("user_id").eq("role", "admin");
     if (admins) {
       for (const admin of admins) {
         await supabase.from("notifications").insert({
           user_id: admin.user_id,
-          title: "Galley Proof Ready for Review 📝",
-          message: `Galley proof for "${article.title}" (${article.reference_number}) is ready for review.`,
+          title: "Article Formatted - Ready for Review ✏️",
+          message: `"${article.title}" (${article.reference_number}) has been formatted. Please review and edit before approving.`,
           type: "info",
           link: `/admin/formatting`,
         });
-      }
-    }
-
-    // Notify author
-    const authorProfile = article.profiles as any;
-    if (authorProfile?.email) {
-      await supabase.from("notifications").insert({
-        user_id: article.author_id,
-        title: "Galley Proof Generated 📄",
-        message: `The galley proof for your article "${article.title}" has been generated and is pending admin review.`,
-        type: "info",
-        link: "/author/articles",
-      });
-    }
-
-    // Email admin
-    // Get admin notification email from settings
-    const { data: adminEmailSetting } = await supabase
-      .from('admin_settings')
-      .select('setting_value')
-      .eq('setting_key', 'admin_notification_email')
-      .single();
-    const adminNotifEmail = adminEmailSetting?.setting_value || 'shubhmeena23@gmail.com';
-
-    try {
-      const adminEmailHtml = buildGalleyProofEmail({
-        isAdmin: true,
-        articleTitle: article.title,
-        referenceNumber: article.reference_number,
-        authorName: authorProfile?.full_name || "Author",
-        authorEmail: authorProfile?.email || "N/A",
-      });
-      await supabase.functions.invoke("send-email", {
-        body: {
-          to: adminNotifEmail,
-          template: "custom",
-          subject: `Galley Proof - ${article.reference_number}`,
-          html: adminEmailHtml,
-        },
-      });
-    } catch (emailErr) {
-      console.error("Admin email notification failed:", emailErr);
-    }
-
-    // Email author
-    if (authorProfile?.email) {
-      try {
-        const authorEmailHtml = buildGalleyProofEmail({
-          isAdmin: false,
-          articleTitle: article.title,
-          referenceNumber: article.reference_number,
-          authorName: authorProfile?.full_name || "Author",
-          authorEmail: authorProfile?.email,
-        });
-        await supabase.functions.invoke("send-email", {
-          body: {
-            to: authorProfile.email,
-            template: "custom",
-            subject: `Galley Proof - ${article.reference_number}`,
-            html: authorEmailHtml,
-          },
-        });
-      } catch (emailErr) {
-        console.error("Author email notification failed:", emailErr);
       }
     }
 
