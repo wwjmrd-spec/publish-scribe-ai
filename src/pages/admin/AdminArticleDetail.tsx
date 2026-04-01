@@ -715,6 +715,48 @@ export default function AdminArticleDetail() {
                 <Button variant="outline" size="sm" onClick={() => navigate(`/admin/ai-review?articleId=${article.id}`)}>
                   <Brain className="w-4 h-4 mr-2" /> AI Review
                 </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-primary"
+                  onClick={async () => {
+                    try {
+                      toast.info('Generating review report on latest manuscript...');
+                      const response = await supabase.functions.invoke('ai-review', {
+                        body: { articleId: article.id },
+                      });
+                      if (response.error) throw new Error(response.error.message);
+
+                      // Send review report email to author
+                      const authorProfile = article.profiles as any;
+                      if (authorProfile?.email) {
+                        await supabase.functions.invoke('send-email', {
+                          body: {
+                            to: authorProfile.email,
+                            template: 'custom',
+                            subject: `Updated Review Report - ${article.reference_number}`,
+                            html: buildReviewReportEmail(article, authorProfile),
+                          },
+                        });
+                      }
+
+                      await supabase.from('notifications').insert({
+                        user_id: article.author_id,
+                        title: 'Updated Review Report Available 📊',
+                        message: `A new review report has been generated for your article "${article.title}". Download it from your articles page.`,
+                        type: 'info',
+                        link: '/author/articles',
+                      });
+
+                      queryClient.invalidateQueries({ queryKey: ['admin-article-detail', articleId] });
+                      toast.success('Review report generated & sent to author!');
+                    } catch (err: any) {
+                      toast.error('Failed: ' + err.message);
+                    }
+                  }}
+                >
+                  <Brain className="w-4 h-4 mr-2" /> Re-generate & Send Report
+                </Button>
               </div>
             </GlassCard>
           </div>
