@@ -1,12 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { RichTextEditor } from '@/components/ui/RichTextEditor';
 import { Button } from '@/components/ui/button';
 import { GlassCard } from '@/components/layout/GlassCard';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
-import { Save, CheckCircle, X } from 'lucide-react';
+import { Save, CheckCircle, X, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface ArticleContentEditorProps {
   articleId: string;
@@ -26,6 +32,7 @@ export function ArticleContentEditor({
   const [content, setContent] = useState(initialContent);
   const [saving, setSaving] = useState(false);
   const [approving, setApproving] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const queryClient = useQueryClient();
 
   const handleSave = async () => {
@@ -48,7 +55,6 @@ export function ArticleContentEditor({
   const handleApproveAndSendGalleyProof = async () => {
     setApproving(true);
     try {
-      // Save content first
       const { error: saveError } = await supabase
         .from('articles')
         .update({
@@ -59,7 +65,6 @@ export function ArticleContentEditor({
         .eq('id', articleId);
       if (saveError) throw saveError;
 
-      // Fetch article details for email
       const { data: article } = await supabase
         .from('articles')
         .select('*, profiles:author_id (full_name, email)')
@@ -68,7 +73,6 @@ export function ArticleContentEditor({
 
       if (article) {
         const authorProfile = article.profiles as any;
-        // Send galley proof email to author
         if (authorProfile?.email) {
           await supabase.functions.invoke('send-email', {
             body: {
@@ -80,7 +84,6 @@ export function ArticleContentEditor({
           });
         }
 
-        // Notify author
         await supabase.from('notifications').insert({
           user_id: article.author_id,
           title: 'Galley Proof Ready 📄',
@@ -100,36 +103,120 @@ export function ArticleContentEditor({
     }
   };
 
+  const previewHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+          font-family: 'Times New Roman', Times, serif;
+          background: #e5e7eb;
+          padding: 20px;
+        }
+        .page {
+          background: white;
+          width: 210mm;
+          min-height: 297mm;
+          margin: 0 auto;
+          padding: 15mm;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .page h1 { font-size: 16px; text-align: center; margin: 12px 0; }
+        .page h2 { font-size: 14px; margin: 16px 0 8px; }
+        .page h3 { font-size: 13px; margin: 12px 0 6px; }
+        .page p { text-align: justify; font-size: 11px; line-height: 1.6; margin: 4px 0; }
+        .page strong { font-weight: bold; }
+        .page em { font-style: italic; }
+        .page ul, .page ol { margin: 4px 0 4px 20px; font-size: 11px; }
+        .page table { border-collapse: collapse; width: 100%; margin: 8px 0; }
+        .page td, .page th { border: 1px solid #ccc; padding: 4px 6px; font-size: 10px; }
+        .page th { background: #f0f0f0; font-weight: bold; }
+        .page hr { border: none; border-top: 1px solid #ccc; margin: 12px 0; }
+      </style>
+    </head>
+    <body>
+      <div class="page">
+        ${content}
+      </div>
+    </body>
+    </html>
+  `;
+
   return (
-    <GlassCard className="mt-4">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h3 className="font-semibold text-lg">Edit Formatted Article</h3>
-          <p className="text-sm text-muted-foreground">{referenceNumber} — {articleTitle}</p>
+    <>
+      <GlassCard className="mt-4">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="font-semibold text-lg">Edit Formatted Article</h3>
+            <p className="text-sm text-muted-foreground">{referenceNumber} — {articleTitle}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setShowPreview(true)} title="Preview as PDF">
+              <Eye className="w-4 h-4 mr-1" />
+              Preview PDF
+            </Button>
+            <Button variant="ghost" size="icon" onClick={onClose}>
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
-        <Button variant="ghost" size="icon" onClick={onClose}>
-          <X className="w-4 h-4" />
-        </Button>
-      </div>
 
-      <RichTextEditor
-        content={content}
-        onChange={setContent}
-        placeholder="Article content will appear here after AI formatting..."
-        minHeight="500px"
-      />
+        {/* PDF-like editor container */}
+        <div className="bg-[#e5e7eb] dark:bg-neutral-800 rounded-lg p-4 overflow-auto" style={{ maxHeight: '70vh' }}>
+          <div
+            className="mx-auto bg-white dark:bg-white rounded shadow-md"
+            style={{
+              width: '210mm',
+              maxWidth: '100%',
+              minHeight: '297mm',
+              padding: '15mm',
+            }}
+          >
+            <RichTextEditor
+              content={content}
+              onChange={setContent}
+              placeholder="Article content will appear here after AI formatting..."
+              minHeight="500px"
+              className="border-0"
+            />
+          </div>
+        </div>
 
-      <div className="flex items-center justify-end gap-3 mt-4">
-        <Button variant="outline" onClick={handleSave} disabled={saving}>
-          {saving ? <GlassSpinner size="sm" className="mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-          Save Draft
-        </Button>
-        <Button onClick={handleApproveAndSendGalleyProof} disabled={approving}>
-          {approving ? <GlassSpinner size="sm" className="mr-2" /> : <CheckCircle className="w-4 h-4 mr-2" />}
-          Approve & Send Galley Proof
-        </Button>
-      </div>
-    </GlassCard>
+        <div className="flex items-center justify-end gap-3 mt-4">
+          <Button variant="outline" onClick={() => setShowPreview(true)}>
+            <Eye className="w-4 h-4 mr-2" />
+            Preview PDF
+          </Button>
+          <Button variant="outline" onClick={handleSave} disabled={saving}>
+            {saving ? <GlassSpinner size="sm" className="mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+            Save Draft
+          </Button>
+          <Button onClick={handleApproveAndSendGalleyProof} disabled={approving}>
+            {approving ? <GlassSpinner size="sm" className="mr-2" /> : <CheckCircle className="w-4 h-4 mr-2" />}
+            Approve & Send Galley Proof
+          </Button>
+        </div>
+      </GlassCard>
+
+      {/* PDF Preview Dialog */}
+      <Dialog open={showPreview} onOpenChange={setShowPreview}>
+        <DialogContent className="max-w-4xl max-h-[95vh] p-0 overflow-hidden">
+          <DialogHeader className="px-4 pt-4 pb-2">
+            <DialogTitle>PDF Preview — {referenceNumber}</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto bg-[hsl(var(--muted))]" style={{ height: '80vh' }}>
+            <iframe
+              srcDoc={previewHtml}
+              className="w-full h-full border-0"
+              title="PDF Preview"
+              style={{ minHeight: '80vh' }}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
