@@ -23,6 +23,7 @@ import {
   Lock,
   Award,
   Ban,
+  RefreshCw,
 } from 'lucide-react';
 import { WithdrawArticleDialog } from '@/components/articles/WithdrawArticleDialog';
 import { GalleyProofReviewSection } from '@/components/articles/GalleyProofReviewSection';
@@ -34,6 +35,7 @@ export default function MyArticles() {
   const queryClient = useQueryClient();
   const { subscription, isLoading: subLoading } = useSubscription();
   const [withdrawArticle, setWithdrawArticle] = React.useState<any>(null);
+  const [updatingManuscript, setUpdatingManuscript] = React.useState<string | null>(null);
 
   const handleDownloadGalleyProof = async (articleId: string) => {
     try {
@@ -79,14 +81,11 @@ export default function MyArticles() {
         return;
       }
 
-      // Increment usage
       await incrementUsage(user.id, 'review_reports_used');
       queryClient.invalidateQueries({ queryKey: ['plan-usage'] });
       queryClient.invalidateQueries({ queryKey: ['plan-usage-lifetime'] });
 
-      // Check if free plan user just exhausted their limit (2 reports)
       if (subscription.plan === 'free' && subscription.reviewReportsUsed + 1 >= subscription.reviewReportsLimit) {
-        // Send upgrade notification & email
         try {
           const { data: profile } = await supabase.from('profiles').select('full_name, email').eq('id', user.id).single();
           await supabase.from('notifications').insert({
@@ -123,6 +122,31 @@ export default function MyArticles() {
     }
   };
 
+  const handleUpdateManuscript = async (articleId: string, file: File) => {
+    if (!user?.id) return;
+    setUpdatingManuscript(articleId);
+    try {
+      const filePath = `${user.id}/${crypto.randomUUID()}.docx`;
+      const { error: uploadError } = await supabase.storage
+        .from('documents')
+        .upload(filePath, file);
+      if (uploadError) throw uploadError;
+
+      const { error: updateError } = await supabase
+        .from('articles')
+        .update({ document_url: filePath } as any)
+        .eq('id', articleId);
+      if (updateError) throw updateError;
+
+      toast.success('Manuscript updated successfully! The admin will review the updated document.');
+      queryClient.invalidateQueries({ queryKey: ['my-articles'] });
+    } catch (err: any) {
+      toast.error('Failed to update manuscript: ' + (err.message || 'Unknown error'));
+    } finally {
+      setUpdatingManuscript(null);
+    }
+  };
+
   const { data: articles, isLoading } = useQuery({
     queryKey: ['my-articles', user?.id],
     queryFn: async () => {
@@ -143,23 +167,15 @@ export default function MyArticles() {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'submitted':
-        return <Clock className="w-4 h-4" />;
-      case 'under_review':
-        return <Eye className="w-4 h-4" />;
-      case 'manuscript_accepted':
-        return <CheckCircle className="w-4 h-4" />;
-      case 'pending_fee':
-        return <AlertCircle className="w-4 h-4" />;
+      case 'submitted': return <Clock className="w-4 h-4" />;
+      case 'under_review': return <Eye className="w-4 h-4" />;
+      case 'manuscript_accepted': return <CheckCircle className="w-4 h-4" />;
+      case 'pending_fee': return <AlertCircle className="w-4 h-4" />;
       case 'paid':
-      case 'published':
-        return <CheckCircle className="w-4 h-4" />;
-      case 'rejected':
-        return <XCircle className="w-4 h-4" />;
-      case 'withdrawn':
-        return <Ban className="w-4 h-4" />;
-      default:
-        return <Clock className="w-4 h-4" />;
+      case 'published': return <CheckCircle className="w-4 h-4" />;
+      case 'rejected': return <XCircle className="w-4 h-4" />;
+      case 'withdrawn': return <Ban className="w-4 h-4" />;
+      default: return <Clock className="w-4 h-4" />;
     }
   };
 
@@ -189,6 +205,11 @@ export default function MyArticles() {
       month: 'short',
       day: 'numeric',
     });
+  };
+
+  // Can update manuscript before review (submitted/under_review) or when revision requested (rejected for resubmit)
+  const canUpdateManuscript = (status: string) => {
+    return ['submitted', 'under_review'].includes(status);
   };
 
   if (isLoading || subLoading) {
@@ -376,6 +397,36 @@ export default function MyArticles() {
                           Certificate
                         </Button>
                       )}
+
+                      {/* Update Manuscript - before review */}
+                      {canUpdateManuscript(article.status) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-primary"
+                          disabled={updatingManuscript === article.id}
+                          onClick={() => {
+                            const input = document.createElement('input');
+                            input.type = 'file';
+                            input.accept = '.docx,.doc';
+                            input.onchange = (e) => {
+                              const file = (e.target as HTMLInputElement).files?.[0];
+                              if (file) handleUpdateManuscript(article.id, file);
+                            };
+                            input.click();
+                          }}
+                        >
+                          {updatingManuscript === article.id ? (
+                            <GlassSpinner size="sm" />
+                          ) : (
+                            <>
+                              <RefreshCw className="w-4 h-4 mr-1" />
+                              Update Manuscript
+                            </>
+                          )}
+                        </Button>
+                      )}
+
                       {article.status === 'pending_fee' && (
                         <Button
                           size="sm"
