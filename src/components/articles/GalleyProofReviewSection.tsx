@@ -155,18 +155,24 @@ export function GalleyProofReviewSection({ article }: GalleyProofReviewSectionPr
   };
 
   const handleOpenEditor = () => {
-    // Build initial content from article data
-    let html = `<h1>${article.title || 'Untitled'}</h1>`;
-    if (article.author_name) {
-      html += `<p><strong>${article.author_name}</strong></p>`;
+    // Use formatted_content from the article if available (admin-edited content)
+    const formattedContent = (article as any).formatted_content;
+    if (formattedContent) {
+      setEditorContent(formattedContent);
+    } else {
+      // Fallback: build from article data
+      let html = `<h1>${article.title || 'Untitled'}</h1>`;
+      if (article.author_name) {
+        html += `<p><strong>${article.author_name}</strong></p>`;
+      }
+      if (article.abstract) {
+        html += `<h2>Abstract</h2><p>${article.abstract}</p>`;
+      }
+      if (article.keywords?.length > 0) {
+        html += `<p><strong>Keywords:</strong> ${article.keywords.join(', ')}</p>`;
+      }
+      setEditorContent(html);
     }
-    if (article.abstract) {
-      html += `<h2>Abstract</h2><p>${article.abstract}</p>`;
-    }
-    if (article.keywords?.length > 0) {
-      html += `<p><strong>Keywords:</strong> ${article.keywords.join(', ')}</p>`;
-    }
-    setEditorContent(html);
     setShowEditor(true);
   };
 
