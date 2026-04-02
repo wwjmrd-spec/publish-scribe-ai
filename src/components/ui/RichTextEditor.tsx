@@ -360,7 +360,7 @@ export function RichTextEditor({ content, onChange, className = '', placeholder,
 
       {/* Editor Content */}
       <div className="overflow-auto" style={{ maxHeight: '70vh' }}>
-        <EditorContent editor={editor} />
+        <EditorContent editor={editor} className="prose-editor-content" />
       </div>
 
       {/* Editor styles */}
