@@ -163,15 +163,20 @@ export function ArticleContentEditor({
           </div>
         </div>
 
-        {/* PDF-like editor container */}
-        <div className="bg-[#e5e7eb] dark:bg-neutral-800 rounded-lg p-4 overflow-auto" style={{ maxHeight: '70vh' }}>
+        {/* PDF-like editor container — grey surround + white A4 page */}
+        <div className="rounded-lg p-6 overflow-auto" style={{ maxHeight: '70vh', background: '#e5e7eb' }}>
           <div
-            className="mx-auto bg-white dark:bg-white rounded shadow-md"
+            className="mx-auto rounded shadow-lg"
             style={{
               width: '210mm',
               maxWidth: '100%',
               minHeight: '297mm',
               padding: '15mm',
+              background: '#ffffff',
+              color: '#000000',
+              fontFamily: "'Times New Roman', Times, serif",
+              fontSize: '12px',
+              lineHeight: '1.6',
             }}
           >
             <RichTextEditor
@@ -179,7 +184,7 @@ export function ArticleContentEditor({
               onChange={setContent}
               placeholder="Article content will appear here after AI formatting..."
               minHeight="500px"
-              className="border-0"
+              className="border-0 [&_.tiptap]:!bg-transparent [&_.tiptap]:!text-black [&_.ProseMirror]:!bg-transparent [&_.ProseMirror]:!text-black"
             />
           </div>
         </div>
