@@ -1,18 +1,21 @@
-import React, { useState } from 'react';
-import { RichTextEditor } from '@/components/ui/RichTextEditor';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { GlassCard } from '@/components/layout/GlassCard';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
-import { Save, CheckCircle, X, Eye, EyeOff } from 'lucide-react';
+import {
+  Save, CheckCircle, X, Eye, Bold, Italic, Underline,
+  AlignLeft, AlignCenter, AlignRight, AlignJustify,
+  List, ListOrdered, Undo, Redo, Strikethrough, Type,
+} from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 
 interface ArticleContentEditorProps {
   articleId: string;
@@ -22,22 +25,76 @@ interface ArticleContentEditorProps {
   onClose: () => void;
 }
 
+const EDITOR_STYLES = `
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Times New Roman', Times, serif;
+    font-size: 12px;
+    line-height: 1.6;
+    color: #000;
+    background: #fff;
+    padding: 0;
+    margin: 0;
+  }
+  body:focus { outline: none; }
+  h1 { font-size: 16px; text-align: center; margin: 12px 0; font-weight: bold; }
+  h2 { font-size: 14px; margin: 16px 0 8px; font-weight: bold; }
+  h3 { font-size: 13px; margin: 12px 0 6px; font-weight: bold; }
+  p { text-align: justify; font-size: 11px; line-height: 1.6; margin: 4px 0; }
+  strong { font-weight: bold; }
+  em { font-style: italic; }
+  ul, ol { margin: 4px 0 4px 20px; font-size: 11px; }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0; }
+  td, th { border: 1px solid #ccc; padding: 4px 6px; font-size: 10px; }
+  th { background: #f0f0f0; font-weight: bold; }
+  hr { border: none; border-top: 1px solid #ccc; margin: 12px 0; }
+  a { color: #0066cc; }
+`;
+
+const FONT_SIZES = ['8', '9', '10', '11', '12', '14', '16', '18', '20', '24'];
+
 export function ArticleContentEditor({
-  articleId,
-  initialContent,
-  articleTitle,
-  referenceNumber,
-  onClose,
+  articleId, initialContent, articleTitle, referenceNumber, onClose,
 }: ArticleContentEditorProps) {
-  const [content, setContent] = useState(initialContent);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
   const [saving, setSaving] = useState(false);
   const [approving, setApproving] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [ready, setReady] = useState(false);
   const queryClient = useQueryClient();
+
+  // Initialize the editable iframe
+  useEffect(() => {
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+    const onLoad = () => {
+      const doc = iframe.contentDocument;
+      if (!doc) return;
+      doc.open();
+      doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><style>${EDITOR_STYLES}</style></head><body contenteditable="true">${initialContent}</body></html>`);
+      doc.close();
+      setReady(true);
+    };
+    iframe.addEventListener('load', onLoad);
+    // Trigger load
+    iframe.src = 'about:blank';
+    return () => iframe.removeEventListener('load', onLoad);
+  }, [initialContent]);
+
+  const getContent = useCallback(() => {
+    return iframeRef.current?.contentDocument?.body?.innerHTML || '';
+  }, []);
+
+  const execCmd = useCallback((cmd: string, value?: string) => {
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc) return;
+    doc.execCommand(cmd, false, value);
+  }, []);
 
   const handleSave = async () => {
     setSaving(true);
     try {
+      const content = getContent();
       const { error } = await supabase
         .from('articles')
         .update({ formatted_content: content } as any)
@@ -55,6 +112,7 @@ export function ArticleContentEditor({
   const handleApproveAndSendGalleyProof = async () => {
     setApproving(true);
     try {
+      const content = getContent();
       const { error: saveError } = await supabase
         .from('articles')
         .update({
@@ -83,7 +141,6 @@ export function ArticleContentEditor({
             },
           });
         }
-
         await supabase.from('notifications').insert({
           user_id: article.author_id,
           title: 'Galley Proof Ready 📄',
@@ -103,59 +160,43 @@ export function ArticleContentEditor({
     }
   };
 
-  const previewHtml = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-          font-family: 'Times New Roman', Times, serif;
-          background: #e5e7eb;
-          padding: 20px;
-        }
-        .page {
-          background: white;
-          width: 210mm;
-          min-height: 297mm;
-          margin: 0 auto;
-          padding: 15mm;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-        }
-        .page h1 { font-size: 16px; text-align: center; margin: 12px 0; }
-        .page h2 { font-size: 14px; margin: 16px 0 8px; }
-        .page h3 { font-size: 13px; margin: 12px 0 6px; }
-        .page p { text-align: justify; font-size: 11px; line-height: 1.6; margin: 4px 0; }
-        .page strong { font-weight: bold; }
-        .page em { font-style: italic; }
-        .page ul, .page ol { margin: 4px 0 4px 20px; font-size: 11px; }
-        .page table { border-collapse: collapse; width: 100%; margin: 8px 0; }
-        .page td, .page th { border: 1px solid #ccc; padding: 4px 6px; font-size: 10px; }
-        .page th { background: #f0f0f0; font-weight: bold; }
-        .page hr { border: none; border-top: 1px solid #ccc; margin: 12px 0; }
-      </style>
-    </head>
-    <body>
-      <div class="page">
-        ${content}
-      </div>
-    </body>
-    </html>
-  `;
+  const previewHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Times New Roman', Times, serif; background: #e5e7eb; padding: 20px; }
+    .page { background: white; width: 210mm; min-height: 297mm; margin: 0 auto; padding: 15mm; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+    .page h1 { font-size: 16px; text-align: center; margin: 12px 0; }
+    .page h2 { font-size: 14px; margin: 16px 0 8px; }
+    .page h3 { font-size: 13px; margin: 12px 0 6px; }
+    .page p { text-align: justify; font-size: 11px; line-height: 1.6; margin: 4px 0; }
+    .page ul, .page ol { margin: 4px 0 4px 20px; font-size: 11px; }
+    .page table { border-collapse: collapse; width: 100%; margin: 8px 0; }
+    .page td, .page th { border: 1px solid #ccc; padding: 4px 6px; font-size: 10px; }
+    .page th { background: #f0f0f0; font-weight: bold; }
+    .page hr { border: none; border-top: 1px solid #ccc; margin: 12px 0; }
+  </style></head><body><div class="page">${getContent()}</div></body></html>`;
+
+  const ToolbarBtn = ({ cmd, value, icon: Icon, title, active }: { cmd: string; value?: string; icon: any; title: string; active?: boolean }) => (
+    <Button
+      type="button" variant="ghost" size="sm"
+      className={`h-7 w-7 p-0 ${active ? 'bg-primary/20 text-primary' : 'text-black/70 hover:text-black hover:bg-black/5'}`}
+      onClick={() => execCmd(cmd, value)}
+      title={title}
+    >
+      <Icon className="w-3.5 h-3.5" />
+    </Button>
+  );
 
   return (
     <>
       <GlassCard className="mt-4">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-3">
           <div>
             <h3 className="font-semibold text-lg">Edit Formatted Article</h3>
             <p className="text-sm text-muted-foreground">{referenceNumber} — {articleTitle}</p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setShowPreview(true)} title="Preview as PDF">
-              <Eye className="w-4 h-4 mr-1" />
-              Preview PDF
+            <Button variant="ghost" size="sm" onClick={() => setShowPreview(true)}>
+              <Eye className="w-4 h-4 mr-1" /> Preview PDF
             </Button>
             <Button variant="ghost" size="icon" onClick={onClose}>
               <X className="w-4 h-4" />
@@ -163,36 +204,79 @@ export function ArticleContentEditor({
           </div>
         </div>
 
-        {/* PDF-like editor container — grey surround + white A4 page */}
-        <div className="rounded-lg p-6 overflow-auto" style={{ maxHeight: '70vh', background: '#e5e7eb' }}>
-          <div
-            className="mx-auto rounded shadow-lg"
-            style={{
-              width: '210mm',
-              maxWidth: '100%',
-              minHeight: '297mm',
-              padding: '15mm',
-              background: '#ffffff',
-              color: '#000000',
-              fontFamily: "'Times New Roman', Times, serif",
-              fontSize: '12px',
-              lineHeight: '1.6',
-            }}
-          >
-            <RichTextEditor
-              content={content}
-              onChange={setContent}
-              placeholder="Article content will appear here after AI formatting..."
-              minHeight="500px"
-              className="border-0 [&_.tiptap]:!bg-transparent [&_.tiptap]:!text-black [&_.ProseMirror]:!bg-transparent [&_.ProseMirror]:!text-black"
-            />
+        {/* PDF-like editor */}
+        <div className="rounded-lg overflow-hidden border border-border">
+          {/* Toolbar */}
+          <div className="flex flex-wrap items-center gap-0.5 p-1.5 bg-[#f3f4f6] border-b border-[#d1d5db]">
+            <Select defaultValue="Times New Roman" onValueChange={(v) => execCmd('fontName', v)}>
+              <SelectTrigger className="h-7 w-[130px] text-xs bg-white border-[#d1d5db] text-black">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {['Times New Roman', 'Arial', 'Georgia', 'Verdana', 'Courier New'].map(f => (
+                  <SelectItem key={f} value={f} style={{ fontFamily: f }}>{f}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select defaultValue="12" onValueChange={(v) => execCmd('fontSize', v)}>
+              <SelectTrigger className="h-7 w-[55px] text-xs bg-white border-[#d1d5db] text-black">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {FONT_SIZES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+              </SelectContent>
+            </Select>
+
+            <div className="w-px h-5 bg-[#d1d5db] mx-1" />
+
+            <ToolbarBtn cmd="bold" icon={Bold} title="Bold" />
+            <ToolbarBtn cmd="italic" icon={Italic} title="Italic" />
+            <ToolbarBtn cmd="underline" icon={Underline} title="Underline" />
+            <ToolbarBtn cmd="strikeThrough" icon={Strikethrough} title="Strikethrough" />
+
+            <div className="w-px h-5 bg-[#d1d5db] mx-1" />
+
+            <ToolbarBtn cmd="justifyLeft" icon={AlignLeft} title="Align Left" />
+            <ToolbarBtn cmd="justifyCenter" icon={AlignCenter} title="Align Center" />
+            <ToolbarBtn cmd="justifyRight" icon={AlignRight} title="Align Right" />
+            <ToolbarBtn cmd="justifyFull" icon={AlignJustify} title="Justify" />
+
+            <div className="w-px h-5 bg-[#d1d5db] mx-1" />
+
+            <ToolbarBtn cmd="insertUnorderedList" icon={List} title="Bullet List" />
+            <ToolbarBtn cmd="insertOrderedList" icon={ListOrdered} title="Numbered List" />
+
+            <div className="w-px h-5 bg-[#d1d5db] mx-1" />
+
+            <ToolbarBtn cmd="undo" icon={Undo} title="Undo" />
+            <ToolbarBtn cmd="redo" icon={Redo} title="Redo" />
+          </div>
+
+          {/* A4 Page inside grey container */}
+          <div className="overflow-auto" style={{ maxHeight: '70vh', background: '#e5e7eb', padding: '24px' }}>
+            <div
+              className="mx-auto shadow-lg"
+              style={{
+                width: '210mm',
+                maxWidth: '100%',
+                minHeight: '297mm',
+                padding: '15mm',
+                background: '#ffffff',
+              }}
+            >
+              <iframe
+                ref={iframeRef}
+                className="w-full border-0"
+                style={{ minHeight: '260mm', height: '100%', display: 'block' }}
+                title="Article Editor"
+              />
+            </div>
           </div>
         </div>
 
         <div className="flex items-center justify-end gap-3 mt-4">
           <Button variant="outline" onClick={() => setShowPreview(true)}>
-            <Eye className="w-4 h-4 mr-2" />
-            Preview PDF
+            <Eye className="w-4 h-4 mr-2" /> Preview PDF
           </Button>
           <Button variant="outline" onClick={handleSave} disabled={saving}>
             {saving ? <GlassSpinner size="sm" className="mr-2" /> : <Save className="w-4 h-4 mr-2" />}
@@ -212,12 +296,7 @@ export function ArticleContentEditor({
             <DialogTitle>PDF Preview — {referenceNumber}</DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-auto bg-[hsl(var(--muted))]" style={{ height: '80vh' }}>
-            <iframe
-              srcDoc={previewHtml}
-              className="w-full h-full border-0"
-              title="PDF Preview"
-              style={{ minHeight: '80vh' }}
-            />
+            <iframe srcDoc={previewHtml} className="w-full h-full border-0" title="PDF Preview" style={{ minHeight: '80vh' }} />
           </div>
         </DialogContent>
       </Dialog>
