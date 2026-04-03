@@ -459,6 +459,26 @@ export function ArticleContentEditor({
                 <DropdownMenuItem onClick={() => insertHtmlAtCursor('<hr />')}>
                   <Minus className="w-4 h-4 mr-2" /> Horizontal Rule
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => insertHtmlAtCursor('<hr class="page-break" contenteditable="false" />')}>
+                  <SeparatorHorizontal className="w-4 h-4 mr-2" /> Page Break
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-xs">Page Numbers</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => insertHtmlAtCursor('<p class="page-number">~ 1 ~</p>')}>
+                  <Hash className="w-4 h-4 mr-2" /> Page Number (~ 1 ~)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => insertHtmlAtCursor('<p class="page-number">~ 2 ~</p>')}>
+                  <Hash className="w-4 h-4 mr-2" /> Page Number (~ 2 ~)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => insertHtmlAtCursor('<p class="page-number">~ 3 ~</p>')}>
+                  <Hash className="w-4 h-4 mr-2" /> Page Number (~ 3 ~)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => {
+                  const num = prompt('Enter page number:');
+                  if (num) insertHtmlAtCursor(`<p class="page-number">~ ${num} ~</p>`);
+                }}>
+                  <Hash className="w-4 h-4 mr-2" /> Custom Page Number…
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
 
