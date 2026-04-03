@@ -291,6 +291,9 @@ export function ArticleContentEditor({
     table.table-minimal td, table.table-minimal th { border: none; border-bottom: 1px solid #ddd; }
     table.table-striped tr:nth-child(even) td { background: #f9f9f9; }
     table.table-colored th { background: #2c7a7b; color: #fff; }
+    .page-break { page-break-before: always; break-before: page; border: none; border-top: 2px dashed #e74c3c; margin: 20px 0; }
+    .page-number { text-align: center; font-size: 10px; color: #555; margin: 8px 0; }
+    @media print { .page-break { border: none; } }
   </style></head><body><div class="page">${getContent()}</div></body></html>`;
 
   const ToolbarBtn = ({ cmd, value, icon: Icon, title, active }: { cmd: string; value?: string; icon: any; title: string; active?: boolean }) => (
