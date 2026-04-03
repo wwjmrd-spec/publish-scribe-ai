@@ -325,222 +325,219 @@ export function ArticleContentEditor({
           </div>
         </div>
 
-        {/* PDF-like editor */}
-        <div className="rounded-lg overflow-hidden border border-border">
-          {/* Toolbar */}
-          <div className="flex flex-wrap items-center gap-0.5 p-1.5 bg-[#f3f4f6] border-b border-[#d1d5db]">
-            <Select defaultValue="Times New Roman" onValueChange={(v) => execCmd('fontName', v)}>
-              <SelectTrigger className="h-7 w-[130px] text-xs bg-white border-[#d1d5db] text-black">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {['Times New Roman', 'Arial', 'Georgia', 'Verdana', 'Courier New'].map(f => (
-                  <SelectItem key={f} value={f} style={{ fontFamily: f }}>{f}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select defaultValue="12" onValueChange={(v) => execCmd('fontSize', v)}>
-              <SelectTrigger className="h-7 w-[55px] text-xs bg-white border-[#d1d5db] text-black">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {FONT_SIZES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-              </SelectContent>
-            </Select>
+        {/* A4 page with embedded toolbar */}
+        <div className="overflow-auto rounded-lg" style={{ maxHeight: '78vh', background: '#e5e7eb', padding: '24px' }}>
+          <div
+            className="mx-auto shadow-lg rounded"
+            style={{
+              width: '210mm',
+              maxWidth: '100%',
+              minHeight: '297mm',
+              background: '#ffffff',
+            }}
+          >
+            {/* Toolbar inside A4 page */}
+            <div className="sticky top-0 z-10 flex flex-wrap items-center gap-0.5 p-1.5 bg-[#f3f4f6] border-b border-[#d1d5db] rounded-t">
+              <Select defaultValue="Times New Roman" onValueChange={(v) => execCmd('fontName', v)}>
+                <SelectTrigger className="h-7 w-[130px] text-xs bg-white border-[#d1d5db] text-black">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {['Times New Roman', 'Arial', 'Georgia', 'Verdana', 'Courier New'].map(f => (
+                    <SelectItem key={f} value={f} style={{ fontFamily: f }}>{f}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select defaultValue="12" onValueChange={(v) => execCmd('fontSize', v)}>
+                <SelectTrigger className="h-7 w-[55px] text-xs bg-white border-[#d1d5db] text-black">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {FONT_SIZES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                </SelectContent>
+              </Select>
 
-            <div className="w-px h-5 bg-[#d1d5db] mx-1" />
+              <div className="w-px h-5 bg-[#d1d5db] mx-1" />
 
-            <ToolbarBtn cmd="bold" icon={Bold} title="Bold" />
-            <ToolbarBtn cmd="italic" icon={Italic} title="Italic" />
-            <ToolbarBtn cmd="underline" icon={Underline} title="Underline" />
-            <ToolbarBtn cmd="strikeThrough" icon={Strikethrough} title="Strikethrough" />
+              <ToolbarBtn cmd="bold" icon={Bold} title="Bold" />
+              <ToolbarBtn cmd="italic" icon={Italic} title="Italic" />
+              <ToolbarBtn cmd="underline" icon={Underline} title="Underline" />
+              <ToolbarBtn cmd="strikeThrough" icon={Strikethrough} title="Strikethrough" />
 
-            <div className="w-px h-5 bg-[#d1d5db] mx-1" />
+              <div className="w-px h-5 bg-[#d1d5db] mx-1" />
 
-            <ToolbarBtn cmd="justifyLeft" icon={AlignLeft} title="Align Left" />
-            <ToolbarBtn cmd="justifyCenter" icon={AlignCenter} title="Align Center" />
-            <ToolbarBtn cmd="justifyRight" icon={AlignRight} title="Align Right" />
-            <ToolbarBtn cmd="justifyFull" icon={AlignJustify} title="Justify" />
+              <ToolbarBtn cmd="justifyLeft" icon={AlignLeft} title="Align Left" />
+              <ToolbarBtn cmd="justifyCenter" icon={AlignCenter} title="Align Center" />
+              <ToolbarBtn cmd="justifyRight" icon={AlignRight} title="Align Right" />
+              <ToolbarBtn cmd="justifyFull" icon={AlignJustify} title="Justify" />
 
-            <div className="w-px h-5 bg-[#d1d5db] mx-1" />
+              <div className="w-px h-5 bg-[#d1d5db] mx-1" />
 
-            <ToolbarBtn cmd="insertUnorderedList" icon={List} title="Bullet List" />
-            <ToolbarBtn cmd="insertOrderedList" icon={ListOrdered} title="Numbered List" />
+              <ToolbarBtn cmd="insertUnorderedList" icon={List} title="Bullet List" />
+              <ToolbarBtn cmd="insertOrderedList" icon={ListOrdered} title="Numbered List" />
 
-            <div className="w-px h-5 bg-[#d1d5db] mx-1" />
+              <div className="w-px h-5 bg-[#d1d5db] mx-1" />
 
-            {/* Table dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button type="button" variant="ghost" size="sm" className="h-7 px-1.5 text-black/70 hover:text-black hover:bg-black/5 gap-1" title="Table">
-                  <Table2 className="w-3.5 h-3.5" />
-                  <span className="text-[10px]">Table</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-52">
-                <DropdownMenuLabel className="text-xs">Insert Table</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => insertTable(3, 3)}>
-                  <Grid3X3 className="w-4 h-4 mr-2" /> 3 × 3 Table
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => insertTable(4, 4)}>
-                  <Grid3X3 className="w-4 h-4 mr-2" /> 4 × 4 Table
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => insertTable(5, 5)}>
-                  <Grid3X3 className="w-4 h-4 mr-2" /> 5 × 5 Table
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => insertTable(2, 6)}>
-                  <Grid3X3 className="w-4 h-4 mr-2" /> 2 × 6 Table
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel className="text-xs">Table Actions</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => tableAction('add-row-above')}>
-                  <Plus className="w-4 h-4 mr-2" /> Add Row Above
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => tableAction('add-row-below')}>
-                  <Plus className="w-4 h-4 mr-2" /> Add Row Below
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => tableAction('add-col-left')}>
-                  <Plus className="w-4 h-4 mr-2" /> Add Column Left
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => tableAction('add-col-right')}>
-                  <Plus className="w-4 h-4 mr-2" /> Add Column Right
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => tableAction('delete-row')} className="text-red-600">
-                  <Minus className="w-4 h-4 mr-2" /> Delete Row
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => tableAction('delete-col')} className="text-red-600">
-                  <Minus className="w-4 h-4 mr-2" /> Delete Column
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => tableAction('delete-table')} className="text-red-600">
-                  <Trash2 className="w-4 h-4 mr-2" /> Delete Table
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel className="text-xs">Table Style</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => tableAction('style-')}>
-                  Default
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => tableAction('style-table-bordered')}>
-                  <PaintBucket className="w-4 h-4 mr-2" /> Bold Borders
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => tableAction('style-table-minimal')}>
-                  <PaintBucket className="w-4 h-4 mr-2" /> Minimal
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => tableAction('style-table-striped')}>
-                  <PaintBucket className="w-4 h-4 mr-2" /> Striped Rows
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => tableAction('style-table-colored')}>
-                  <PaintBucket className="w-4 h-4 mr-2" /> Colored Header
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Layout dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button type="button" variant="ghost" size="sm" className="h-7 px-1.5 text-black/70 hover:text-black hover:bg-black/5 gap-1" title="Layout">
-                  <LayoutGrid className="w-3.5 h-3.5" />
-                  <span className="text-[10px]">Layout</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-48">
-                <DropdownMenuLabel className="text-xs">Column Layouts</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => insertLayout('two-col')}>
-                  <Columns2 className="w-4 h-4 mr-2" /> Two Columns
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => insertLayout('three-col')}>
-                  <Columns3 className="w-4 h-4 mr-2" /> Three Columns
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => insertLayout('sidebar-left')}>
-                  <LayoutGrid className="w-4 h-4 mr-2" /> Sidebar Left
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => insertLayout('sidebar-right')}>
-                  <LayoutGrid className="w-4 h-4 mr-2" /> Sidebar Right
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel className="text-xs">Insert Elements</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => insertHtmlAtCursor('<hr />')}>
-                  <Minus className="w-4 h-4 mr-2" /> Horizontal Rule
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => insertHtmlAtCursor('<hr class="page-break" contenteditable="false" />')}>
-                  <SeparatorHorizontal className="w-4 h-4 mr-2" /> Page Break
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel className="text-xs">Page Numbers</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => insertHtmlAtCursor('<p class="page-number">~ 1 ~</p>')}>
-                  <Hash className="w-4 h-4 mr-2" /> Page Number (~ 1 ~)
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => insertHtmlAtCursor('<p class="page-number">~ 2 ~</p>')}>
-                  <Hash className="w-4 h-4 mr-2" /> Page Number (~ 2 ~)
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => insertHtmlAtCursor('<p class="page-number">~ 3 ~</p>')}>
-                  <Hash className="w-4 h-4 mr-2" /> Page Number (~ 3 ~)
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => {
-                  const num = prompt('Enter page number:');
-                  if (num) insertHtmlAtCursor(`<p class="page-number">~ ${num} ~</p>`);
-                }}>
-                  <Hash className="w-4 h-4 mr-2" /> Custom Page Number…
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <div className="w-px h-5 bg-[#d1d5db] mx-1" />
-
-            {/* Page Break button */}
-            <Button
-              type="button" variant="ghost" size="sm"
-              className="h-7 px-1.5 text-black/70 hover:text-black hover:bg-black/5 gap-1"
-              onClick={() => insertHtmlAtCursor('<hr class="page-break" contenteditable="false" />')}
-              title="Insert Page Break"
-            >
-              <SeparatorHorizontal className="w-3.5 h-3.5" />
-              <span className="text-[10px]">Break</span>
-            </Button>
-
-            {/* Page Number dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button type="button" variant="ghost" size="sm" className="h-7 px-1.5 text-black/70 hover:text-black hover:bg-black/5 gap-1" title="Page Number">
-                  <Hash className="w-3.5 h-3.5" />
-                  <span className="text-[10px]">Page #</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-44">
-                <DropdownMenuLabel className="text-xs">Insert Page Number</DropdownMenuLabel>
-                {[1,2,3,4,5].map(n => (
-                  <DropdownMenuItem key={n} onClick={() => insertHtmlAtCursor(`<p class="page-number">~ ${n} ~</p>`)}>
-                    <Hash className="w-4 h-4 mr-2" /> ~ {n} ~
+              {/* Table dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button type="button" variant="ghost" size="sm" className="h-7 px-1.5 text-black/70 hover:text-black hover:bg-black/5 gap-1" title="Table">
+                    <Table2 className="w-3.5 h-3.5" />
+                    <span className="text-[10px]">Table</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-52">
+                  <DropdownMenuLabel className="text-xs">Insert Table</DropdownMenuLabel>
+                  <DropdownMenuItem onClick={() => insertTable(3, 3)}>
+                    <Grid3X3 className="w-4 h-4 mr-2" /> 3 × 3 Table
                   </DropdownMenuItem>
-                ))}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => {
-                  const num = prompt('Enter page number:');
-                  if (num) insertHtmlAtCursor(`<p class="page-number">~ ${num} ~</p>`);
-                }}>
-                  <Hash className="w-4 h-4 mr-2" /> Custom Number…
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  <DropdownMenuItem onClick={() => insertTable(4, 4)}>
+                    <Grid3X3 className="w-4 h-4 mr-2" /> 4 × 4 Table
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => insertTable(5, 5)}>
+                    <Grid3X3 className="w-4 h-4 mr-2" /> 5 × 5 Table
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => insertTable(2, 6)}>
+                    <Grid3X3 className="w-4 h-4 mr-2" /> 2 × 6 Table
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="text-xs">Table Actions</DropdownMenuLabel>
+                  <DropdownMenuItem onClick={() => tableAction('add-row-above')}>
+                    <Plus className="w-4 h-4 mr-2" /> Add Row Above
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => tableAction('add-row-below')}>
+                    <Plus className="w-4 h-4 mr-2" /> Add Row Below
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => tableAction('add-col-left')}>
+                    <Plus className="w-4 h-4 mr-2" /> Add Column Left
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => tableAction('add-col-right')}>
+                    <Plus className="w-4 h-4 mr-2" /> Add Column Right
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => tableAction('delete-row')} className="text-red-600">
+                    <Minus className="w-4 h-4 mr-2" /> Delete Row
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => tableAction('delete-col')} className="text-red-600">
+                    <Minus className="w-4 h-4 mr-2" /> Delete Column
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => tableAction('delete-table')} className="text-red-600">
+                    <Trash2 className="w-4 h-4 mr-2" /> Delete Table
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="text-xs">Table Style</DropdownMenuLabel>
+                  <DropdownMenuItem onClick={() => tableAction('style-')}>Default</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => tableAction('style-table-bordered')}>
+                    <PaintBucket className="w-4 h-4 mr-2" /> Bold Borders
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => tableAction('style-table-minimal')}>
+                    <PaintBucket className="w-4 h-4 mr-2" /> Minimal
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => tableAction('style-table-striped')}>
+                    <PaintBucket className="w-4 h-4 mr-2" /> Striped Rows
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => tableAction('style-table-colored')}>
+                    <PaintBucket className="w-4 h-4 mr-2" /> Colored Header
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
-            <div className="w-px h-5 bg-[#d1d5db] mx-1" />
+              {/* Layout dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button type="button" variant="ghost" size="sm" className="h-7 px-1.5 text-black/70 hover:text-black hover:bg-black/5 gap-1" title="Layout">
+                    <LayoutGrid className="w-3.5 h-3.5" />
+                    <span className="text-[10px]">Layout</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-48">
+                  <DropdownMenuLabel className="text-xs">Column Layouts</DropdownMenuLabel>
+                  <DropdownMenuItem onClick={() => insertLayout('two-col')}>
+                    <Columns2 className="w-4 h-4 mr-2" /> Two Columns
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => insertLayout('three-col')}>
+                    <Columns3 className="w-4 h-4 mr-2" /> Three Columns
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => insertLayout('sidebar-left')}>
+                    <LayoutGrid className="w-4 h-4 mr-2" /> Sidebar Left
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => insertLayout('sidebar-right')}>
+                    <LayoutGrid className="w-4 h-4 mr-2" /> Sidebar Right
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="text-xs">Insert Elements</DropdownMenuLabel>
+                  <DropdownMenuItem onClick={() => insertHtmlAtCursor('<hr />')}>
+                    <Minus className="w-4 h-4 mr-2" /> Horizontal Rule
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => insertHtmlAtCursor('<hr class="page-break" contenteditable="false" />')}>
+                    <SeparatorHorizontal className="w-4 h-4 mr-2" /> Page Break
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="text-xs">Page Numbers</DropdownMenuLabel>
+                  <DropdownMenuItem onClick={() => insertHtmlAtCursor('<p class="page-number">~ 1 ~</p>')}>
+                    <Hash className="w-4 h-4 mr-2" /> Page Number (~ 1 ~)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => insertHtmlAtCursor('<p class="page-number">~ 2 ~</p>')}>
+                    <Hash className="w-4 h-4 mr-2" /> Page Number (~ 2 ~)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => insertHtmlAtCursor('<p class="page-number">~ 3 ~</p>')}>
+                    <Hash className="w-4 h-4 mr-2" /> Page Number (~ 3 ~)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => {
+                    const num = prompt('Enter page number:');
+                    if (num) insertHtmlAtCursor(`<p class="page-number">~ ${num} ~</p>`);
+                  }}>
+                    <Hash className="w-4 h-4 mr-2" /> Custom Page Number…
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
-            <ToolbarBtn cmd="undo" icon={Undo} title="Undo" />
-            <ToolbarBtn cmd="redo" icon={Redo} title="Redo" />
-          </div>
+              <div className="w-px h-5 bg-[#d1d5db] mx-1" />
 
-          {/* A4 Page inside grey container */}
-          <div className="overflow-auto" style={{ maxHeight: '70vh', background: '#e5e7eb', padding: '24px' }}>
-            <div
-              className="mx-auto shadow-lg"
-              style={{
-                width: '210mm',
-                maxWidth: '100%',
-                minHeight: '297mm',
-                padding: '15mm',
-                background: '#ffffff',
-              }}
-            >
+              {/* Page Break button */}
+              <Button
+                type="button" variant="ghost" size="sm"
+                className="h-7 px-1.5 text-black/70 hover:text-black hover:bg-black/5 gap-1"
+                onClick={() => insertHtmlAtCursor('<hr class="page-break" contenteditable="false" />')}
+                title="Insert Page Break"
+              >
+                <SeparatorHorizontal className="w-3.5 h-3.5" />
+                <span className="text-[10px]">Break</span>
+              </Button>
+
+              {/* Page Number dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button type="button" variant="ghost" size="sm" className="h-7 px-1.5 text-black/70 hover:text-black hover:bg-black/5 gap-1" title="Page Number">
+                    <Hash className="w-3.5 h-3.5" />
+                    <span className="text-[10px]">Page #</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-44">
+                  <DropdownMenuLabel className="text-xs">Insert Page Number</DropdownMenuLabel>
+                  {[1,2,3,4,5].map(n => (
+                    <DropdownMenuItem key={n} onClick={() => insertHtmlAtCursor(`<p class="page-number">~ ${n} ~</p>`)}>
+                      <Hash className="w-4 h-4 mr-2" /> ~ {n} ~
+                    </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => {
+                    const num = prompt('Enter page number:');
+                    if (num) insertHtmlAtCursor(`<p class="page-number">~ ${num} ~</p>`);
+                  }}>
+                    <Hash className="w-4 h-4 mr-2" /> Custom Number…
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <div className="w-px h-5 bg-[#d1d5db] mx-1" />
+
+              <ToolbarBtn cmd="undo" icon={Undo} title="Undo" />
+              <ToolbarBtn cmd="redo" icon={Redo} title="Redo" />
+            </div>
+
+            {/* Content area */}
+            <div style={{ padding: '15mm' }}>
               <iframe
                 ref={iframeRef}
                 className="w-full border-0"
