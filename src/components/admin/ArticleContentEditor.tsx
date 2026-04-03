@@ -6,6 +6,8 @@ import {
   Save, CheckCircle, X, Eye, Bold, Italic, Underline,
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
   List, ListOrdered, Undo, Redo, Strikethrough, Type,
+  Table2, Columns2, Columns3, LayoutGrid, Minus, Plus,
+  Trash2, PaintBucket, Grid3X3,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -16,6 +18,11 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger,
+  DropdownMenuSubContent, DropdownMenuSeparator, DropdownMenuLabel,
+} from '@/components/ui/dropdown-menu';
 
 interface ArticleContentEditorProps {
   articleId: string;
@@ -45,10 +52,25 @@ const EDITOR_STYLES = `
   em { font-style: italic; }
   ul, ol { margin: 4px 0 4px 20px; font-size: 11px; }
   table { border-collapse: collapse; width: 100%; margin: 8px 0; }
-  td, th { border: 1px solid #ccc; padding: 4px 6px; font-size: 10px; }
+  td, th { border: 1px solid #999; padding: 4px 6px; font-size: 10px; min-width: 30px; }
   th { background: #f0f0f0; font-weight: bold; }
   hr { border: none; border-top: 1px solid #ccc; margin: 12px 0; }
   a { color: #0066cc; }
+  .layout-two-col { display: flex; gap: 12px; margin: 8px 0; }
+  .layout-two-col > div { flex: 1; }
+  .layout-three-col { display: flex; gap: 12px; margin: 8px 0; }
+  .layout-three-col > div { flex: 1; }
+  .layout-sidebar-left { display: flex; gap: 12px; margin: 8px 0; }
+  .layout-sidebar-left > div:first-child { flex: 1; }
+  .layout-sidebar-left > div:last-child { flex: 2; }
+  .layout-sidebar-right { display: flex; gap: 12px; margin: 8px 0; }
+  .layout-sidebar-right > div:first-child { flex: 2; }
+  .layout-sidebar-right > div:last-child { flex: 1; }
+  table.table-bordered td, table.table-bordered th { border: 2px solid #333; }
+  table.table-minimal td, table.table-minimal th { border: none; border-bottom: 1px solid #ddd; }
+  table.table-striped tr:nth-child(even) td { background: #f9f9f9; }
+  table.table-colored th { background: #2c7a7b; color: #fff; }
+  table.table-colored td { border-color: #2c7a7b; }
 `;
 
 const FONT_SIZES = ['8', '9', '10', '11', '12', '14', '16', '18', '20', '24'];
@@ -63,7 +85,6 @@ export function ArticleContentEditor({
   const [ready, setReady] = useState(false);
   const queryClient = useQueryClient();
 
-  // Initialize the editable iframe
   useEffect(() => {
     const iframe = iframeRef.current;
     if (!iframe) return;
@@ -76,7 +97,6 @@ export function ArticleContentEditor({
       setReady(true);
     };
     iframe.addEventListener('load', onLoad);
-    // Trigger load
     iframe.src = 'about:blank';
     return () => iframe.removeEventListener('load', onLoad);
   }, [initialContent]);
@@ -89,6 +109,83 @@ export function ArticleContentEditor({
     const doc = iframeRef.current?.contentDocument;
     if (!doc) return;
     doc.execCommand(cmd, false, value);
+  }, []);
+
+  const insertHtmlAtCursor = useCallback((html: string) => {
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc) return;
+    doc.execCommand('insertHTML', false, html);
+  }, []);
+
+  const insertTable = useCallback((rows: number, cols: number, style?: string) => {
+    const cls = style ? ` class="${style}"` : '';
+    let html = `<table${cls}>`;
+    for (let r = 0; r < rows; r++) {
+      html += '<tr>';
+      for (let c = 0; c < cols; c++) {
+        html += r === 0 ? '<th>&nbsp;</th>' : '<td>&nbsp;</td>';
+      }
+      html += '</tr>';
+    }
+    html += '</table>';
+    insertHtmlAtCursor(html);
+  }, [insertHtmlAtCursor]);
+
+  const insertLayout = useCallback((type: string) => {
+    const layouts: Record<string, string> = {
+      'two-col': '<div class="layout-two-col"><div><p>Column 1 content</p></div><div><p>Column 2 content</p></div></div>',
+      'three-col': '<div class="layout-three-col"><div><p>Column 1</p></div><div><p>Column 2</p></div><div><p>Column 3</p></div></div>',
+      'sidebar-left': '<div class="layout-sidebar-left"><div><p>Sidebar</p></div><div><p>Main content</p></div></div>',
+      'sidebar-right': '<div class="layout-sidebar-right"><div><p>Main content</p></div><div><p>Sidebar</p></div></div>',
+    };
+    if (layouts[type]) insertHtmlAtCursor(layouts[type]);
+  }, [insertHtmlAtCursor]);
+
+  const tableAction = useCallback((action: string) => {
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc) return;
+    const sel = doc.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    const node = sel.anchorNode;
+    const td = (node as HTMLElement)?.closest?.('td,th') || (node?.parentElement as HTMLElement)?.closest?.('td,th');
+    if (!td) { toast.error('Place cursor inside a table cell first'); return; }
+    const tr = td.closest('tr');
+    const table = td.closest('table');
+    if (!tr || !table) return;
+
+    const colIndex = Array.from(tr.children).indexOf(td);
+
+    if (action === 'add-row-above' || action === 'add-row-below') {
+      const newRow = doc.createElement('tr');
+      for (let i = 0; i < tr.children.length; i++) {
+        const cell = doc.createElement('td');
+        cell.innerHTML = '&nbsp;';
+        newRow.appendChild(cell);
+      }
+      if (action === 'add-row-above') tr.parentNode?.insertBefore(newRow, tr);
+      else tr.parentNode?.insertBefore(newRow, tr.nextSibling);
+    } else if (action === 'add-col-left' || action === 'add-col-right') {
+      table.querySelectorAll('tr').forEach(row => {
+        const cell = doc.createElement(row.children[0]?.tagName === 'TH' ? 'th' : 'td');
+        cell.innerHTML = '&nbsp;';
+        const ref = row.children[colIndex];
+        if (action === 'add-col-left') row.insertBefore(cell, ref);
+        else row.insertBefore(cell, ref?.nextSibling || null);
+      });
+    } else if (action === 'delete-row') {
+      if (table.querySelectorAll('tr').length <= 1) table.remove();
+      else tr.remove();
+    } else if (action === 'delete-col') {
+      table.querySelectorAll('tr').forEach(row => {
+        row.children[colIndex]?.remove();
+      });
+      if (table.querySelector('tr')?.children.length === 0) table.remove();
+    } else if (action === 'delete-table') {
+      table.remove();
+    } else if (action.startsWith('style-')) {
+      const style = action.replace('style-', '');
+      table.className = style;
+    }
   }, []);
 
   const handleSave = async () => {
@@ -170,9 +267,17 @@ export function ArticleContentEditor({
     .page p { text-align: justify; font-size: 11px; line-height: 1.6; margin: 4px 0; }
     .page ul, .page ol { margin: 4px 0 4px 20px; font-size: 11px; }
     .page table { border-collapse: collapse; width: 100%; margin: 8px 0; }
-    .page td, .page th { border: 1px solid #ccc; padding: 4px 6px; font-size: 10px; }
+    .page td, .page th { border: 1px solid #999; padding: 4px 6px; font-size: 10px; }
     .page th { background: #f0f0f0; font-weight: bold; }
     .page hr { border: none; border-top: 1px solid #ccc; margin: 12px 0; }
+    .layout-two-col, .layout-three-col, .layout-sidebar-left, .layout-sidebar-right { display: flex; gap: 12px; margin: 8px 0; }
+    .layout-two-col > div, .layout-three-col > div { flex: 1; }
+    .layout-sidebar-left > div:first-child { flex: 1; } .layout-sidebar-left > div:last-child { flex: 2; }
+    .layout-sidebar-right > div:first-child { flex: 2; } .layout-sidebar-right > div:last-child { flex: 1; }
+    table.table-bordered td, table.table-bordered th { border: 2px solid #333; }
+    table.table-minimal td, table.table-minimal th { border: none; border-bottom: 1px solid #ddd; }
+    table.table-striped tr:nth-child(even) td { background: #f9f9f9; }
+    table.table-colored th { background: #2c7a7b; color: #fff; }
   </style></head><body><div class="page">${getContent()}</div></body></html>`;
 
   const ToolbarBtn = ({ cmd, value, icon: Icon, title, active }: { cmd: string; value?: string; icon: any; title: string; active?: boolean }) => (
@@ -245,6 +350,104 @@ export function ArticleContentEditor({
 
             <ToolbarBtn cmd="insertUnorderedList" icon={List} title="Bullet List" />
             <ToolbarBtn cmd="insertOrderedList" icon={ListOrdered} title="Numbered List" />
+
+            <div className="w-px h-5 bg-[#d1d5db] mx-1" />
+
+            {/* Table dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button type="button" variant="ghost" size="sm" className="h-7 px-1.5 text-black/70 hover:text-black hover:bg-black/5 gap-1" title="Table">
+                  <Table2 className="w-3.5 h-3.5" />
+                  <span className="text-[10px]">Table</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-52">
+                <DropdownMenuLabel className="text-xs">Insert Table</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => insertTable(3, 3)}>
+                  <Grid3X3 className="w-4 h-4 mr-2" /> 3 × 3 Table
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => insertTable(4, 4)}>
+                  <Grid3X3 className="w-4 h-4 mr-2" /> 4 × 4 Table
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => insertTable(5, 5)}>
+                  <Grid3X3 className="w-4 h-4 mr-2" /> 5 × 5 Table
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => insertTable(2, 6)}>
+                  <Grid3X3 className="w-4 h-4 mr-2" /> 2 × 6 Table
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-xs">Table Actions</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => tableAction('add-row-above')}>
+                  <Plus className="w-4 h-4 mr-2" /> Add Row Above
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => tableAction('add-row-below')}>
+                  <Plus className="w-4 h-4 mr-2" /> Add Row Below
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => tableAction('add-col-left')}>
+                  <Plus className="w-4 h-4 mr-2" /> Add Column Left
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => tableAction('add-col-right')}>
+                  <Plus className="w-4 h-4 mr-2" /> Add Column Right
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => tableAction('delete-row')} className="text-red-600">
+                  <Minus className="w-4 h-4 mr-2" /> Delete Row
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => tableAction('delete-col')} className="text-red-600">
+                  <Minus className="w-4 h-4 mr-2" /> Delete Column
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => tableAction('delete-table')} className="text-red-600">
+                  <Trash2 className="w-4 h-4 mr-2" /> Delete Table
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-xs">Table Style</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => tableAction('style-')}>
+                  Default
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => tableAction('style-table-bordered')}>
+                  <PaintBucket className="w-4 h-4 mr-2" /> Bold Borders
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => tableAction('style-table-minimal')}>
+                  <PaintBucket className="w-4 h-4 mr-2" /> Minimal
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => tableAction('style-table-striped')}>
+                  <PaintBucket className="w-4 h-4 mr-2" /> Striped Rows
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => tableAction('style-table-colored')}>
+                  <PaintBucket className="w-4 h-4 mr-2" /> Colored Header
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Layout dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button type="button" variant="ghost" size="sm" className="h-7 px-1.5 text-black/70 hover:text-black hover:bg-black/5 gap-1" title="Layout">
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                  <span className="text-[10px]">Layout</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-48">
+                <DropdownMenuLabel className="text-xs">Column Layouts</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => insertLayout('two-col')}>
+                  <Columns2 className="w-4 h-4 mr-2" /> Two Columns
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => insertLayout('three-col')}>
+                  <Columns3 className="w-4 h-4 mr-2" /> Three Columns
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => insertLayout('sidebar-left')}>
+                  <LayoutGrid className="w-4 h-4 mr-2" /> Sidebar Left
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => insertLayout('sidebar-right')}>
+                  <LayoutGrid className="w-4 h-4 mr-2" /> Sidebar Right
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-xs">Insert Elements</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => insertHtmlAtCursor('<hr />')}>
+                  <Minus className="w-4 h-4 mr-2" /> Horizontal Rule
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             <div className="w-px h-5 bg-[#d1d5db] mx-1" />
 
