@@ -7,7 +7,7 @@ import {
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
   List, ListOrdered, Undo, Redo, Strikethrough, Type,
   Table2, Columns2, Columns3, LayoutGrid, Minus, Plus,
-  Trash2, PaintBucket, Grid3X3,
+  Trash2, PaintBucket, Grid3X3, SeparatorHorizontal, Hash,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -71,6 +71,19 @@ const EDITOR_STYLES = `
   table.table-striped tr:nth-child(even) td { background: #f9f9f9; }
   table.table-colored th { background: #2c7a7b; color: #fff; }
   table.table-colored td { border-color: #2c7a7b; }
+  .page-break { 
+    page-break-before: always; break-before: page;
+    border: none; border-top: 2px dashed #e74c3c; margin: 20px 0; padding: 0; position: relative;
+  }
+  .page-break::after {
+    content: '— Page Break —'; position: absolute; top: -10px; left: 50%;
+    transform: translateX(-50%); background: #fff; padding: 0 8px;
+    font-size: 10px; color: #e74c3c; font-family: Arial, sans-serif; font-weight: bold;
+  }
+  .page-number {
+    text-align: center; font-size: 10px; color: #555; margin: 8px 0;
+    font-family: 'Times New Roman', serif;
+  }
 `;
 
 const FONT_SIZES = ['8', '9', '10', '11', '12', '14', '16', '18', '20', '24'];
@@ -278,6 +291,9 @@ export function ArticleContentEditor({
     table.table-minimal td, table.table-minimal th { border: none; border-bottom: 1px solid #ddd; }
     table.table-striped tr:nth-child(even) td { background: #f9f9f9; }
     table.table-colored th { background: #2c7a7b; color: #fff; }
+    .page-break { page-break-before: always; break-before: page; border: none; border-top: 2px dashed #e74c3c; margin: 20px 0; }
+    .page-number { text-align: center; font-size: 10px; color: #555; margin: 8px 0; }
+    @media print { .page-break { border: none; } }
   </style></head><body><div class="page">${getContent()}</div></body></html>`;
 
   const ToolbarBtn = ({ cmd, value, icon: Icon, title, active }: { cmd: string; value?: string; icon: any; title: string; active?: boolean }) => (
@@ -445,6 +461,26 @@ export function ArticleContentEditor({
                 <DropdownMenuLabel className="text-xs">Insert Elements</DropdownMenuLabel>
                 <DropdownMenuItem onClick={() => insertHtmlAtCursor('<hr />')}>
                   <Minus className="w-4 h-4 mr-2" /> Horizontal Rule
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => insertHtmlAtCursor('<hr class="page-break" contenteditable="false" />')}>
+                  <SeparatorHorizontal className="w-4 h-4 mr-2" /> Page Break
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-xs">Page Numbers</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => insertHtmlAtCursor('<p class="page-number">~ 1 ~</p>')}>
+                  <Hash className="w-4 h-4 mr-2" /> Page Number (~ 1 ~)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => insertHtmlAtCursor('<p class="page-number">~ 2 ~</p>')}>
+                  <Hash className="w-4 h-4 mr-2" /> Page Number (~ 2 ~)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => insertHtmlAtCursor('<p class="page-number">~ 3 ~</p>')}>
+                  <Hash className="w-4 h-4 mr-2" /> Page Number (~ 3 ~)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => {
+                  const num = prompt('Enter page number:');
+                  if (num) insertHtmlAtCursor(`<p class="page-number">~ ${num} ~</p>`);
+                }}>
+                  <Hash className="w-4 h-4 mr-2" /> Custom Page Number…
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
