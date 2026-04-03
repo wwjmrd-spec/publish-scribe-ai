@@ -487,6 +487,44 @@ export function ArticleContentEditor({
 
             <div className="w-px h-5 bg-[#d1d5db] mx-1" />
 
+            {/* Page Break button */}
+            <Button
+              type="button" variant="ghost" size="sm"
+              className="h-7 px-1.5 text-black/70 hover:text-black hover:bg-black/5 gap-1"
+              onClick={() => insertHtmlAtCursor('<hr class="page-break" contenteditable="false" />')}
+              title="Insert Page Break"
+            >
+              <SeparatorHorizontal className="w-3.5 h-3.5" />
+              <span className="text-[10px]">Break</span>
+            </Button>
+
+            {/* Page Number dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button type="button" variant="ghost" size="sm" className="h-7 px-1.5 text-black/70 hover:text-black hover:bg-black/5 gap-1" title="Page Number">
+                  <Hash className="w-3.5 h-3.5" />
+                  <span className="text-[10px]">Page #</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-44">
+                <DropdownMenuLabel className="text-xs">Insert Page Number</DropdownMenuLabel>
+                {[1,2,3,4,5].map(n => (
+                  <DropdownMenuItem key={n} onClick={() => insertHtmlAtCursor(`<p class="page-number">~ ${n} ~</p>`)}>
+                    <Hash className="w-4 h-4 mr-2" /> ~ {n} ~
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => {
+                  const num = prompt('Enter page number:');
+                  if (num) insertHtmlAtCursor(`<p class="page-number">~ ${num} ~</p>`);
+                }}>
+                  <Hash className="w-4 h-4 mr-2" /> Custom Number…
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <div className="w-px h-5 bg-[#d1d5db] mx-1" />
+
             <ToolbarBtn cmd="undo" icon={Undo} title="Undo" />
             <ToolbarBtn cmd="redo" icon={Redo} title="Redo" />
           </div>
