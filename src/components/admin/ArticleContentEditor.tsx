@@ -71,6 +71,19 @@ const EDITOR_STYLES = `
   table.table-striped tr:nth-child(even) td { background: #f9f9f9; }
   table.table-colored th { background: #2c7a7b; color: #fff; }
   table.table-colored td { border-color: #2c7a7b; }
+  .page-break { 
+    page-break-before: always; break-before: page;
+    border: none; border-top: 2px dashed #e74c3c; margin: 20px 0; padding: 0; position: relative;
+  }
+  .page-break::after {
+    content: '— Page Break —'; position: absolute; top: -10px; left: 50%;
+    transform: translateX(-50%); background: #fff; padding: 0 8px;
+    font-size: 10px; color: #e74c3c; font-family: Arial, sans-serif; font-weight: bold;
+  }
+  .page-number {
+    text-align: center; font-size: 10px; color: #555; margin: 8px 0;
+    font-family: 'Times New Roman', serif;
+  }
 `;
 
 const FONT_SIZES = ['8', '9', '10', '11', '12', '14', '16', '18', '20', '24'];
