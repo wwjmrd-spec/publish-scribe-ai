@@ -7,7 +7,7 @@ import {
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
   List, ListOrdered, Undo, Redo, Strikethrough, Type,
   Table2, Columns2, Columns3, LayoutGrid, Minus, Plus,
-  Trash2, PaintBucket, Grid3X3,
+  Trash2, PaintBucket, Grid3X3, SeparatorHorizontal, Hash,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
