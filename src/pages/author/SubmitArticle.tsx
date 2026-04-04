@@ -82,6 +82,9 @@ export default function SubmitArticle() {
   const [honeypot, setHoneypot] = useState('');
   const [formLoadTime] = useState(Date.now());
   const [pageCount, setPageCount] = useState<number | null>(null);
+  const [validationWarnings, setValidationWarnings] = useState<{ missing: string[]; samples: Record<string, string> } | null>(null);
+  const [duplicateArticle, setDuplicateArticle] = useState<any>(null);
+  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
 
   const currency = isIndian ? 'INR' : 'USD';
   const currencySymbol = isIndian ? '₹' : '$';
