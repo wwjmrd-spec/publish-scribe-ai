@@ -819,23 +819,88 @@ export default function SubmitArticle() {
                 </motion.div>
               )}
 
-              <div className="flex justify-end mt-6">
-                <Button
-                  onClick={handleFileNext}
-                  disabled={!file || scanning}
-                  className="gradient-primary hover:shadow-[0_0_30px_hsl(var(--primary)/0.5)] min-w-[180px]"
+              {/* Validation Warnings */}
+              {validationWarnings && validationWarnings.missing.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-6"
                 >
-                  {scanning ? (
-                    <GlassSpinner size="sm" />
-                  ) : (
-                    <>
-                      <Sparkles className="w-4 h-4 mr-1" />
-                      Scan & Continue
-                      <ArrowRight className="w-4 h-4 ml-2" />
-                    </>
-                  )}
-                </Button>
-              </div>
+                  <GlassCard className="border-destructive/50 bg-destructive/5">
+                    <div className="flex items-start gap-3 mb-4">
+                      <XCircle className="w-6 h-6 text-destructive shrink-0 mt-0.5" />
+                      <div>
+                        <h3 className="font-display font-semibold text-lg text-destructive">
+                          Missing Required Sections
+                        </h3>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Your article file is missing the following required sections. Please add them to your document and upload again.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="space-y-4 ml-9">
+                      {validationWarnings.missing.map((section, i) => (
+                        <div key={i} className="border border-border rounded-lg p-3">
+                          <p className="font-semibold text-sm flex items-center gap-2 text-destructive">
+                            <AlertTriangle className="w-4 h-4" />
+                            {section}
+                          </p>
+                          {validationWarnings.samples[section] && (
+                            <div className="mt-2 p-2 rounded bg-muted/50 text-xs font-mono whitespace-pre-wrap text-muted-foreground">
+                              <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 font-sans font-semibold">Sample:</p>
+                              {validationWarnings.samples[section]}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex gap-3 mt-4 ml-9">
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setValidationWarnings(null);
+                          setFile(null);
+                        }}
+                      >
+                        Upload New File
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        onClick={() => {
+                          setValidationWarnings(null);
+                          setStep(2);
+                          toast({
+                            title: 'Proceeding with warnings',
+                            description: 'You can still submit, but your article may be rejected for missing sections.',
+                          });
+                        }}
+                      >
+                        Continue Anyway
+                      </Button>
+                    </div>
+                  </GlassCard>
+                </motion.div>
+              )}
+
+              {!validationWarnings && (
+                <div className="flex justify-end mt-6">
+                  <Button
+                    onClick={handleFileNext}
+                    disabled={!file || scanning}
+                    className="gradient-primary hover:shadow-[0_0_30px_hsl(var(--primary)/0.5)] min-w-[180px]"
+                  >
+                    {scanning ? (
+                      <GlassSpinner size="sm" />
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4 mr-1" />
+                        Scan & Continue
+                        <ArrowRight className="w-4 h-4 ml-2" />
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
             </motion.div>
           )}
 
