@@ -138,6 +138,58 @@ export default function MyArticles() {
         .eq('id', articleId);
       if (updateError) throw updateError;
 
+      // Get article info and profile for emails/notifications
+      const { data: articleData } = await supabase
+        .from('articles')
+        .select('title, reference_number, author_name')
+        .eq('id', articleId)
+        .single();
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name, email')
+        .eq('id', user.id)
+        .single();
+
+      // Get admin email from settings
+      const { data: adminSettings } = await supabase
+        .from('admin_settings')
+        .select('setting_value')
+        .eq('setting_key', 'admin_notification_email')
+        .single();
+      const adminEmail = adminSettings?.setting_value || 'shubhmeena23@gmail.com';
+
+      const emailData = {
+        articleTitle: articleData?.title || 'Untitled',
+        referenceNumber: articleData?.reference_number || 'N/A',
+        authorName: articleData?.author_name || profile?.full_name || 'Author',
+        authorEmail: profile?.email || user.email,
+        submissionDate: new Date().toLocaleDateString(),
+      };
+
+      // Send email to author (confirmation)
+      supabase.functions.invoke('send-email', {
+        body: { to: profile?.email || user.email, template: 'manuscript-update', data: emailData, isAdmin: false },
+      }).catch((err) => console.error('Failed to send author manuscript update email:', err));
+
+      // Send email to admin
+      supabase.functions.invoke('send-email', {
+        body: { to: adminEmail, template: 'manuscript-update', data: emailData, isAdmin: true },
+      }).catch((err) => console.error('Failed to send admin manuscript update email:', err));
+
+      // Create notification for admins
+      const { data: admins } = await supabase.from('user_roles').select('user_id').eq('role', 'admin');
+      if (admins) {
+        const notifications = admins.map((a) => ({
+          user_id: a.user_id,
+          title: 'Manuscript Updated 📝',
+          message: `Author ${emailData.authorName} has updated the manuscript for "${emailData.articleTitle}" (${emailData.referenceNumber}).`,
+          type: 'info',
+          link: `/admin/articles/${articleId}`,
+        }));
+        await supabase.from('notifications').insert(notifications);
+      }
+
       toast.success('Manuscript updated successfully! The admin will review the updated document.');
       queryClient.invalidateQueries({ queryKey: ['my-articles'] });
     } catch (err: any) {
