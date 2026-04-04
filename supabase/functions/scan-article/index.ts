@@ -7,6 +7,61 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// Check for required sections in article text
+function validateArticleSections(text: string): { valid: boolean; missing: string[]; samples: Record<string, string> } {
+  const lowerText = text.toLowerCase();
+  const missing: string[] = [];
+
+  const samples: Record<string, string> = {
+    "Title": "Your article must start with a clear title, e.g.:\n\"Impact of Machine Learning on Healthcare: A Comprehensive Review\"",
+    "Author Name(s) and Affiliation": "Include author details after the title, e.g.:\n\"John Doe¹, Jane Smith²\n¹Department of Computer Science, MIT, USA\n²School of Engineering, Stanford University, USA\"",
+    "Abstract (80-120 words)": "Add an abstract section, e.g.:\n\"Abstract: This paper presents a comprehensive review of machine learning applications in healthcare...\"",
+    "Keywords (3-5)": "Add keywords after the abstract, e.g.:\n\"Keywords: machine learning, healthcare, deep learning, medical imaging, AI\"",
+    "Introduction": "Include an Introduction section, e.g.:\n\"1. Introduction\nThe rapid advancement of artificial intelligence has transformed...\"",
+    "References/Bibliography": "End with references, e.g.:\n\"References\n[1] Smith, J. (2023). Machine Learning in Medicine. Journal of AI Research, 45(2), 112-128.\n[2] Doe, A. (2022). Deep Learning Applications. Nature, 580, 123-130.\"",
+  };
+
+  // Check for title - first meaningful line (heuristic: check if text starts with something meaningful)
+  // Title is hard to detect automatically, we rely on AI extraction for this
+
+  // Check for author/affiliation indicators
+  const hasAuthor = /\b(author|affiliation|department|university|institute|college|school of)\b/i.test(text);
+  if (!hasAuthor) {
+    missing.push("Author Name(s) and Affiliation");
+  }
+
+  // Check for abstract
+  const hasAbstract = /\babstract\b/i.test(text);
+  if (!hasAbstract) {
+    missing.push("Abstract (80-120 words)");
+  }
+
+  // Check for keywords
+  const hasKeywords = /\b(keywords?|key\s*words?|key\s*terms?)\b/i.test(text);
+  if (!hasKeywords) {
+    missing.push("Keywords (3-5)");
+  }
+
+  // Check for introduction
+  const hasIntroduction = /\b(introduction|1\.\s*introduction)\b/i.test(text);
+  if (!hasIntroduction) {
+    missing.push("Introduction");
+  }
+
+  // Check for references/bibliography
+  const hasReferences = /\b(references?|bibliography|works?\s*cited)\b/i.test(text);
+  if (!hasReferences) {
+    missing.push("References/Bibliography");
+  }
+
+  const resultSamples: Record<string, string> = {};
+  for (const m of missing) {
+    resultSamples[m] = samples[m] || "";
+  }
+
+  return { valid: missing.length === 0, missing, samples: resultSamples };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -49,6 +104,9 @@ serve(async (req) => {
       );
     }
 
+    // --- Validate required sections ---
+    const validation = validateArticleSections(text);
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       throw new Error("AI service is not configured");
@@ -58,7 +116,7 @@ serve(async (req) => {
     const truncatedText = fullText.substring(0, 15000);
 
     // More accurate page count: count words in full text, ~275 words per page
-    const totalWordCount = fullText.split(/\s+/).filter(w => w.length > 0).length;
+    const totalWordCount = fullText.split(/\s+/).filter((w: string) => w.length > 0).length;
     const estimatedPageCount = Math.max(1, Math.ceil(totalWordCount / 275));
 
     const response = await fetch(
@@ -177,7 +235,14 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ metadata }),
+      JSON.stringify({ 
+        metadata,
+        validation: {
+          valid: validation.valid,
+          missing: validation.missing,
+          samples: validation.samples,
+        }
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
