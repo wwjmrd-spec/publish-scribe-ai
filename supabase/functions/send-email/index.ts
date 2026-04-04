@@ -694,7 +694,7 @@ const getGalleyProofRevisionTemplate = (data: EmailRequest["data"], isAdmin: boo
   return wrapEmail(isAdmin ? "Galley Proof Revision Submitted" : "Galley Proof Revision Submitted Successfully", body);
 };
 
-
+function getEmailContent(
   template: EmailTemplate,
   data?: EmailRequest["data"],
   isAdmin: boolean = false
