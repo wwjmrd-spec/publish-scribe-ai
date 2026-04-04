@@ -778,6 +778,20 @@ const getGalleyProofRevisionTemplate = (data: EmailRequest["data"], isAdmin: boo
         subject: `Manuscript Revision Required: ${data?.articleTitle || "Your Article"} - WWJMRD`,
         html: getManuscriptReviseTemplate(data),
       };
+    case "manuscript-update":
+      return {
+        subject: isAdmin
+          ? `Manuscript Updated: ${data?.articleTitle || "Untitled"}`
+          : "Manuscript Updated Successfully - WWJMRD",
+        html: getManuscriptUpdateTemplate(data, isAdmin),
+      };
+    case "galley-proof-revision":
+      return {
+        subject: isAdmin
+          ? `Galley Proof Revision: ${data?.articleTitle || "Untitled"}`
+          : "Galley Proof Revision Submitted - WWJMRD",
+        html: getGalleyProofRevisionTemplate(data, isAdmin),
+      };
     default:
       throw new Error(`Unknown email template: ${template}`);
   }
