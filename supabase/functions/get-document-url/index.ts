@@ -170,10 +170,26 @@ serve(async (req) => {
       });
     }
 
-    // Generate signed URL
+    // Build download filename using reference number
+    const refNum = article.reference_number || "article";
+    const safeRef = refNum.replace(/[^a-zA-Z0-9_-]/g, "_");
+    const extensionMap: Record<string, string> = {
+      document: ".docx",
+      certificate: ".pdf",
+      review_report: ".pdf",
+      formatted_document: ".pdf",
+      galley_proof_revision: ".docx",
+      copyright_form: ".pdf",
+    };
+    const ext = extensionMap[fileType] || "";
+    const downloadFilename = `${safeRef}_${fileType}${ext}`;
+
+    // Generate signed URL with download disposition
     const { data: signedUrlData, error: signedUrlError } = await supabase.storage
       .from(bucket)
-      .createSignedUrl(filePath, 60 * 60); // 1 hour validity
+      .createSignedUrl(filePath, 60 * 60, {
+        download: downloadFilename,
+      });
 
     if (signedUrlError || !signedUrlData) {
       console.error("Signed URL error:", signedUrlError);
@@ -183,7 +199,7 @@ serve(async (req) => {
       });
     }
 
-    console.log(`Generated download URL for ${fileType} of article ${articleId}`);
+    console.log(`Generated download URL for ${fileType} of article ${articleId} as ${downloadFilename}`);
 
     return new Response(
       JSON.stringify({
