@@ -20,10 +20,18 @@ import { useQuery } from '@tanstack/react-query';
 import { useSubscription } from '@/hooks/useSubscription';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { ArrowRight, ArrowLeft, Upload, FileText, CheckCircle, Sparkles, Bot, CreditCard, IndianRupee, DollarSign } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Upload, FileText, CheckCircle, Sparkles, Bot, CreditCard, IndianRupee, DollarSign, AlertTriangle, XCircle } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import mammoth from 'mammoth';
 import { isHoneypotFilled, isSubmissionTooFast, validateArticleContent } from '@/lib/antispam';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 
 type Step = 1 | 2 | 3;
 
@@ -74,6 +82,9 @@ export default function SubmitArticle() {
   const [honeypot, setHoneypot] = useState('');
   const [formLoadTime] = useState(Date.now());
   const [pageCount, setPageCount] = useState<number | null>(null);
+  const [validationWarnings, setValidationWarnings] = useState<{ missing: string[]; samples: Record<string, string> } | null>(null);
+  const [duplicateArticle, setDuplicateArticle] = useState<any>(null);
+  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
 
   const currency = isIndian ? 'INR' : 'USD';
   const currencySymbol = isIndian ? '₹' : '$';
@@ -207,8 +218,19 @@ export default function SubmitArticle() {
           title: 'AI scan completed with limited results',
           description: 'Some fields could not be auto-filled. Please review and complete the form.',
         });
+        setValidationWarnings(null);
         setStep(2);
         return;
+      }
+
+      // Check for validation warnings (missing sections)
+      if (data.validation && !data.validation.valid) {
+        setValidationWarnings({
+          missing: data.validation.missing,
+          samples: data.validation.samples,
+        });
+      } else {
+        setValidationWarnings(null);
       }
 
       const meta = data.metadata;
@@ -233,12 +255,15 @@ export default function SubmitArticle() {
 
       setScanProgress(100);
 
-      toast({
-        title: 'AI Scan Complete ✨',
-        description: 'Article details have been auto-filled. Please review and make any corrections.',
-      });
-
-      setStep(2);
+      if (data.validation && !data.validation.valid) {
+        // Don't proceed to step 2, show warning on step 1
+      } else {
+        toast({
+          title: 'AI Scan Complete ✨',
+          description: 'Article details have been auto-filled. Please review and make any corrections.',
+        });
+        setStep(2);
+      }
     } catch (err: any) {
       console.error('Scan error:', err);
       toast({
@@ -464,6 +489,72 @@ export default function SubmitArticle() {
     return true;
   };
 
+  // Check for duplicate title in database
+  const checkDuplicateTitle = async (): Promise<boolean> => {
+    if (!title.trim() || !user?.id) return false;
+    const { data: existingArticles } = await supabase
+      .from('articles')
+      .select('id, title, reference_number, status')
+      .eq('author_id', user.id)
+      .ilike('title', title.trim());
+    
+    if (existingArticles && existingArticles.length > 0) {
+      setDuplicateArticle(existingArticles[0]);
+      setShowDuplicateDialog(true);
+      return true;
+    }
+    return false;
+  };
+
+  // Replace existing article with new submission
+  const handleReplaceArticle = async () => {
+    if (!duplicateArticle || !file || !user?.id) return;
+    setShowDuplicateDialog(false);
+    setLoading(true);
+    try {
+      const filePath = `${user.id}/${crypto.randomUUID()}.docx`;
+      const { error: uploadError } = await supabase.storage
+        .from('documents')
+        .upload(filePath, file);
+      if (uploadError) throw uploadError;
+
+      const keywordArray = keywords.split(',').map((k) => k.trim()).filter((k) => k.length > 0);
+      
+      const { error: updateError } = await supabase
+        .from('articles')
+        .update({
+          title: title.trim(),
+          abstract: abstract.trim(),
+          keywords: keywordArray,
+          document_url: filePath,
+          author_name: authorName.trim(),
+          country: country.trim() || null,
+          subject: subject.trim() || null,
+          reason_of_research: reasonOfResearch.trim() || null,
+          submission_target: submissionTarget.trim() || null,
+          publication_type: publicationType,
+          page_count: pageCount,
+          status: 'submitted' as any,
+        })
+        .eq('id', duplicateArticle.id);
+      
+      if (updateError) throw updateError;
+
+      setSubmittedRef(duplicateArticle.reference_number);
+      setStep(3);
+      toast({
+        title: 'Article Revised Successfully! 🎉',
+        description: 'Your article has been updated with the new manuscript.',
+      });
+    } catch (error: any) {
+      console.error('Replace error:', error);
+      toast({ title: 'Failed to replace article', description: error.message, variant: 'destructive' });
+    } finally {
+      setLoading(false);
+      setDuplicateArticle(null);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!validateForm()) return;
 
@@ -476,6 +567,10 @@ export default function SubmitArticle() {
       toast({ title: 'Please take your time', description: 'The form was submitted too quickly. Please review your details.', variant: 'destructive' });
       return;
     }
+
+    // Check for duplicate title
+    const isDuplicate = await checkDuplicateTitle();
+    if (isDuplicate) return;
 
     if (publicationType === 'fast_track') {
       await handleFastTrackSubmit();
@@ -724,23 +819,88 @@ export default function SubmitArticle() {
                 </motion.div>
               )}
 
-              <div className="flex justify-end mt-6">
-                <Button
-                  onClick={handleFileNext}
-                  disabled={!file || scanning}
-                  className="gradient-primary hover:shadow-[0_0_30px_hsl(var(--primary)/0.5)] min-w-[180px]"
+              {/* Validation Warnings */}
+              {validationWarnings && validationWarnings.missing.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-6"
                 >
-                  {scanning ? (
-                    <GlassSpinner size="sm" />
-                  ) : (
-                    <>
-                      <Sparkles className="w-4 h-4 mr-1" />
-                      Scan & Continue
-                      <ArrowRight className="w-4 h-4 ml-2" />
-                    </>
-                  )}
-                </Button>
-              </div>
+                  <GlassCard className="border-destructive/50 bg-destructive/5">
+                    <div className="flex items-start gap-3 mb-4">
+                      <XCircle className="w-6 h-6 text-destructive shrink-0 mt-0.5" />
+                      <div>
+                        <h3 className="font-display font-semibold text-lg text-destructive">
+                          Missing Required Sections
+                        </h3>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Your article file is missing the following required sections. Please add them to your document and upload again.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="space-y-4 ml-9">
+                      {validationWarnings.missing.map((section, i) => (
+                        <div key={i} className="border border-border rounded-lg p-3">
+                          <p className="font-semibold text-sm flex items-center gap-2 text-destructive">
+                            <AlertTriangle className="w-4 h-4" />
+                            {section}
+                          </p>
+                          {validationWarnings.samples[section] && (
+                            <div className="mt-2 p-2 rounded bg-muted/50 text-xs font-mono whitespace-pre-wrap text-muted-foreground">
+                              <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 font-sans font-semibold">Sample:</p>
+                              {validationWarnings.samples[section]}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex gap-3 mt-4 ml-9">
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setValidationWarnings(null);
+                          setFile(null);
+                        }}
+                      >
+                        Upload New File
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        onClick={() => {
+                          setValidationWarnings(null);
+                          setStep(2);
+                          toast({
+                            title: 'Proceeding with warnings',
+                            description: 'You can still submit, but your article may be rejected for missing sections.',
+                          });
+                        }}
+                      >
+                        Continue Anyway
+                      </Button>
+                    </div>
+                  </GlassCard>
+                </motion.div>
+              )}
+
+              {!validationWarnings && (
+                <div className="flex justify-end mt-6">
+                  <Button
+                    onClick={handleFileNext}
+                    disabled={!file || scanning}
+                    className="gradient-primary hover:shadow-[0_0_30px_hsl(var(--primary)/0.5)] min-w-[180px]"
+                  >
+                    {scanning ? (
+                      <GlassSpinner size="sm" />
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4 mr-1" />
+                        Scan & Continue
+                        <ArrowRight className="w-4 h-4 ml-2" />
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
             </motion.div>
           )}
 
@@ -979,6 +1139,39 @@ export default function SubmitArticle() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Duplicate Title Dialog */}
+        <Dialog open={showDuplicateDialog} onOpenChange={setShowDuplicateDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-yellow-500" />
+                Article Already Submitted
+              </DialogTitle>
+              <DialogDescription>
+                An article with the same title has already been submitted.
+              </DialogDescription>
+            </DialogHeader>
+            {duplicateArticle && (
+              <div className="p-3 rounded-lg bg-muted/50 border border-border space-y-2">
+                <p className="text-sm"><span className="font-semibold">Title:</span> {duplicateArticle.title}</p>
+                <p className="text-sm"><span className="font-semibold">Reference:</span> {duplicateArticle.reference_number}</p>
+                <p className="text-sm"><span className="font-semibold">Status:</span> {duplicateArticle.status?.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</p>
+              </div>
+            )}
+            <p className="text-sm text-muted-foreground">
+              Do you want to replace and revise this article with your new file and updated information?
+            </p>
+            <DialogFooter className="gap-2">
+              <Button variant="outline" onClick={() => { setShowDuplicateDialog(false); setDuplicateArticle(null); }}>
+                Dismiss
+              </Button>
+              <Button onClick={handleReplaceArticle} disabled={loading} className="gradient-primary">
+                {loading ? <GlassSpinner size="sm" /> : 'Continue & Replace'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </motion.div>
     </DashboardLayout>
   );
