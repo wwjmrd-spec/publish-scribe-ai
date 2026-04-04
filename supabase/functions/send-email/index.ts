@@ -35,6 +35,8 @@ type EmailTemplate =
   | "copyright-form-request"
   | "upgrade-to-pro"
   | "manuscript-revise"
+  | "manuscript-update"
+  | "galley-proof-revision"
   | "custom";
 
 interface EmailRequest {
