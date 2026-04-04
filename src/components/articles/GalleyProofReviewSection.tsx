@@ -88,7 +88,40 @@ export function GalleyProofReviewSection({ article }: GalleyProofReviewSectionPr
 
       if (updateError) throw updateError;
 
-      // Notify admins
+      // Get profile for emails
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name, email')
+        .eq('id', user.id)
+        .single();
+
+      // Get admin email from settings
+      const { data: adminSettings } = await supabase
+        .from('admin_settings')
+        .select('setting_value')
+        .eq('setting_key', 'admin_notification_email')
+        .single();
+      const adminEmail = adminSettings?.setting_value || 'shubhmeena23@gmail.com';
+
+      const emailData = {
+        articleTitle: article.title,
+        referenceNumber: article.reference_number,
+        authorName: article.author_name || profile?.full_name || 'Author',
+        authorEmail: profile?.email || user.email,
+        submissionDate: new Date().toLocaleDateString(),
+      };
+
+      // Send email to author (confirmation)
+      supabase.functions.invoke('send-email', {
+        body: { to: profile?.email || user.email, template: 'galley-proof-revision', data: emailData, isAdmin: false },
+      }).catch((err) => console.error('Failed to send author galley proof revision email:', err));
+
+      // Send email to admin
+      supabase.functions.invoke('send-email', {
+        body: { to: adminEmail, template: 'galley-proof-revision', data: emailData, isAdmin: true },
+      }).catch((err) => console.error('Failed to send admin galley proof revision email:', err));
+
+      // Notify admins via in-app notifications
       const { data: admins } = await supabase
         .from('user_roles')
         .select('user_id')
