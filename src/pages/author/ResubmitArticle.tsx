@@ -74,6 +74,14 @@ export default function ResubmitArticle() {
         .eq('id', user.id)
         .single();
 
+      // Get admin email from settings
+      const { data: adminSettings } = await supabase
+        .from('admin_settings')
+        .select('setting_value')
+        .eq('setting_key', 'admin_notification_email')
+        .single();
+      const adminEmail = adminSettings?.setting_value || 'shubhmeena23@gmail.com';
+
       // Send email notifications (fire & forget)
       const emailData = {
         articleTitle: article.title,
@@ -97,7 +105,7 @@ export default function ResubmitArticle() {
       supabase.functions
         .invoke('send-email', {
           body: {
-            to: 'shubhmeena23@gmail.com',
+            to: adminEmail,
             template: 'article-resubmission',
             data: emailData,
             isAdmin: true,

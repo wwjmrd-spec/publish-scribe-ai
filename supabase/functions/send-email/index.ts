@@ -35,6 +35,8 @@ type EmailTemplate =
   | "copyright-form-request"
   | "upgrade-to-pro"
   | "manuscript-revise"
+  | "manuscript-update"
+  | "galley-proof-revision"
   | "custom";
 
 interface EmailRequest {
@@ -646,6 +648,51 @@ const getManuscriptReviseTemplate = (data: EmailRequest["data"]): string => {
   return wrapEmail("Manuscript Revision Required - WWJMRD", body);
 };
 
+const getManuscriptUpdateTemplate = (data: EmailRequest["data"], isAdmin: boolean = false): string => {
+  const infoRows = [
+    emailInfoRow("Reference Number", escapeHtml(data?.referenceNumber || "N/A")),
+    emailInfoRow("Title", escapeHtml(data?.articleTitle || "N/A")),
+    emailInfoRow("Author", escapeHtml(data?.authorName || "N/A")),
+    emailInfoRow("Updated On", escapeHtml(data?.submissionDate || new Date().toLocaleDateString())),
+  ].join("");
+
+  const body = `
+    ${emailH1(isAdmin ? "Manuscript Updated 📝" : "Manuscript Updated Successfully 📝")}
+    ${emailP(isAdmin ? `Author ${escapeHtml(data?.authorName || "Author")} has uploaded an updated manuscript for review.` : `Hi ${escapeHtml(data?.authorName || "Author")},`)}
+    ${isAdmin ? "" : emailP("Your updated manuscript has been uploaded successfully. The admin will review the updated document.")}
+    ${emailInfoBox("Update Details:", infoRows)}
+    ${isAdmin
+      ? emailButton("https://wwjmrdai.lovable.app/admin/articles", "Review Updated Manuscript")
+      : emailButton("https://wwjmrdai.lovable.app/author/articles", "Track Your Article")
+    }
+    ${emailDivider()}
+    ${emailFooterText("If you have any questions, contact us at support@wwjmrd.com")}
+  `;
+  return wrapEmail(isAdmin ? "Manuscript Updated" : "Manuscript Updated Successfully", body);
+};
+
+const getGalleyProofRevisionTemplate = (data: EmailRequest["data"], isAdmin: boolean = false): string => {
+  const infoRows = [
+    emailInfoRow("Reference Number", escapeHtml(data?.referenceNumber || "N/A")),
+    emailInfoRow("Title", escapeHtml(data?.articleTitle || "N/A")),
+    emailInfoRow("Author", escapeHtml(data?.authorName || "N/A")),
+    emailInfoRow("Submitted On", escapeHtml(data?.submissionDate || new Date().toLocaleDateString())),
+  ].join("");
+
+  const body = `
+    ${emailH1(isAdmin ? "Galley Proof Revision Submitted 📝" : "Galley Proof Revision Submitted Successfully 📝")}
+    ${emailP(isAdmin ? `Author ${escapeHtml(data?.authorName || "Author")} has submitted a revised galley proof.` : `Hi ${escapeHtml(data?.authorName || "Author")},`)}
+    ${isAdmin ? "" : emailP("Your revised galley proof has been submitted successfully. The admin will review your revision.")}
+    ${emailInfoBox("Revision Details:", infoRows)}
+    ${isAdmin
+      ? emailButton("https://wwjmrdai.lovable.app/admin/articles", "Review Galley Proof Revision")
+      : emailButton("https://wwjmrdai.lovable.app/author/articles", "Track Your Article")
+    }
+    ${emailDivider()}
+    ${emailFooterText("If you have any questions, contact us at support@wwjmrd.com")}
+  `;
+  return wrapEmail(isAdmin ? "Galley Proof Revision Submitted" : "Galley Proof Revision Submitted Successfully", body);
+};
 
 function getEmailContent(
   template: EmailTemplate,
@@ -730,6 +777,20 @@ function getEmailContent(
       return {
         subject: `Manuscript Revision Required: ${data?.articleTitle || "Your Article"} - WWJMRD`,
         html: getManuscriptReviseTemplate(data),
+      };
+    case "manuscript-update":
+      return {
+        subject: isAdmin
+          ? `Manuscript Updated: ${data?.articleTitle || "Untitled"}`
+          : "Manuscript Updated Successfully - WWJMRD",
+        html: getManuscriptUpdateTemplate(data, isAdmin),
+      };
+    case "galley-proof-revision":
+      return {
+        subject: isAdmin
+          ? `Galley Proof Revision: ${data?.articleTitle || "Untitled"}`
+          : "Galley Proof Revision Submitted - WWJMRD",
+        html: getGalleyProofRevisionTemplate(data, isAdmin),
       };
     default:
       throw new Error(`Unknown email template: ${template}`);
