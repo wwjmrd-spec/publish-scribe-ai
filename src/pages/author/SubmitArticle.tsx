@@ -1139,6 +1139,39 @@ export default function SubmitArticle() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Duplicate Title Dialog */}
+        <Dialog open={showDuplicateDialog} onOpenChange={setShowDuplicateDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-yellow-500" />
+                Article Already Submitted
+              </DialogTitle>
+              <DialogDescription>
+                An article with the same title has already been submitted.
+              </DialogDescription>
+            </DialogHeader>
+            {duplicateArticle && (
+              <div className="p-3 rounded-lg bg-muted/50 border border-border space-y-2">
+                <p className="text-sm"><span className="font-semibold">Title:</span> {duplicateArticle.title}</p>
+                <p className="text-sm"><span className="font-semibold">Reference:</span> {duplicateArticle.reference_number}</p>
+                <p className="text-sm"><span className="font-semibold">Status:</span> {duplicateArticle.status?.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</p>
+              </div>
+            )}
+            <p className="text-sm text-muted-foreground">
+              Do you want to replace and revise this article with your new file and updated information?
+            </p>
+            <DialogFooter className="gap-2">
+              <Button variant="outline" onClick={() => { setShowDuplicateDialog(false); setDuplicateArticle(null); }}>
+                Dismiss
+              </Button>
+              <Button onClick={handleReplaceArticle} disabled={loading} className="gradient-primary">
+                {loading ? <GlassSpinner size="sm" /> : 'Continue & Replace'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </motion.div>
     </DashboardLayout>
   );
