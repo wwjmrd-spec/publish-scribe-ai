@@ -218,8 +218,19 @@ export default function SubmitArticle() {
           title: 'AI scan completed with limited results',
           description: 'Some fields could not be auto-filled. Please review and complete the form.',
         });
+        setValidationWarnings(null);
         setStep(2);
         return;
+      }
+
+      // Check for validation warnings (missing sections)
+      if (data.validation && !data.validation.valid) {
+        setValidationWarnings({
+          missing: data.validation.missing,
+          samples: data.validation.samples,
+        });
+      } else {
+        setValidationWarnings(null);
       }
 
       const meta = data.metadata;
@@ -244,12 +255,15 @@ export default function SubmitArticle() {
 
       setScanProgress(100);
 
-      toast({
-        title: 'AI Scan Complete ✨',
-        description: 'Article details have been auto-filled. Please review and make any corrections.',
-      });
-
-      setStep(2);
+      if (data.validation && !data.validation.valid) {
+        // Don't proceed to step 2, show warning on step 1
+      } else {
+        toast({
+          title: 'AI Scan Complete ✨',
+          description: 'Article details have been auto-filled. Please review and make any corrections.',
+        });
+        setStep(2);
+      }
     } catch (err: any) {
       console.error('Scan error:', err);
       toast({
