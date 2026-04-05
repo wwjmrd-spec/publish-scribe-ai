@@ -492,16 +492,27 @@ export default function SubmitArticle() {
   // Check for duplicate title in database
   const checkDuplicateTitle = async (): Promise<boolean> => {
     if (!title.trim() || !user?.id) return false;
+    
+    // Check globally across ALL authors (not just the current user)
+    const normalizedTitle = title.trim().toLowerCase().replace(/\s+/g, ' ');
     const { data: existingArticles } = await supabase
       .from('articles')
-      .select('id, title, reference_number, status')
-      .eq('author_id', user.id)
-      .ilike('title', title.trim());
+      .select('id, title, reference_number, status, author_id, author_name')
+      .ilike('title', title.trim())
+      .not('status', 'eq', 'withdrawn');
     
     if (existingArticles && existingArticles.length > 0) {
-      setDuplicateArticle(existingArticles[0]);
-      setShowDuplicateDialog(true);
-      return true;
+      // Further filter with normalized comparison to catch spacing/case variations
+      const match = existingArticles.find(a => 
+        a.title.trim().toLowerCase().replace(/\s+/g, ' ') === normalizedTitle
+      );
+      
+      if (match) {
+        const isSameAuthor = match.author_id === user.id;
+        setDuplicateArticle({ ...match, isSameAuthor });
+        setShowDuplicateDialog(true);
+        return true;
+      }
     }
     return false;
   };
