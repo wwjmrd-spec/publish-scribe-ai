@@ -106,10 +106,44 @@ export default function AdminAIReview() {
     }
   };
 
-  const filteredArticles = articles?.filter(article =>
-    article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    article.reference_number.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredArticles = useMemo(() => {
+    let result = articles?.filter(article =>
+      article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      article.reference_number.toLowerCase().includes(searchQuery.toLowerCase())
+    ) || [];
+
+    // Review status filter
+    if (reviewStatusFilter === 'reviewed') {
+      result = result.filter(a => a.article_reviews && a.article_reviews.length > 0);
+    } else if (reviewStatusFilter === 'not_reviewed') {
+      result = result.filter(a => !a.article_reviews || a.article_reviews.length === 0);
+    }
+
+    // Score filter
+    if (scoreFilter !== 'all') {
+      result = result.filter(a => {
+        const review = a.article_reviews?.[0];
+        if (!review) return false;
+        const score = review.overall_score || 0;
+        if (scoreFilter === 'high') return score >= 80;
+        if (scoreFilter === 'medium') return score >= 60 && score < 80;
+        if (scoreFilter === 'low') return score < 60;
+        return true;
+      });
+    }
+
+    // Recommendation filter
+    if (recommendationFilter !== 'all') {
+      result = result.filter(a => {
+        const review = a.article_reviews?.[0];
+        if (!review?.detailed_feedback) return false;
+        const feedback = review.detailed_feedback as any;
+        return feedback?.recommendation === recommendationFilter;
+      });
+    }
+
+    return result;
+  }, [articles, searchQuery, reviewStatusFilter, scoreFilter, recommendationFilter]);
 
   const getScoreColor = (score: number) => {
     if (score >= 80) return 'text-green-400';
