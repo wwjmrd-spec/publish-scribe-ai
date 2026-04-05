@@ -36,6 +36,9 @@ export default function AdminAIReview() {
   const [searchParams] = useSearchParams();
   const selectedArticleId = searchParams.get('articleId');
   const queryClient = useQueryClient();
+  const [scoreFilter, setScoreFilter] = useState<string>('all');
+  const [recommendationFilter, setRecommendationFilter] = useState<string>('all');
+  const [reviewStatusFilter, setReviewStatusFilter] = useState<string>('all');
 
   // Fetch all articles
   const { data: articles, isLoading: articlesLoading } = useQuery({
