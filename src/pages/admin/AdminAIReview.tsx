@@ -201,7 +201,7 @@ export default function AdminAIReview() {
       </motion.div>
 
       {/* Search */}
-      <div className="relative mb-6">
+      <div className="relative mb-4">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
           placeholder="Search articles..."
@@ -210,6 +210,61 @@ export default function AdminAIReview() {
           className="pl-10 glass-input"
         />
       </div>
+
+      {/* Filters */}
+      <div className="mb-6 flex flex-col sm:flex-row gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          <Filter className="w-4 h-4 text-muted-foreground shrink-0" />
+          <span className="text-sm text-muted-foreground shrink-0">Filters:</span>
+        </div>
+        <Select value={reviewStatusFilter} onValueChange={setReviewStatusFilter}>
+          <SelectTrigger className="w-full sm:w-[160px]">
+            <SelectValue placeholder="Review Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Articles</SelectItem>
+            <SelectItem value="reviewed">Reviewed</SelectItem>
+            <SelectItem value="not_reviewed">Not Reviewed</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={scoreFilter} onValueChange={setScoreFilter}>
+          <SelectTrigger className="w-full sm:w-[160px]">
+            <SelectValue placeholder="Score Range" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Scores</SelectItem>
+            <SelectItem value="high">High (80%+)</SelectItem>
+            <SelectItem value="medium">Medium (60-79%)</SelectItem>
+            <SelectItem value="low">Low (&lt;60%)</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={recommendationFilter} onValueChange={setRecommendationFilter}>
+          <SelectTrigger className="w-full sm:w-[180px]">
+            <SelectValue placeholder="Recommendation" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Recommendations</SelectItem>
+            <SelectItem value="accept">Accept</SelectItem>
+            <SelectItem value="minor_revisions">Minor Revisions</SelectItem>
+            <SelectItem value="major_revisions">Major Revisions</SelectItem>
+            <SelectItem value="reject">Reject</SelectItem>
+          </SelectContent>
+        </Select>
+        {(reviewStatusFilter !== 'all' || scoreFilter !== 'all' || recommendationFilter !== 'all') && (
+          <Button variant="ghost" size="sm" onClick={() => { setReviewStatusFilter('all'); setScoreFilter('all'); setRecommendationFilter('all'); }}>
+            Clear filters
+          </Button>
+        )}
+      </div>
+
+      {/* Active filter count */}
+      {(reviewStatusFilter !== 'all' || scoreFilter !== 'all' || recommendationFilter !== 'all') && (
+        <div className="mb-4">
+          <Badge variant="secondary" className="text-xs">
+            {filteredArticles?.length || 0} article(s) matching filters
+          </Badge>
+        </div>
+      )}
 
       {/* Articles List */}
       <div className="space-y-4">
