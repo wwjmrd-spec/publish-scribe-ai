@@ -492,16 +492,27 @@ export default function SubmitArticle() {
   // Check for duplicate title in database
   const checkDuplicateTitle = async (): Promise<boolean> => {
     if (!title.trim() || !user?.id) return false;
+    
+    // Check globally across ALL authors (not just the current user)
+    const normalizedTitle = title.trim().toLowerCase().replace(/\s+/g, ' ');
     const { data: existingArticles } = await supabase
       .from('articles')
-      .select('id, title, reference_number, status')
-      .eq('author_id', user.id)
-      .ilike('title', title.trim());
+      .select('id, title, reference_number, status, author_id, author_name')
+      .ilike('title', title.trim())
+      .not('status', 'eq', 'withdrawn');
     
     if (existingArticles && existingArticles.length > 0) {
-      setDuplicateArticle(existingArticles[0]);
-      setShowDuplicateDialog(true);
-      return true;
+      // Further filter with normalized comparison to catch spacing/case variations
+      const match = existingArticles.find(a => 
+        a.title.trim().toLowerCase().replace(/\s+/g, ' ') === normalizedTitle
+      );
+      
+      if (match) {
+        const isSameAuthor = match.author_id === user.id;
+        setDuplicateArticle({ ...match, isSameAuthor });
+        setShowDuplicateDialog(true);
+        return true;
+      }
     }
     return false;
   };
@@ -1145,11 +1156,17 @@ export default function SubmitArticle() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5 text-yellow-500" />
-                Article Already Submitted
+                {duplicateArticle?.isSameAuthor ? (
+                  <AlertTriangle className="w-5 h-5 text-yellow-500" />
+                ) : (
+                  <XCircle className="w-5 h-5 text-destructive" />
+                )}
+                {duplicateArticle?.isSameAuthor ? 'Article Already Submitted' : 'Duplicate Article Title'}
               </DialogTitle>
               <DialogDescription>
-                An article with the same title has already been submitted.
+                {duplicateArticle?.isSameAuthor
+                  ? 'You have already submitted an article with this title.'
+                  : 'An article with this exact title has already been submitted by another author. Please use a different, unique title for your article.'}
               </DialogDescription>
             </DialogHeader>
             {duplicateArticle && (
@@ -1157,18 +1174,29 @@ export default function SubmitArticle() {
                 <p className="text-sm"><span className="font-semibold">Title:</span> {duplicateArticle.title}</p>
                 <p className="text-sm"><span className="font-semibold">Reference:</span> {duplicateArticle.reference_number}</p>
                 <p className="text-sm"><span className="font-semibold">Status:</span> {duplicateArticle.status?.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</p>
+                {!duplicateArticle.isSameAuthor && duplicateArticle.author_name && (
+                  <p className="text-sm"><span className="font-semibold">Submitted by:</span> {duplicateArticle.author_name}</p>
+                )}
               </div>
             )}
-            <p className="text-sm text-muted-foreground">
-              Do you want to replace and revise this article with your new file and updated information?
-            </p>
+            {duplicateArticle?.isSameAuthor ? (
+              <p className="text-sm text-muted-foreground">
+                Do you want to replace and revise this article with your new file and updated information?
+              </p>
+            ) : (
+              <p className="text-sm text-destructive font-medium">
+                You cannot submit an article with the same title as an existing article. Please modify your title and try again.
+              </p>
+            )}
             <DialogFooter className="gap-2">
               <Button variant="outline" onClick={() => { setShowDuplicateDialog(false); setDuplicateArticle(null); }}>
-                Dismiss
+                {duplicateArticle?.isSameAuthor ? 'Dismiss' : 'Go Back & Edit Title'}
               </Button>
-              <Button onClick={handleReplaceArticle} disabled={loading} className="gradient-primary">
-                {loading ? <GlassSpinner size="sm" /> : 'Continue & Replace'}
-              </Button>
+              {duplicateArticle?.isSameAuthor && (
+                <Button onClick={handleReplaceArticle} disabled={loading} className="gradient-primary">
+                  {loading ? <GlassSpinner size="sm" /> : 'Continue & Replace'}
+                </Button>
+              )}
             </DialogFooter>
           </DialogContent>
         </Dialog>
