@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { GlassCard } from '@/components/layout/GlassCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { 
   Brain, 
   Search,
@@ -15,6 +17,7 @@ import {
   ChevronDown,
   ChevronUp,
   Download,
+  Filter,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -33,6 +36,9 @@ export default function AdminAIReview() {
   const [searchParams] = useSearchParams();
   const selectedArticleId = searchParams.get('articleId');
   const queryClient = useQueryClient();
+  const [scoreFilter, setScoreFilter] = useState<string>('all');
+  const [recommendationFilter, setRecommendationFilter] = useState<string>('all');
+  const [reviewStatusFilter, setReviewStatusFilter] = useState<string>('all');
 
   // Fetch all articles
   const { data: articles, isLoading: articlesLoading } = useQuery({
@@ -100,10 +106,44 @@ export default function AdminAIReview() {
     }
   };
 
-  const filteredArticles = articles?.filter(article =>
-    article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    article.reference_number.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredArticles = useMemo(() => {
+    let result = articles?.filter(article =>
+      article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      article.reference_number.toLowerCase().includes(searchQuery.toLowerCase())
+    ) || [];
+
+    // Review status filter
+    if (reviewStatusFilter === 'reviewed') {
+      result = result.filter(a => a.article_reviews && a.article_reviews.length > 0);
+    } else if (reviewStatusFilter === 'not_reviewed') {
+      result = result.filter(a => !a.article_reviews || a.article_reviews.length === 0);
+    }
+
+    // Score filter
+    if (scoreFilter !== 'all') {
+      result = result.filter(a => {
+        const review = a.article_reviews?.[0];
+        if (!review) return false;
+        const score = review.overall_score || 0;
+        if (scoreFilter === 'high') return score >= 80;
+        if (scoreFilter === 'medium') return score >= 60 && score < 80;
+        if (scoreFilter === 'low') return score < 60;
+        return true;
+      });
+    }
+
+    // Recommendation filter
+    if (recommendationFilter !== 'all') {
+      result = result.filter(a => {
+        const review = a.article_reviews?.[0];
+        if (!review?.detailed_feedback) return false;
+        const feedback = review.detailed_feedback as any;
+        return feedback?.recommendation === recommendationFilter;
+      });
+    }
+
+    return result;
+  }, [articles, searchQuery, reviewStatusFilter, scoreFilter, recommendationFilter]);
 
   const getScoreColor = (score: number) => {
     if (score >= 80) return 'text-green-400';
@@ -161,7 +201,7 @@ export default function AdminAIReview() {
       </motion.div>
 
       {/* Search */}
-      <div className="relative mb-6">
+      <div className="relative mb-4">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
           placeholder="Search articles..."
@@ -170,6 +210,61 @@ export default function AdminAIReview() {
           className="pl-10 glass-input"
         />
       </div>
+
+      {/* Filters */}
+      <div className="mb-6 flex flex-col sm:flex-row gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          <Filter className="w-4 h-4 text-muted-foreground shrink-0" />
+          <span className="text-sm text-muted-foreground shrink-0">Filters:</span>
+        </div>
+        <Select value={reviewStatusFilter} onValueChange={setReviewStatusFilter}>
+          <SelectTrigger className="w-full sm:w-[160px]">
+            <SelectValue placeholder="Review Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Articles</SelectItem>
+            <SelectItem value="reviewed">Reviewed</SelectItem>
+            <SelectItem value="not_reviewed">Not Reviewed</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={scoreFilter} onValueChange={setScoreFilter}>
+          <SelectTrigger className="w-full sm:w-[160px]">
+            <SelectValue placeholder="Score Range" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Scores</SelectItem>
+            <SelectItem value="high">High (80%+)</SelectItem>
+            <SelectItem value="medium">Medium (60-79%)</SelectItem>
+            <SelectItem value="low">Low (&lt;60%)</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={recommendationFilter} onValueChange={setRecommendationFilter}>
+          <SelectTrigger className="w-full sm:w-[180px]">
+            <SelectValue placeholder="Recommendation" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Recommendations</SelectItem>
+            <SelectItem value="accept">Accept</SelectItem>
+            <SelectItem value="minor_revisions">Minor Revisions</SelectItem>
+            <SelectItem value="major_revisions">Major Revisions</SelectItem>
+            <SelectItem value="reject">Reject</SelectItem>
+          </SelectContent>
+        </Select>
+        {(reviewStatusFilter !== 'all' || scoreFilter !== 'all' || recommendationFilter !== 'all') && (
+          <Button variant="ghost" size="sm" onClick={() => { setReviewStatusFilter('all'); setScoreFilter('all'); setRecommendationFilter('all'); }}>
+            Clear filters
+          </Button>
+        )}
+      </div>
+
+      {/* Active filter count */}
+      {(reviewStatusFilter !== 'all' || scoreFilter !== 'all' || recommendationFilter !== 'all') && (
+        <div className="mb-4">
+          <Badge variant="secondary" className="text-xs">
+            {filteredArticles?.length || 0} article(s) matching filters
+          </Badge>
+        </div>
+      )}
 
       {/* Articles List */}
       <div className="space-y-4">
