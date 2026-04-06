@@ -131,30 +131,14 @@ export async function incrementUsage(
 ) {
   const currentMonth = getCurrentMonth();
 
-  // Try to upsert usage
-  const { data: existing } = await supabase
-    .from('plan_usage')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('usage_month', currentMonth)
-    .maybeSingle();
+  const { error } = await supabase.rpc('increment_plan_usage', {
+    p_user_id: userId,
+    p_field: field,
+    p_usage_month: currentMonth,
+  });
 
-  if (existing) {
-    const newValue = (field === 'review_reports_used'
-      ? existing.review_reports_used
-      : existing.coauthor_certs_used) + 1;
-
-    await supabase
-      .from('plan_usage')
-      .update({ [field]: newValue, updated_at: new Date().toISOString() })
-      .eq('id', existing.id);
-  } else {
-    await supabase
-      .from('plan_usage')
-      .insert({
-        user_id: userId,
-        usage_month: currentMonth,
-        [field]: 1,
-      });
+  if (error) {
+    console.error('Failed to increment usage:', error.message);
+    throw error;
   }
 }
