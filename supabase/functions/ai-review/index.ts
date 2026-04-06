@@ -465,13 +465,53 @@ serve(async (req) => {
       return jsonResponse({ error: "Article not found" }, 404);
     }
 
-    // Extract text from the uploaded .docx document
+    // Pick the latest/most relevant document version for review:
+    // Priority: galley proof revision > formatted document > original/revised document
+    const latestDocUrl =
+      article.galley_proof_revision_url ||
+      article.formatted_document_url ||
+      article.document_url;
+
+    console.log("Using document for review:", latestDocUrl, "(original:", article.document_url, ", formatted:", article.formatted_document_url, ", galley revision:", article.galley_proof_revision_url, ")");
+
+    // Extract text from the document
     let documentText = "";
-    if (article.document_url) {
+    if (latestDocUrl) {
+      // Determine which bucket to download from
+      const isFormattedDoc = latestDocUrl === article.formatted_document_url && latestDocUrl !== article.document_url;
+      const bucket = isFormattedDoc ? "formatted-articles" : "documents";
+      
       try {
-        documentText = await extractDocxText(supabase, article.document_url);
+        console.log(`Downloading from bucket '${bucket}':`, latestDocUrl);
+        const { data: fileData, error: downloadError } = await supabase.storage
+          .from(bucket)
+          .download(latestDocUrl);
+
+        if (downloadError || !fileData) {
+          console.error("Document download error:", downloadError);
+          // Fallback to original document if latest fails
+          if (latestDocUrl !== article.document_url && article.document_url) {
+            console.log("Falling back to original document:", article.document_url);
+            documentText = await extractDocxText(supabase, article.document_url);
+          }
+        } else {
+          const arrayBuffer = await fileData.arrayBuffer();
+          console.log("Document downloaded, size:", arrayBuffer.byteLength, "bytes");
+          const result = await mammoth.extractRawText({ arrayBuffer });
+          console.log("Text extracted, length:", result.value.length, "chars");
+          documentText = result.value;
+        }
       } catch (err) {
         console.error("Document extraction failed:", err);
+        // Fallback to original document
+        if (latestDocUrl !== article.document_url && article.document_url) {
+          try {
+            console.log("Falling back to original document:", article.document_url);
+            documentText = await extractDocxText(supabase, article.document_url);
+          } catch (fallbackErr) {
+            console.error("Fallback extraction also failed:", fallbackErr);
+          }
+        }
       }
     }
 
