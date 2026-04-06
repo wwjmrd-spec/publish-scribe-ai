@@ -131,7 +131,7 @@ export async function incrementUsage(
 ) {
   const currentMonth = getCurrentMonth();
 
-  const { error } = await supabase.rpc('increment_plan_usage', {
+  const { error } = await supabase.rpc('increment_plan_usage' as any, {
     p_user_id: userId,
     p_field: field,
     p_usage_month: currentMonth,
