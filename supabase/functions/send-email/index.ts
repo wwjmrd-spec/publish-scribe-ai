@@ -37,6 +37,7 @@ type EmailTemplate =
   | "manuscript-revise"
   | "manuscript-update"
   | "galley-proof-revision"
+  | "article-published"
   | "custom";
 
 interface EmailRequest {
