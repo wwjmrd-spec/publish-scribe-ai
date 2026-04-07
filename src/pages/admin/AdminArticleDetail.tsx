@@ -882,6 +882,48 @@ export default function AdminArticleDetail() {
         </DialogContent>
       </Dialog>
 
+      {/* Edit Publication Details Dialog */}
+      <Dialog open={isEditPublishDialogOpen} onOpenChange={setIsEditPublishDialogOpen}>
+        <DialogContent className="glass-card-strong">
+          <DialogHeader>
+            <DialogTitle className="gradient-text">Update Publication Details</DialogTitle>
+            <DialogDescription>Edit publication details and regenerate the certificate</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-volume">Volume</Label>
+                <Input id="edit-volume" placeholder="e.g., 11" value={editPublishDetails.volume} onChange={(e) => setEditPublishDetails(prev => ({ ...prev, volume: e.target.value }))} className="glass-input" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-issue">Issue</Label>
+                <Input id="edit-issue" placeholder="e.g., 12" value={editPublishDetails.issue} onChange={(e) => setEditPublishDetails(prev => ({ ...prev, issue: e.target.value }))} className="glass-input" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-pageNumber">Page Number</Label>
+                <Input id="edit-pageNumber" placeholder="e.g., 30-32" value={editPublishDetails.pageNumber} onChange={(e) => setEditPublishDetails(prev => ({ ...prev, pageNumber: e.target.value }))} className="glass-input" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-year">Year</Label>
+                <Input id="edit-year" placeholder="e.g., 2025" value={editPublishDetails.year} onChange={(e) => setEditPublishDetails(prev => ({ ...prev, year: e.target.value }))} className="glass-input" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-publishedLink">Published Article Link (optional)</Label>
+              <Input id="edit-publishedLink" placeholder="e.g., https://wwjmrd.com/vol11/issue12/article-1" value={editPublishDetails.publishedLink} onChange={(e) => setEditPublishDetails(prev => ({ ...prev, publishedLink: e.target.value }))} className="glass-input" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditPublishDialogOpen(false)}>Cancel</Button>
+            <Button className="gradient-primary" onClick={() => updatePublishMutation.mutate()} disabled={updatePublishMutation.isPending || !editPublishDetails.volume || !editPublishDetails.issue || !editPublishDetails.pageNumber || !editPublishDetails.year}>
+              {updatePublishMutation.isPending ? (<><GlassSpinner size="sm" className="mr-2" />Updating...</>) : (<><Award className="w-4 h-4 mr-2" />Update & Regenerate Certificate</>)}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Galley Proof Dialog */}
       {article && (
         <SendGalleyProofDialog
