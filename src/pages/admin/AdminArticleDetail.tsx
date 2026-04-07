@@ -133,16 +133,57 @@ export default function AdminArticleDetail() {
       if (response.error) throw new Error(response.error.message);
       return response.data;
     },
-    onSuccess: async () => {
+    onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ['admin-article-detail', articleId] });
       queryClient.invalidateQueries({ queryKey: ['admin-articles'] });
       toast.success('Article published with certificate!');
       setIsPublishDialogOpen(false);
+
+      const authorProfile = article!.profiles as any;
+      const emailData = {
+        authorName: authorProfile?.full_name || 'Author',
+        authorEmail: authorProfile?.email || '',
+        articleTitle: article!.title,
+        referenceNumber: article!.reference_number,
+        volume: publishDetails.volume,
+        issue: publishDetails.issue,
+        pageNumber: publishDetails.pageNumber,
+        year: publishDetails.year,
+        publishedLink: publishDetails.publishedLink || '',
+        certificateNumber: data?.certificateNumber || article!.reference_number,
+      };
+
+      // Send published email to author
+      try {
+        if (authorProfile?.email) {
+          await supabase.functions.invoke('send-email', {
+            body: { to: authorProfile.email, template: 'article-published', data: emailData },
+          });
+        }
+      } catch (emailError) {
+        console.error('Failed to send published email to author:', emailError);
+      }
+
+      // Send published email to admin
+      try {
+        const { data: adminSettings } = await supabase
+          .from('admin_settings')
+          .select('setting_value')
+          .eq('setting_key', 'admin_email')
+          .maybeSingle();
+        const adminEmail = adminSettings?.setting_value || 'shubhmeena23@gmail.com';
+        await supabase.functions.invoke('send-email', {
+          body: { to: adminEmail, template: 'article-published', data: emailData, isAdmin: true },
+        });
+      } catch (emailError) {
+        console.error('Failed to send published email to admin:', emailError);
+      }
+
       setPublishDetails({ volume: '', issue: '', pageNumber: '', year: new Date().getFullYear().toString(), publishedLink: '' });
 
+      // Send referral reward emails if applicable
       try {
         const authorId = article!.author_id;
-        const articleTitle = article!.title;
         const { data: referral } = await supabase
           .from('referrals')
           .select('*, referrer:profiles!referrals_referrer_id_fkey(email, full_name)')
@@ -154,8 +195,6 @@ export default function AdminArticleDetail() {
 
         if (referral && referral.referrer) {
           const referrerProfile = referral.referrer as any;
-          const authorProfile = article!.profiles as any;
-
           await supabase.functions.invoke('send-email', {
             body: {
               to: referrerProfile.email,
@@ -164,7 +203,7 @@ export default function AdminArticleDetail() {
                 referrerName: referrerProfile.full_name,
                 referredName: authorProfile?.full_name || 'Author',
                 referredEmail: authorProfile?.email,
-                articleTitle,
+                articleTitle: article!.title,
                 bonusDownloads: 2,
                 rewardType: 'referrer',
               },
@@ -179,7 +218,7 @@ export default function AdminArticleDetail() {
                 data: {
                   referrerName: referrerProfile.full_name,
                   referredName: authorProfile.full_name,
-                  articleTitle,
+                  articleTitle: article!.title,
                   bonusDownloads: 2,
                   rewardType: 'referred',
                 },
