@@ -46,12 +46,20 @@ export default function AdminArticleDetail() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
+  const [isEditPublishDialogOpen, setIsEditPublishDialogOpen] = useState(false);
   const [isGalleyProofDialogOpen, setIsGalleyProofDialogOpen] = useState(false);
   const [publishDetails, setPublishDetails] = useState({
     volume: '',
     issue: '',
     pageNumber: '',
     year: new Date().getFullYear().toString(),
+    publishedLink: '',
+  });
+  const [editPublishDetails, setEditPublishDetails] = useState({
+    volume: '',
+    issue: '',
+    pageNumber: '',
+    year: '',
     publishedLink: '',
   });
 
@@ -133,16 +141,57 @@ export default function AdminArticleDetail() {
       if (response.error) throw new Error(response.error.message);
       return response.data;
     },
-    onSuccess: async () => {
+    onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ['admin-article-detail', articleId] });
       queryClient.invalidateQueries({ queryKey: ['admin-articles'] });
       toast.success('Article published with certificate!');
       setIsPublishDialogOpen(false);
+
+      const authorProfile = article!.profiles as any;
+      const emailData = {
+        authorName: authorProfile?.full_name || 'Author',
+        authorEmail: authorProfile?.email || '',
+        articleTitle: article!.title,
+        referenceNumber: article!.reference_number,
+        volume: publishDetails.volume,
+        issue: publishDetails.issue,
+        pageNumber: publishDetails.pageNumber,
+        year: publishDetails.year,
+        publishedLink: publishDetails.publishedLink || '',
+        certificateNumber: data?.certificateNumber || article!.reference_number,
+      };
+
+      // Send published email to author
+      try {
+        if (authorProfile?.email) {
+          await supabase.functions.invoke('send-email', {
+            body: { to: authorProfile.email, template: 'article-published', data: emailData },
+          });
+        }
+      } catch (emailError) {
+        console.error('Failed to send published email to author:', emailError);
+      }
+
+      // Send published email to admin
+      try {
+        const { data: adminSettings } = await supabase
+          .from('admin_settings')
+          .select('setting_value')
+          .eq('setting_key', 'admin_email')
+          .maybeSingle();
+        const adminEmail = adminSettings?.setting_value || 'shubhmeena23@gmail.com';
+        await supabase.functions.invoke('send-email', {
+          body: { to: adminEmail, template: 'article-published', data: emailData, isAdmin: true },
+        });
+      } catch (emailError) {
+        console.error('Failed to send published email to admin:', emailError);
+      }
+
       setPublishDetails({ volume: '', issue: '', pageNumber: '', year: new Date().getFullYear().toString(), publishedLink: '' });
 
+      // Send referral reward emails if applicable
       try {
         const authorId = article!.author_id;
-        const articleTitle = article!.title;
         const { data: referral } = await supabase
           .from('referrals')
           .select('*, referrer:profiles!referrals_referrer_id_fkey(email, full_name)')
@@ -154,8 +203,6 @@ export default function AdminArticleDetail() {
 
         if (referral && referral.referrer) {
           const referrerProfile = referral.referrer as any;
-          const authorProfile = article!.profiles as any;
-
           await supabase.functions.invoke('send-email', {
             body: {
               to: referrerProfile.email,
@@ -164,7 +211,7 @@ export default function AdminArticleDetail() {
                 referrerName: referrerProfile.full_name,
                 referredName: authorProfile?.full_name || 'Author',
                 referredEmail: authorProfile?.email,
-                articleTitle,
+                articleTitle: article!.title,
                 bonusDownloads: 2,
                 rewardType: 'referrer',
               },
@@ -179,7 +226,7 @@ export default function AdminArticleDetail() {
                 data: {
                   referrerName: referrerProfile.full_name,
                   referredName: authorProfile.full_name,
-                  articleTitle,
+                  articleTitle: article!.title,
                   bonusDownloads: 2,
                   rewardType: 'referred',
                 },
@@ -193,6 +240,58 @@ export default function AdminArticleDetail() {
     },
     onError: (error) => {
       toast.error('Failed to publish: ' + error.message);
+    },
+  });
+
+  const updatePublishMutation = useMutation({
+    mutationFn: async () => {
+      const response = await supabase.functions.invoke('generate-certificate', {
+        body: {
+          articleId: article!.id,
+          volume: editPublishDetails.volume,
+          issue: editPublishDetails.issue,
+          pageNumber: editPublishDetails.pageNumber,
+          year: editPublishDetails.year,
+          publishedLink: editPublishDetails.publishedLink || null,
+        },
+      });
+      if (response.error) throw new Error(response.error.message);
+      return response.data;
+    },
+    onSuccess: async (data) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-article-detail', articleId] });
+      queryClient.invalidateQueries({ queryKey: ['admin-articles'] });
+      toast.success('Publication details updated & certificate regenerated!');
+      setIsEditPublishDialogOpen(false);
+
+      // Send updated publication email to author
+      const authorProfile = article!.profiles as any;
+      try {
+        if (authorProfile?.email) {
+          await supabase.functions.invoke('send-email', {
+            body: {
+              to: authorProfile.email,
+              template: 'article-published',
+              data: {
+                authorName: authorProfile.full_name || 'Author',
+                articleTitle: article!.title,
+                referenceNumber: article!.reference_number,
+                volume: editPublishDetails.volume,
+                issue: editPublishDetails.issue,
+                pageNumber: editPublishDetails.pageNumber,
+                year: editPublishDetails.year,
+                publishedLink: editPublishDetails.publishedLink || '',
+                certificateNumber: data?.certificateNumber || article!.reference_number,
+              },
+            },
+          });
+        }
+      } catch (emailError) {
+        console.error('Failed to send updated publish email:', emailError);
+      }
+    },
+    onError: (error) => {
+      toast.error('Failed to update: ' + error.message);
     },
   });
 
@@ -409,7 +508,26 @@ export default function AdminArticleDetail() {
             {/* Publication Details */}
             {article.status === 'published' && article.volume && (
               <GlassCard className="border-green-500/20">
-                <h3 className="font-medium text-green-400 mb-3">Publication Details</h3>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-medium text-green-400">Publication Details</h3>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => {
+                      setEditPublishDetails({
+                        volume: article.volume || '',
+                        issue: article.issue || '',
+                        pageNumber: article.page_number || '',
+                        year: article.publication_year || '',
+                        publishedLink: article.published_link || '',
+                      });
+                      setIsEditPublishDialogOpen(true);
+                    }}
+                  >
+                    ✏️ Edit & Regenerate Certificate
+                  </Button>
+                </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
                   <div>
                     <span className="text-muted-foreground">Volume:</span>
@@ -759,6 +877,48 @@ export default function AdminArticleDetail() {
             <Button variant="outline" onClick={() => setIsPublishDialogOpen(false)}>Cancel</Button>
             <Button className="gradient-primary" onClick={() => publishMutation.mutate()} disabled={publishMutation.isPending || !publishDetails.volume || !publishDetails.issue || !publishDetails.pageNumber || !publishDetails.year}>
               {publishMutation.isPending ? (<><GlassSpinner size="sm" className="mr-2" />Generating...</>) : (<><Award className="w-4 h-4 mr-2" />Publish & Generate Certificate</>)}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Publication Details Dialog */}
+      <Dialog open={isEditPublishDialogOpen} onOpenChange={setIsEditPublishDialogOpen}>
+        <DialogContent className="glass-card-strong">
+          <DialogHeader>
+            <DialogTitle className="gradient-text">Update Publication Details</DialogTitle>
+            <DialogDescription>Edit publication details and regenerate the certificate</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-volume">Volume</Label>
+                <Input id="edit-volume" placeholder="e.g., 11" value={editPublishDetails.volume} onChange={(e) => setEditPublishDetails(prev => ({ ...prev, volume: e.target.value }))} className="glass-input" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-issue">Issue</Label>
+                <Input id="edit-issue" placeholder="e.g., 12" value={editPublishDetails.issue} onChange={(e) => setEditPublishDetails(prev => ({ ...prev, issue: e.target.value }))} className="glass-input" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-pageNumber">Page Number</Label>
+                <Input id="edit-pageNumber" placeholder="e.g., 30-32" value={editPublishDetails.pageNumber} onChange={(e) => setEditPublishDetails(prev => ({ ...prev, pageNumber: e.target.value }))} className="glass-input" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-year">Year</Label>
+                <Input id="edit-year" placeholder="e.g., 2025" value={editPublishDetails.year} onChange={(e) => setEditPublishDetails(prev => ({ ...prev, year: e.target.value }))} className="glass-input" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-publishedLink">Published Article Link (optional)</Label>
+              <Input id="edit-publishedLink" placeholder="e.g., https://wwjmrd.com/vol11/issue12/article-1" value={editPublishDetails.publishedLink} onChange={(e) => setEditPublishDetails(prev => ({ ...prev, publishedLink: e.target.value }))} className="glass-input" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditPublishDialogOpen(false)}>Cancel</Button>
+            <Button className="gradient-primary" onClick={() => updatePublishMutation.mutate()} disabled={updatePublishMutation.isPending || !editPublishDetails.volume || !editPublishDetails.issue || !editPublishDetails.pageNumber || !editPublishDetails.year}>
+              {updatePublishMutation.isPending ? (<><GlassSpinner size="sm" className="mr-2" />Updating...</>) : (<><Award className="w-4 h-4 mr-2" />Update & Regenerate Certificate</>)}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -37,6 +37,7 @@ type EmailTemplate =
   | "manuscript-revise"
   | "manuscript-update"
   | "galley-proof-revision"
+  | "article-published"
   | "custom";
 
 interface EmailRequest {
@@ -693,6 +694,67 @@ const getGalleyProofRevisionTemplate = (data: EmailRequest["data"], isAdmin: boo
   `;
   return wrapEmail(isAdmin ? "Galley Proof Revision Submitted" : "Galley Proof Revision Submitted Successfully", body);
 };
+const getArticlePublishedTemplate = (data: EmailRequest["data"], isAdmin: boolean = false): string => {
+  const volume = (data as any)?.volume || "N/A";
+  const issue = (data as any)?.issue || "N/A";
+  const pageNumber = (data as any)?.pageNumber || "N/A";
+  const year = (data as any)?.year || new Date().getFullYear().toString();
+  const publishedLink = (data as any)?.publishedLink || "";
+  const certificateNumber = (data as any)?.certificateNumber || "N/A";
+
+  const infoRows = [
+    emailInfoRow("Reference Number", escapeHtml(data?.referenceNumber || "N/A")),
+    emailInfoRow("Title", escapeHtml(data?.articleTitle || "N/A")),
+    emailInfoRow("Author", escapeHtml(data?.authorName || "N/A")),
+    emailInfoRow("Volume", escapeHtml(volume)),
+    emailInfoRow("Issue", escapeHtml(issue)),
+    emailInfoRow("Pages", escapeHtml(pageNumber)),
+    emailInfoRow("Year", escapeHtml(year)),
+    emailInfoRow("Certificate No.", escapeHtml(certificateNumber)),
+  ].join("");
+
+  if (isAdmin) {
+    const body = `
+      ${emailH1("Article Published & Certificate Generated 🎓")}
+      ${emailP(`An article has been published and a certificate has been generated.`)}
+      ${emailInfoBox("Publication Details:", infoRows)}
+      ${publishedLink ? emailP(`Published Link: <a href="${escapeHtml(publishedLink)}" style="color:#00d4ff; text-decoration:underline;">${escapeHtml(publishedLink)}</a>`) : ""}
+      ${emailButton("https://wwjmrdai.lovable.app/admin/articles", "View in Admin Panel")}
+      ${emailDivider()}
+      ${emailFooterText("This is an automated notification from WWJMRD.")}
+    `;
+    return wrapEmail("Article Published & Certificate Generated", body);
+  }
+
+  const body = `
+    ${emailH1("🎉 Congratulations! Your Article is Published")}
+    ${emailP(`Dear ${escapeHtml(data?.authorName || "Author")},`)}
+    ${emailP(`We are delighted to inform you that your article has been <strong style="color:#10b981;">successfully published</strong> in the World Wide Journal of Multidisciplinary Research and Development (WWJMRD).`)}
+    ${emailInfoBox("Publication Details:", infoRows)}
+    ${publishedLink ? `
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#0d2233" style="background-color:rgba(0,212,255,0.08); border-radius:8px; margin:20px 0;">
+        <tr><td align="center" style="padding:20px;">
+          <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:14px; color:#00d4ff; margin:0;">VIEW YOUR PUBLISHED ARTICLE</p>
+          <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:14px; margin:8px 0;"><a href="${escapeHtml(publishedLink)}" style="color:#00d4ff; text-decoration:underline; word-break:break-all;">${escapeHtml(publishedLink)}</a></p>
+        </td></tr>
+      </table>
+    ` : ""}
+    ${emailP(`Your publication certificate has been generated and is available for download from your dashboard.`)}
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#1a2340" style="background-color:#1a2340; border-radius:8px; margin:20px 0;">
+      <tr><td style="padding:20px;">
+        <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:16px; font-weight:600; color:#ffffff; margin:0 0 12px;">What's Next:</p>
+        ${emailFeatureItem("📜 Download your publication certificate from your dashboard")}
+        ${emailFeatureItem("🔗 Share your published article with your network")}
+        ${emailFeatureItem("👥 Co-author certificates can be requested from your article page")}
+        ${emailFeatureItem("🌟 Refer colleagues and earn discount rewards")}
+      </td></tr>
+    </table>
+    ${emailButton("https://wwjmrdai.lovable.app/author/certificates", "Download Certificate")}
+    ${emailDivider()}
+    ${emailFooterText("Thank you for publishing with WWJMRD. For any questions, contact us at support@wwjmrd.com")}
+  `;
+  return wrapEmail("Your Article is Published! 🎉", body);
+};
 
 function getEmailContent(
   template: EmailTemplate,
@@ -791,6 +853,13 @@ function getEmailContent(
           ? `Galley Proof Revision: ${data?.articleTitle || "Untitled"}`
           : "Galley Proof Revision Submitted - WWJMRD",
         html: getGalleyProofRevisionTemplate(data, isAdmin),
+      };
+    case "article-published":
+      return {
+        subject: isAdmin
+          ? `Article Published: ${data?.articleTitle || "Untitled"} - Certificate Generated`
+          : "🎉 Your Article is Published! - WWJMRD",
+        html: getArticlePublishedTemplate(data, isAdmin),
       };
     default:
       throw new Error(`Unknown email template: ${template}`);
