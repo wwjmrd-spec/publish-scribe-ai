@@ -46,12 +46,20 @@ export default function AdminArticleDetail() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
+  const [isEditPublishDialogOpen, setIsEditPublishDialogOpen] = useState(false);
   const [isGalleyProofDialogOpen, setIsGalleyProofDialogOpen] = useState(false);
   const [publishDetails, setPublishDetails] = useState({
     volume: '',
     issue: '',
     pageNumber: '',
     year: new Date().getFullYear().toString(),
+    publishedLink: '',
+  });
+  const [editPublishDetails, setEditPublishDetails] = useState({
+    volume: '',
+    issue: '',
+    pageNumber: '',
+    year: '',
     publishedLink: '',
   });
 
