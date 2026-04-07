@@ -465,16 +465,7 @@ serve(async (req) => {
       return jsonResponse({ error: "Article not found" }, 404);
     }
 
-    // Pick the latest/most relevant document version for review:
-    // Priority: galley proof revision > formatted document > original/revised document
-    const latestDocUrl =
-      article.galley_proof_revision_url ||
-      article.formatted_document_url ||
-      article.document_url;
-
-    console.log("Using document for review:", latestDocUrl, "(original:", article.document_url, ", formatted:", article.formatted_document_url, ", galley revision:", article.galley_proof_revision_url, ")");
-
-    // Extract text from the document
+    // Extract text from the best available document version
     let documentText = "";
     
     // Try multiple document sources in priority order
