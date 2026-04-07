@@ -528,12 +528,19 @@ serve(async (req) => {
       });
     }
 
-    // Build content for review
+    // Build content for review - require document text for a proper review
+    if (!documentText && article.document_url) {
+      return jsonResponse({ 
+        error: "Could not extract text from the article document. Please ensure the file is a valid .docx file and try again." 
+      }, 400);
+    }
+
     const contentToReview = documentText
       ? `Title: ${article.title}\n\nAbstract: ${article.abstract || "No abstract provided"}\n\nKeywords: ${article.keywords?.join(", ") || "No keywords provided"}\n\n--- Full Document Content ---\n${documentText.substring(0, 30000)}`
       : `Title: ${article.title}\n\nAbstract: ${article.abstract || "No abstract provided"}\n\nKeywords: ${article.keywords?.join(", ") || "No keywords provided"}`;
 
-    console.log("Sending article for AI review:", article.reference_number, "Content length:", contentToReview.length);
+    const reviewSource = documentText ? "full_document" : "metadata_only";
+    console.log("Sending article for AI review:", article.reference_number, "Source:", reviewSource, "Content length:", contentToReview.length);
 
     // Call Lovable AI Gateway for review
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
