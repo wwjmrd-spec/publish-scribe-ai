@@ -243,7 +243,59 @@ export default function AdminArticleDetail() {
     },
   });
 
-  const downloadMutation = useMutation({
+  const updatePublishMutation = useMutation({
+    mutationFn: async () => {
+      const response = await supabase.functions.invoke('generate-certificate', {
+        body: {
+          articleId: article!.id,
+          volume: editPublishDetails.volume,
+          issue: editPublishDetails.issue,
+          pageNumber: editPublishDetails.pageNumber,
+          year: editPublishDetails.year,
+          publishedLink: editPublishDetails.publishedLink || null,
+        },
+      });
+      if (response.error) throw new Error(response.error.message);
+      return response.data;
+    },
+    onSuccess: async (data) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-article-detail', articleId] });
+      queryClient.invalidateQueries({ queryKey: ['admin-articles'] });
+      toast.success('Publication details updated & certificate regenerated!');
+      setIsEditPublishDialogOpen(false);
+
+      // Send updated publication email to author
+      const authorProfile = article!.profiles as any;
+      try {
+        if (authorProfile?.email) {
+          await supabase.functions.invoke('send-email', {
+            body: {
+              to: authorProfile.email,
+              template: 'article-published',
+              data: {
+                authorName: authorProfile.full_name || 'Author',
+                articleTitle: article!.title,
+                referenceNumber: article!.reference_number,
+                volume: editPublishDetails.volume,
+                issue: editPublishDetails.issue,
+                pageNumber: editPublishDetails.pageNumber,
+                year: editPublishDetails.year,
+                publishedLink: editPublishDetails.publishedLink || '',
+                certificateNumber: data?.certificateNumber || article!.reference_number,
+              },
+            },
+          });
+        }
+      } catch (emailError) {
+        console.error('Failed to send updated publish email:', emailError);
+      }
+    },
+    onError: (error) => {
+      toast.error('Failed to update: ' + error.message);
+    },
+  });
+
+
     mutationFn: async ({ fileType }: { fileType: string }) => {
       const response = await supabase.functions.invoke('get-document-url', {
         body: { articleId, fileType },
