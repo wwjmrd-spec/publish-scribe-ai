@@ -465,62 +465,73 @@ serve(async (req) => {
       return jsonResponse({ error: "Article not found" }, 404);
     }
 
-    // Pick the latest/most relevant document version for review:
-    // Priority: galley proof revision > formatted document > original/revised document
-    const latestDocUrl =
-      article.galley_proof_revision_url ||
-      article.formatted_document_url ||
-      article.document_url;
-
-    console.log("Using document for review:", latestDocUrl, "(original:", article.document_url, ", formatted:", article.formatted_document_url, ", galley revision:", article.galley_proof_revision_url, ")");
-
-    // Extract text from the document
+    // Extract text from the best available document version
     let documentText = "";
-    if (latestDocUrl) {
-      // Determine which bucket to download from
-      const isFormattedDoc = latestDocUrl === article.formatted_document_url && latestDocUrl !== article.document_url;
-      const bucket = isFormattedDoc ? "formatted-articles" : "documents";
-      
+    
+    // Try multiple document sources in priority order
+    const docSources = [
+      { url: article.galley_proof_revision_url, bucket: "documents", label: "galley proof revision" },
+      { url: article.formatted_document_url, bucket: "formatted-articles", label: "formatted document" },
+      { url: article.document_url, bucket: "documents", label: "original document" },
+    ].filter(s => s.url);
+
+    for (const source of docSources) {
       try {
-        console.log(`Downloading from bucket '${bucket}':`, latestDocUrl);
+        console.log(`Trying ${source.label} from bucket '${source.bucket}':`, source.url);
         const { data: fileData, error: downloadError } = await supabase.storage
-          .from(bucket)
-          .download(latestDocUrl);
+          .from(source.bucket)
+          .download(source.url);
 
         if (downloadError || !fileData) {
-          console.error("Document download error:", downloadError);
-          // Fallback to original document if latest fails
-          if (latestDocUrl !== article.document_url && article.document_url) {
-            console.log("Falling back to original document:", article.document_url);
-            documentText = await extractDocxText(supabase, article.document_url);
-          }
-        } else {
-          const arrayBuffer = await fileData.arrayBuffer();
-          console.log("Document downloaded, size:", arrayBuffer.byteLength, "bytes");
-          const result = await mammoth.extractRawText({ arrayBuffer });
-          console.log("Text extracted, length:", result.value.length, "chars");
+          console.error(`Download failed for ${source.label}:`, downloadError?.message);
+          continue;
+        }
+
+        const arrayBuffer = await fileData.arrayBuffer();
+        console.log(`${source.label} downloaded, size:`, arrayBuffer.byteLength, "bytes");
+        
+        if (arrayBuffer.byteLength < 100) {
+          console.error(`${source.label} file too small (${arrayBuffer.byteLength} bytes), skipping`);
+          continue;
+        }
+
+        const result = await mammoth.extractRawText({ arrayBuffer });
+        console.log(`Text extracted from ${source.label}, length:`, result.value.length, "chars");
+        
+        if (result.value.trim().length > 50) {
           documentText = result.value;
+          console.log(`Using ${source.label} for review`);
+          break;
+        } else {
+          console.error(`${source.label} text too short (${result.value.trim().length} chars), trying next`);
         }
       } catch (err) {
-        console.error("Document extraction failed:", err);
-        // Fallback to original document
-        if (latestDocUrl !== article.document_url && article.document_url) {
-          try {
-            console.log("Falling back to original document:", article.document_url);
-            documentText = await extractDocxText(supabase, article.document_url);
-          } catch (fallbackErr) {
-            console.error("Fallback extraction also failed:", fallbackErr);
-          }
-        }
+        console.error(`Failed to extract ${source.label}:`, err);
+        continue;
       }
     }
 
-    // Build content for review
+    if (!documentText) {
+      console.error("ALL document sources failed. Available URLs:", {
+        document_url: article.document_url,
+        formatted_document_url: article.formatted_document_url,
+        galley_proof_revision_url: article.galley_proof_revision_url,
+      });
+    }
+
+    // Build content for review - require document text for a proper review
+    if (!documentText && article.document_url) {
+      return jsonResponse({ 
+        error: "Could not extract text from the article document. Please ensure the file is a valid .docx file and try again." 
+      }, 400);
+    }
+
     const contentToReview = documentText
       ? `Title: ${article.title}\n\nAbstract: ${article.abstract || "No abstract provided"}\n\nKeywords: ${article.keywords?.join(", ") || "No keywords provided"}\n\n--- Full Document Content ---\n${documentText.substring(0, 30000)}`
       : `Title: ${article.title}\n\nAbstract: ${article.abstract || "No abstract provided"}\n\nKeywords: ${article.keywords?.join(", ") || "No keywords provided"}`;
 
-    console.log("Sending article for AI review:", article.reference_number, "Content length:", contentToReview.length);
+    const reviewSource = documentText ? "full_document" : "metadata_only";
+    console.log("Sending article for AI review:", article.reference_number, "Source:", reviewSource, "Content length:", contentToReview.length);
 
     // Call Lovable AI Gateway for review
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
