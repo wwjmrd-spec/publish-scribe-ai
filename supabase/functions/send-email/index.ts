@@ -756,7 +756,7 @@ const getArticlePublishedTemplate = (data: EmailRequest["data"], isAdmin: boolea
   return wrapEmail("Your Article is Published! 🎉", body);
 };
 
-
+function getEmailContent(
   template: EmailTemplate,
   data?: EmailRequest["data"],
   isAdmin: boolean = false
