@@ -508,7 +508,26 @@ export default function AdminArticleDetail() {
             {/* Publication Details */}
             {article.status === 'published' && article.volume && (
               <GlassCard className="border-green-500/20">
-                <h3 className="font-medium text-green-400 mb-3">Publication Details</h3>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-medium text-green-400">Publication Details</h3>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => {
+                      setEditPublishDetails({
+                        volume: article.volume || '',
+                        issue: article.issue || '',
+                        pageNumber: article.page_number || '',
+                        year: article.publication_year || '',
+                        publishedLink: article.published_link || '',
+                      });
+                      setIsEditPublishDialogOpen(true);
+                    }}
+                  >
+                    ✏️ Edit & Regenerate Certificate
+                  </Button>
+                </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
                   <div>
                     <span className="text-muted-foreground">Volume:</span>
