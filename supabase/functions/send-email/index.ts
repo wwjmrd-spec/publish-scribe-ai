@@ -854,6 +854,13 @@ const getArticlePublishedTemplate = (data: EmailRequest["data"], isAdmin: boolea
           : "Galley Proof Revision Submitted - WWJMRD",
         html: getGalleyProofRevisionTemplate(data, isAdmin),
       };
+    case "article-published":
+      return {
+        subject: isAdmin
+          ? `Article Published: ${data?.articleTitle || "Untitled"} - Certificate Generated`
+          : "🎉 Your Article is Published! - WWJMRD",
+        html: getArticlePublishedTemplate(data, isAdmin),
+      };
     default:
       throw new Error(`Unknown email template: ${template}`);
   }
