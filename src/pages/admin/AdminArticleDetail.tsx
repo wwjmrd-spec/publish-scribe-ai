@@ -295,7 +295,7 @@ export default function AdminArticleDetail() {
     },
   });
 
-
+  const downloadMutation = useMutation({
     mutationFn: async ({ fileType }: { fileType: string }) => {
       const response = await supabase.functions.invoke('get-document-url', {
         body: { articleId, fileType },
