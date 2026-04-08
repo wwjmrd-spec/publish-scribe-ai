@@ -495,7 +495,9 @@ serve(async (req) => {
           continue;
         }
 
-        const result = await mammoth.extractRawText({ arrayBuffer });
+        // mammoth needs a Buffer, not raw ArrayBuffer
+        const buffer = new Uint8Array(arrayBuffer);
+        const result = await mammoth.extractRawText({ buffer });
         console.log(`Text extracted from ${source.label}, length:`, result.value.length, "chars");
         
         if (result.value.trim().length > 50) {
