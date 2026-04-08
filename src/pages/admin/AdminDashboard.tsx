@@ -20,6 +20,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import { useNavigate } from 'react-router-dom';
 import { WeeklyReport } from '@/components/admin/WeeklyReport';
+import { DiscoverySourceReport } from '@/components/admin/DiscoverySourceReport';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -326,6 +327,11 @@ export default function AdminDashboard() {
       {/* Weekly Report */}
       <div className="mb-8">
         <WeeklyReport />
+      </div>
+
+      {/* Discovery Source Report */}
+      <div className="mb-8">
+        <DiscoverySourceReport />
       </div>
 
       {/* Recent Articles */}
