@@ -161,6 +161,12 @@ serve(async (req) => {
       filePath = article.galley_proof_revision_url || null;
     } else if (fileType === "copyright_form") {
       filePath = article.copyright_form_url || null;
+    } else if (fileType === "galley_proof_word") {
+      bucket = "formatted-articles";
+      filePath = article.galley_proof_word_url || null;
+    } else if (fileType === "galley_proof_pdf") {
+      bucket = "formatted-articles";
+      filePath = article.galley_proof_pdf_url || null;
     }
 
     if (!filePath) {
