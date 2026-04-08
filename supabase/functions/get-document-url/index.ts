@@ -185,6 +185,8 @@ serve(async (req) => {
       review_report: ".pdf",
       formatted_document: ".pdf",
       galley_proof_revision: ".docx",
+      galley_proof_word: ".docx",
+      galley_proof_pdf: ".pdf",
       copyright_form: ".pdf",
     };
     const ext = extensionMap[fileType] || "";
