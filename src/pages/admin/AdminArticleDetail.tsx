@@ -446,6 +446,12 @@ export default function AdminArticleDetail() {
                       <p className="text-sm mt-1">{article.reason_of_research}</p>
                     </div>
                   )}
+                  {(article as any).discovery_source && (
+                    <div>
+                      <label className="text-xs text-muted-foreground">Discovery Source</label>
+                      <p className="text-sm">{(article as any).discovery_source === 'google_search' ? '🔍 Google Search' : (article as any).discovery_source === 'friend_colleague' ? '👥 Friend/Colleague' : '📱 Social Media'}</p>
+                    </div>
+                  )}
                 </div>
               </GlassCard>
             )}
