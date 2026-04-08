@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { GlassCard } from '@/components/layout/GlassCard';
 import { CalendarDays, FileText, Users, DollarSign, TrendingUp, TrendingDown, Minus, IndianRupee } from 'lucide-react';
@@ -6,6 +6,10 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import { startOfWeek, endOfWeek, subWeeks, format } from 'date-fns';
+import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
 
 interface WeeklyMetric {
   label: string;
@@ -16,11 +20,12 @@ interface WeeklyMetric {
 }
 
 export function WeeklyReport() {
-  const now = new Date();
-  const thisWeekStart = startOfWeek(now, { weekStartsOn: 1 });
-  const thisWeekEnd = endOfWeek(now, { weekStartsOn: 1 });
-  const lastWeekStart = startOfWeek(subWeeks(now, 1), { weekStartsOn: 1 });
-  const lastWeekEnd = endOfWeek(subWeeks(now, 1), { weekStartsOn: 1 });
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+
+  const thisWeekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
+  const thisWeekEnd = endOfWeek(selectedDate, { weekStartsOn: 1 });
+  const lastWeekStart = startOfWeek(subWeeks(selectedDate, 1), { weekStartsOn: 1 });
+  const lastWeekEnd = endOfWeek(subWeeks(selectedDate, 1), { weekStartsOn: 1 });
 
   const { data: weeklyData, isLoading } = useQuery({
     queryKey: ['admin-weekly-report', thisWeekStart.toISOString()],
@@ -82,38 +87,11 @@ export function WeeklyReport() {
   }
 
   const metrics: WeeklyMetric[] = [
-    {
-      label: 'New Submissions',
-      thisWeek: weeklyData?.articles.thisWeek || 0,
-      lastWeek: weeklyData?.articles.lastWeek || 0,
-      icon: <FileText className="w-4 h-4" />,
-    },
-    {
-      label: 'New Authors',
-      thisWeek: weeklyData?.authors.thisWeek || 0,
-      lastWeek: weeklyData?.authors.lastWeek || 0,
-      icon: <Users className="w-4 h-4" />,
-    },
-    {
-      label: 'Revenue (₹)',
-      thisWeek: weeklyData?.revenueINR.thisWeek || 0,
-      lastWeek: weeklyData?.revenueINR.lastWeek || 0,
-      icon: <IndianRupee className="w-4 h-4" />,
-      prefix: '₹',
-    },
-    {
-      label: 'Revenue ($)',
-      thisWeek: weeklyData?.revenueUSD.thisWeek || 0,
-      lastWeek: weeklyData?.revenueUSD.lastWeek || 0,
-      icon: <DollarSign className="w-4 h-4" />,
-      prefix: '$',
-    },
-    {
-      label: 'Published',
-      thisWeek: weeklyData?.published.thisWeek || 0,
-      lastWeek: weeklyData?.published.lastWeek || 0,
-      icon: <FileText className="w-4 h-4" />,
-    },
+    { label: 'New Submissions', thisWeek: weeklyData?.articles.thisWeek || 0, lastWeek: weeklyData?.articles.lastWeek || 0, icon: <FileText className="w-4 h-4" /> },
+    { label: 'New Authors', thisWeek: weeklyData?.authors.thisWeek || 0, lastWeek: weeklyData?.authors.lastWeek || 0, icon: <Users className="w-4 h-4" /> },
+    { label: 'Revenue (₹)', thisWeek: weeklyData?.revenueINR.thisWeek || 0, lastWeek: weeklyData?.revenueINR.lastWeek || 0, icon: <IndianRupee className="w-4 h-4" />, prefix: '₹' },
+    { label: 'Revenue ($)', thisWeek: weeklyData?.revenueUSD.thisWeek || 0, lastWeek: weeklyData?.revenueUSD.lastWeek || 0, icon: <DollarSign className="w-4 h-4" />, prefix: '$' },
+    { label: 'Published', thisWeek: weeklyData?.published.thisWeek || 0, lastWeek: weeklyData?.published.lastWeek || 0, icon: <FileText className="w-4 h-4" /> },
   ];
 
   const getTrend = (thisWeek: number, lastWeek: number) => {
@@ -135,14 +113,32 @@ export function WeeklyReport() {
       transition={{ delay: 0.45 }}
     >
       <GlassCard>
-        <div className="flex items-center gap-3 mb-4">
-          <CalendarDays className="w-6 h-6 text-primary" />
-          <div>
-            <h2 className="font-display text-xl font-semibold">Weekly Report</h2>
-            <p className="text-xs text-muted-foreground">
-              {format(thisWeekStart, 'MMM d')} – {format(thisWeekEnd, 'MMM d, yyyy')}
-            </p>
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <div className="flex items-center gap-3">
+            <CalendarDays className="w-6 h-6 text-primary" />
+            <div>
+              <h2 className="font-display text-xl font-semibold">Weekly Report</h2>
+              <p className="text-xs text-muted-foreground">
+                {format(thisWeekStart, 'MMM d')} – {format(thisWeekEnd, 'MMM d, yyyy')}
+              </p>
+            </div>
           </div>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-1.5">
+                <CalendarDays className="w-4 h-4" />
+                Select Week
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={(d) => d && setSelectedDate(d)}
+                className={cn("p-3 pointer-events-auto")}
+              />
+            </PopoverContent>
+          </Popover>
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
