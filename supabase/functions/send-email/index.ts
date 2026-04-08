@@ -222,7 +222,7 @@ const getArticleSubmissionTemplate = (data: EmailRequest["data"], isAdmin: boole
     ${emailInfoBox("Submission Details:", infoRows.join(""))}
     ${
       isAdmin
-        ? emailButton("https://wwjmrdai.lovable.app/admin/articles", "Review Article")
+        ? emailButton("https://wwjmrdai.online/admin/articles", "Review Article")
         : `
       ${emailP("What happens next:")}
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#1a2340" style="background-color:#1a2340; border-radius:8px; margin:20px 0;">
@@ -237,11 +237,11 @@ const getArticleSubmissionTemplate = (data: EmailRequest["data"], isAdmin: boole
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:10px 0 20px;">
         <tr>
           <td align="center">
-            <a href="https://wwjmrdai.lovable.app/copyright-form.doc" download style="display:inline-block; background-color:#1a2340; color:#00d4ff; padding:10px 20px; border-radius:6px; text-decoration:none; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:14px; font-weight:600; border:1px solid rgba(0,212,255,0.3);">📥 Download Copyright Form</a>
+            <a href="https://wwjmrdai.online/copyright-form.doc" download style="display:inline-block; background-color:#1a2340; color:#00d4ff; padding:10px 20px; border-radius:6px; text-decoration:none; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:14px; font-weight:600; border:1px solid rgba(0,212,255,0.3);">📥 Download Copyright Form</a>
           </td>
         </tr>
       </table>
-      ${emailButton("https://wwjmrdai.lovable.app/author/articles", "Track Your Article")}
+      ${emailButton("https://wwjmrdai.online/author/articles", "Track Your Article")}
     `
     }
     ${emailDivider()}
@@ -298,7 +298,7 @@ const getPaymentConfirmationTemplate = (data: EmailRequest["data"], isAdmin: boo
     }
     ${
       isAdmin
-        ? emailButton("https://wwjmrdai.lovable.app/admin/articles", "View Articles")
+        ? emailButton("https://wwjmrdai.online/admin/articles", "View Articles")
         : `
       ${emailP("What happens next:")}
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#1a2340" style="background-color:#1a2340; border-radius:8px; margin:20px 0;">
@@ -308,7 +308,7 @@ const getPaymentConfirmationTemplate = (data: EmailRequest["data"], isAdmin: boo
           ${emailFeatureItem("📜 You'll receive your publication certificate soon")}
         </td></tr>
       </table>
-      ${emailButton("https://wwjmrdai.lovable.app/author/certificates", "View Certificates")}
+      ${emailButton("https://wwjmrdai.online/author/certificates", "View Certificates")}
     `
     }
     ${emailDivider()}
@@ -360,7 +360,7 @@ const getReferralRewardTemplate = (data: EmailRequest["data"]): string => {
         ${emailFeatureItem('🥇 3 successful referrals → <strong style="color:#ffffff;">$50 discount</strong>')}
       </td></tr>
     </table>
-    ${emailButton("https://wwjmrdai.lovable.app/author/rewards", isReferrer ? "View Your Rewards" : "View Your Referral Code")}
+    ${emailButton("https://wwjmrdai.online/author/rewards", isReferrer ? "View Your Rewards" : "View Your Referral Code")}
     ${emailDivider()}
     ${emailFooterText("Discount codes are valid for 1 year and can be used once. For any questions, contact us at support@wwjmrd.com")}
   `;
@@ -440,11 +440,11 @@ const getArticleStatusChangeTemplate = (data: EmailRequest["data"]): string => {
           ${emailFeatureItem('4️⃣ Resubmit your revised article for reconsideration')}
         </td></tr>
       </table>
-      ${emailButton("https://wwjmrdai.lovable.app/author/articles", "Download Review Report & Revise")}
+      ${emailButton("https://wwjmrdai.online/author/articles", "Download Review Report & Revise")}
     ` : isPendingFee || isManuscriptAccepted
         ? emailP("Please log in to your dashboard to complete the payment and proceed with publication.") +
-          emailButton("https://wwjmrdai.lovable.app/author/articles", "Pay Publication Fee")
-        : emailButton("https://wwjmrdai.lovable.app/author/articles", "View My Articles")
+          emailButton("https://wwjmrdai.online/author/articles", "Pay Publication Fee")
+        : emailButton("https://wwjmrdai.online/author/articles", "View My Articles")
     }
     ${emailDivider()}
     ${emailFooterText("If you have any questions about this update, contact us at support@wwjmrd.com")}
@@ -479,10 +479,10 @@ const getReviewReportReadyTemplate = (data: EmailRequest["data"]): string => {
           ${emailFeatureItem('4️⃣ Resubmit your revised article for reconsideration')}
         </td></tr>
       </table>
-      ${emailButton("https://wwjmrdai.lovable.app/author/articles", "Download Report & Revise Article")}
+      ${emailButton("https://wwjmrdai.online/author/articles", "Download Report & Revise Article")}
     ` : `
       ${emailP("Log in to your dashboard to view the full review report and download it.")}
-      ${emailButton("https://wwjmrdai.lovable.app/author/articles", "View Review Report")}
+      ${emailButton("https://wwjmrdai.online/author/articles", "View Review Report")}
     `}
     ${emailDivider()}
     ${emailFooterText("This is an automated notification from WWJMRD. If you have questions about the review, please contact us at support@wwjmrd.com.")}
@@ -503,7 +503,7 @@ const getPaymentReminderTemplate = (data: EmailRequest["data"]): string => {
       ].join(""),
     )}
     ${emailP("Please log in to your dashboard and complete the payment at your earliest convenience to avoid any delays in publishing your article.")}
-    ${emailButton("https://wwjmrdai.lovable.app/author/articles", "Pay Publication Fee Now")}
+    ${emailButton("https://wwjmrdai.online/author/articles", "Pay Publication Fee Now")}
     ${emailDivider()}
     ${emailFooterText("If you've already made the payment, please disregard this email. For any queries, contact us at support@wwjmrd.com")}
   `;
@@ -524,8 +524,8 @@ const getArticleResubmissionTemplate = (data: EmailRequest["data"], isAdmin: boo
     ${isAdmin ? "" : emailP("Your revised article has been resubmitted and is now under review again.")}
     ${emailInfoBox("Resubmission Details:", infoRows)}
     ${isAdmin
-      ? emailButton("https://wwjmrdai.lovable.app/admin/articles", "Review Article")
-      : emailButton("https://wwjmrdai.lovable.app/author/articles", "Track Your Article")
+      ? emailButton("https://wwjmrdai.online/admin/articles", "Review Article")
+      : emailButton("https://wwjmrdai.online/author/articles", "Track Your Article")
     }
     ${emailDivider()}
     ${emailFooterText("If you have any questions, contact us at support@wwjmrd.com")}
@@ -570,7 +570,7 @@ const getGalleyProofReviewTemplate = (data: EmailRequest["data"]): string => {
       </tr>
     </table>
     
-    ${emailButton("https://wwjmrdai.lovable.app/author/articles", "Review in Dashboard")}
+    ${emailButton("https://wwjmrdai.online/author/articles", "Review in Dashboard")}
     
     ${emailDivider()}
     ${emailFooterText(`⏰ Please respond by ${deadline}. You can still submit after the deadline, but timely responses help us publish faster.`)}
@@ -595,7 +595,7 @@ const getCopyrightFormRequestTemplate = (data: EmailRequest["data"]): string => 
       </td></tr>
     </table>
     
-    ${emailButton("https://wwjmrdai.lovable.app/author/articles", "Submit Copyright Form")}
+    ${emailButton("https://wwjmrdai.online/author/articles", "Submit Copyright Form")}
     ${emailDivider()}
     ${emailFooterText("If you have any questions about the copyright form, contact us at support@wwjmrd.com")}
   `;
@@ -618,7 +618,7 @@ const getUpgradeToProTemplate = (data: EmailRequest["data"]): string => {
       </td></tr>
     </table>
     
-    ${emailButton("https://wwjmrdai.lovable.app/author/subscription", "Upgrade to Pro")}
+    ${emailButton("https://wwjmrdai.online/author/subscription", "Upgrade to Pro")}
     ${emailDivider()}
     ${emailFooterText("If you have any questions about the Pro plan, contact us at support@wwjmrd.com")}
   `;
@@ -642,7 +642,7 @@ const getManuscriptReviseTemplate = (data: EmailRequest["data"]): string => {
       </td></tr>
     </table>
     
-    ${emailButton("https://wwjmrdai.lovable.app/author/articles", "Go to My Articles")}
+    ${emailButton("https://wwjmrdai.online/author/articles", "Go to My Articles")}
     ${emailDivider()}
     ${emailFooterText("If you have any questions, contact us at support@wwjmrd.com")}
   `;
@@ -663,8 +663,8 @@ const getManuscriptUpdateTemplate = (data: EmailRequest["data"], isAdmin: boolea
     ${isAdmin ? "" : emailP("Your updated manuscript has been uploaded successfully. The admin will review the updated document.")}
     ${emailInfoBox("Update Details:", infoRows)}
     ${isAdmin
-      ? emailButton("https://wwjmrdai.lovable.app/admin/articles", "Review Updated Manuscript")
-      : emailButton("https://wwjmrdai.lovable.app/author/articles", "Track Your Article")
+      ? emailButton("https://wwjmrdai.online/admin/articles", "Review Updated Manuscript")
+      : emailButton("https://wwjmrdai.online/author/articles", "Track Your Article")
     }
     ${emailDivider()}
     ${emailFooterText("If you have any questions, contact us at support@wwjmrd.com")}
@@ -686,8 +686,8 @@ const getGalleyProofRevisionTemplate = (data: EmailRequest["data"], isAdmin: boo
     ${isAdmin ? "" : emailP("Your revised galley proof has been submitted successfully. The admin will review your revision.")}
     ${emailInfoBox("Revision Details:", infoRows)}
     ${isAdmin
-      ? emailButton("https://wwjmrdai.lovable.app/admin/articles", "Review Galley Proof Revision")
-      : emailButton("https://wwjmrdai.lovable.app/author/articles", "Track Your Article")
+      ? emailButton("https://wwjmrdai.online/admin/articles", "Review Galley Proof Revision")
+      : emailButton("https://wwjmrdai.online/author/articles", "Track Your Article")
     }
     ${emailDivider()}
     ${emailFooterText("If you have any questions, contact us at support@wwjmrd.com")}
@@ -719,7 +719,7 @@ const getArticlePublishedTemplate = (data: EmailRequest["data"], isAdmin: boolea
       ${emailP(`An article has been published and a certificate has been generated.`)}
       ${emailInfoBox("Publication Details:", infoRows)}
       ${publishedLink ? emailP(`Published Link: <a href="${escapeHtml(publishedLink)}" style="color:#00d4ff; text-decoration:underline;">${escapeHtml(publishedLink)}</a>`) : ""}
-      ${emailButton("https://wwjmrdai.lovable.app/admin/articles", "View in Admin Panel")}
+      ${emailButton("https://wwjmrdai.online/admin/articles", "View in Admin Panel")}
       ${emailDivider()}
       ${emailFooterText("This is an automated notification from WWJMRD.")}
     `;
@@ -749,7 +749,7 @@ const getArticlePublishedTemplate = (data: EmailRequest["data"], isAdmin: boolea
         ${emailFeatureItem("🌟 Refer colleagues and earn discount rewards")}
       </td></tr>
     </table>
-    ${emailButton("https://wwjmrdai.lovable.app/author/certificates", "Download Certificate")}
+    ${emailButton("https://wwjmrdai.online/author/certificates", "Download Certificate")}
     ${emailDivider()}
     ${emailFooterText("Thank you for publishing with WWJMRD. For any questions, contact us at support@wwjmrd.com")}
   `;
@@ -858,7 +858,7 @@ function getEmailContent(
       return {
         subject: isAdmin
           ? `Article Published: ${data?.articleTitle || "Untitled"} - Certificate Generated`
-          : "🎉 Your Article is Published! - WWJMRD",
+          : `🎉 Your Article is Published! ${data?.referenceNumber ? `(${data.referenceNumber})` : ""} - WWJMRD`,
         html: getArticlePublishedTemplate(data, isAdmin),
       };
     default:

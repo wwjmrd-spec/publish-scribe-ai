@@ -446,6 +446,12 @@ export default function AdminArticleDetail() {
                       <p className="text-sm mt-1">{article.reason_of_research}</p>
                     </div>
                   )}
+                  {(article as any).discovery_source && (
+                    <div>
+                      <label className="text-xs text-muted-foreground">Discovery Source</label>
+                      <p className="text-sm">{(article as any).discovery_source === 'google_search' ? '🔍 Google Search' : (article as any).discovery_source === 'friend_colleague' ? '👥 Friend/Colleague' : '📱 Social Media'}</p>
+                    </div>
+                  )}
                 </div>
               </GlassCard>
             )}
@@ -554,6 +560,72 @@ export default function AdminArticleDetail() {
                     </a>
                   </div>
                 )}
+              </GlassCard>
+            )}
+
+            {/* Galley Proof Tracking */}
+            {((article as any).galley_proof_status || (article as any).galley_proof_sent_at) && (
+              <GlassCard>
+                <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Galley Proof Tracking</h3>
+                <div className="space-y-3">
+                  {/* Sent */}
+                  <div className={`p-3 rounded-lg border ${(article as any).galley_proof_sent_at ? 'bg-primary/5 border-primary/20' : 'bg-muted/30 border-border'}`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Send className="w-4 h-4 text-primary" />
+                        <span className="text-sm font-medium">Galley Proof Sent</span>
+                      </div>
+                      {(article as any).galley_proof_sent_at ? (
+                        <span className="text-xs text-primary">{new Date((article as any).galley_proof_sent_at).toLocaleString()}</span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">Not sent</span>
+                      )}
+                    </div>
+                    {(article as any).galley_proof_deadline && (
+                      <p className="text-xs text-muted-foreground mt-1">Deadline: {new Date((article as any).galley_proof_deadline).toLocaleString()}</p>
+                    )}
+                  </div>
+
+                  {/* Approved */}
+                  <div className={`p-3 rounded-lg border ${(article as any).galley_proof_status === 'approved' ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-muted/30 border-border'}`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4 text-emerald-500" />
+                        <span className="text-sm font-medium">Author Approved</span>
+                      </div>
+                      <span className={`text-xs ${(article as any).galley_proof_status === 'approved' ? 'text-emerald-500' : 'text-muted-foreground'}`}>
+                        {(article as any).galley_proof_status === 'approved' ? '✅ Approved' : 'Pending'}
+                      </span>
+                    </div>
+                    {(article as any).galley_proof_consent && (
+                      <p className="text-xs text-emerald-500 mt-1">Consent given by author</p>
+                    )}
+                  </div>
+
+                  {/* Revised */}
+                  <div className={`p-3 rounded-lg border ${(article as any).galley_proof_status === 'revision_submitted' ? 'bg-amber-500/5 border-amber-500/20' : 'bg-muted/30 border-border'}`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <RotateCcw className="w-4 h-4 text-amber-500" />
+                        <span className="text-sm font-medium">Revised Galley Proof</span>
+                      </div>
+                      <span className={`text-xs ${(article as any).galley_proof_status === 'revision_submitted' ? 'text-amber-500' : 'text-muted-foreground'}`}>
+                        {(article as any).galley_proof_status === 'revision_submitted' ? '📝 Revision Received' : 'N/A'}
+                      </span>
+                    </div>
+                    {(article as any).galley_proof_revision_url && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-2 h-7 text-xs"
+                        onClick={() => downloadMutation.mutate({ fileType: 'galley_proof_revision' })}
+                        disabled={downloadMutation.isPending}
+                      >
+                        <Download className="w-3 h-3 mr-1" /> Download Revised File
+                      </Button>
+                    )}
+                  </div>
+                </div>
               </GlassCard>
             )}
           </div>
@@ -829,6 +901,16 @@ export default function AdminArticleDetail() {
                 {(article as any).galley_proof_revision_url && (
                   <Button variant="outline" size="sm" onClick={() => downloadMutation.mutate({ fileType: 'galley_proof_revision' })} disabled={downloadMutation.isPending}>
                     <Download className="w-4 h-4 mr-2" /> Revised Galley Proof
+                  </Button>
+                )}
+                {(article as any).galley_proof_word_url && (
+                  <Button variant="outline" size="sm" onClick={() => downloadMutation.mutate({ fileType: 'galley_proof_word' })} disabled={downloadMutation.isPending}>
+                    <Download className="w-4 h-4 mr-2" /> Galley Proof (Word)
+                  </Button>
+                )}
+                {(article as any).galley_proof_pdf_url && (
+                  <Button variant="outline" size="sm" onClick={() => downloadMutation.mutate({ fileType: 'galley_proof_pdf' })} disabled={downloadMutation.isPending}>
+                    <Download className="w-4 h-4 mr-2" /> Galley Proof (PDF)
                   </Button>
                 )}
                 <Button variant="outline" size="sm" onClick={() => navigate(`/admin/ai-review?articleId=${article.id}`)}>

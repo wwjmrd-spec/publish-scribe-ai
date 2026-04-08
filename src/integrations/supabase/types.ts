@@ -114,6 +114,7 @@ export type Database = {
           copyright_form_url: string | null
           country: string | null
           created_at: string | null
+          discovery_source: string | null
           document_url: string | null
           fee_reminder_email_sent_at: string | null
           formatted_content: string | null
@@ -158,6 +159,7 @@ export type Database = {
           copyright_form_url?: string | null
           country?: string | null
           created_at?: string | null
+          discovery_source?: string | null
           document_url?: string | null
           fee_reminder_email_sent_at?: string | null
           formatted_content?: string | null
@@ -202,6 +204,7 @@ export type Database = {
           copyright_form_url?: string | null
           country?: string | null
           created_at?: string | null
+          discovery_source?: string | null
           document_url?: string | null
           fee_reminder_email_sent_at?: string | null
           formatted_content?: string | null

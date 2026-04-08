@@ -81,6 +81,7 @@ export default function SubmitArticle() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentGateway>('razorpay');
   const [honeypot, setHoneypot] = useState('');
   const [formLoadTime] = useState(Date.now());
+  const [discoverySource, setDiscoverySource] = useState('');
   const [pageCount, setPageCount] = useState<number | null>(null);
   const [validationWarnings, setValidationWarnings] = useState<{ missing: string[]; samples: Record<string, string> } | null>(null);
   const [duplicateArticle, setDuplicateArticle] = useState<any>(null);
@@ -343,6 +344,7 @@ export default function SubmitArticle() {
         submission_target: articleSubmissionTarget.trim() || null,
         publication_type: articlePublicationType,
         page_count: pageCount,
+        discovery_source: discoverySource || null,
       } as any)
       .select()
       .single();
@@ -1064,6 +1066,38 @@ export default function SubmitArticle() {
                 onUpdate={updateCoAuthor}
               />
 
+              {/* How did you hear about us */}
+              <GlassCard>
+                <h2 className="font-display text-xl font-semibold mb-4 flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-primary" />
+                  How did you hear about us?
+                </h2>
+                <RadioGroup
+                  value={discoverySource}
+                  onValueChange={setDiscoverySource}
+                  className="space-y-3"
+                >
+                  {[
+                    { value: 'google_search', label: 'Google Search', icon: '🔍' },
+                    { value: 'friend_colleague', label: 'Referred by Friend or Colleague', icon: '👥' },
+                    { value: 'social_media', label: 'Social Media', icon: '📱' },
+                  ].map((option) => (
+                    <label
+                      key={option.value}
+                      htmlFor={`discovery-${option.value}`}
+                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                        discoverySource === option.value
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border hover:border-muted-foreground/30'
+                      }`}
+                    >
+                      <RadioGroupItem value={option.value} id={`discovery-${option.value}`} />
+                      <span className="text-sm font-medium">{option.icon} {option.label}</span>
+                    </label>
+                  ))}
+                </RadioGroup>
+              </GlassCard>
+
               {pageCount && pageCount > 2 && (
                 <div className="flex items-center gap-2 p-3 rounded-lg bg-yellow-100 border border-yellow-400 text-sm text-yellow-800 dark:bg-yellow-900/30 dark:border-yellow-600 dark:text-yellow-300">
                   ⚠️ <span>Your article has more than 2 pages. It will <strong>not</strong> be considered under free publication. A publication fee will be required after manuscript acceptance.</span>
@@ -1141,6 +1175,7 @@ export default function SubmitArticle() {
                       setSubmissionTarget('');
                       setPublicationType('normal');
                       setSubmittedRef('');
+                      setDiscoverySource('');
                     }}
                   >
                     Submit Another
