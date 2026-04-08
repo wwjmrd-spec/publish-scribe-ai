@@ -831,6 +831,16 @@ export default function AdminArticleDetail() {
                     <Download className="w-4 h-4 mr-2" /> Revised Galley Proof
                   </Button>
                 )}
+                {(article as any).galley_proof_word_url && (
+                  <Button variant="outline" size="sm" onClick={() => downloadMutation.mutate({ fileType: 'galley_proof_word' })} disabled={downloadMutation.isPending}>
+                    <Download className="w-4 h-4 mr-2" /> Galley Proof (Word)
+                  </Button>
+                )}
+                {(article as any).galley_proof_pdf_url && (
+                  <Button variant="outline" size="sm" onClick={() => downloadMutation.mutate({ fileType: 'galley_proof_pdf' })} disabled={downloadMutation.isPending}>
+                    <Download className="w-4 h-4 mr-2" /> Galley Proof (PDF)
+                  </Button>
+                )}
                 <Button variant="outline" size="sm" onClick={() => navigate(`/admin/ai-review?articleId=${article.id}`)}>
                   <Brain className="w-4 h-4 mr-2" /> AI Review
                 </Button>

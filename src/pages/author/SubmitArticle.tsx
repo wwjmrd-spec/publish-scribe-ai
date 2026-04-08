@@ -1175,6 +1175,7 @@ export default function SubmitArticle() {
                       setSubmissionTarget('');
                       setPublicationType('normal');
                       setSubmittedRef('');
+                      setDiscoverySource('');
                     }}
                   >
                     Submit Another
