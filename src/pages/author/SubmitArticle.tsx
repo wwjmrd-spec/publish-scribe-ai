@@ -81,6 +81,7 @@ export default function SubmitArticle() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentGateway>('razorpay');
   const [honeypot, setHoneypot] = useState('');
   const [formLoadTime] = useState(Date.now());
+  const [discoverySource, setDiscoverySource] = useState('');
   const [pageCount, setPageCount] = useState<number | null>(null);
   const [validationWarnings, setValidationWarnings] = useState<{ missing: string[]; samples: Record<string, string> } | null>(null);
   const [duplicateArticle, setDuplicateArticle] = useState<any>(null);
@@ -343,6 +344,7 @@ export default function SubmitArticle() {
         submission_target: articleSubmissionTarget.trim() || null,
         publication_type: articlePublicationType,
         page_count: pageCount,
+        discovery_source: discoverySource || null,
       } as any)
       .select()
       .single();
