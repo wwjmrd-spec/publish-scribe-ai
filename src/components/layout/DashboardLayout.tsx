@@ -26,6 +26,7 @@ import {
   Gift,
   Megaphone,
   Bug,
+  Send,
 } from 'lucide-react';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { GuidedTour } from '@/components/onboarding/GuidedTour';
@@ -60,6 +61,7 @@ const adminNavItems: NavItem[] = [
   { label: 'Articles', href: '/admin/articles', icon: FileText },
   { label: 'AI Review', href: '/admin/ai-review', icon: Brain },
   { label: 'Formatting', href: '/admin/formatting', icon: FileText },
+  { label: 'Galley Proofs', href: '/admin/galley-proofs', icon: Send },
   { label: 'Authors', href: '/admin/authors', icon: Users },
   { label: 'Discount Codes', href: '/admin/discounts', icon: Tag },
   { label: 'Revenue', href: '/admin/revenue', icon: BarChart3 },
