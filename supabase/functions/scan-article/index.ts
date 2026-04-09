@@ -7,59 +7,79 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Check for required sections in article text
 function validateArticleSections(text: string): { valid: boolean; missing: string[]; samples: Record<string, string> } {
-  const lowerText = text.toLowerCase();
   const missing: string[] = [];
 
   const samples: Record<string, string> = {
-    "Title": "Your article must start with a clear title, e.g.:\n\"Impact of Machine Learning on Healthcare: A Comprehensive Review\"",
-    "Author Name(s) and Affiliation": "Include author details after the title, e.g.:\n\"John Doe¹, Jane Smith²\n¹Department of Computer Science, MIT, USA\n²School of Engineering, Stanford University, USA\"",
-    "Abstract (80-120 words)": "Add an abstract section, e.g.:\n\"Abstract: This paper presents a comprehensive review of machine learning applications in healthcare...\"",
-    "Keywords (3-5)": "Add keywords after the abstract, e.g.:\n\"Keywords: machine learning, healthcare, deep learning, medical imaging, AI\"",
-    "Introduction": "Include an Introduction section, e.g.:\n\"1. Introduction\nThe rapid advancement of artificial intelligence has transformed...\"",
-    "References/Bibliography": "End with references, e.g.:\n\"References\n[1] Smith, J. (2023). Machine Learning in Medicine. Journal of AI Research, 45(2), 112-128.\n[2] Doe, A. (2022). Deep Learning Applications. Nature, 580, 123-130.\"",
+    "Title": "Your article must start with a clear title.",
+    "Author Name(s) and Affiliation": "Include author details after the title.",
+    "Abstract (80-120 words)": "Add an abstract section.",
+    "Keywords (3-5)": "Add keywords after the abstract.",
+    "Introduction": "Include an Introduction section.",
+    "References/Bibliography": "End with references.",
   };
 
-  // Check for title - first meaningful line (heuristic: check if text starts with something meaningful)
-  // Title is hard to detect automatically, we rely on AI extraction for this
-
-  // Check for author/affiliation indicators
   const hasAuthor = /\b(author|affiliation|department|university|institute|college|school of)\b/i.test(text);
-  if (!hasAuthor) {
-    missing.push("Author Name(s) and Affiliation");
-  }
+  if (!hasAuthor) missing.push("Author Name(s) and Affiliation");
 
-  // Check for abstract
   const hasAbstract = /\babstract\b/i.test(text);
-  if (!hasAbstract) {
-    missing.push("Abstract (80-120 words)");
-  }
+  if (!hasAbstract) missing.push("Abstract (80-120 words)");
 
-  // Check for keywords
   const hasKeywords = /\b(keywords?|key\s*words?|key\s*terms?)\b/i.test(text);
-  if (!hasKeywords) {
-    missing.push("Keywords (3-5)");
-  }
+  if (!hasKeywords) missing.push("Keywords (3-5)");
 
-  // Check for introduction
   const hasIntroduction = /\b(introduction|1\.\s*introduction)\b/i.test(text);
-  if (!hasIntroduction) {
-    missing.push("Introduction");
-  }
+  if (!hasIntroduction) missing.push("Introduction");
 
-  // Check for references/bibliography
   const hasReferences = /\b(references?|bibliography|works?\s*cited)\b/i.test(text);
-  if (!hasReferences) {
-    missing.push("References/Bibliography");
-  }
+  if (!hasReferences) missing.push("References/Bibliography");
 
   const resultSamples: Record<string, string> = {};
-  for (const m of missing) {
-    resultSamples[m] = samples[m] || "";
-  }
+  for (const m of missing) resultSamples[m] = samples[m] || "";
 
   return { valid: missing.length === 0, missing, samples: resultSamples };
+}
+
+// Improved page count estimation using multiple heuristics
+function estimatePageCount(text: string): number {
+  const fullText = text.trim();
+  const words = fullText.split(/\s+/).filter((w: string) => w.length > 0);
+  const totalWords = words.length;
+  
+  // Check for explicit page indicators in the text
+  const pageIndicators = fullText.match(/\bpage\s+(\d+)\b/gi) || [];
+  const pageNumbers = fullText.match(/(?:^|\n)\s*[-—]\s*(\d+)\s*[-—]\s*(?:$|\n)/gm) || [];
+  const footerPages = fullText.match(/(?:^|\n)\s*(\d+)\s*(?:$|\n)/gm) || [];
+  
+  let maxPageFromIndicators = 0;
+  
+  for (const match of pageIndicators) {
+    const num = parseInt(match.replace(/\D/g, ''));
+    if (num > 0 && num < 200) maxPageFromIndicators = Math.max(maxPageFromIndicators, num);
+  }
+  for (const match of pageNumbers) {
+    const num = parseInt(match.replace(/\D/g, ''));
+    if (num > 0 && num < 200) maxPageFromIndicators = Math.max(maxPageFromIndicators, num);
+  }
+
+  // Word-based estimation: academic papers ~250 words/page (with figures, tables, spacing)
+  const wordBasedEstimate = Math.max(1, Math.ceil(totalWords / 250));
+  
+  // Character-based estimation: ~1800 characters per page for academic text
+  const charBasedEstimate = Math.max(1, Math.ceil(fullText.length / 1800));
+  
+  // Line-based estimation: ~45 lines per page
+  const lines = fullText.split(/\n/).length;
+  const lineBasedEstimate = Math.max(1, Math.ceil(lines / 45));
+  
+  // Use the most reliable estimate
+  if (maxPageFromIndicators > 0 && maxPageFromIndicators <= wordBasedEstimate * 2) {
+    return maxPageFromIndicators;
+  }
+  
+  // Average of word and character based, weighted toward word count
+  const avgEstimate = Math.round((wordBasedEstimate * 2 + charBasedEstimate + lineBasedEstimate) / 4);
+  return Math.max(1, avgEstimate);
 }
 
 serve(async (req) => {
@@ -68,7 +88,6 @@ serve(async (req) => {
   }
 
   try {
-    // --- Authentication ---
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(
@@ -92,9 +111,6 @@ serve(async (req) => {
       );
     }
 
-    const userId = claimsData.claims.sub;
-
-    // --- Input validation ---
     const { text } = await req.json();
 
     if (!text || typeof text !== "string" || text.trim().length < 50) {
@@ -104,20 +120,16 @@ serve(async (req) => {
       );
     }
 
-    // --- Validate required sections ---
     const validation = validateArticleSections(text);
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("AI service is not configured");
-    }
+    if (!LOVABLE_API_KEY) throw new Error("AI service is not configured");
 
     const fullText = text.trim();
     const truncatedText = fullText.substring(0, 15000);
-
-    // More accurate page count: count words in full text, ~275 words per page
-    const totalWordCount = fullText.split(/\s+/).filter((w: string) => w.length > 0).length;
-    const estimatedPageCount = Math.max(1, Math.ceil(totalWordCount / 275));
+    
+    // Calculate page count locally with improved heuristics
+    const estimatedPageCount = estimatePageCount(fullText);
 
     const response = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",
@@ -132,7 +144,7 @@ serve(async (req) => {
           messages: [
             {
               role: "system",
-              content: `You are an academic article metadata extractor. Analyze the provided article text and extract structured metadata. You MUST call the extract_article_metadata function with the extracted data.`,
+              content: `You are an academic article metadata extractor. Extract structured metadata from the article text. You MUST call the extract_article_metadata function. For page_count: look for page numbers, headers, footers, or "Page X" indicators. The document has approximately ${estimatedPageCount} pages based on word count analysis (~250 words per page for academic articles). Only override this estimate if you find explicit page number indicators in the text.`,
             },
             {
               role: "user",
@@ -148,46 +160,27 @@ serve(async (req) => {
                 parameters: {
                   type: "object",
                   properties: {
-                    title: {
-                      type: "string",
-                      description: "The title of the article",
-                    },
-                    abstract: {
-                      type: "string",
-                      description: "The abstract/summary of the article. If not explicitly labeled, summarize the key points in 2-3 sentences.",
-                    },
-                    keywords: {
-                      type: "string",
-                      description: "Comma-separated keywords relevant to the article",
-                    },
-                    subject: {
-                      type: "string",
-                      description: "The primary academic subject/discipline (e.g., Computer Science, Environmental Biology)",
-                    },
-                    author_name: {
-                      type: "string",
-                      description: "The primary author's full name",
-                    },
+                    title: { type: "string", description: "The title of the article" },
+                    abstract: { type: "string", description: "The abstract/summary of the article." },
+                    keywords: { type: "string", description: "Comma-separated keywords" },
+                    subject: { type: "string", description: "Primary academic subject/discipline" },
+                    author_name: { type: "string", description: "Primary author's full name" },
                     co_authors: {
                       type: "array",
                       items: {
                         type: "object",
                         properties: {
-                          name: { type: "string", description: "Co-author full name" },
-                          email: { type: "string", description: "Co-author email if found" },
-                          affiliation: { type: "string", description: "Co-author institution/affiliation if found" },
+                          name: { type: "string" },
+                          email: { type: "string" },
+                          affiliation: { type: "string" },
                         },
                         required: ["name"],
                       },
-                      description: "List of co-authors found in the article",
                     },
-                    reason_of_research: {
-                      type: "string",
-                      description: "The motivation or reason behind the research, extracted from introduction or objectives",
-                    },
+                    reason_of_research: { type: "string", description: "Motivation behind the research" },
                     page_count: {
                       type: "integer",
-                      description: "The number of pages in the article. Look for page numbers, page breaks, headers/footers with page indicators. If page markers are found, use the highest page number. Otherwise leave empty and the system will estimate from word count.",
+                      description: `Number of pages. Only set this if you find explicit page markers (e.g. 'Page 5', page numbers in headers/footers). If unsure, leave empty and the system will use ${estimatedPageCount} (estimated from word count).`,
                     },
                   },
                   required: ["title"],
@@ -203,16 +196,12 @@ serve(async (req) => {
 
     if (!response.ok) {
       if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Rate limit exceeded, please try again later." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return new Response(JSON.stringify({ error: "Rate limit exceeded, please try again later." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "AI credits exhausted. Please try again later." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return new Response(JSON.stringify({ error: "AI credits exhausted. Please try again later." }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       const errorText = await response.text();
       console.error("AI gateway error:", response.status, errorText);
@@ -220,8 +209,6 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    
-    // Extract tool call result
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
     if (!toolCall || toolCall.function?.name !== "extract_article_metadata") {
       throw new Error("AI did not return structured metadata");
@@ -229,9 +216,15 @@ serve(async (req) => {
 
     const metadata = JSON.parse(toolCall.function.arguments);
 
-    // Use AI-detected page count, or fall back to word-count estimate from full text
+    // Use AI page count only if reasonable, otherwise use our local estimate
     if (!metadata.page_count || metadata.page_count < 1) {
       metadata.page_count = estimatedPageCount;
+    } else {
+      // Sanity check: AI page count should be within 3x of our estimate
+      if (metadata.page_count > estimatedPageCount * 3 || metadata.page_count < Math.max(1, Math.floor(estimatedPageCount / 3))) {
+        console.log(`AI page count ${metadata.page_count} seems unreliable vs estimate ${estimatedPageCount}. Using estimate.`);
+        metadata.page_count = estimatedPageCount;
+      }
     }
 
     return new Response(
