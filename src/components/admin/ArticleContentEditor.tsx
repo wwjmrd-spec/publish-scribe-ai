@@ -5,7 +5,7 @@ import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import {
   Save, CheckCircle, X, Eye, Bold, Italic, Underline,
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
-  List, ListOrdered, Undo, Redo, Strikethrough, Type,
+  List, ListOrdered, Undo, Redo, Strikethrough,
   Table2, Columns2, Columns3, LayoutGrid, Minus, Plus,
   Trash2, PaintBucket, Grid3X3, SeparatorHorizontal, Hash,
 } from 'lucide-react';
@@ -20,9 +20,9 @@ import {
 } from '@/components/ui/select';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
-  DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger,
-  DropdownMenuSubContent, DropdownMenuSeparator, DropdownMenuLabel,
+  DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
+import { Label } from '@/components/ui/label';
 
 interface ArticleContentEditorProps {
   articleId: string;
@@ -56,37 +56,37 @@ const EDITOR_STYLES = `
   th { background: #f0f0f0; font-weight: bold; }
   hr { border: none; border-top: 1px solid #ccc; margin: 12px 0; }
   a { color: #0066cc; }
-  .layout-two-col { display: flex; gap: 12px; margin: 8px 0; }
-  .layout-two-col > div { flex: 1; }
-  .layout-three-col { display: flex; gap: 12px; margin: 8px 0; }
-  .layout-three-col > div { flex: 1; }
-  .layout-sidebar-left { display: flex; gap: 12px; margin: 8px 0; }
+  .layout-two-col { column-count: 2; column-gap: 16px; }
+  .layout-three-col { column-count: 3; column-gap: 12px; }
+  .layout-sidebar-left { display: flex; gap: 12px; }
   .layout-sidebar-left > div:first-child { flex: 1; }
   .layout-sidebar-left > div:last-child { flex: 2; }
-  .layout-sidebar-right { display: flex; gap: 12px; margin: 8px 0; }
+  .layout-sidebar-right { display: flex; gap: 12px; }
   .layout-sidebar-right > div:first-child { flex: 2; }
   .layout-sidebar-right > div:last-child { flex: 1; }
   table.table-bordered td, table.table-bordered th { border: 2px solid #333; }
   table.table-minimal td, table.table-minimal th { border: none; border-bottom: 1px solid #ddd; }
   table.table-striped tr:nth-child(even) td { background: #f9f9f9; }
   table.table-colored th { background: #2c7a7b; color: #fff; }
-  table.table-colored td { border-color: #2c7a7b; }
   .page-break { 
     page-break-before: always; break-before: page;
-    border: none; border-top: 2px dashed #e74c3c; margin: 20px 0; padding: 0; position: relative;
+    border: none; border-top: 2px dashed #e74c3c; margin: 20px 0; position: relative;
   }
   .page-break::after {
     content: '— Page Break —'; position: absolute; top: -10px; left: 50%;
     transform: translateX(-50%); background: #fff; padding: 0 8px;
     font-size: 10px; color: #e74c3c; font-family: Arial, sans-serif; font-weight: bold;
   }
-  .page-number {
-    text-align: center; font-size: 10px; color: #555; margin: 8px 0;
-    font-family: 'Times New Roman', serif;
-  }
 `;
 
 const FONT_SIZES = ['8', '9', '10', '11', '12', '14', '16', '18', '20', '24'];
+
+// A4 dimensions in mm
+const A4_WIDTH_MM = 210;
+const A4_HEIGHT_MM = 297;
+const MARGIN_MM = 15;
+const FOOTER_HEIGHT_MM = 10;
+const CONTENT_HEIGHT_MM = A4_HEIGHT_MM - (MARGIN_MM * 2) - FOOTER_HEIGHT_MM;
 
 export function ArticleContentEditor({
   articleId, initialContent, articleTitle, referenceNumber, onClose,
@@ -96,6 +96,7 @@ export function ArticleContentEditor({
   const [approving, setApproving] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [ready, setReady] = useState(false);
+  const [columns, setColumns] = useState<1 | 2 | 3>(1);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -146,8 +147,8 @@ export function ArticleContentEditor({
 
   const insertLayout = useCallback((type: string) => {
     const layouts: Record<string, string> = {
-      'two-col': '<div class="layout-two-col"><div><p>Column 1 content</p></div><div><p>Column 2 content</p></div></div>',
-      'three-col': '<div class="layout-three-col"><div><p>Column 1</p></div><div><p>Column 2</p></div><div><p>Column 3</p></div></div>',
+      'two-col': '<div class="layout-two-col"><p>Column 1 content</p><p>Column 2 content</p></div>',
+      'three-col': '<div class="layout-three-col"><p>Column 1</p><p>Column 2</p><p>Column 3</p></div>',
       'sidebar-left': '<div class="layout-sidebar-left"><div><p>Sidebar</p></div><div><p>Main content</p></div></div>',
       'sidebar-right': '<div class="layout-sidebar-right"><div><p>Main content</p></div><div><p>Sidebar</p></div></div>',
     };
@@ -270,36 +271,171 @@ export function ArticleContentEditor({
     }
   };
 
-  const previewHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Times New Roman', Times, serif; background: #e5e7eb; padding: 20px; }
-    .page { background: white; width: 210mm; min-height: 297mm; margin: 0 auto; padding: 15mm; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
-    .page h1 { font-size: 16px; text-align: center; margin: 12px 0; }
-    .page h2 { font-size: 14px; margin: 16px 0 8px; }
-    .page h3 { font-size: 13px; margin: 12px 0 6px; }
-    .page p { text-align: justify; font-size: 11px; line-height: 1.6; margin: 4px 0; }
-    .page ul, .page ol { margin: 4px 0 4px 20px; font-size: 11px; }
-    .page table { border-collapse: collapse; width: 100%; margin: 8px 0; }
-    .page td, .page th { border: 1px solid #999; padding: 4px 6px; font-size: 10px; }
-    .page th { background: #f0f0f0; font-weight: bold; }
-    .page hr { border: none; border-top: 1px solid #ccc; margin: 12px 0; }
-    .layout-two-col, .layout-three-col, .layout-sidebar-left, .layout-sidebar-right { display: flex; gap: 12px; margin: 8px 0; }
-    .layout-two-col > div, .layout-three-col > div { flex: 1; }
-    .layout-sidebar-left > div:first-child { flex: 1; } .layout-sidebar-left > div:last-child { flex: 2; }
-    .layout-sidebar-right > div:first-child { flex: 2; } .layout-sidebar-right > div:last-child { flex: 1; }
-    table.table-bordered td, table.table-bordered th { border: 2px solid #333; }
-    table.table-minimal td, table.table-minimal th { border: none; border-bottom: 1px solid #ddd; }
-    table.table-striped tr:nth-child(even) td { background: #f9f9f9; }
-    table.table-colored th { background: #2c7a7b; color: #fff; }
-    .page-break { page-break-before: always; break-before: page; border: none; border-top: 2px dashed #e74c3c; margin: 20px 0; }
-    .page-number { text-align: center; font-size: 10px; color: #555; margin: 8px 0; }
-    @media print { .page-break { border: none; } }
-  </style></head><body><div class="page">${getContent()}</div></body></html>`;
+  // Build paginated A4 preview HTML
+  const buildPaginatedPreview = () => {
+    const content = getContent();
+    const colStyle = columns > 1 ? `column-count: ${columns}; column-gap: 16px;` : '';
+    
+    return `<!DOCTYPE html><html><head><meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Times New Roman', Times, serif; background: #525659; padding: 20px; }
+  
+  .a4-page {
+    background: white;
+    width: ${A4_WIDTH_MM}mm;
+    height: ${A4_HEIGHT_MM}mm;
+    margin: 0 auto 20px;
+    padding: ${MARGIN_MM}mm;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .page-content {
+    flex: 1;
+    overflow: hidden;
+    ${colStyle}
+  }
+  
+  .page-footer {
+    text-align: center;
+    font-size: 10px;
+    color: #555;
+    padding-top: 8px;
+    border-top: 1px solid #ddd;
+    margin-top: auto;
+    font-family: 'Times New Roman', serif;
+    height: ${FOOTER_HEIGHT_MM}mm;
+    flex-shrink: 0;
+  }
+  
+  .page-content h1 { font-size: 16px; text-align: center; margin: 12px 0; font-weight: bold; }
+  .page-content h2 { font-size: 14px; margin: 16px 0 8px; font-weight: bold; }
+  .page-content h3 { font-size: 13px; margin: 12px 0 6px; font-weight: bold; }
+  .page-content p { text-align: justify; font-size: 11px; line-height: 1.6; margin: 4px 0; }
+  .page-content strong { font-weight: bold; }
+  .page-content em { font-style: italic; }
+  .page-content ul, .page-content ol { margin: 4px 0 4px 20px; font-size: 11px; }
+  .page-content table { border-collapse: collapse; width: 100%; margin: 8px 0; }
+  .page-content td, .page-content th { border: 1px solid #999; padding: 4px 6px; font-size: 10px; }
+  .page-content th { background: #f0f0f0; font-weight: bold; }
+  .page-content hr { border: none; border-top: 1px solid #ccc; margin: 12px 0; }
+  .layout-two-col { column-count: 2; column-gap: 16px; }
+  .layout-three-col { column-count: 3; column-gap: 12px; }
+  .layout-sidebar-left { display: flex; gap: 12px; }
+  .layout-sidebar-left > div:first-child { flex: 1; }
+  .layout-sidebar-left > div:last-child { flex: 2; }
+  .layout-sidebar-right { display: flex; gap: 12px; }
+  .layout-sidebar-right > div:first-child { flex: 2; }
+  .layout-sidebar-right > div:last-child { flex: 1; }
+  table.table-bordered td, table.table-bordered th { border: 2px solid #333; }
+  table.table-minimal td, table.table-minimal th { border: none; border-bottom: 1px solid #ddd; }
+  table.table-striped tr:nth-child(even) td { background: #f9f9f9; }
+  table.table-colored th { background: #2c7a7b; color: #fff; }
+  
+  .page-break { display: none; }
+  
+  @media print {
+    body { background: white; padding: 0; }
+    .a4-page { box-shadow: none; margin: 0; page-break-after: always; height: auto; min-height: ${A4_HEIGHT_MM}mm; }
+    .a4-page:last-child { page-break-after: auto; }
+  }
+</style>
+<script>
+  // Paginate content into A4 pages after load
+  window.addEventListener('load', function() {
+    const body = document.body;
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = document.getElementById('raw-content').innerHTML;
+    tempDiv.style.cssText = 'position:absolute;visibility:hidden;width:${A4_WIDTH_MM - MARGIN_MM * 2}mm;font-family:Times New Roman,serif;font-size:11px;line-height:1.6;';
+    ${colStyle ? `tempDiv.style.columnCount = '${columns}'; tempDiv.style.columnGap = '16px';` : ''}
+    body.appendChild(tempDiv);
+    
+    // Get all top-level elements from the content
+    const elements = Array.from(tempDiv.children);
+    const maxContentHeight = ${CONTENT_HEIGHT_MM} * 3.7795; // mm to px approx at 96dpi
+    
+    // Remove temp div
+    body.removeChild(tempDiv);
+    
+    // Get raw content
+    const rawContent = document.getElementById('raw-content');
+    const rawHTML = rawContent.innerHTML;
+    rawContent.style.display = 'none';
+    
+    // Split content by page breaks first
+    const sections = rawHTML.split(/<hr[^>]*class="page-break"[^>]*\\/?>/gi);
+    
+    const container = document.getElementById('pages-container');
+    let pageNum = 1;
+    
+    sections.forEach(function(sectionHTML, sectionIdx) {
+      // Create a measurement div
+      const measureDiv = document.createElement('div');
+      measureDiv.style.cssText = 'position:absolute;visibility:hidden;width:${A4_WIDTH_MM - MARGIN_MM * 2}mm;font-family:Times New Roman,serif;font-size:11px;line-height:1.6;';
+      ${colStyle ? `measureDiv.style.columnCount = '${columns}'; measureDiv.style.columnGap = '16px';` : ''}
+      body.appendChild(measureDiv);
+      
+      // Parse section into elements
+      const tempSection = document.createElement('div');
+      tempSection.innerHTML = sectionHTML.trim();
+      const sectionElements = Array.from(tempSection.childNodes);
+      
+      let currentPageContent = '';
+      
+      sectionElements.forEach(function(el) {
+        const elHTML = el.nodeType === 1 ? el.outerHTML : (el.textContent || '');
+        if (!elHTML.trim()) return;
+        
+        // Test if adding this element exceeds page height
+        measureDiv.innerHTML = currentPageContent + elHTML;
+        
+        if (measureDiv.scrollHeight > maxContentHeight && currentPageContent.trim()) {
+          // Current page is full - create it
+          createPage(container, currentPageContent, pageNum++, '${colStyle}');
+          currentPageContent = elHTML;
+          measureDiv.innerHTML = elHTML;
+        } else {
+          currentPageContent += elHTML;
+        }
+      });
+      
+      // Create page for remaining content
+      if (currentPageContent.trim()) {
+        createPage(container, currentPageContent, pageNum++, '${colStyle}');
+      }
+      
+      body.removeChild(measureDiv);
+    });
+    
+    // Update total page count
+    const totalPages = pageNum - 1;
+    document.querySelectorAll('.page-total').forEach(function(el) {
+      el.textContent = totalPages;
+    });
+  });
+  
+  function createPage(container, content, pageNum, colStyle) {
+    const page = document.createElement('div');
+    page.className = 'a4-page';
+    page.innerHTML = '<div class="page-content" style="' + colStyle + '">' + content + '</div>' +
+      '<div class="page-footer">~ ' + pageNum + ' / <span class="page-total">...</span> ~</div>';
+    container.appendChild(page);
+  }
+</script>
+</head><body>
+<div id="raw-content" style="display:none;">${content}</div>
+<div id="pages-container"></div>
+</body></html>`;
+  };
 
-  const ToolbarBtn = ({ cmd, value, icon: Icon, title, active }: { cmd: string; value?: string; icon: any; title: string; active?: boolean }) => (
+  const ToolbarBtn = ({ cmd, value, icon: Icon, title }: { cmd: string; value?: string; icon: any; title: string }) => (
     <Button
       type="button" variant="ghost" size="sm"
-      className={`h-7 w-7 p-0 ${active ? 'bg-primary/20 text-primary' : 'text-black/70 hover:text-black hover:bg-black/5'}`}
+      className="h-7 w-7 p-0 text-black/70 hover:text-black hover:bg-black/5"
       onClick={() => execCmd(cmd, value)}
       title={title}
     >
@@ -316,8 +452,22 @@ export function ArticleContentEditor({
             <p className="text-sm text-muted-foreground">{referenceNumber} — {articleTitle}</p>
           </div>
           <div className="flex items-center gap-2">
+            {/* Column setting */}
+            <div className="flex items-center gap-1.5">
+              <Label className="text-xs text-muted-foreground">Columns:</Label>
+              <Select value={String(columns)} onValueChange={(v) => setColumns(Number(v) as 1 | 2 | 3)}>
+                <SelectTrigger className="h-7 w-[65px] text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1 Col</SelectItem>
+                  <SelectItem value="2">2 Col</SelectItem>
+                  <SelectItem value="3">3 Col</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <Button variant="ghost" size="sm" onClick={() => setShowPreview(true)}>
-              <Eye className="w-4 h-4 mr-1" /> Preview PDF
+              <Eye className="w-4 h-4 mr-1" /> Preview A4
             </Button>
             <Button variant="ghost" size="icon" onClick={onClose}>
               <X className="w-4 h-4" />
@@ -336,7 +486,7 @@ export function ArticleContentEditor({
               background: '#ffffff',
             }}
           >
-            {/* Toolbar inside A4 page */}
+            {/* Toolbar */}
             <div className="sticky top-0 z-10 flex flex-wrap items-center gap-0.5 p-1.5 bg-[#f3f4f6] border-b border-[#d1d5db] rounded-t">
               <Select defaultValue="Times New Roman" onValueChange={(v) => execCmd('fontName', v)}>
                 <SelectTrigger className="h-7 w-[130px] text-xs bg-white border-[#d1d5db] text-black">
@@ -388,57 +538,26 @@ export function ArticleContentEditor({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-52">
                   <DropdownMenuLabel className="text-xs">Insert Table</DropdownMenuLabel>
-                  <DropdownMenuItem onClick={() => insertTable(3, 3)}>
-                    <Grid3X3 className="w-4 h-4 mr-2" /> 3 × 3 Table
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => insertTable(4, 4)}>
-                    <Grid3X3 className="w-4 h-4 mr-2" /> 4 × 4 Table
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => insertTable(5, 5)}>
-                    <Grid3X3 className="w-4 h-4 mr-2" /> 5 × 5 Table
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => insertTable(2, 6)}>
-                    <Grid3X3 className="w-4 h-4 mr-2" /> 2 × 6 Table
-                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => insertTable(3, 3)}><Grid3X3 className="w-4 h-4 mr-2" /> 3 × 3</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => insertTable(4, 4)}><Grid3X3 className="w-4 h-4 mr-2" /> 4 × 4</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => insertTable(5, 5)}><Grid3X3 className="w-4 h-4 mr-2" /> 5 × 5</DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuLabel className="text-xs">Table Actions</DropdownMenuLabel>
-                  <DropdownMenuItem onClick={() => tableAction('add-row-above')}>
-                    <Plus className="w-4 h-4 mr-2" /> Add Row Above
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => tableAction('add-row-below')}>
-                    <Plus className="w-4 h-4 mr-2" /> Add Row Below
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => tableAction('add-col-left')}>
-                    <Plus className="w-4 h-4 mr-2" /> Add Column Left
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => tableAction('add-col-right')}>
-                    <Plus className="w-4 h-4 mr-2" /> Add Column Right
-                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => tableAction('add-row-above')}><Plus className="w-4 h-4 mr-2" /> Add Row Above</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => tableAction('add-row-below')}><Plus className="w-4 h-4 mr-2" /> Add Row Below</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => tableAction('add-col-left')}><Plus className="w-4 h-4 mr-2" /> Add Column Left</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => tableAction('add-col-right')}><Plus className="w-4 h-4 mr-2" /> Add Column Right</DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => tableAction('delete-row')} className="text-red-600">
-                    <Minus className="w-4 h-4 mr-2" /> Delete Row
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => tableAction('delete-col')} className="text-red-600">
-                    <Minus className="w-4 h-4 mr-2" /> Delete Column
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => tableAction('delete-table')} className="text-red-600">
-                    <Trash2 className="w-4 h-4 mr-2" /> Delete Table
-                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => tableAction('delete-row')} className="text-red-600"><Minus className="w-4 h-4 mr-2" /> Delete Row</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => tableAction('delete-col')} className="text-red-600"><Minus className="w-4 h-4 mr-2" /> Delete Column</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => tableAction('delete-table')} className="text-red-600"><Trash2 className="w-4 h-4 mr-2" /> Delete Table</DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuLabel className="text-xs">Table Style</DropdownMenuLabel>
                   <DropdownMenuItem onClick={() => tableAction('style-')}>Default</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => tableAction('style-table-bordered')}>
-                    <PaintBucket className="w-4 h-4 mr-2" /> Bold Borders
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => tableAction('style-table-minimal')}>
-                    <PaintBucket className="w-4 h-4 mr-2" /> Minimal
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => tableAction('style-table-striped')}>
-                    <PaintBucket className="w-4 h-4 mr-2" /> Striped Rows
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => tableAction('style-table-colored')}>
-                    <PaintBucket className="w-4 h-4 mr-2" /> Colored Header
-                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => tableAction('style-table-bordered')}><PaintBucket className="w-4 h-4 mr-2" /> Bold Borders</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => tableAction('style-table-minimal')}><PaintBucket className="w-4 h-4 mr-2" /> Minimal</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => tableAction('style-table-striped')}><PaintBucket className="w-4 h-4 mr-2" /> Striped Rows</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => tableAction('style-table-colored')}><PaintBucket className="w-4 h-4 mr-2" /> Colored Header</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
 
@@ -452,49 +571,19 @@ export function ArticleContentEditor({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-48">
                   <DropdownMenuLabel className="text-xs">Column Layouts</DropdownMenuLabel>
-                  <DropdownMenuItem onClick={() => insertLayout('two-col')}>
-                    <Columns2 className="w-4 h-4 mr-2" /> Two Columns
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => insertLayout('three-col')}>
-                    <Columns3 className="w-4 h-4 mr-2" /> Three Columns
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => insertLayout('sidebar-left')}>
-                    <LayoutGrid className="w-4 h-4 mr-2" /> Sidebar Left
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => insertLayout('sidebar-right')}>
-                    <LayoutGrid className="w-4 h-4 mr-2" /> Sidebar Right
-                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => insertLayout('two-col')}><Columns2 className="w-4 h-4 mr-2" /> Two Columns</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => insertLayout('three-col')}><Columns3 className="w-4 h-4 mr-2" /> Three Columns</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => insertLayout('sidebar-left')}><LayoutGrid className="w-4 h-4 mr-2" /> Sidebar Left</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => insertLayout('sidebar-right')}><LayoutGrid className="w-4 h-4 mr-2" /> Sidebar Right</DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuLabel className="text-xs">Insert Elements</DropdownMenuLabel>
-                  <DropdownMenuItem onClick={() => insertHtmlAtCursor('<hr />')}>
-                    <Minus className="w-4 h-4 mr-2" /> Horizontal Rule
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => insertHtmlAtCursor('<hr class="page-break" contenteditable="false" />')}>
-                    <SeparatorHorizontal className="w-4 h-4 mr-2" /> Page Break
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuLabel className="text-xs">Page Numbers</DropdownMenuLabel>
-                  <DropdownMenuItem onClick={() => insertHtmlAtCursor('<p class="page-number">~ 1 ~</p>')}>
-                    <Hash className="w-4 h-4 mr-2" /> Page Number (~ 1 ~)
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => insertHtmlAtCursor('<p class="page-number">~ 2 ~</p>')}>
-                    <Hash className="w-4 h-4 mr-2" /> Page Number (~ 2 ~)
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => insertHtmlAtCursor('<p class="page-number">~ 3 ~</p>')}>
-                    <Hash className="w-4 h-4 mr-2" /> Page Number (~ 3 ~)
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => {
-                    const num = prompt('Enter page number:');
-                    if (num) insertHtmlAtCursor(`<p class="page-number">~ ${num} ~</p>`);
-                  }}>
-                    <Hash className="w-4 h-4 mr-2" /> Custom Page Number…
-                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => insertHtmlAtCursor('<hr />')}><Minus className="w-4 h-4 mr-2" /> Horizontal Rule</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => insertHtmlAtCursor('<hr class="page-break" contenteditable="false" />')}><SeparatorHorizontal className="w-4 h-4 mr-2" /> Page Break</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
 
               <div className="w-px h-5 bg-[#d1d5db] mx-1" />
 
-              {/* Page Break button */}
               <Button
                 type="button" variant="ghost" size="sm"
                 className="h-7 px-1.5 text-black/70 hover:text-black hover:bg-black/5 gap-1"
@@ -504,31 +593,6 @@ export function ArticleContentEditor({
                 <SeparatorHorizontal className="w-3.5 h-3.5" />
                 <span className="text-[10px]">Break</span>
               </Button>
-
-              {/* Page Number dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button type="button" variant="ghost" size="sm" className="h-7 px-1.5 text-black/70 hover:text-black hover:bg-black/5 gap-1" title="Page Number">
-                    <Hash className="w-3.5 h-3.5" />
-                    <span className="text-[10px]">Page #</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-44">
-                  <DropdownMenuLabel className="text-xs">Insert Page Number</DropdownMenuLabel>
-                  {[1,2,3,4,5].map(n => (
-                    <DropdownMenuItem key={n} onClick={() => insertHtmlAtCursor(`<p class="page-number">~ ${n} ~</p>`)}>
-                      <Hash className="w-4 h-4 mr-2" /> ~ {n} ~
-                    </DropdownMenuItem>
-                  ))}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => {
-                    const num = prompt('Enter page number:');
-                    if (num) insertHtmlAtCursor(`<p class="page-number">~ ${num} ~</p>`);
-                  }}>
-                    <Hash className="w-4 h-4 mr-2" /> Custom Number…
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
 
               <div className="w-px h-5 bg-[#d1d5db] mx-1" />
 
@@ -550,7 +614,7 @@ export function ArticleContentEditor({
 
         <div className="flex items-center justify-end gap-3 mt-4">
           <Button variant="outline" onClick={() => setShowPreview(true)}>
-            <Eye className="w-4 h-4 mr-2" /> Preview PDF
+            <Eye className="w-4 h-4 mr-2" /> Preview A4 Pages
           </Button>
           <Button variant="outline" onClick={handleSave} disabled={saving}>
             {saving ? <GlassSpinner size="sm" className="mr-2" /> : <Save className="w-4 h-4 mr-2" />}
@@ -563,14 +627,14 @@ export function ArticleContentEditor({
         </div>
       </GlassCard>
 
-      {/* PDF Preview Dialog */}
+      {/* Paginated A4 Preview Dialog */}
       <Dialog open={showPreview} onOpenChange={setShowPreview}>
-        <DialogContent className="max-w-4xl max-h-[95vh] p-0 overflow-hidden">
+        <DialogContent className="max-w-5xl max-h-[95vh] p-0 overflow-hidden">
           <DialogHeader className="px-4 pt-4 pb-2">
-            <DialogTitle>PDF Preview — {referenceNumber}</DialogTitle>
+            <DialogTitle>A4 Page Preview — {referenceNumber} ({columns}-column layout)</DialogTitle>
           </DialogHeader>
-          <div className="flex-1 overflow-auto bg-[hsl(var(--muted))]" style={{ height: '80vh' }}>
-            <iframe srcDoc={previewHtml} className="w-full h-full border-0" title="PDF Preview" style={{ minHeight: '80vh' }} />
+          <div className="flex-1 overflow-auto" style={{ height: '85vh', background: '#525659' }}>
+            <iframe srcDoc={buildPaginatedPreview()} className="w-full h-full border-0" title="A4 Preview" style={{ minHeight: '85vh' }} />
           </div>
         </DialogContent>
       </Dialog>
@@ -597,7 +661,7 @@ function buildGalleyProofAuthorEmail(article: any, authorProfile: any): string {
 <tr><td style="font-family:${font};font-size:14px;color:#9ca3af;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.06);">Title</td><td align="right" style="font-family:${font};font-size:14px;color:#ffffff;font-weight:500;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.06);">${esc(article.title)}</td></tr>
 <tr><td style="font-family:${font};font-size:14px;color:#9ca3af;padding:10px 0;">Status</td><td align="right" style="font-family:${font};font-size:14px;color:#10b981;font-weight:600;padding:10px 0;">Galley Proof Approved</td></tr>
 </table></td></tr></table>
-<table width="100%" style="margin:28px 0;"><tr><td align="center"><a href="https://wwjmrdai.lovable.app/author/articles" style="display:inline-block;background-color:#00d4ff;color:#0d1528;font-family:${font};font-size:16px;font-weight:600;text-decoration:none;padding:14px 32px;border-radius:8px;">Review Galley Proof</a></td></tr></table>
+<table width="100%" style="margin:28px 0;"><tr><td align="center"><a href="https://wwjmrdai.online/author/articles" style="display:inline-block;background-color:#00d4ff;color:#0d1528;font-family:${font};font-size:16px;font-weight:600;text-decoration:none;padding:14px 32px;border-radius:8px;">Review Galley Proof</a></td></tr></table>
 <p style="font-family:${font};font-size:14px;color:#9ca3af;">If you have any questions, contact us at support@wwjmrd.com</p>
 </td></tr>
 <tr><td align="center" style="padding-top:24px;"><p style="font-family:${font};font-size:12px;color:#6b7280;margin:0;">&copy; ${new Date().getFullYear()} WWJMRD. All rights reserved.</p></td></tr>

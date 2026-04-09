@@ -491,27 +491,57 @@ export default function SubmitArticle() {
     return true;
   };
 
+  // Normalize title for comparison: lowercase, strip punctuation, collapse whitespace
+  const normalizeTitle = (t: string): string => {
+    return t.trim().toLowerCase()
+      .replace(/[^\w\s]/g, '') // strip punctuation
+      .replace(/\s+/g, ' ')   // collapse whitespace
+      .trim();
+  };
+
   // Check for duplicate title in database
   const checkDuplicateTitle = async (): Promise<boolean> => {
     if (!title.trim() || !user?.id) return false;
     
-    // Check globally across ALL authors (not just the current user)
-    const normalizedTitle = title.trim().toLowerCase().replace(/\s+/g, ' ');
+    const normalizedTitle = normalizeTitle(title);
+    
+    // Fetch articles with similar titles (broader search using first 3 words)
+    const searchWords = normalizedTitle.split(' ').slice(0, 3).join(' ');
     const { data: existingArticles } = await supabase
       .from('articles')
       .select('id, title, reference_number, status, author_id, author_name')
-      .ilike('title', title.trim())
       .not('status', 'eq', 'withdrawn');
     
     if (existingArticles && existingArticles.length > 0) {
-      // Further filter with normalized comparison to catch spacing/case variations
-      const match = existingArticles.find(a => 
-        a.title.trim().toLowerCase().replace(/\s+/g, ' ') === normalizedTitle
-      );
+      // Strict normalized match
+      const match = existingArticles.find(a => normalizeTitle(a.title) === normalizedTitle);
       
       if (match) {
         const isSameAuthor = match.author_id === user.id;
         setDuplicateArticle({ ...match, isSameAuthor });
+        setShowDuplicateDialog(true);
+        return true;
+      }
+      
+      // Fuzzy match: check if titles are >85% similar (Levenshtein-based)
+      const fuzzyMatch = existingArticles.find(a => {
+        const norm = normalizeTitle(a.title);
+        if (norm.length < 10 || normalizedTitle.length < 10) return false;
+        const longer = norm.length > normalizedTitle.length ? norm : normalizedTitle;
+        const shorter = norm.length > normalizedTitle.length ? normalizedTitle : norm;
+        // Simple containment check
+        if (longer.includes(shorter) || shorter.includes(longer)) return true;
+        // Word overlap check
+        const wordsA = new Set(normalizedTitle.split(' '));
+        const wordsB = new Set(norm.split(' '));
+        const intersection = [...wordsA].filter(w => wordsB.has(w));
+        const similarity = intersection.length / Math.max(wordsA.size, wordsB.size);
+        return similarity > 0.85;
+      });
+      
+      if (fuzzyMatch) {
+        const isSameAuthor = fuzzyMatch.author_id === user.id;
+        setDuplicateArticle({ ...fuzzyMatch, isSameAuthor, isFuzzy: true });
         setShowDuplicateDialog(true);
         return true;
       }
