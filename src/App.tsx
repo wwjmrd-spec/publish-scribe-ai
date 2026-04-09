@@ -26,6 +26,7 @@ import AdminFees from "./pages/admin/AdminFees";
 import AdminAIReview from "./pages/admin/AdminAIReview";
 import AdminArticleDetail from "./pages/admin/AdminArticleDetail";
 import AdminFormatting from "./pages/admin/AdminFormatting";
+import AdminGalleyProofs from "./pages/admin/AdminGalleyProofs";
 import AdminAuthorDetail from "./pages/admin/AdminAuthorDetail";
 import AdminReminderSettings from "./pages/admin/AdminReminderSettings";
 import AdminUSDTPayments from "./pages/admin/AdminUSDTPayments";
@@ -204,6 +205,14 @@ const App = () => (
               element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <AdminFormatting />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/galley-proofs" 
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminGalleyProofs />
                 </ProtectedRoute>
               } 
             />
