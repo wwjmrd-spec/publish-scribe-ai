@@ -356,6 +356,38 @@ export function ArticleContentEditor({
   }
 </style>
 <script>
+  // Recursively flatten single-child wrapper divs to get actual content elements
+  function flattenChildren(html) {
+    var tmp = document.createElement('div');
+    tmp.innerHTML = html.trim();
+    var nodes = [];
+    for (var i = 0; i < tmp.childNodes.length; i++) {
+      var n = tmp.childNodes[i];
+      if (n.nodeType === 1) nodes.push(n);
+      else if (n.nodeType === 3 && n.textContent.trim()) nodes.push(n);
+    }
+    // If there's only one element child and it's a div (wrapper), recurse into it
+    var elementNodes = nodes.filter(function(n) { return n.nodeType === 1; });
+    if (elementNodes.length === 1 && elementNodes[0].tagName === 'DIV' && elementNodes[0].children.length > 1) {
+      var inner = elementNodes[0];
+      var result = [];
+      for (var j = 0; j < inner.childNodes.length; j++) {
+        var c = inner.childNodes[j];
+        if (c.nodeType === 1) result.push(c.outerHTML);
+        else if (c.nodeType === 3 && c.textContent.trim()) result.push(c.textContent);
+      }
+      return result;
+    }
+    // Otherwise return outerHTML of each node
+    var result2 = [];
+    for (var k = 0; k < nodes.length; k++) {
+      var nd = nodes[k];
+      if (nd.nodeType === 1) result2.push(nd.outerHTML);
+      else result2.push(nd.textContent);
+    }
+    return result2;
+  }
+
   window.addEventListener('load', function() {
     var body = document.body;
     var rawContent = document.getElementById('raw-content');
@@ -368,22 +400,15 @@ export function ArticleContentEditor({
     var maxH = ${CONTENT_HEIGHT_MM} * 3.7795;
     
     // Split by explicit page breaks
-    var sections = rawHTML.split(/<hr[^>]*class=["']page-break["'][^>]*\\/?>/gi);
+    var sections = rawHTML.split(/<hr[^>]*class=["']page-break["'][^>]*\\/?>|<hr[^>]*class=\\"page-break\\"[^>]*\\/?>/gi);
     var pageNum = 1;
     
     for (var s = 0; s < sections.length; s++) {
       var secHTML = sections[s].trim();
       if (!secHTML) continue;
       
-      // Parse into child elements
-      var tmp = document.createElement('div');
-      tmp.innerHTML = secHTML;
-      var children = [];
-      for (var i = 0; i < tmp.childNodes.length; i++) {
-        var n = tmp.childNodes[i];
-        if (n.nodeType === 1) children.push(n.outerHTML);
-        else if (n.nodeType === 3 && n.textContent.trim()) children.push(n.textContent);
-      }
+      // Flatten wrapper divs to get actual paginatable elements
+      var children = flattenChildren(secHTML);
       
       if (children.length === 0) continue;
       
@@ -400,7 +425,6 @@ export function ArticleContentEditor({
         measure.innerHTML = currentContent + elHTML;
         
         if (measure.scrollHeight > maxH && currentContent.trim()) {
-          // Page full — emit current content as page
           createPage(container, currentContent, pageNum++, colStyle);
           currentContent = elHTML;
           measure.innerHTML = elHTML;
