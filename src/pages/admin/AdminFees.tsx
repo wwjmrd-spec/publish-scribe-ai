@@ -4,6 +4,7 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { GlassCard } from '@/components/layout/GlassCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { 
   Settings, 
   IndianRupee,
@@ -11,6 +12,7 @@ import {
   Save,
   Crown,
   Wallet,
+  Gift,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -46,6 +48,52 @@ export default function AdminFees() {
       if (error && error.code !== 'PGRST116') throw error;
       return data;
     },
+  });
+
+  const { data: twoPageFreeSetting } = useQuery({
+    queryKey: ['admin-setting-two-page-free'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('admin_settings')
+        .select('setting_value')
+        .eq('setting_key', 'two_page_free_enabled')
+        .maybeSingle();
+      return data?.setting_value === 'true';
+    },
+  });
+
+  const [twoPageFreeEnabled, setTwoPageFreeEnabled] = useState(true);
+
+  useEffect(() => {
+    if (twoPageFreeSetting !== undefined) setTwoPageFreeEnabled(twoPageFreeSetting);
+  }, [twoPageFreeSetting]);
+
+  const toggleTwoPageFree = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      const { data: existing } = await supabase
+        .from('admin_settings')
+        .select('id')
+        .eq('setting_key', 'two_page_free_enabled')
+        .maybeSingle();
+
+      if (existing) {
+        const { error } = await supabase
+          .from('admin_settings')
+          .update({ setting_value: String(enabled), updated_by: user?.id, updated_at: new Date().toISOString() })
+          .eq('setting_key', 'two_page_free_enabled');
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('admin_settings')
+          .insert({ setting_key: 'two_page_free_enabled', setting_value: String(enabled), updated_by: user?.id });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-setting-two-page-free'] });
+      toast.success(`2-page free publication ${twoPageFreeEnabled ? 'enabled' : 'disabled'}`);
+    },
+    onError: (err: any) => toast.error('Failed: ' + err.message),
   });
 
   useEffect(() => {
@@ -282,6 +330,32 @@ export default function AdminFees() {
             <p className="text-sm text-muted-foreground">
               <strong>Pro plan includes:</strong> 5 review report downloads/month, 4 co-author certificates/month. Valid for 1 month.
             </p>
+          </div>
+        </GlassCard>
+      </motion.div>
+
+      {/* 2-Page Free Publication Toggle */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="mt-6">
+        <GlassCard>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                <Gift className="w-5 h-5 text-emerald-500" />
+              </div>
+              <div>
+                <h2 className="font-display text-xl font-semibold">2-Page Free Publication</h2>
+                <p className="text-sm text-muted-foreground">
+                  When enabled, articles with 2 or fewer pages are published free (no fee required). When disabled, all articles require a publication fee.
+                </p>
+              </div>
+            </div>
+            <Switch
+              checked={twoPageFreeEnabled}
+              onCheckedChange={(checked) => {
+                setTwoPageFreeEnabled(checked);
+                toggleTwoPageFree.mutate(checked);
+              }}
+            />
           </div>
         </GlassCard>
       </motion.div>

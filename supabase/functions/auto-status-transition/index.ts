@@ -269,7 +269,15 @@ serve(async (req: Request) => {
       }
     }
 
-    // ===== STEP 3: manuscript_accepted (5 min) → pending_fee (NORMAL publications, >2 pages only) =====
+    // ===== STEP 3: manuscript_accepted (5 min) → pending_fee (NORMAL publications) =====
+    // Check if 2-page free setting is enabled
+    const { data: twoPageFreeSetting } = await supabase
+      .from("admin_settings")
+      .select("setting_value")
+      .eq("setting_key", "two_page_free_enabled")
+      .maybeSingle();
+    const twoPageFreeEnabled = twoPageFreeSetting?.setting_value !== 'false'; // default true
+
     {
       const { data: articles, error } = await supabase
         .from("articles")
@@ -282,8 +290,11 @@ serve(async (req: Request) => {
       if (error) {
         results.errors.push(`Step3 fetch: ${error.message}`);
       } else if (articles?.length) {
-        // Only move articles with more than 2 pages to pending_fee
-        const eligibleArticles = articles.filter((a: any) => (a.page_count || 0) > 2);
+        // If 2-page free is enabled, only articles >2 pages go to pending_fee
+        // If disabled, ALL articles go to pending_fee
+        const eligibleArticles = twoPageFreeEnabled
+          ? articles.filter((a: any) => (a.page_count || 0) > 2)
+          : articles;
         
         if (eligibleArticles.length) {
           const ids = eligibleArticles.map((a: any) => a.id);
@@ -305,7 +316,9 @@ serve(async (req: Request) => {
               await supabase.from("notifications").insert({
                 user_id: article.author_id,
                 title: "Publication Fee Pending 💳",
-                message: `Your article "${article.title}" has ${pageCount} pages which exceeds the 2-page free publication limit. Please pay the publication fee to proceed.`,
+                message: twoPageFreeEnabled
+                  ? `Your article "${article.title}" has ${pageCount} pages which exceeds the 2-page free publication limit. Please pay the publication fee to proceed.`
+                  : `Your article "${article.title}" requires a publication fee to proceed.`,
                 type: "warning",
                 link: "/author/cart",
               });
@@ -322,7 +335,9 @@ serve(async (req: Request) => {
                   articleTitle: article.title,
                   referenceNumber: article.reference_number,
                   newStatus: "Pending Fee",
-                  message: `Your article has ${pageCount} pages, which exceeds the 2-page free publication limit. Articles with more than 2 pages require a publication fee. Please pay your publication fee to proceed with the publication process.`,
+                  message: twoPageFreeEnabled
+                    ? `Your article has ${pageCount} pages, which exceeds the 2-page free publication limit. Articles with more than 2 pages require a publication fee. Please pay your publication fee to proceed with the publication process.`
+                    : `Your article requires a publication fee to proceed with publication. Please pay your publication fee to continue.`,
                 });
               }
             }

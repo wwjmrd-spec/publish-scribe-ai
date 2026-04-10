@@ -79,7 +79,15 @@ const EDITOR_STYLES = `
   }
 `;
 
-const FONT_SIZES = ['8', '9', '10', '11', '12', '14', '16', '18', '20', '24'];
+const FONT_SIZES = [
+  { label: '8', value: '1' },
+  { label: '10', value: '2' },
+  { label: '12', value: '3' },
+  { label: '14', value: '4' },
+  { label: '18', value: '5' },
+  { label: '24', value: '6' },
+  { label: '32', value: '7' },
+];
 
 // A4 dimensions in mm
 const A4_WIDTH_MM = 210;
@@ -122,6 +130,8 @@ export function ArticleContentEditor({
   const execCmd = useCallback((cmd: string, value?: string) => {
     const doc = iframeRef.current?.contentDocument;
     if (!doc) return;
+    // Ensure iframe has focus before executing commands
+    iframeRef.current?.contentWindow?.focus();
     doc.execCommand(cmd, false, value);
   }, []);
 
@@ -498,12 +508,12 @@ export function ArticleContentEditor({
                   ))}
                 </SelectContent>
               </Select>
-              <Select defaultValue="12" onValueChange={(v) => execCmd('fontSize', v)}>
+              <Select defaultValue="3" onValueChange={(v) => execCmd('fontSize', v)}>
                 <SelectTrigger className="h-7 w-[55px] text-xs bg-white border-[#d1d5db] text-black">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {FONT_SIZES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  {FONT_SIZES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}pt</SelectItem>)}
                 </SelectContent>
               </Select>
 

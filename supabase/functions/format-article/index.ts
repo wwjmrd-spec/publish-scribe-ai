@@ -181,62 +181,82 @@ interface FormattedArticle {
 function generateFormattedHtml(formatted: FormattedArticle, article: any): string {
   const authors = formatted.authors || [];
   const authorNames = authors.map(a => a.name).join(", ");
-  const authorDetails = authors.map(a => `<p style="margin:2px 0;"><strong>${a.name}</strong><br/><em>${a.designation || ''}</em></p>`).join("");
+  const authorDetails = authors.map(a => `<p style="margin:2px 0;font-size:9px;"><strong>${a.name}</strong><br/><span style="font-size:8px;">${a.designation || ''}</span></p>`).join("");
   const correspondence = formatted.correspondence;
-  const corrBlock = correspondence?.name ? `<p style="margin:8px 0;"><strong>Correspondence:</strong><br/><strong>${correspondence.name}</strong><br/><em>${correspondence.designation || ''}</em></p>` : '';
+  const corrBlock = correspondence?.name ? `<p style="margin:6px 0 4px;font-size:9px;"><strong>Correspondence:</strong><br/><strong>${correspondence.name}</strong><br/><span style="font-size:8px;">${correspondence.designation || ''}</span></p>` : '';
   const title = formatted.title || article.title;
   const abstract = formatted.abstract || article.abstract || '';
   const keywords = (formatted.keywords || article.keywords || []).join(", ");
+  const bannerUrl = "https://myjbbbytbzzzsaaiohrz.supabase.co/storage/v1/object/public/email-assets/wwjmrd-banner.jpg";
   
+  const yr = formatted.header?.year || new Date().getFullYear();
+  const vol = formatted.header?.volume || "12";
+  const iss = formatted.header?.issue || "01";
+  const pgRange = formatted.header?.page_range || "01-10";
+  const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const currentMonth = monthNames[new Date().getMonth()];
+
   const sectionsHtml = (formatted.sections || []).map(s => 
-    `<h2 style="font-size:14px;font-weight:bold;margin:16px 0 8px;">${s.heading}</h2><p style="text-align:justify;margin:4px 0;">${s.content}</p>`
+    `<h2 style="font-size:11px;font-weight:bold;margin:10px 0 4px;font-family:'Times New Roman',serif;">${s.heading}</h2><p style="text-align:justify;margin:3px 0;font-size:10px;line-height:1.5;font-family:'Times New Roman',serif;">${s.content}</p>`
   ).join("");
 
   const tablesHtml = (formatted.tables || []).map(t =>
-    `<h3 style="font-size:13px;font-weight:bold;margin:12px 0 6px;">Table No.${t.number}: ${t.title}</h3><p style="margin:4px 0;font-size:12px;">${t.content}</p><p style="text-align:justify;margin:4px 0;">${t.interpretation}</p>`
+    `<h3 style="font-size:10px;font-weight:bold;margin:8px 0 4px;font-family:'Times New Roman',serif;">Table No.${t.number}: ${t.title}</h3><p style="margin:3px 0;font-size:9px;font-family:'Times New Roman',serif;">${t.content}</p><p style="text-align:justify;margin:3px 0;font-size:10px;font-family:'Times New Roman',serif;">${t.interpretation}</p>`
   ).join("");
 
   const graphsHtml = (formatted.graphs || []).map(g =>
-    `<h3 style="font-size:13px;font-weight:bold;margin:12px 0 6px;">Graph No. ${g.label}: ${g.title}</h3><p style="text-align:justify;margin:4px 0;">${g.description}</p>`
+    `<h3 style="font-size:10px;font-weight:bold;margin:8px 0 4px;font-family:'Times New Roman',serif;">Graph No. ${g.label}: ${g.title}</h3><p style="text-align:justify;margin:3px 0;font-size:10px;font-family:'Times New Roman',serif;">${g.description}</p>`
   ).join("");
 
   const refsHtml = (formatted.references || []).length > 0
-    ? `<h2 style="font-size:14px;font-weight:bold;margin:16px 0 8px;">References</h2><ol style="margin:4px 0;padding-left:20px;">${formatted.references.map(r => `<li style="margin:2px 0;font-size:12px;">${r}</li>`).join("")}</ol>`
+    ? `<h2 style="font-size:11px;font-weight:bold;margin:10px 0 4px;font-family:'Times New Roman',serif;">References</h2><ol style="margin:3px 0;padding-left:16px;font-size:9px;font-family:'Times New Roman',serif;line-height:1.5;">${formatted.references.map(r => `<li style="margin:1px 0;">${r}</li>`).join("")}</ol>`
     : '';
 
   return `
 <div style="font-family:'Times New Roman',serif;max-width:800px;margin:0 auto;">
-  <div style="text-align:center;background:#008c8c;color:white;padding:16px;border-radius:8px;margin-bottom:16px;">
-    <h1 style="font-size:18px;margin:0;">WORLD WIDE JOURNAL OF MULTIDISCIPLINARY RESEARCH AND DEVELOPMENT</h1>
+  <!-- Running Header -->
+  <p style="text-align:center;font-size:9px;font-style:italic;font-weight:bold;margin:0 0 4px;border-bottom:1px solid #000;padding-bottom:3px;">
+    World Wide Journal of Multidisciplinary Research and Development (${currentMonth}-${yr})
+  </p>
+
+  <!-- Banner Image -->
+  <div style="margin:6px 0 10px;text-align:center;">
+    <img src="${bannerUrl}" alt="WWJMRD Banner" style="width:100%;max-width:780px;height:auto;border-radius:4px;" />
   </div>
   
-  <div style="display:flex;gap:16px;margin-bottom:16px;">
-    <div style="flex:0 0 200px;font-size:11px;">
-      <p style="margin:2px 0;"><strong>WWJMRD ${formatted.header?.year || new Date().getFullYear()}; ${formatted.header?.volume || '12'}(${formatted.header?.issue || '01'}): ${formatted.header?.page_range || '01-10'}</strong></p>
-      <p style="margin:2px 0;">www.wwjmrd.com</p>
-      <p style="margin:2px 0;"><em>International Journal</em></p>
-      <p style="margin:2px 0;"><em>Peer Reviewed Journal</em></p>
-      <p style="margin:2px 0;"><em>Refereed Journal</em></p>
-      <p style="margin:2px 0;"><em>Indexed Journal</em></p>
-      <p style="margin:2px 0;"><em>Impact Factor SJIF 2017: 5.182 2018: 5.51, (ISI) 2020-2021: 1.361</em></p>
-      <p style="margin:2px 0;"><em>E-ISSN: 2454-6615</em></p>
-      <hr style="margin:8px 0;"/>
+  <!-- Page 1: Sidebar + Content Layout -->
+  <div style="display:flex;gap:10px;margin-bottom:10px;">
+    <!-- Left Sidebar -->
+    <div style="flex:0 0 180px;font-size:8px;border-right:1px solid #ccc;padding-right:8px;">
+      <p style="margin:2px 0;font-size:8px;"><strong>WWJMRD ${yr}; ${vol}(${iss}): ${pgRange}</strong></p>
+      <p style="margin:2px 0;font-size:8px;">www.wwjmrd.com</p>
+      <p style="margin:2px 0;font-size:8px;font-style:italic;">International Journal</p>
+      <p style="margin:2px 0;font-size:8px;font-style:italic;">Peer Reviewed Journal</p>
+      <p style="margin:2px 0;font-size:8px;font-style:italic;">Refereed Journal</p>
+      <p style="margin:2px 0;font-size:8px;font-style:italic;">Indexed Journal</p>
+      <p style="margin:2px 0;font-size:7px;font-style:italic;">Impact Factor SJIF 2017: 5.182 2018: 5.51, (ISI) 2020-2021: 1.361</p>
+      <p style="margin:2px 0;font-size:8px;font-style:italic;">E-ISSN: 2454-6615</p>
+      <hr style="margin:6px 0;border:none;border-top:1px solid #ccc;"/>
       ${authorDetails}
-    </div>
-    <div style="flex:1;">
       ${corrBlock}
-      <h1 style="font-size:16px;text-align:center;font-weight:bold;margin:12px 0;">${title}</h1>
-      <p style="text-align:center;font-weight:bold;margin:4px 0;">${authorNames}</p>
-      <h3 style="font-size:13px;font-weight:bold;margin:12px 0 6px;">Abstract</h3>
-      <p style="text-align:justify;margin:4px 0;">${abstract}</p>
-      <p style="margin:8px 0;"><strong>Keywords:</strong> ${keywords}</p>
+    </div>
+    <!-- Right Content -->
+    <div style="flex:1;">
+      <h1 style="font-size:13px;text-align:center;font-weight:bold;margin:8px 0;font-family:'Times New Roman',serif;">${title}</h1>
+      <p style="text-align:center;font-weight:bold;margin:4px 0;font-size:10px;">${authorNames}</p>
+      <h3 style="font-size:11px;font-weight:bold;margin:8px 0 4px;">Abstract</h3>
+      <p style="text-align:justify;margin:3px 0;font-size:10px;line-height:1.5;">${abstract}</p>
+      <p style="margin:6px 0;font-size:10px;"><strong>Keywords:</strong> ${keywords}</p>
     </div>
   </div>
   
-  ${sectionsHtml}
-  ${tablesHtml}
-  ${graphsHtml}
-  ${refsHtml}
+  <!-- Remaining content in two-column flow -->
+  <div style="column-count:2;column-gap:14px;font-family:'Times New Roman',serif;">
+    ${sectionsHtml}
+    ${tablesHtml}
+    ${graphsHtml}
+    ${refsHtml}
+  </div>
 </div>`;
 }
 
