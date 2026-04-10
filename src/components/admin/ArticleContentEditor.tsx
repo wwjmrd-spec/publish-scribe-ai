@@ -130,6 +130,8 @@ export function ArticleContentEditor({
   const execCmd = useCallback((cmd: string, value?: string) => {
     const doc = iframeRef.current?.contentDocument;
     if (!doc) return;
+    // Ensure iframe has focus before executing commands
+    iframeRef.current?.contentWindow?.focus();
     doc.execCommand(cmd, false, value);
   }, []);
 
