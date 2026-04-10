@@ -334,6 +334,32 @@ export default function AdminFees() {
         </GlassCard>
       </motion.div>
 
+      {/* 2-Page Free Publication Toggle */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="mt-6">
+        <GlassCard>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                <Gift className="w-5 h-5 text-emerald-500" />
+              </div>
+              <div>
+                <h2 className="font-display text-xl font-semibold">2-Page Free Publication</h2>
+                <p className="text-sm text-muted-foreground">
+                  When enabled, articles with 2 or fewer pages are published free (no fee required). When disabled, all articles require a publication fee.
+                </p>
+              </div>
+            </div>
+            <Switch
+              checked={twoPageFreeEnabled}
+              onCheckedChange={(checked) => {
+                setTwoPageFreeEnabled(checked);
+                toggleTwoPageFree.mutate(checked);
+              }}
+            />
+          </div>
+        </GlassCard>
+      </motion.div>
+
       {/* Save Button */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="mt-6 flex justify-end">
         <Button onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending} className="gap-2">
