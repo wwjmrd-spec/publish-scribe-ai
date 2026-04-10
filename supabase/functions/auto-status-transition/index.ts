@@ -335,7 +335,9 @@ serve(async (req: Request) => {
                   articleTitle: article.title,
                   referenceNumber: article.reference_number,
                   newStatus: "Pending Fee",
-                  message: `Your article has ${pageCount} pages, which exceeds the 2-page free publication limit. Articles with more than 2 pages require a publication fee. Please pay your publication fee to proceed with the publication process.`,
+                  message: twoPageFreeEnabled
+                    ? `Your article has ${pageCount} pages, which exceeds the 2-page free publication limit. Articles with more than 2 pages require a publication fee. Please pay your publication fee to proceed with the publication process.`
+                    : `Your article requires a publication fee to proceed with publication. Please pay your publication fee to continue.`,
                 });
               }
             }
