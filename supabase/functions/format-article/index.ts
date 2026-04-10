@@ -258,6 +258,7 @@ function generateFormattedHtml(formatted: FormattedArticle, article: any): strin
     ${refsHtml}
   </div>
 </div>`;
+}
 
 function generateFormattedPdf(article: any, formatted: FormattedArticle): ArrayBuffer {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
