@@ -4,6 +4,7 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { GlassCard } from '@/components/layout/GlassCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { 
   Settings, 
   IndianRupee,
@@ -11,6 +12,7 @@ import {
   Save,
   Crown,
   Wallet,
+  Gift,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -46,6 +48,52 @@ export default function AdminFees() {
       if (error && error.code !== 'PGRST116') throw error;
       return data;
     },
+  });
+
+  const { data: twoPageFreeSetting } = useQuery({
+    queryKey: ['admin-setting-two-page-free'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('admin_settings')
+        .select('setting_value')
+        .eq('setting_key', 'two_page_free_enabled')
+        .maybeSingle();
+      return data?.setting_value === 'true';
+    },
+  });
+
+  const [twoPageFreeEnabled, setTwoPageFreeEnabled] = useState(true);
+
+  useEffect(() => {
+    if (twoPageFreeSetting !== undefined) setTwoPageFreeEnabled(twoPageFreeSetting);
+  }, [twoPageFreeSetting]);
+
+  const toggleTwoPageFree = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      const { data: existing } = await supabase
+        .from('admin_settings')
+        .select('id')
+        .eq('setting_key', 'two_page_free_enabled')
+        .maybeSingle();
+
+      if (existing) {
+        const { error } = await supabase
+          .from('admin_settings')
+          .update({ setting_value: String(enabled), updated_by: user?.id, updated_at: new Date().toISOString() })
+          .eq('setting_key', 'two_page_free_enabled');
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('admin_settings')
+          .insert({ setting_key: 'two_page_free_enabled', setting_value: String(enabled), updated_by: user?.id });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-setting-two-page-free'] });
+      toast.success(`2-page free publication ${twoPageFreeEnabled ? 'enabled' : 'disabled'}`);
+    },
+    onError: (err: any) => toast.error('Failed: ' + err.message),
   });
 
   useEffect(() => {
