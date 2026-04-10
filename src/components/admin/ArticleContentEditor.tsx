@@ -285,6 +285,7 @@ export function ArticleContentEditor({
   const buildPaginatedPreview = () => {
     const content = getContent();
     const colStyle = columns > 1 ? `column-count: ${columns}; column-gap: 16px;` : '';
+    const contentWidthMM = A4_WIDTH_MM - MARGIN_MM * 2;
     
     return `<!DOCTYPE html><html><head><meta charset="utf-8">
 <style>
@@ -294,7 +295,8 @@ export function ArticleContentEditor({
   .a4-page {
     background: white;
     width: ${A4_WIDTH_MM}mm;
-    height: ${A4_HEIGHT_MM}mm;
+    min-height: ${A4_HEIGHT_MM}mm;
+    max-height: ${A4_HEIGHT_MM}mm;
     margin: 0 auto 20px;
     padding: ${MARGIN_MM}mm;
     box-shadow: 0 4px 16px rgba(0,0,0,0.3);
@@ -307,7 +309,6 @@ export function ArticleContentEditor({
   .page-content {
     flex: 1;
     overflow: hidden;
-    ${colStyle}
   }
   
   .page-footer {
@@ -355,81 +356,81 @@ export function ArticleContentEditor({
   }
 </style>
 <script>
-  // Paginate content into A4 pages after load
   window.addEventListener('load', function() {
-    const body = document.body;
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = document.getElementById('raw-content').innerHTML;
-    tempDiv.style.cssText = 'position:absolute;visibility:hidden;width:${A4_WIDTH_MM - MARGIN_MM * 2}mm;font-family:Times New Roman,serif;font-size:11px;line-height:1.6;';
-    ${colStyle ? `tempDiv.style.columnCount = '${columns}'; tempDiv.style.columnGap = '16px';` : ''}
-    body.appendChild(tempDiv);
-    
-    // Get all top-level elements from the content
-    const elements = Array.from(tempDiv.children);
-    const maxContentHeight = ${CONTENT_HEIGHT_MM} * 3.7795; // mm to px approx at 96dpi
-    
-    // Remove temp div
-    body.removeChild(tempDiv);
-    
-    // Get raw content
-    const rawContent = document.getElementById('raw-content');
-    const rawHTML = rawContent.innerHTML;
+    var body = document.body;
+    var rawContent = document.getElementById('raw-content');
+    var rawHTML = rawContent.innerHTML;
     rawContent.style.display = 'none';
+    var container = document.getElementById('pages-container');
+    var colStyle = '${colStyle}';
     
-    // Split content by page breaks first
-    const sections = rawHTML.split(/<hr[^>]*class="page-break"[^>]*\\/?>/gi);
+    // mm to px conversion (96dpi)
+    var maxH = ${CONTENT_HEIGHT_MM} * 3.7795;
     
-    const container = document.getElementById('pages-container');
-    let pageNum = 1;
+    // Split by explicit page breaks
+    var sections = rawHTML.split(/<hr[^>]*class=["']page-break["'][^>]*\\/?>/gi);
+    var pageNum = 1;
     
-    sections.forEach(function(sectionHTML, sectionIdx) {
-      // Create a measurement div
-      const measureDiv = document.createElement('div');
-      measureDiv.style.cssText = 'position:absolute;visibility:hidden;width:${A4_WIDTH_MM - MARGIN_MM * 2}mm;font-family:Times New Roman,serif;font-size:11px;line-height:1.6;';
-      ${colStyle ? `measureDiv.style.columnCount = '${columns}'; measureDiv.style.columnGap = '16px';` : ''}
-      body.appendChild(measureDiv);
+    for (var s = 0; s < sections.length; s++) {
+      var secHTML = sections[s].trim();
+      if (!secHTML) continue;
       
-      // Parse section into elements
-      const tempSection = document.createElement('div');
-      tempSection.innerHTML = sectionHTML.trim();
-      const sectionElements = Array.from(tempSection.childNodes);
-      
-      let currentPageContent = '';
-      
-      sectionElements.forEach(function(el) {
-        const elHTML = el.nodeType === 1 ? el.outerHTML : (el.textContent || '');
-        if (!elHTML.trim()) return;
-        
-        // Test if adding this element exceeds page height
-        measureDiv.innerHTML = currentPageContent + elHTML;
-        
-        if (measureDiv.scrollHeight > maxContentHeight && currentPageContent.trim()) {
-          // Current page is full - create it
-          createPage(container, currentPageContent, pageNum++, '${colStyle}');
-          currentPageContent = elHTML;
-          measureDiv.innerHTML = elHTML;
-        } else {
-          currentPageContent += elHTML;
-        }
-      });
-      
-      // Create page for remaining content
-      if (currentPageContent.trim()) {
-        createPage(container, currentPageContent, pageNum++, '${colStyle}');
+      // Parse into child elements
+      var tmp = document.createElement('div');
+      tmp.innerHTML = secHTML;
+      var children = [];
+      for (var i = 0; i < tmp.childNodes.length; i++) {
+        var n = tmp.childNodes[i];
+        if (n.nodeType === 1) children.push(n.outerHTML);
+        else if (n.nodeType === 3 && n.textContent.trim()) children.push(n.textContent);
       }
       
-      body.removeChild(measureDiv);
-    });
+      if (children.length === 0) continue;
+      
+      // Measure each element incrementally
+      var measure = document.createElement('div');
+      measure.style.cssText = 'position:absolute;visibility:hidden;left:-9999px;width:${contentWidthMM}mm;font-family:Times New Roman,serif;font-size:11px;line-height:1.6;';
+      if (colStyle) { measure.style.columnCount = '${columns}'; measure.style.columnGap = '16px'; }
+      body.appendChild(measure);
+      
+      var currentContent = '';
+      
+      for (var j = 0; j < children.length; j++) {
+        var elHTML = children[j];
+        measure.innerHTML = currentContent + elHTML;
+        
+        if (measure.scrollHeight > maxH && currentContent.trim()) {
+          // Page full — emit current content as page
+          createPage(container, currentContent, pageNum++, colStyle);
+          currentContent = elHTML;
+          measure.innerHTML = elHTML;
+          
+          // If single element still exceeds page, emit it anyway
+          if (measure.scrollHeight > maxH) {
+            createPage(container, currentContent, pageNum++, colStyle);
+            currentContent = '';
+            measure.innerHTML = '';
+          }
+        } else {
+          currentContent += elHTML;
+        }
+      }
+      
+      if (currentContent.trim()) {
+        createPage(container, currentContent, pageNum++, colStyle);
+      }
+      
+      body.removeChild(measure);
+    }
     
-    // Update total page count
-    const totalPages = pageNum - 1;
-    document.querySelectorAll('.page-total').forEach(function(el) {
-      el.textContent = totalPages;
-    });
+    // Update totals
+    var total = pageNum - 1;
+    var spans = document.querySelectorAll('.page-total');
+    for (var k = 0; k < spans.length; k++) spans[k].textContent = total;
   });
   
   function createPage(container, content, pageNum, colStyle) {
-    const page = document.createElement('div');
+    var page = document.createElement('div');
     page.className = 'a4-page';
     page.innerHTML = '<div class="page-content" style="' + colStyle + '">' + content + '</div>' +
       '<div class="page-footer">~ ' + pageNum + ' / <span class="page-total">...</span> ~</div>';
