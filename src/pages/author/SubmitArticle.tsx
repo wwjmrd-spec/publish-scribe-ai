@@ -897,6 +897,17 @@ export default function SubmitArticle() {
                         </div>
                       ))}
                     </div>
+                    <div className="mt-4 ml-9 p-3 rounded-lg bg-muted/50 border border-border">
+                      <p className="text-sm text-muted-foreground mb-1">
+                        Please fix the missing sections in your document and re-upload. For any help, contact us:
+                      </p>
+                      <p className="text-sm font-medium">
+                        📧 <a href="mailto:support@wwjmrd.com" className="text-primary hover:underline">support@wwjmrd.com</a>
+                      </p>
+                      <p className="text-sm font-medium">
+                        📱 WhatsApp: <a href="https://wa.me/919999669429" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">+91 9999669429</a>
+                      </p>
+                    </div>
                     <div className="flex gap-3 mt-4 ml-9">
                       <Button
                         variant="outline"
@@ -906,19 +917,6 @@ export default function SubmitArticle() {
                         }}
                       >
                         Upload New File
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        onClick={() => {
-                          setValidationWarnings(null);
-                          setStep(2);
-                          toast({
-                            title: 'Proceeding with warnings',
-                            description: 'You can still submit, but your article may be rejected for missing sections.',
-                          });
-                        }}
-                      >
-                        Continue Anyway
                       </Button>
                     </div>
                   </GlassCard>
