@@ -45,40 +45,51 @@ function estimatePageCount(text: string): number {
   const fullText = text.trim();
   const words = fullText.split(/\s+/).filter((w: string) => w.length > 0);
   const totalWords = words.length;
-  
-  // Check for explicit page indicators in the text
-  const pageIndicators = fullText.match(/\bpage\s+(\d+)\b/gi) || [];
-  const pageNumbers = fullText.match(/(?:^|\n)\s*[-—]\s*(\d+)\s*[-—]\s*(?:$|\n)/gm) || [];
-  const footerPages = fullText.match(/(?:^|\n)\s*(\d+)\s*(?:$|\n)/gm) || [];
-  
-  let maxPageFromIndicators = 0;
-  
-  for (const match of pageIndicators) {
-    const num = parseInt(match.replace(/\D/g, ''));
-    if (num > 0 && num < 200) maxPageFromIndicators = Math.max(maxPageFromIndicators, num);
-  }
-  for (const match of pageNumbers) {
-    const num = parseInt(match.replace(/\D/g, ''));
-    if (num > 0 && num < 200) maxPageFromIndicators = Math.max(maxPageFromIndicators, num);
+
+  // 1. Check for journal page range like "12(04): 06-13" or "pp. 1-8"
+  const pageRangeMatch = fullText.match(/\d+\(\d+\)\s*:\s*(\d+)\s*[-–—]\s*(\d+)/);
+  if (pageRangeMatch) {
+    const startPage = parseInt(pageRangeMatch[1], 10);
+    const endPage = parseInt(pageRangeMatch[2], 10);
+    if (endPage > startPage && endPage - startPage < 100) {
+      return endPage - startPage + 1;
+    }
   }
 
-  // Word-based estimation: academic papers ~250 words/page (with figures, tables, spacing)
-  const wordBasedEstimate = Math.max(1, Math.ceil(totalWords / 250));
-  
-  // Character-based estimation: ~1800 characters per page for academic text
-  const charBasedEstimate = Math.max(1, Math.ceil(fullText.length / 1800));
-  
-  // Line-based estimation: ~45 lines per page
-  const lines = fullText.split(/\n/).length;
-  const lineBasedEstimate = Math.max(1, Math.ceil(lines / 45));
-  
-  // Use the most reliable estimate
-  if (maxPageFromIndicators > 0 && maxPageFromIndicators <= wordBasedEstimate * 2) {
+  // 2. Check for "~ N ~" style page markers (common in WWJMRD articles)
+  const tildePages = fullText.match(/~\s*(\d+)\s*~/g) || [];
+  let maxTildePage = 0;
+  let minTildePage = Infinity;
+  for (const match of tildePages) {
+    const num = parseInt(match.replace(/[^0-9]/g, ''), 10);
+    if (num > 0 && num < 500) {
+      maxTildePage = Math.max(maxTildePage, num);
+      minTildePage = Math.min(minTildePage, num);
+    }
+  }
+  if (maxTildePage > 0 && minTildePage < Infinity) {
+    return maxTildePage - minTildePage + 1;
+  }
+
+  // 3. Check for "Page N" or standalone page numbers
+  const pageIndicators = fullText.match(/\bpage\s+(\d+)\b/gi) || [];
+  let maxPageFromIndicators = 0;
+  for (const match of pageIndicators) {
+    const num = parseInt(match.replace(/\D/g, ''), 10);
+    if (num > 0 && num < 200) maxPageFromIndicators = Math.max(maxPageFromIndicators, num);
+  }
+  if (maxPageFromIndicators > 0) {
     return maxPageFromIndicators;
   }
-  
-  // Average of word and character based, weighted toward word count
-  const avgEstimate = Math.round((wordBasedEstimate * 2 + charBasedEstimate + lineBasedEstimate) / 4);
+
+  // 4. Word-based estimation: ~300 words/page for extracted text (mammoth adds extra metadata)
+  const wordBasedEstimate = Math.max(1, Math.ceil(totalWords / 300));
+
+  // 5. Character-based estimation: ~2000 characters per page
+  const charBasedEstimate = Math.max(1, Math.ceil(fullText.length / 2000));
+
+  // Average, weighted toward word count
+  const avgEstimate = Math.round((wordBasedEstimate * 2 + charBasedEstimate) / 3);
   return Math.max(1, avgEstimate);
 }
 
