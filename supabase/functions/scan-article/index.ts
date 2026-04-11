@@ -7,6 +7,22 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const MAX_REASONABLE_PAGE_COUNT = 500;
+
+export function normalizePageCount(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const rounded = Math.round(value);
+    return rounded >= 1 && rounded <= MAX_REASONABLE_PAGE_COUNT ? rounded : null;
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number.parseInt(value.trim(), 10);
+    return Number.isFinite(parsed) && parsed >= 1 && parsed <= MAX_REASONABLE_PAGE_COUNT ? parsed : null;
+  }
+
+  return null;
+}
+
 function validateArticleSections(text: string): { valid: boolean; missing: string[]; samples: Record<string, string> } {
   const missing: string[] = [];
 
@@ -40,8 +56,8 @@ function validateArticleSections(text: string): { valid: boolean; missing: strin
   return { valid: missing.length === 0, missing, samples: resultSamples };
 }
 
-// Improved page count estimation using multiple heuristics
-function estimatePageCount(text: string): number {
+// Improved page count estimation using explicit markers first, then denser journal-text heuristics.
+export function estimatePageCount(text: string): number {
   const fullText = text.trim();
   const words = fullText.split(/\s+/).filter((w: string) => w.length > 0);
   const totalWords = words.length;
@@ -82,18 +98,51 @@ function estimatePageCount(text: string): number {
     return maxPageFromIndicators;
   }
 
-  // 4. Word-based estimation: ~300 words/page for extracted text (mammoth adds extra metadata)
-  const wordBasedEstimate = Math.max(1, Math.ceil(totalWords / 300));
+  // 4. Word-based estimation: journal-style A4 pages are denser than plain-text extraction suggests.
+  const wordBasedEstimate = Math.max(1, Math.ceil(totalWords / 425));
 
-  // 5. Character-based estimation: ~2000 characters per page
-  const charBasedEstimate = Math.max(1, Math.ceil(fullText.length / 2000));
+  // 5. Character-based estimation: ~2500 characters/page is closer to multi-column academic layouts.
+  const charBasedEstimate = Math.max(1, Math.ceil(fullText.length / 2500));
 
-  // Average, weighted toward word count
-  const avgEstimate = Math.round((wordBasedEstimate * 2 + charBasedEstimate) / 3);
-  return Math.max(1, avgEstimate);
+  // 6. Paragraph density: most articles average ~5-7 paragraph blocks per page.
+  const paragraphBlocks = fullText.split(/\n\s*\n/).filter((block) => block.trim().length > 0).length;
+  const paragraphBasedEstimate = Math.max(1, Math.ceil(paragraphBlocks / 6));
+
+  const sortedEstimates = [wordBasedEstimate, charBasedEstimate, paragraphBasedEstimate].sort((a, b) => a - b);
+  return sortedEstimates[Math.floor(sortedEstimates.length / 2)] ?? 1;
 }
 
-serve(async (req) => {
+export function resolveFinalPageCount({
+  aiPageCount,
+  estimatedPageCount,
+  docxPageCount,
+}: {
+  aiPageCount: unknown;
+  estimatedPageCount: number;
+  docxPageCount?: unknown;
+}): number {
+  const trustedDocxPageCount = normalizePageCount(docxPageCount);
+  if (trustedDocxPageCount) {
+    return trustedDocxPageCount;
+  }
+
+  const trustedAiPageCount = normalizePageCount(aiPageCount);
+  if (!trustedAiPageCount) {
+    return estimatedPageCount;
+  }
+
+  const lowerBound = Math.max(1, Math.floor(estimatedPageCount * 0.65));
+  const upperBound = Math.max(estimatedPageCount + 2, Math.ceil(estimatedPageCount * 1.35));
+
+  if (trustedAiPageCount < lowerBound || trustedAiPageCount > upperBound) {
+    console.log(`AI page count ${trustedAiPageCount} seems unreliable vs estimate ${estimatedPageCount}. Using estimate.`);
+    return estimatedPageCount;
+  }
+
+  return trustedAiPageCount;
+}
+
+export const handler = async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -122,7 +171,9 @@ serve(async (req) => {
       );
     }
 
-    const { text } = await req.json();
+    const payload = await req.json();
+    const text = payload?.text;
+    const docxPageCount = payload?.docxPageCount;
 
     if (!text || typeof text !== "string" || text.trim().length < 50) {
       return new Response(
@@ -138,9 +189,13 @@ serve(async (req) => {
 
     const fullText = text.trim();
     const truncatedText = fullText.substring(0, 15000);
-    
-    // Calculate page count locally with improved heuristics
-    const estimatedPageCount = estimatePageCount(fullText);
+    const trustedDocxPageCount = normalizePageCount(docxPageCount);
+
+    // Calculate page count locally with improved heuristics, but prefer trusted DOCX metadata.
+    const estimatedPageCount = trustedDocxPageCount ?? estimatePageCount(fullText);
+    const pageCountGuidance = trustedDocxPageCount
+      ? `The uploaded DOCX metadata reports exactly ${trustedDocxPageCount} pages. Treat that as the canonical page_count.`
+      : `The document appears to be about ${estimatedPageCount} pages based on extracted text density and explicit page markers.`;
 
     const response = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",
@@ -155,7 +210,7 @@ serve(async (req) => {
           messages: [
             {
               role: "system",
-              content: `You are an academic article metadata extractor. Extract structured metadata from the article text. You MUST call the extract_article_metadata function. For page_count: look for page numbers, headers, footers, or "Page X" indicators. The document has approximately ${estimatedPageCount} pages based on word count analysis (~250 words per page for academic articles). Only override this estimate if you find explicit page number indicators in the text.`,
+              content: `You are an academic article metadata extractor. Extract structured metadata from the article text. You MUST call the extract_article_metadata function. For page_count: look for page numbers, headers, footers, or "Page X" indicators. ${pageCountGuidance} Only return a different page_count if the text contains clear explicit evidence.`,
             },
             {
               role: "user",
@@ -227,16 +282,11 @@ serve(async (req) => {
 
     const metadata = JSON.parse(toolCall.function.arguments);
 
-    // Use AI page count only if reasonable, otherwise use our local estimate
-    if (!metadata.page_count || metadata.page_count < 1) {
-      metadata.page_count = estimatedPageCount;
-    } else {
-      // Sanity check: AI page count should be within 3x of our estimate
-      if (metadata.page_count > estimatedPageCount * 3 || metadata.page_count < Math.max(1, Math.floor(estimatedPageCount / 3))) {
-        console.log(`AI page count ${metadata.page_count} seems unreliable vs estimate ${estimatedPageCount}. Using estimate.`);
-        metadata.page_count = estimatedPageCount;
-      }
-    }
+    metadata.page_count = resolveFinalPageCount({
+      aiPageCount: metadata.page_count,
+      estimatedPageCount,
+      docxPageCount: trustedDocxPageCount,
+    });
 
     return new Response(
       JSON.stringify({ 
@@ -256,4 +306,8 @@ serve(async (req) => {
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
-});
+};
+
+if (import.meta.main) {
+  serve(handler);
+}
