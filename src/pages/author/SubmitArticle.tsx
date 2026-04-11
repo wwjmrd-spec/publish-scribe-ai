@@ -23,6 +23,7 @@ import { Label } from '@/components/ui/label';
 import { ArrowRight, ArrowLeft, Upload, FileText, CheckCircle, Sparkles, Bot, CreditCard, IndianRupee, DollarSign, AlertTriangle, XCircle } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import mammoth from 'mammoth';
+import { extractDocxPageCountFromArrayBuffer } from '@/lib/docxPageCount';
 import { isHoneypotFilled, isSubmissionTooFast, validateArticleContent } from '@/lib/antispam';
 import {
   Dialog,
@@ -42,8 +43,7 @@ const stepInfo = [
 ];
 
 // Extract text from .docx using mammoth.js
-async function extractTextFromDocx(file: File): Promise<string> {
-  const arrayBuffer = await file.arrayBuffer();
+async function extractTextFromDocx(arrayBuffer: ArrayBuffer): Promise<string> {
   const result = await mammoth.extractRawText({ arrayBuffer });
   return result.value.trim();
 }
@@ -190,10 +190,15 @@ export default function SubmitArticle() {
 
     setScanning(true);
     setScanProgress(10);
+    setPageCount(null);
 
     try {
       setScanProgress(20);
-      const extractedText = await extractTextFromDocx(file);
+      const fileBuffer = await file.arrayBuffer();
+      const [extractedText, detectedDocxPageCount] = await Promise.all([
+        extractTextFromDocx(fileBuffer),
+        extractDocxPageCountFromArrayBuffer(fileBuffer),
+      ]);
       setScanProgress(40);
 
       if (extractedText.length < 50) {
@@ -208,7 +213,7 @@ export default function SubmitArticle() {
 
       setScanProgress(60);
       const { data, error } = await supabase.functions.invoke('scan-article', {
-        body: { text: extractedText },
+        body: { text: extractedText, docxPageCount: detectedDocxPageCount },
       });
 
       setScanProgress(90);

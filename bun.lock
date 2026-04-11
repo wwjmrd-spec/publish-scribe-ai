@@ -59,6 +59,7 @@
         "embla-carousel-react": "^8.6.0",
         "framer-motion": "^12.30.1",
         "input-otp": "^1.4.2",
+        "jszip": "^3.10.1",
         "lucide-react": "^0.462.0",
         "mammoth": "^1.11.0",
         "next-themes": "^0.3.0",
