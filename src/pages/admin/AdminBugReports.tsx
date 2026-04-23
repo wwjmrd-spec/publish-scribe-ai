@@ -29,6 +29,40 @@ export default function AdminBugReports() {
   const [reports, setReports] = useState<BugReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [fixingId, setFixingId] = useState<string | null>(null);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiContextId, setAiContextId] = useState<string | null>(null);
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiFix, setAiFix] = useState<string | null>(null);
+
+  const runAiFix = async () => {
+    if (!aiPrompt.trim()) {
+      toast({ title: 'Prompt required', description: 'Describe the error or paste the message.', variant: 'destructive' });
+      return;
+    }
+    setAiBusy(true);
+    setAiFix(null);
+    try {
+      const ctxReport = aiContextId ? reports.find((r) => r.id === aiContextId) : null;
+      const context = ctxReport
+        ? `Title: ${ctxReport.title}\nDescription: ${ctxReport.description || ''}\nPage: ${ctxReport.page_url || ''}\nError: ${ctxReport.error_stack || ''}`
+        : undefined;
+      const { data, error } = await supabase.functions.invoke('ai-fix-assistant', {
+        body: { prompt: aiPrompt, context },
+      });
+      if (error) throw error;
+      setAiFix(data?.fix || 'No response.');
+    } catch (err: any) {
+      toast({ title: 'AI error', description: err.message || 'Failed to generate fix', variant: 'destructive' });
+    } finally {
+      setAiBusy(false);
+    }
+  };
+
+  const copyFix = () => {
+    if (!aiFix) return;
+    navigator.clipboard.writeText(aiFix);
+    toast({ title: 'Copied to clipboard' });
+  };
 
   const fetchReports = async () => {
     setLoading(true);
