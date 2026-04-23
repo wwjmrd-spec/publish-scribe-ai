@@ -34,6 +34,8 @@ import AdminNotifications from "./pages/admin/AdminNotifications";
 import AdminBugReports from "./pages/admin/AdminBugReports";
 import AdminRevenue from "./pages/admin/AdminRevenue";
 import AdminPaymentActivity from "./pages/admin/AdminPaymentActivity";
+import AdminEmailLog from "./pages/admin/AdminEmailLog";
+import AdminProSubscribers from "./pages/admin/AdminProSubscribers";
 import NotFound from "./pages/NotFound";
 import { ReferralPopup } from "./components/referral/ReferralPopup";
 import { CookieConsent } from "./components/CookieConsent";
@@ -269,6 +271,22 @@ const App = () => (
               element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <Profile />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/email-log" 
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminEmailLog />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/pro-subscribers" 
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminProSubscribers />
                 </ProtectedRoute>
               } 
             />
