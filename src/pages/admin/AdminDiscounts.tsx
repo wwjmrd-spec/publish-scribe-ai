@@ -360,14 +360,24 @@ export default function AdminDiscounts() {
                 </Select>
               </div>
               <div>
-                <Label>Value</Label>
+                <Label>
+                  Discount Amount {formData.discount_type === 'percentage' ? '(%)' : '(in selected currency)'}
+                </Label>
                 <Input
                   type="number"
-                  placeholder={formData.discount_type === 'percentage' ? '10' : '100'}
+                  min="0"
+                  step="0.01"
+                  required
+                  placeholder={formData.discount_type === 'percentage' ? 'e.g. 10 for 10% off' : 'e.g. 100 for flat 100 off'}
                   value={formData.discount_value}
                   onChange={(e) => setFormData({ ...formData, discount_value: e.target.value })}
                   className="glass-input"
                 />
+                <p className="text-xs text-muted-foreground mt-1">
+                  {formData.discount_type === 'percentage'
+                    ? 'Enter percentage (1-100) to discount from total.'
+                    : 'Enter the flat amount to subtract from the total.'}
+                </p>
               </div>
             </div>
 
