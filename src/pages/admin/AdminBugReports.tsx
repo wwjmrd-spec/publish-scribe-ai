@@ -226,6 +226,17 @@ export default function AdminBugReports() {
                         AI Fix & Reply
                       </Button>
                     )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setAiContextId(r.id);
+                        setAiPrompt(`Fix: ${r.title}`);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                    >
+                      <Sparkles className="w-4 h-4 mr-1" /> Ask AI to fix
+                    </Button>
                     {r.status !== 'resolved' && (
                       <Button size="sm" variant="outline" onClick={() => handleMarkResolved(r.id)}>
                         <CheckCircle className="w-4 h-4 mr-1" /> Mark Resolved
