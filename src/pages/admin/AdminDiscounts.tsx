@@ -485,22 +485,23 @@ export default function AdminDiscounts() {
                 <p className="text-xs text-muted-foreground mb-2">
                   Leave empty to apply to all eligible articles. Selected: {formData.specific_article_ids.length}
                 </p>
-                <ScrollArea className="h-40 rounded-md border border-[hsl(var(--glass-border))] bg-[hsl(var(--glass-bg))] p-2">
+                <ScrollArea className="h-40 w-full rounded-md border border-[hsl(var(--glass-border))] bg-[hsl(var(--glass-bg))] p-2">
                   {!articles?.length ? (
                     <p className="text-xs text-muted-foreground p-2">No articles found.</p>
                   ) : (
-                    <div className="space-y-1">
+                    <div className="space-y-1 pr-2">
                       {articles.map((a) => (
                         <label
                           key={a.id}
-                          className="flex items-center gap-2 text-sm p-1.5 rounded hover:bg-[hsl(var(--glass-bg))] cursor-pointer"
+                          className="flex items-center gap-2 text-sm p-1.5 rounded hover:bg-[hsl(var(--glass-bg))] cursor-pointer min-w-0"
                         >
                           <Checkbox
                             checked={formData.specific_article_ids.includes(a.id)}
                             onCheckedChange={() => toggleArticleId(a.id)}
+                            className="shrink-0"
                           />
-                          <span className="font-mono text-xs text-primary">{a.reference_number}</span>
-                          <span className="truncate">{a.title}</span>
+                          <span className="font-mono text-xs text-primary shrink-0">{a.reference_number}</span>
+                          <span className="truncate flex-1 min-w-0">{a.title}</span>
                         </label>
                       ))}
                     </div>
