@@ -38,6 +38,7 @@ import {
 import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
 import { useNavigate } from 'react-router-dom';
+import { formatArticleStatus, getArticleStatusBadgeClass } from '@/lib/articleStatus';
 
 type ArticleStatus = Database['public']['Enums']['article_status'];
 
@@ -235,21 +236,8 @@ export default function AdminArticles() {
     article.reference_number.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const getStatusBadge = (status: string) => {
-    const styles: Record<string, string> = {
-      submitted: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-      under_review: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-      pending_fee: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-      paid: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
-      published: 'bg-green-500/20 text-green-400 border-green-500/30',
-      rejected: 'bg-red-500/20 text-red-400 border-red-500/30',
-    };
-    return styles[status] || 'bg-muted text-muted-foreground';
-  };
-
-  const formatStatus = (status: string) => {
-    return status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-  };
+  const getStatusBadge = (status: string) => getArticleStatusBadgeClass(status);
+  const formatStatus = (status: string) => formatArticleStatus(status);
 
   const handlePublishClick = () => {
     setIsPublishDialogOpen(true);
@@ -296,10 +284,20 @@ export default function AdminArticles() {
             <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="submitted">Submitted</SelectItem>
             <SelectItem value="under_review">Under Review</SelectItem>
+            <SelectItem value="copyright_received">Copyright Received</SelectItem>
+            <SelectItem value="ai_review_generated">AI Review Generated</SelectItem>
+            <SelectItem value="manuscript_accepted">Manuscript Accepted</SelectItem>
+            <SelectItem value="revision_requested">Revision Requested</SelectItem>
+            <SelectItem value="revised_submitted">Revised Submitted</SelectItem>
+            <SelectItem value="revised_review_generated">Revised Review Generated</SelectItem>
             <SelectItem value="pending_fee">Pending Fee</SelectItem>
             <SelectItem value="paid">Paid</SelectItem>
+            <SelectItem value="galley_proof_sent">Galley Proof Sent</SelectItem>
+            <SelectItem value="galley_proof_approved">Galley Proof Approved</SelectItem>
+            <SelectItem value="galley_proof_revised">Galley Proof Revised</SelectItem>
             <SelectItem value="published">Published</SelectItem>
             <SelectItem value="rejected">Rejected</SelectItem>
+            <SelectItem value="withdrawn">Withdrawn</SelectItem>
           </SelectContent>
         </Select>
       </div>

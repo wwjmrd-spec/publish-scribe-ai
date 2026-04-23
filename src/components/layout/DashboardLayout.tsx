@@ -27,6 +27,7 @@ import {
   Megaphone,
   Bug,
   Send,
+  Mail,
 } from 'lucide-react';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { GuidedTour } from '@/components/onboarding/GuidedTour';
@@ -63,12 +64,14 @@ const adminNavItems: NavItem[] = [
   { label: 'Formatting', href: '/admin/formatting', icon: FileText },
   { label: 'Galley Proofs', href: '/admin/galley-proofs', icon: Send },
   { label: 'Authors', href: '/admin/authors', icon: Users },
+  { label: 'Pro Subscribers', href: '/admin/pro-subscribers', icon: Crown },
   { label: 'Discount Codes', href: '/admin/discounts', icon: Tag },
   { label: 'Revenue', href: '/admin/revenue', icon: BarChart3 },
   { label: 'Fee Settings', href: '/admin/fees', icon: Settings },
   { label: 'USDT Payments', href: '/admin/usdt-payments', icon: Settings },
   { label: 'Reminders', href: '/admin/reminders', icon: Bell },
   { label: 'Notifications', href: '/admin/notifications', icon: Megaphone },
+  { label: 'Sent Emails', href: '/admin/email-log', icon: Mail },
   { label: 'Payment Activity', href: '/admin/payment-activity', icon: ShoppingCart },
   { label: 'Bug Reports', href: '/admin/bug-reports', icon: Bug },
   { label: 'Profile', href: '/admin/profile', icon: UserCircle },

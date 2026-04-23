@@ -396,6 +396,8 @@ export type Database = {
       }
       discount_codes: {
         Row: {
+          applies_to: string
+          article_position_limit: string
           code: string
           created_at: string | null
           created_by: string | null
@@ -405,11 +407,15 @@ export type Database = {
           end_date: string
           id: string
           is_active: boolean | null
+          max_uses_per_user: number | null
+          specific_article_ids: string[] | null
           start_date: string
           usage_limit: number | null
           used_count: number | null
         }
         Insert: {
+          applies_to?: string
+          article_position_limit?: string
           code: string
           created_at?: string | null
           created_by?: string | null
@@ -419,11 +425,15 @@ export type Database = {
           end_date: string
           id?: string
           is_active?: boolean | null
+          max_uses_per_user?: number | null
+          specific_article_ids?: string[] | null
           start_date: string
           usage_limit?: number | null
           used_count?: number | null
         }
         Update: {
+          applies_to?: string
+          article_position_limit?: string
           code?: string
           created_at?: string | null
           created_by?: string | null
@@ -433,6 +443,8 @@ export type Database = {
           end_date?: string
           id?: string
           is_active?: boolean | null
+          max_uses_per_user?: number | null
+          specific_article_ids?: string[] | null
           start_date?: string
           usage_limit?: number | null
           used_count?: number | null
@@ -446,6 +458,86 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      discount_redemptions: {
+        Row: {
+          discount_code_id: string
+          id: string
+          payment_id: string | null
+          redeemed_at: string
+          user_id: string
+        }
+        Insert: {
+          discount_code_id: string
+          id?: string
+          payment_id?: string | null
+          redeemed_at?: string
+          user_id: string
+        }
+        Update: {
+          discount_code_id?: string
+          id?: string
+          payment_id?: string | null
+          redeemed_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discount_redemptions_discount_code_id_fkey"
+            columns: ["discount_code_id"]
+            isOneToOne: false
+            referencedRelation: "discount_codes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_log: {
+        Row: {
+          created_at: string
+          email_type: string
+          error_message: string | null
+          id: string
+          metadata: Json | null
+          recipient_email: string
+          recipient_name: string | null
+          related_article_id: string | null
+          related_user_id: string | null
+          sent_at: string
+          status: string
+          subject: string
+          template_name: string | null
+        }
+        Insert: {
+          created_at?: string
+          email_type?: string
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          recipient_email: string
+          recipient_name?: string | null
+          related_article_id?: string | null
+          related_user_id?: string | null
+          sent_at?: string
+          status?: string
+          subject: string
+          template_name?: string | null
+        }
+        Update: {
+          created_at?: string
+          email_type?: string
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          recipient_email?: string
+          recipient_name?: string | null
+          related_article_id?: string | null
+          related_user_id?: string | null
+          sent_at?: string
+          status?: string
+          subject?: string
+          template_name?: string | null
+        }
+        Relationships: []
       }
       notifications: {
         Row: {
@@ -963,6 +1055,14 @@ export type Database = {
         | "published"
         | "rejected"
         | "withdrawn"
+        | "copyright_received"
+        | "ai_review_generated"
+        | "revision_requested"
+        | "revised_submitted"
+        | "revised_review_generated"
+        | "galley_proof_sent"
+        | "galley_proof_approved"
+        | "galley_proof_revised"
       coauthor_payment_status: "pending" | "paid" | "failed"
       currency_type: "INR" | "USD" | "USDT"
       discount_currency: "INR" | "USD" | "BOTH" | "USDT"
@@ -1108,6 +1208,14 @@ export const Constants = {
         "published",
         "rejected",
         "withdrawn",
+        "copyright_received",
+        "ai_review_generated",
+        "revision_requested",
+        "revised_submitted",
+        "revised_review_generated",
+        "galley_proof_sent",
+        "galley_proof_approved",
+        "galley_proof_revised",
       ],
       coauthor_payment_status: ["pending", "paid", "failed"],
       currency_type: ["INR", "USD", "USDT"],
