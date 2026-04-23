@@ -972,14 +972,53 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`Sending ${template} email to: ${to}, subject: ${emailSubject}, isAdmin: ${isAdmin}`);
 
-    const emailResponse = await resend.emails.send({
-      from: from || "WWJMRD <noreply@wwjmrdai.online>",
-      to: [to],
-      subject: emailSubject,
-      html: emailHtml,
-    });
+    let emailResponse: any = null;
+    let sendError: any = null;
+    try {
+      emailResponse = await resend.emails.send({
+        from: from || "WWJMRD <noreply@wwjmrdai.online>",
+        to: [to],
+        subject: emailSubject,
+        html: emailHtml,
+      });
+      console.log("Email sent successfully:", JSON.stringify(emailResponse));
+    } catch (err: any) {
+      sendError = err;
+      console.error("Resend send failed:", err?.message || err);
+    }
 
-    console.log("Email sent successfully:", JSON.stringify(emailResponse));
+    // Log every send attempt to email_log (best-effort, non-blocking failure)
+    try {
+      const supabaseAdmin = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      );
+      const meta = (data || {}) as any;
+      await supabaseAdmin.from("email_log").insert({
+        recipient_email: to,
+        recipient_name: meta.authorName || meta.userName || meta.referrerName || null,
+        subject: emailSubject,
+        template_name: template || "custom",
+        email_type: isAdmin ? "admin_notification" : "transactional",
+        status: sendError ? "failed" : "sent",
+        error_message: sendError ? String(sendError?.message || sendError) : null,
+        related_article_id: meta.articleId || null,
+        metadata: {
+          referenceNumber: meta.referenceNumber,
+          articleTitle: meta.articleTitle,
+          isAdmin: !!isAdmin,
+        },
+      });
+    } catch (logErr) {
+      console.error("email_log insert failed (non-fatal):", logErr);
+    }
+
+    if (sendError) {
+      return new Response(JSON.stringify({ error: "Failed to send email. Please try again." }), {
+        status: 500,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
 
     return new Response(JSON.stringify(emailResponse), {
       status: 200,
