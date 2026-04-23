@@ -705,35 +705,18 @@ export default function AdminArticleDetail() {
                   className="text-amber-400 hover:text-amber-300"
                   onClick={async () => {
                     try {
-                      const authorProfile = article.profiles as any;
-                      if (!authorProfile?.email) {
-                        toast.error('Author email not found');
-                        return;
+                      const response = await supabase.functions.invoke('request-manuscript-revision', {
+                        body: { articleId: article.id },
+                      });
+
+                      if (response.error) {
+                        throw new Error(response.error.message);
                       }
-                      const { error: statusError } = await supabase
-                        .from('articles')
-                        .update({ status: 'revision_requested' })
-                        .eq('id', article.id);
-                      if (statusError) throw statusError;
-                      await supabase.functions.invoke('send-email', {
-                        body: {
-                          to: authorProfile.email,
-                          template: 'manuscript-revise',
-                          data: {
-                            authorName: authorProfile.full_name || 'Author',
-                            articleTitle: article.title,
-                            referenceNumber: article.reference_number,
-                            pageCount: (article as any).page_count || 'N/A',
-                          },
-                        },
-                      });
-                      await supabase.from('notifications').insert({
-                        user_id: article.author_id,
-                        title: 'Manuscript Revision Required ✏️',
-                        message: `Your article "${article.title}" requires revision. Please review the feedback and resubmit.`,
-                        type: 'warning',
-                        link: '/author/articles',
-                      });
+
+                      if (!response.data?.success || response.data?.status !== 'revision_requested') {
+                        throw new Error('Status update did not complete');
+                      }
+
                       queryClient.invalidateQueries({ queryKey: ['admin-article-detail', articleId] });
                       queryClient.invalidateQueries({ queryKey: ['admin-articles'] });
                       toast.success('Revision requested — status updated');
