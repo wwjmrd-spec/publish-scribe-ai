@@ -64,6 +64,41 @@ export default function AdminBugReports() {
     toast({ title: 'Copied to clipboard' });
   };
 
+  const applyFix = async () => {
+    if (!aiFix) return;
+    const ctxReport = aiContextId ? reports.find((r) => r.id === aiContextId) : null;
+    const lovablePrompt = [
+      'Apply the following fix to the project. Implement all code changes needed and verify the result.',
+      '',
+      ctxReport ? `Bug report: ${ctxReport.title}` : '',
+      ctxReport?.page_url ? `Page: ${ctxReport.page_url}` : '',
+      ctxReport?.error_stack ? `Error:\n${ctxReport.error_stack}` : '',
+      '',
+      'Fix plan:',
+      aiFix,
+    ].filter(Boolean).join('\n');
+
+    try {
+      await navigator.clipboard.writeText(lovablePrompt);
+    } catch {}
+
+    if (aiContextId) {
+      await (supabase as any)
+        .from('bug_reports')
+        .update({ ai_response: aiFix, status: 'ai_responded' })
+        .eq('id', aiContextId);
+      fetchReports();
+    }
+
+    const lovableUrl = `https://lovable.dev/projects/7fb6d7a3-9d67-46c8-b220-2239f19803b5`;
+    window.open(lovableUrl, '_blank', 'noopener,noreferrer');
+
+    toast({
+      title: 'Fix ready to apply',
+      description: 'Plan copied to clipboard. Paste it into the Lovable chat that just opened to apply the code changes.',
+    });
+  };
+
   const fetchReports = async () => {
     setLoading(true);
     const { data, error } = await (supabase as any)
