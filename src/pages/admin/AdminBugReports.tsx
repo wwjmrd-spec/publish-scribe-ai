@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
-import { Bug, Bot, CheckCircle, Loader2, Sparkles, Copy } from 'lucide-react';
+import { Bug, Bot, CheckCircle, Loader2, Sparkles, Copy, Wrench } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface BugReport {
@@ -62,6 +62,41 @@ export default function AdminBugReports() {
     if (!aiFix) return;
     navigator.clipboard.writeText(aiFix);
     toast({ title: 'Copied to clipboard' });
+  };
+
+  const applyFix = async () => {
+    if (!aiFix) return;
+    const ctxReport = aiContextId ? reports.find((r) => r.id === aiContextId) : null;
+    const lovablePrompt = [
+      'Apply the following fix to the project. Implement all code changes needed and verify the result.',
+      '',
+      ctxReport ? `Bug report: ${ctxReport.title}` : '',
+      ctxReport?.page_url ? `Page: ${ctxReport.page_url}` : '',
+      ctxReport?.error_stack ? `Error:\n${ctxReport.error_stack}` : '',
+      '',
+      'Fix plan:',
+      aiFix,
+    ].filter(Boolean).join('\n');
+
+    try {
+      await navigator.clipboard.writeText(lovablePrompt);
+    } catch {}
+
+    if (aiContextId) {
+      await (supabase as any)
+        .from('bug_reports')
+        .update({ ai_response: aiFix, status: 'ai_responded' })
+        .eq('id', aiContextId);
+      fetchReports();
+    }
+
+    const lovableUrl = `https://lovable.dev/projects/7fb6d7a3-9d67-46c8-b220-2239f19803b5`;
+    window.open(lovableUrl, '_blank', 'noopener,noreferrer');
+
+    toast({
+      title: 'Fix ready to apply',
+      description: 'Plan copied to clipboard. Paste it into the Lovable chat that just opened to apply the code changes.',
+    });
   };
 
   const fetchReports = async () => {
@@ -148,6 +183,11 @@ export default function AdminBugReports() {
               {aiFix && (
                 <Button variant="outline" size="sm" onClick={copyFix}>
                   <Copy className="w-4 h-4 mr-1" /> Copy fix
+                </Button>
+              )}
+              {aiFix && (
+                <Button size="sm" onClick={applyFix} className="bg-gradient-to-r from-primary to-accent">
+                  <Wrench className="w-4 h-4 mr-1" /> Apply fix
                 </Button>
               )}
             </div>
