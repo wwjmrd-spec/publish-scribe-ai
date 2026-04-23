@@ -946,6 +946,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_plan_usage: {
+        Args: { p_field: string; p_usage_month: string; p_user_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       article_status:
