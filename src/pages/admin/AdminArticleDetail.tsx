@@ -710,6 +710,11 @@ export default function AdminArticleDetail() {
                         toast.error('Author email not found');
                         return;
                       }
+                      const { error: statusError } = await supabase
+                        .from('articles')
+                        .update({ status: 'revision_requested' })
+                        .eq('id', article.id);
+                      if (statusError) throw statusError;
                       await supabase.functions.invoke('send-email', {
                         body: {
                           to: authorProfile.email,
@@ -729,9 +734,11 @@ export default function AdminArticleDetail() {
                         type: 'warning',
                         link: '/author/articles',
                       });
-                      toast.success('Revision request email sent to author');
+                      queryClient.invalidateQueries({ queryKey: ['admin-article-detail', articleId] });
+                      queryClient.invalidateQueries({ queryKey: ['admin-articles'] });
+                      toast.success('Revision requested — status updated');
                     } catch (err: any) {
-                      toast.error('Failed to send revision email: ' + err.message);
+                      toast.error('Failed to request revision: ' + err.message);
                     }
                   }}
                 >
