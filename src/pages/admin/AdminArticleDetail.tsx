@@ -734,7 +734,8 @@ export default function AdminArticleDetail() {
                         type: 'warning',
                         link: '/author/articles',
                       });
-                      queryClient.invalidateQueries({ queryKey: ['admin-article', id] });
+                      queryClient.invalidateQueries({ queryKey: ['admin-article-detail', articleId] });
+                      queryClient.invalidateQueries({ queryKey: ['admin-articles'] });
                       toast.success('Revision requested — status updated');
                     } catch (err: any) {
                       toast.error('Failed to request revision: ' + err.message);
