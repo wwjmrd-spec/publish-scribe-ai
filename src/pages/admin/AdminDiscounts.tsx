@@ -507,30 +507,93 @@ export default function AdminDiscounts() {
               <div>
                 <Label>Specific Articles (optional)</Label>
                 <p className="text-xs text-muted-foreground mb-2">
-                  Leave empty to apply to all eligible articles. Selected: {formData.specific_article_ids.length}
+                  Pick from the dropdown or paste reference numbers (comma-separated, e.g. ART-2026-0090, ART-2026-0089). Leave empty to apply to all eligible articles.
                 </p>
-                <ScrollArea className="h-40 w-full rounded-md border border-[hsl(var(--glass-border))] bg-[hsl(var(--glass-bg))] p-2">
-                  {!articles?.length ? (
-                    <p className="text-xs text-muted-foreground p-2">No articles found.</p>
-                  ) : (
-                    <div className="space-y-1 pr-2">
-                      {articles.map((a) => (
-                        <label
-                          key={a.id}
-                          className="flex items-center gap-2 text-sm p-1.5 rounded hover:bg-[hsl(var(--glass-bg))] cursor-pointer min-w-0"
+
+                {/* Dropdown picker */}
+                <Select
+                  value=""
+                  onValueChange={(id) => {
+                    if (id && !formData.specific_article_ids.includes(id)) {
+                      toggleArticleId(id);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="glass-input">
+                    <SelectValue placeholder="Select an article to add..." />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-60">
+                    {!articles?.length ? (
+                      <div className="p-2 text-xs text-muted-foreground">No articles found.</div>
+                    ) : (
+                      articles
+                        .filter((a) => !formData.specific_article_ids.includes(a.id))
+                        .map((a) => (
+                          <SelectItem key={a.id} value={a.id}>
+                            <span className="font-mono text-xs text-primary mr-2">{a.reference_number}</span>
+                            <span className="truncate">{a.title}</span>
+                          </SelectItem>
+                        ))
+                    )}
+                  </SelectContent>
+                </Select>
+
+                {/* Text entry by reference number */}
+                <Input
+                  className="glass-input mt-2"
+                  placeholder="Type reference numbers, comma-separated"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ',') {
+                      e.preventDefault();
+                      const raw = (e.target as HTMLInputElement).value;
+                      const refs = raw.split(',').map((r) => r.trim().toUpperCase()).filter(Boolean);
+                      const matched: string[] = [];
+                      const unknown: string[] = [];
+                      refs.forEach((ref) => {
+                        const found = articles?.find((a) => a.reference_number.toUpperCase() === ref);
+                        if (found && !formData.specific_article_ids.includes(found.id)) {
+                          matched.push(found.id);
+                        } else if (!found) {
+                          unknown.push(ref);
+                        }
+                      });
+                      if (matched.length) {
+                        setFormData((prev) => ({
+                          ...prev,
+                          specific_article_ids: [...prev.specific_article_ids, ...matched],
+                        }));
+                      }
+                      if (unknown.length) toast.error(`Unknown: ${unknown.join(', ')}`);
+                      (e.target as HTMLInputElement).value = '';
+                    }
+                  }}
+                />
+
+                {/* Selected chips */}
+                {formData.specific_article_ids.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2 p-2 rounded-md border border-[hsl(var(--glass-border))] bg-[hsl(var(--glass-bg))]">
+                    {formData.specific_article_ids.map((id) => {
+                      const art = articles?.find((a) => a.id === id);
+                      return (
+                        <span
+                          key={id}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/20 text-primary text-xs"
                         >
-                          <Checkbox
-                            checked={formData.specific_article_ids.includes(a.id)}
-                            onCheckedChange={() => toggleArticleId(a.id)}
-                            className="shrink-0"
-                          />
-                          <span className="font-mono text-xs text-primary shrink-0">{a.reference_number}</span>
-                          <span className="truncate flex-1 min-w-0">{a.title}</span>
-                        </label>
-                      ))}
-                    </div>
-                  )}
-                </ScrollArea>
+                          <span className="font-mono">{art?.reference_number || id.slice(0, 8)}</span>
+                          <button
+                            type="button"
+                            onClick={() => toggleArticleId(id)}
+                            className="hover:text-destructive"
+                            aria-label="Remove"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground mt-1">Selected: {formData.specific_article_ids.length}</p>
               </div>
             )}
 
