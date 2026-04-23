@@ -117,6 +117,51 @@ export default function AdminBugReports() {
           <h1 className="text-2xl font-display font-bold gradient-text">Bug Reports</h1>
         </div>
 
+        {/* AI Fix Assistant */}
+        <Card className="glass-card border-primary/30">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-primary" /> AI Fix Assistant
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Describe an error or paste a message — AI will return a step-by-step fix plan.
+              {aiContextId && ' (Linked to selected bug report)'}
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Textarea
+              value={aiPrompt}
+              onChange={(e) => setAiPrompt(e.target.value)}
+              placeholder='e.g. "Pro plan users get Failed to download review report when clicking the download button."'
+              className="min-h-[80px]"
+            />
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={runAiFix} disabled={aiBusy || !aiPrompt.trim()} size="sm">
+                {aiBusy ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Sparkles className="w-4 h-4 mr-1" />}
+                Generate fix
+              </Button>
+              {aiContextId && (
+                <Button variant="outline" size="sm" onClick={() => setAiContextId(null)}>
+                  Clear linked report
+                </Button>
+              )}
+              {aiFix && (
+                <Button variant="outline" size="sm" onClick={copyFix}>
+                  <Copy className="w-4 h-4 mr-1" /> Copy fix
+                </Button>
+              )}
+            </div>
+            {aiFix && (
+              <div className="bg-primary/5 border border-primary/20 rounded-lg p-3">
+                <p className="text-xs font-semibold text-primary mb-1 flex items-center gap-1">
+                  <Bot className="w-3 h-3" /> Fix plan
+                </p>
+                <p className="text-sm whitespace-pre-wrap">{aiFix}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {loading ? (
           <div className="flex justify-center py-12">
             <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
