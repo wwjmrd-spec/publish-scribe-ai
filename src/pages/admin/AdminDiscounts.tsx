@@ -241,20 +241,27 @@ export default function AdminDiscounts() {
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-1.5 text-xs">
-                    <span className="px-2 py-0.5 rounded-full bg-primary/20 text-primary">
-                      {discount.discount_type === 'percentage' ? `${discount.discount_value}%` : `${discount.discount_value}`}
+                    <span className="px-2 py-0.5 rounded-full bg-primary/20 text-primary font-medium">
+                      {discount.discount_type === 'percentage' ? `${discount.discount_value}% off` : `${discount.discount_value} off`}
                     </span>
                     <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{discount.currency}</span>
-                    <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                    <span className="px-2 py-0.5 rounded-full bg-accent/20 text-accent-foreground">
                       {APPLIES_TO_LABELS[(discount.applies_to as AppliesTo) || 'both']}
                     </span>
                     <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
                       {POSITION_LABELS[(discount.article_position_limit as PositionLimit) || 'any']}
                     </span>
-                    <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{discount.used_count || 0}/{discount.usage_limit || '∞'}</span>
-                    {discount.max_uses_per_user && (
-                      <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground">Max/user: {discount.max_uses_per_user}</span>
-                    )}
+                    {discount.specific_article_ids?.length ? (
+                      <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                        {discount.specific_article_ids.length} specific article{discount.specific_article_ids.length > 1 ? 's' : ''}
+                      </span>
+                    ) : null}
+                    <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                      Used: {discount.used_count || 0}/{discount.usage_limit ?? '∞'}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                      Max/user: {discount.max_uses_per_user ?? '∞'}
+                    </span>
                   </div>
                   <p className="text-xs text-muted-foreground">{new Date(discount.start_date).toLocaleDateString()} - {new Date(discount.end_date).toLocaleDateString()}</p>
                 </div>
@@ -269,7 +276,7 @@ export default function AdminDiscounts() {
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Discount</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Currency</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Applies To</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Position</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Scope</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Validity</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Usage</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Max/User</th>
@@ -278,46 +285,63 @@ export default function AdminDiscounts() {
                   </tr>
                 </thead>
                 <tbody>
-                  {discounts.map((discount) => (
-                    <tr key={discount.id} className="border-b border-[hsl(var(--glass-border))] hover:bg-[hsl(var(--glass-bg))] transition-colors">
-                      <td className="py-3 px-4 font-mono font-semibold text-primary">{discount.code}</td>
-                      <td className="py-3 px-4">
-                        <span className="flex items-center gap-1">
-                          {discount.discount_type === 'percentage' ? (
-                            <><Percent className="w-3 h-3" />{discount.discount_value}%</>
-                          ) : (
-                            <><DollarSign className="w-3 h-3" />{discount.discount_value}</>
-                          )}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-sm">{discount.currency}</td>
-                      <td className="py-3 px-4 text-sm">
-                        {APPLIES_TO_LABELS[(discount.applies_to as AppliesTo) || 'both']}
-                      </td>
-                      <td className="py-3 px-4 text-sm">
-                        {POSITION_LABELS[(discount.article_position_limit as PositionLimit) || 'any']}
-                        {discount.specific_article_ids?.length ? (
-                          <span className="ml-1 text-xs text-muted-foreground">({discount.specific_article_ids.length} specific)</span>
-                        ) : null}
-                      </td>
-                      <td className="py-3 px-4 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
-                          {new Date(discount.start_date).toLocaleDateString()} - {new Date(discount.end_date).toLocaleDateString()}
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 text-sm">{discount.used_count || 0}/{discount.usage_limit || '∞'}</td>
-                      <td className="py-3 px-4 text-sm">{discount.max_uses_per_user || '∞'}</td>
-                      <td className="py-3 px-4">
-                        <Switch checked={discount.is_active || false} onCheckedChange={(checked) => toggleActiveMutation.mutate({ id: discount.id, is_active: checked })} />
-                      </td>
-                      <td className="py-3 px-4">
-                        <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => deleteMutation.mutate(discount.id)}>
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
+                  {discounts.map((discount) => {
+                    const appliesTo = (discount.applies_to as AppliesTo) || 'both';
+                    const position = (discount.article_position_limit as PositionLimit) || 'any';
+                    const specificCount = discount.specific_article_ids?.length || 0;
+                    return (
+                      <tr key={discount.id} className="border-b border-[hsl(var(--glass-border))] hover:bg-[hsl(var(--glass-bg))] transition-colors">
+                        <td className="py-3 px-4 font-mono font-semibold text-primary">{discount.code}</td>
+                        <td className="py-3 px-4">
+                          <span className="flex items-center gap-1">
+                            {discount.discount_type === 'percentage' ? (
+                              <><Percent className="w-3 h-3" />{discount.discount_value}%</>
+                            ) : (
+                              <><DollarSign className="w-3 h-3" />{discount.discount_value}</>
+                            )}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-sm">{discount.currency}</td>
+                        <td className="py-3 px-4 text-sm">
+                          <span className="px-2 py-0.5 rounded-full bg-accent/20 text-xs">
+                            {APPLIES_TO_LABELS[appliesTo]}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-sm">
+                          <div className="flex flex-col gap-0.5">
+                            {appliesTo !== 'pro_plan' && (
+                              <span className="text-xs">{POSITION_LABELS[position]}</span>
+                            )}
+                            {specificCount > 0 ? (
+                              <span className="text-xs text-primary">
+                                {specificCount} specific article{specificCount > 1 ? 's' : ''}
+                              </span>
+                            ) : appliesTo !== 'pro_plan' ? (
+                              <span className="text-xs text-muted-foreground">All articles</span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="w-3 h-3" />
+                            {new Date(discount.start_date).toLocaleDateString()} - {new Date(discount.end_date).toLocaleDateString()}
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-sm">{discount.used_count || 0}/{discount.usage_limit ?? '∞'}</td>
+                        <td className="py-3 px-4 text-sm">{discount.max_uses_per_user ?? '∞'}</td>
+                        <td className="py-3 px-4">
+                          <Switch checked={discount.is_active || false} onCheckedChange={(checked) => toggleActiveMutation.mutate({ id: discount.id, is_active: checked })} />
+                        </td>
+                        <td className="py-3 px-4">
+                          <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => deleteMutation.mutate(discount.id)}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
