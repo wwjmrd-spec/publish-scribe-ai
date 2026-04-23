@@ -241,20 +241,27 @@ export default function AdminDiscounts() {
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-1.5 text-xs">
-                    <span className="px-2 py-0.5 rounded-full bg-primary/20 text-primary">
-                      {discount.discount_type === 'percentage' ? `${discount.discount_value}%` : `${discount.discount_value}`}
+                    <span className="px-2 py-0.5 rounded-full bg-primary/20 text-primary font-medium">
+                      {discount.discount_type === 'percentage' ? `${discount.discount_value}% off` : `${discount.discount_value} off`}
                     </span>
                     <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{discount.currency}</span>
-                    <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                    <span className="px-2 py-0.5 rounded-full bg-accent/20 text-accent-foreground">
                       {APPLIES_TO_LABELS[(discount.applies_to as AppliesTo) || 'both']}
                     </span>
                     <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
                       {POSITION_LABELS[(discount.article_position_limit as PositionLimit) || 'any']}
                     </span>
-                    <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{discount.used_count || 0}/{discount.usage_limit || '∞'}</span>
-                    {discount.max_uses_per_user && (
-                      <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground">Max/user: {discount.max_uses_per_user}</span>
-                    )}
+                    {discount.specific_article_ids?.length ? (
+                      <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                        {discount.specific_article_ids.length} specific article{discount.specific_article_ids.length > 1 ? 's' : ''}
+                      </span>
+                    ) : null}
+                    <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                      Used: {discount.used_count || 0}/{discount.usage_limit ?? '∞'}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                      Max/user: {discount.max_uses_per_user ?? '∞'}
+                    </span>
                   </div>
                   <p className="text-xs text-muted-foreground">{new Date(discount.start_date).toLocaleDateString()} - {new Date(discount.end_date).toLocaleDateString()}</p>
                 </div>
