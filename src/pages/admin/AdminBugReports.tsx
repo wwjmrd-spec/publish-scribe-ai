@@ -4,8 +4,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
-import { Bug, Bot, CheckCircle, Clock, Loader2 } from 'lucide-react';
+import { Bug, Bot, CheckCircle, Loader2, Sparkles, Copy } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface BugReport {
