@@ -126,26 +126,10 @@ export function BugReporter() {
     };
   }, [user, openDialog]);
 
-  const openManual = () => {
-    setReport({ type: 'manual', title: '', description: '', errorStack: '' });
-    setOpen(true);
-  };
-
   if (!user) return null;
 
   return (
     <>
-      {/* Floating Report Bug button */}
-      <button
-        type="button"
-        onClick={openManual}
-        className="fixed bottom-4 right-4 z-40 flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-primary-foreground shadow-lg hover:scale-105 transition-transform text-sm font-medium"
-        aria-label="Report a bug"
-      >
-        <Bug className="w-4 h-4" />
-        <span className="hidden sm:inline">Report bug</span>
-      </button>
-
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="glass-card-strong max-w-lg">
           <DialogHeader>

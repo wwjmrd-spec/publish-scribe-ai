@@ -4,8 +4,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
-import { Bug, Bot, CheckCircle, Clock, Loader2 } from 'lucide-react';
+import { Bug, Bot, CheckCircle, Loader2, Sparkles, Copy } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface BugReport {
@@ -28,6 +29,40 @@ export default function AdminBugReports() {
   const [reports, setReports] = useState<BugReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [fixingId, setFixingId] = useState<string | null>(null);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiContextId, setAiContextId] = useState<string | null>(null);
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiFix, setAiFix] = useState<string | null>(null);
+
+  const runAiFix = async () => {
+    if (!aiPrompt.trim()) {
+      toast({ title: 'Prompt required', description: 'Describe the error or paste the message.', variant: 'destructive' });
+      return;
+    }
+    setAiBusy(true);
+    setAiFix(null);
+    try {
+      const ctxReport = aiContextId ? reports.find((r) => r.id === aiContextId) : null;
+      const context = ctxReport
+        ? `Title: ${ctxReport.title}\nDescription: ${ctxReport.description || ''}\nPage: ${ctxReport.page_url || ''}\nError: ${ctxReport.error_stack || ''}`
+        : undefined;
+      const { data, error } = await supabase.functions.invoke('ai-fix-assistant', {
+        body: { prompt: aiPrompt, context },
+      });
+      if (error) throw error;
+      setAiFix(data?.fix || 'No response.');
+    } catch (err: any) {
+      toast({ title: 'AI error', description: err.message || 'Failed to generate fix', variant: 'destructive' });
+    } finally {
+      setAiBusy(false);
+    }
+  };
+
+  const copyFix = () => {
+    if (!aiFix) return;
+    navigator.clipboard.writeText(aiFix);
+    toast({ title: 'Copied to clipboard' });
+  };
 
   const fetchReports = async () => {
     setLoading(true);
@@ -81,6 +116,51 @@ export default function AdminBugReports() {
           <Bug className="w-7 h-7 text-primary" />
           <h1 className="text-2xl font-display font-bold gradient-text">Bug Reports</h1>
         </div>
+
+        {/* AI Fix Assistant */}
+        <Card className="glass-card border-primary/30">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-primary" /> AI Fix Assistant
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Describe an error or paste a message — AI will return a step-by-step fix plan.
+              {aiContextId && ' (Linked to selected bug report)'}
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Textarea
+              value={aiPrompt}
+              onChange={(e) => setAiPrompt(e.target.value)}
+              placeholder='e.g. "Pro plan users get Failed to download review report when clicking the download button."'
+              className="min-h-[80px]"
+            />
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={runAiFix} disabled={aiBusy || !aiPrompt.trim()} size="sm">
+                {aiBusy ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Sparkles className="w-4 h-4 mr-1" />}
+                Generate fix
+              </Button>
+              {aiContextId && (
+                <Button variant="outline" size="sm" onClick={() => setAiContextId(null)}>
+                  Clear linked report
+                </Button>
+              )}
+              {aiFix && (
+                <Button variant="outline" size="sm" onClick={copyFix}>
+                  <Copy className="w-4 h-4 mr-1" /> Copy fix
+                </Button>
+              )}
+            </div>
+            {aiFix && (
+              <div className="bg-primary/5 border border-primary/20 rounded-lg p-3">
+                <p className="text-xs font-semibold text-primary mb-1 flex items-center gap-1">
+                  <Bot className="w-3 h-3" /> Fix plan
+                </p>
+                <p className="text-sm whitespace-pre-wrap">{aiFix}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {loading ? (
           <div className="flex justify-center py-12">
@@ -146,6 +226,17 @@ export default function AdminBugReports() {
                         AI Fix & Reply
                       </Button>
                     )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setAiContextId(r.id);
+                        setAiPrompt(`Fix: ${r.title}`);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                    >
+                      <Sparkles className="w-4 h-4 mr-1" /> Ask AI to fix
+                    </Button>
                     {r.status !== 'resolved' && (
                       <Button size="sm" variant="outline" onClick={() => handleMarkResolved(r.id)}>
                         <CheckCircle className="w-4 h-4 mr-1" /> Mark Resolved
