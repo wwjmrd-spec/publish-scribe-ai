@@ -54,7 +54,16 @@ export default function AdminAIReview() {
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return data;
+      // Ensure latest review is first (article_reviews[0]) by sorting desc by reviewed_at
+      const sorted = (data || []).map((article: any) => ({
+        ...article,
+        article_reviews: [...(article.article_reviews || [])].sort((a, b) => {
+          const ta = a.reviewed_at ? new Date(a.reviewed_at).getTime() : 0;
+          const tb = b.reviewed_at ? new Date(b.reviewed_at).getTime() : 0;
+          return tb - ta;
+        }),
+      }));
+      return sorted;
     },
   });
 
