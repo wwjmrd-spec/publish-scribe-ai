@@ -121,22 +121,8 @@ export function GalleyProofReviewSection({ article }: GalleyProofReviewSectionPr
         body: { to: adminEmail, template: 'galley-proof-revision', data: emailData, isAdmin: true },
       }).catch((err) => console.error('Failed to send admin galley proof revision email:', err));
 
-      // Notify admins via in-app notifications
-      const { data: admins } = await supabase
-        .from('user_roles')
-        .select('user_id')
-        .eq('role', 'admin');
-
-      if (admins) {
-        const notifications = admins.map((a) => ({
-          user_id: a.user_id,
-          title: 'Galley Proof Revision Submitted 📝',
-          message: `Author has submitted a revised galley proof for "${article.title}" (${article.reference_number}).`,
-          type: 'info',
-          link: `/admin/articles/${article.id}`,
-        }));
-        await supabase.from('notifications').insert(notifications);
-      }
+      // Admin in-app notifications are created automatically by the
+      // notify_admins_on_article_revision DB trigger.
 
       toast.success('Revised galley proof uploaded successfully!');
       queryClient.invalidateQueries({ queryKey: ['my-articles'] });
