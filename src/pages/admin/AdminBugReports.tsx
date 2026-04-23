@@ -185,6 +185,11 @@ export default function AdminBugReports() {
                   <Copy className="w-4 h-4 mr-1" /> Copy fix
                 </Button>
               )}
+              {aiFix && (
+                <Button size="sm" onClick={applyFix} className="bg-gradient-to-r from-primary to-accent">
+                  <Wrench className="w-4 h-4 mr-1" /> Apply fix
+                </Button>
+              )}
             </div>
             {aiFix && (
               <div className="bg-primary/5 border border-primary/20 rounded-lg p-3">
