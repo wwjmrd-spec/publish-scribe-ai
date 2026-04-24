@@ -452,7 +452,8 @@ export default function MyArticles() {
                       )}
 
                       {/* AI Auto-Correct (Pro feature, requires review report) */}
-                      {article.review_report_url && (
+                      {article.review_report_url &&
+                        !['manuscript_accepted', 'rejected', 'withdrawn', 'galley_proof_sent', 'published'].includes(article.status) && (
                         <Button
                           variant="outline"
                           size="sm"
