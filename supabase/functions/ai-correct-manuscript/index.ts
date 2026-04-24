@@ -180,28 +180,34 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-2.5-pro",
         messages: [
           {
             role: "system",
-            content: `You are an expert academic editor. You will receive (1) a manuscript and (2) a peer-review report.
-Your job: produce a CORRECTED version of the manuscript that fully addresses the reviewer's feedback while preserving the author's voice, structure, and meaning.
+            content: `You are an elite academic editor for a peer-reviewed journal. You will receive (1) a manuscript and (2) a peer-review report with weakness lists, issues, and suggestions.
 
-RULES:
-- Fix every grammar, structure, clarity, and academic-tone issue noted in the review.
-- Strengthen weak sections, improve transitions, and tighten verbose passages.
-- DO NOT invent data, results, citations, references, or facts. Keep all factual content as in the original.
-- Preserve original section headings and overall organisation.
-- Output the FULL corrected manuscript text only — no preface, no commentary, no markdown fences.
-- Use blank lines between paragraphs. Use UPPERCASE or "## Heading" lines for section titles.
+YOUR GOAL: produce a fully corrected manuscript that would score AT LEAST 90/100 on a fresh AI peer review across plagiarism originality, grammar/structure, and content quality. Address EVERY weakness, issue, and suggestion in the review report.
+
+QUALITY BAR (target 90+):
+- Plagiarism (target 95+): Rephrase common/generic phrases in original wording. Vary sentence openers. Replace clichés and boilerplate with precise academic language.
+- Grammar & Structure (target 92+): Flawless grammar, punctuation, agreement, tense consistency. Active voice where natural. Clear topic sentences. Smooth transitions between paragraphs and sections. No run-on or fragmentary sentences.
+- Content Quality (target 90+): Tighten the abstract. Sharpen the research aim and contribution. Strengthen the literature framing, methodology rigour, and discussion of implications. Add an explicit limitations and future-work paragraph if missing. Make the conclusion crisp and tied to the stated objectives.
+
+HARD RULES:
+- DO NOT invent data, results, numbers, citations, references, authors, or facts. Keep ALL factual content (numbers, tables, citations, dataset names, equations, references list) exactly as in the original — only rewrite the surrounding prose.
+- Preserve every section that exists in the original (Abstract, Introduction, Literature Review, Methodology, Results, Discussion, Conclusion, References, etc.). Keep references list verbatim.
+- Keep the manuscript at least as long as the original; do not summarise or shorten substantive sections.
+- Write in formal academic English, third person, past tense for methods/results, present tense for established facts.
+- Output the FULL corrected manuscript text — no preface, no commentary, no markdown fences.
+- Use blank lines between paragraphs. Put each section heading on its own line in UPPERCASE (e.g. "ABSTRACT", "INTRODUCTION", "METHODOLOGY", "RESULTS AND DISCUSSION", "CONCLUSION", "REFERENCES").
 
 You MUST respond using the provided "return_corrected_manuscript" tool call ONLY. Do not respond with plain text.`,
           },
           {
             role: "user",
-            content: `REVIEW REPORT (JSON):\n${feedbackText}\n\n---\n\nORIGINAL MANUSCRIPT:\n${manuscriptText.substring(
+            content: `PEER-REVIEW REPORT (JSON — address every weakness, issue and suggestion below):\n${feedbackText}\n\n---\n\nORIGINAL MANUSCRIPT (rewrite this fully to reach a 90+ score; preserve all factual content and references verbatim):\n${manuscriptText.substring(
               0,
-              60000
+              90000
             )}`,
           },
         ],
