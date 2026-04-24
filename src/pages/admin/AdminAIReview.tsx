@@ -301,6 +301,13 @@ export default function AdminAIReview() {
                         <p className="text-sm text-muted-foreground">
                           {article.reference_number} • {(article.profiles as any)?.full_name}
                         </p>
+                        {(article.status === 'revised_submitted' ||
+                          (latestReview && !article.review_report_url)) && (
+                          <Badge className="mt-2 bg-primary/20 text-primary border border-primary/40 hover:bg-primary/30">
+                            <RefreshCw className="w-3 h-3 mr-1" />
+                            Revised manuscript available — re-analyze
+                          </Badge>
+                        )}
                       </div>
                     </div>
                   </div>
