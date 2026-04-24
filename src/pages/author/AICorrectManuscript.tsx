@@ -89,6 +89,12 @@ export default function AICorrectManuscript() {
         return;
       }
 
+      if (data?.status === 'processing') {
+        setProcessing(true);
+        if (!pollingRef.current) startPolling();
+        return;
+      }
+
       if (data?.status === 'failed') {
         setProcessing(false);
         stopPolling();
