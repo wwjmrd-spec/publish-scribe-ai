@@ -86,6 +86,132 @@ function buildDocxFromText(title: string, body: string): Promise<Uint8Array> {
   return Packer.toBuffer(doc).then((b) => new Uint8Array(b));
 }
 
+const SYSTEM_PROMPT = `You are an elite academic editor for a peer-reviewed journal. You will receive (1) a manuscript section and (2) a peer-review report with weaknesses, issues, and suggestions.
+
+YOUR GOAL: rewrite the supplied section so the full manuscript would trend toward a 90+ score on a fresh AI peer review across originality, grammar/structure, and content quality.
+
+QUALITY BAR:
+- Remove weak, generic, repetitive, and awkward phrasing.
+- Improve academic clarity, logical flow, transitions, precision, and structure.
+- Strengthen framing, discussion, implication, and conclusion language where relevant.
+- Preserve all factual content, data, numbers, citations, equations, dataset names, and references exactly as given.
+
+HARD RULES:
+- Do NOT invent data, results, numbers, citations, references, authors, or facts.
+- Keep section headings if present.
+- Keep the rewritten section at least as informative as the original.
+- Return ONLY the rewritten text for that section through the tool call.
+`;
+
+function chunkManuscript(text: string, maxChars = 18000) {
+  const paragraphs = text
+    .split(/\n{2,}/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  const chunks: string[] = [];
+  let current = "";
+
+  for (const paragraph of paragraphs) {
+    const candidate = current ? `${current}\n\n${paragraph}` : paragraph;
+    if (candidate.length <= maxChars) {
+      current = candidate;
+      continue;
+    }
+
+    if (current) chunks.push(current);
+
+    if (paragraph.length <= maxChars) {
+      current = paragraph;
+      continue;
+    }
+
+    for (let index = 0; index < paragraph.length; index += maxChars) {
+      chunks.push(paragraph.slice(index, index + maxChars));
+    }
+    current = "";
+  }
+
+  if (current) chunks.push(current);
+  return chunks.length ? chunks : [text.slice(0, maxChars)];
+}
+
+async function rewriteChunk(
+  lovableApiKey: string,
+  feedbackText: string,
+  chunk: string,
+  chunkIndex: number,
+  chunkCount: number,
+) {
+  const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${lovableApiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        {
+          role: "user",
+          content: `PEER-REVIEW REPORT (apply every relevant issue below):\n${feedbackText}\n\n---\n\nSECTION ${chunkIndex + 1} OF ${chunkCount}\nRewrite this manuscript section to satisfy the review report while preserving all factual content:\n\n${chunk}`,
+        },
+      ],
+      tools: [
+        {
+          type: "function",
+          function: {
+            name: "return_rewritten_section",
+            description: "Return the rewritten section text and a few short notes about what was improved.",
+            parameters: {
+              type: "object",
+              properties: {
+                rewritten_section: { type: "string" },
+                chunk_summary: {
+                  type: "array",
+                  items: { type: "string" },
+                },
+              },
+              required: ["rewritten_section", "chunk_summary"],
+              additionalProperties: false,
+            },
+          },
+        },
+      ],
+      tool_choice: {
+        type: "function",
+        function: { name: "return_rewritten_section" },
+      },
+    }),
+  });
+
+  if (!aiResp.ok) {
+    const errText = await aiResp.text();
+    console.error("AI gateway error:", aiResp.status, errText);
+    if (aiResp.status === 429) throw Object.assign(new Error("Rate limit exceeded. Please try again shortly."), { status: 429 });
+    if (aiResp.status === 402) throw Object.assign(new Error("AI credits exhausted. Please add funds in Workspace settings."), { status: 402 });
+    throw new Error("AI correction failed");
+  }
+
+  const aiData = await aiResp.json();
+  const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+  if (!toolCall?.function?.arguments) {
+    console.error("No tool call in AI response:", JSON.stringify(aiData).slice(0, 500));
+    throw new Error("AI did not return a corrected manuscript section");
+  }
+
+  const parsed = JSON.parse(toolCall.function.arguments) as {
+    rewritten_section: string;
+    chunk_summary: string[];
+  };
+
+  return {
+    rewrittenSection: parsed.rewritten_section || "",
+    chunkSummary: Array.isArray(parsed.chunk_summary) ? parsed.chunk_summary : [],
+  };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -173,107 +299,34 @@ serve(async (req) => {
       manuscriptText.length
     );
 
-    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${lovableApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
-        messages: [
-          {
-            role: "system",
-            content: `You are an elite academic editor for a peer-reviewed journal. You will receive (1) a manuscript and (2) a peer-review report with weakness lists, issues, and suggestions.
+    const chunks = chunkManuscript(manuscriptText);
+    console.log("AI correction chunks:", chunks.length);
 
-YOUR GOAL: produce a fully corrected manuscript that would score AT LEAST 90/100 on a fresh AI peer review across plagiarism originality, grammar/structure, and content quality. Address EVERY weakness, issue, and suggestion in the review report.
+    const rewrittenChunks: string[] = [];
+    const summarySet = new Set<string>();
 
-QUALITY BAR (target 90+):
-- Plagiarism (target 95+): Rephrase common/generic phrases in original wording. Vary sentence openers. Replace clichés and boilerplate with precise academic language.
-- Grammar & Structure (target 92+): Flawless grammar, punctuation, agreement, tense consistency. Active voice where natural. Clear topic sentences. Smooth transitions between paragraphs and sections. No run-on or fragmentary sentences.
-- Content Quality (target 90+): Tighten the abstract. Sharpen the research aim and contribution. Strengthen the literature framing, methodology rigour, and discussion of implications. Add an explicit limitations and future-work paragraph if missing. Make the conclusion crisp and tied to the stated objectives.
-
-HARD RULES:
-- DO NOT invent data, results, numbers, citations, references, authors, or facts. Keep ALL factual content (numbers, tables, citations, dataset names, equations, references list) exactly as in the original — only rewrite the surrounding prose.
-- Preserve every section that exists in the original (Abstract, Introduction, Literature Review, Methodology, Results, Discussion, Conclusion, References, etc.). Keep references list verbatim.
-- Keep the manuscript at least as long as the original; do not summarise or shorten substantive sections.
-- Write in formal academic English, third person, past tense for methods/results, present tense for established facts.
-- Output the FULL corrected manuscript text — no preface, no commentary, no markdown fences.
-- Use blank lines between paragraphs. Put each section heading on its own line in UPPERCASE (e.g. "ABSTRACT", "INTRODUCTION", "METHODOLOGY", "RESULTS AND DISCUSSION", "CONCLUSION", "REFERENCES").
-
-You MUST respond using the provided "return_corrected_manuscript" tool call ONLY. Do not respond with plain text.`,
-          },
-          {
-            role: "user",
-            content: `PEER-REVIEW REPORT (JSON — address every weakness, issue and suggestion below):\n${feedbackText}\n\n---\n\nORIGINAL MANUSCRIPT (rewrite this fully to reach a 90+ score; preserve all factual content and references verbatim):\n${manuscriptText.substring(
-              0,
-              90000
-            )}`,
-          },
-        ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "return_corrected_manuscript",
-              description:
-                "Return the fully corrected manuscript text plus a short bullet list summarising the changes made.",
-              parameters: {
-                type: "object",
-                properties: {
-                  corrected_manuscript: {
-                    type: "string",
-                    description:
-                      "Full corrected manuscript text with paragraphs separated by blank lines and section headings on their own lines.",
-                  },
-                  change_summary: {
-                    type: "array",
-                    items: { type: "string" },
-                    description: "5-12 short bullet points describing the corrections made.",
-                  },
-                },
-                required: ["corrected_manuscript", "change_summary"],
-                additionalProperties: false,
-              },
-            },
-          },
-        ],
-        tool_choice: {
-          type: "function",
-          function: { name: "return_corrected_manuscript" },
-        },
-      }),
-    });
-
-    if (!aiResp.ok) {
-      const errText = await aiResp.text();
-      console.error("AI gateway error:", aiResp.status, errText);
-      if (aiResp.status === 429)
-        return jsonResponse({ error: "Rate limit exceeded. Please try again shortly." }, 429);
-      if (aiResp.status === 402)
-        return jsonResponse(
-          { error: "AI credits exhausted. Please add funds in Workspace settings." },
-          402
-        );
-      return jsonResponse({ error: "AI correction failed" }, 500);
-    }
-
-    const aiData = await aiResp.json();
-    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall?.function?.arguments) {
-      console.error("No tool call in AI response:", JSON.stringify(aiData).slice(0, 500));
-      return jsonResponse({ error: "AI did not return a corrected manuscript" }, 500);
-    }
-
-    let parsed: { corrected_manuscript: string; change_summary: string[] };
     try {
-      parsed = JSON.parse(toolCall.function.arguments);
-    } catch {
-      return jsonResponse({ error: "AI response could not be parsed" }, 500);
+      for (let index = 0; index < chunks.length; index++) {
+        const result = await rewriteChunk(lovableApiKey, feedbackText, chunks[index], index, chunks.length);
+        if (!result.rewrittenSection.trim()) {
+          throw new Error(`Corrected manuscript section ${index + 1} was empty`);
+        }
+        rewrittenChunks.push(result.rewrittenSection.trim());
+        for (const item of result.chunkSummary) {
+          if (item?.trim()) summarySet.add(item.trim());
+        }
+      }
+    } catch (error) {
+      const status = (error as any)?.status;
+      if (status === 429 || status === 402) {
+        return jsonResponse({ error: error instanceof Error ? error.message : "AI correction failed" }, status);
+      }
+      console.error("Chunk rewrite error:", error);
+      return jsonResponse({ error: error instanceof Error ? error.message : "AI correction failed" }, 500);
     }
 
-    const correctedText = parsed.corrected_manuscript || "";
-    const changeSummary = Array.isArray(parsed.change_summary) ? parsed.change_summary : [];
+    const correctedText = rewrittenChunks.join("\n\n");
+    const changeSummary = Array.from(summarySet).slice(0, 12);
 
     if (correctedText.trim().length < 100) {
       return jsonResponse({ error: "Corrected manuscript was too short" }, 500);
@@ -298,22 +351,11 @@ You MUST respond using the provided "return_corrected_manuscript" tool call ONLY
     }
 
     if (mode === "submit") {
-      // Determine the right "revised" status based on current state
-      const currentStatus = article.status as string | null;
-      const nextStatus =
-        currentStatus === "rejected" || currentStatus === "revision_requested"
-          ? "revised_submitted"
-          : currentStatus === "ai_review_generated" ||
-            currentStatus === "under_review" ||
-            currentStatus === "submitted"
-          ? "revised_submitted"
-          : "revised_submitted";
-
       const { error: updateError } = await supabase
         .from("articles")
         .update({
           document_url: filePath,
-          status: nextStatus as any,
+          status: "revised_submitted" as any,
           // Clear stale review report so admin/author can see a fresh re-analysis is needed
           review_report_url: null,
         })
