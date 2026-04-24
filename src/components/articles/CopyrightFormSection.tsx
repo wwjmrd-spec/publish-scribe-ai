@@ -12,6 +12,7 @@ interface CopyrightFormSectionProps {
 
 export function CopyrightFormSection({ article }: CopyrightFormSectionProps) {
   const [uploading, setUploading] = useState(false);
+  const [inputKey, setInputKey] = useState(0);
   const queryClient = useQueryClient();
 
   const hasCopyrightForm = !!(article as any).copyright_form_url;
@@ -47,7 +48,8 @@ export function CopyrightFormSection({ article }: CopyrightFormSectionProps) {
       if (updateError) throw updateError;
 
       queryClient.invalidateQueries({ queryKey: ['my-articles'] });
-      toast.success('Copyright form submitted successfully!');
+      toast.success(hasCopyrightForm ? 'Copyright form updated successfully!' : 'Copyright form submitted successfully!');
+      setInputKey((prev) => prev + 1);
     } catch (err: any) {
       toast.error('Failed to upload copyright form: ' + err.message);
     } finally {
@@ -62,48 +64,46 @@ export function CopyrightFormSection({ article }: CopyrightFormSectionProps) {
     <div className="pt-2 border-t border-border/50">
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm font-medium text-muted-foreground">Copyright Form:</span>
-        {hasCopyrightForm ? (
+        {hasCopyrightForm && (
           <span className="inline-flex items-center gap-1 text-sm text-emerald-400">
             <FileCheck className="w-4 h-4" />
             Submitted
           </span>
-        ) : (
-          <>
-            <a
-              href="/copyright-form.doc"
-              download="COPYRIGHT_AGREEMENT_FORM.doc"
-              className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-            >
-              <Download className="w-4 h-4" />
-              Download Form
-            </a>
-            <label className="cursor-pointer">
-              <input
-                type="file"
-                accept="application/pdf"
-                onChange={handleUpload}
-                className="hidden"
-                disabled={uploading}
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-primary"
-                asChild
-                disabled={uploading}
-              >
-                <span>
-                  {uploading ? (
-                    <GlassSpinner size="sm" className="mr-1" />
-                  ) : (
-                    <Upload className="w-4 h-4 mr-1" />
-                  )}
-                  Upload Copyright Form (PDF)
-                </span>
-              </Button>
-            </label>
-          </>
         )}
+        <a
+          href="/copyright-form.doc"
+          download="COPYRIGHT_AGREEMENT_FORM.doc"
+          className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+        >
+          <Download className="w-4 h-4" />
+          Download Form
+        </a>
+        <label className="cursor-pointer">
+          <input
+            key={inputKey}
+            type="file"
+            accept="application/pdf"
+            onChange={handleUpload}
+            className="hidden"
+            disabled={uploading}
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-primary"
+            asChild
+            disabled={uploading}
+          >
+            <span>
+              {uploading ? (
+                <GlassSpinner size="sm" className="mr-1" />
+              ) : (
+                <Upload className="w-4 h-4 mr-1" />
+              )}
+              {hasCopyrightForm ? 'Update Copyright Form (PDF)' : 'Upload Copyright Form (PDF)'}
+            </span>
+          </Button>
+        </label>
       </div>
     </div>
   );

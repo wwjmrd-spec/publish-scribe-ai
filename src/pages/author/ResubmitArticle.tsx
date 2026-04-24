@@ -56,12 +56,13 @@ export default function ResubmitArticle() {
         .upload(filePath, file);
       if (uploadError) throw uploadError;
 
-      // Update the existing article with new file and reset status
+      // Update the existing article with the revised file and mark it ready for re-review
       const { error: updateError } = await supabase
         .from('articles')
         .update({
           document_url: filePath,
-          status: 'submitted' as any,
+          status: 'revised_submitted' as any,
+          review_report_url: null,
         })
         .eq('id', article.id);
 
@@ -114,7 +115,7 @@ export default function ResubmitArticle() {
         .catch((err) => console.error('Failed to send admin resubmit email:', err));
 
       toast({
-        title: 'Article resubmitted successfully!',
+        title: 'Revised manuscript submitted successfully!',
         description: `Reference: ${article.reference_number}`,
       });
 
