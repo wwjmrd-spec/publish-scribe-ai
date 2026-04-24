@@ -114,7 +114,7 @@ serve(async (req: Request) => {
     {
       const { data: articles, error } = await supabase
         .from("articles")
-        .select("id, title, reference_number, author_id, profiles:author_id (full_name, email)")
+        .select("id, title, reference_number, author_id, copyright_form_url, profiles:author_id (full_name, email)")
         .eq("status", "submitted")
         .eq("automation_paused", false)
         .lte("submission_date", fiveMinAgo);
@@ -149,7 +149,7 @@ serve(async (req: Request) => {
               `/admin/articles/${article.id}`
             );
             // Author email - status update
-            if (profile?.email) {
+            if (profile?.email && !article.copyright_form_url) {
               await sendEmail(profile.email, "status-update", {
                 authorName: profile.full_name || "Author",
                 articleTitle: article.title,
@@ -157,21 +157,29 @@ serve(async (req: Request) => {
                 newStatus: "Under Review",
                 message: "Your article has been received and is now under review by our editorial team.",
               });
-              // Copyright form request email
               await sendEmail(profile.email, "copyright-form-request", {
                 authorName: profile.full_name || "Author",
                 articleTitle: article.title,
                 referenceNumber: article.reference_number,
               });
+            } else if (profile?.email) {
+              await sendEmail(profile.email, "status-update", {
+                authorName: profile.full_name || "Author",
+                articleTitle: article.title,
+                referenceNumber: article.reference_number,
+                newStatus: "Under Review",
+                message: "Your article has been received and is now under review by our editorial team.",
+              });
             }
-            // Copyright form notification
-            await supabase.from("notifications").insert({
-              user_id: article.author_id,
-              title: "Copyright Form Required 📝",
-              message: `Please submit the copyright transfer form for "${article.title}".`,
-              type: "warning",
-              link: "/author/articles",
-            });
+            if (!article.copyright_form_url) {
+              await supabase.from("notifications").insert({
+                user_id: article.author_id,
+                title: "Copyright Form Required 📝",
+                message: `Please submit the copyright transfer form for "${article.title}".`,
+                type: "warning",
+                link: "/author/articles",
+              });
+            }
           }
         }
       }

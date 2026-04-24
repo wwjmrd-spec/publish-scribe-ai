@@ -638,11 +638,15 @@ Provide your response as a valid JSON object with this exact structure:
       console.error("Report upload error:", reportUploadError);
     }
 
-    // Update article with review report URL path
+    // Update article with review report URL path and review lifecycle status
     if (!reportUploadError) {
+      const nextStatus = article.status === "revised_submitted"
+        ? "revised_review_generated"
+        : "ai_review_generated";
+
       await supabase
         .from("articles")
-        .update({ review_report_url: reportFileName })
+        .update({ review_report_url: reportFileName, status: nextStatus })
         .eq("id", articleId);
     }
 

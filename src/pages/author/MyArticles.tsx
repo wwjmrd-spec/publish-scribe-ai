@@ -135,7 +135,11 @@ export default function MyArticles() {
 
       const { error: updateError } = await supabase
         .from('articles')
-        .update({ document_url: filePath } as any)
+        .update({
+          document_url: filePath,
+          status: 'revised_submitted',
+          review_report_url: null,
+        } as any)
         .eq('id', articleId);
       if (updateError) throw updateError;
 
@@ -183,15 +187,15 @@ export default function MyArticles() {
       if (admins) {
         const notifications = admins.map((a) => ({
           user_id: a.user_id,
-          title: 'Manuscript Updated 📝',
-          message: `Author ${emailData.authorName} has updated the manuscript for "${emailData.articleTitle}" (${emailData.referenceNumber}).`,
+          title: 'Revised Manuscript Submitted ✨',
+          message: `Author ${emailData.authorName} has submitted a revised manuscript for "${emailData.articleTitle}" (${emailData.referenceNumber}).`,
           type: 'info',
-          link: `/admin/articles/${articleId}`,
+          link: `/admin/ai-review?articleId=${articleId}`,
         }));
         await supabase.from('notifications').insert(notifications);
       }
 
-      toast.success('Manuscript updated successfully! The admin will review the updated document.');
+      toast.success('Revised manuscript submitted successfully! The admin can re-analyze it now.');
       queryClient.invalidateQueries({ queryKey: ['my-articles'] });
     } catch (err: any) {
       toast.error('Failed to update manuscript: ' + (err.message || 'Unknown error'));
@@ -262,7 +266,7 @@ export default function MyArticles() {
 
   // Can update manuscript before review (submitted/under_review) or when revision requested (rejected for resubmit)
   const canUpdateManuscript = (status: string) => {
-    return ['submitted', 'under_review'].includes(status);
+    return ['submitted', 'under_review', 'revision_requested'].includes(status);
   };
 
   if (isLoading || subLoading) {
