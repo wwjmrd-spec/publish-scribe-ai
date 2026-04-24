@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import mammoth from "npm:mammoth@1.6.0";
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from "npm:docx@8.5.0";
+import { z } from "npm:zod@3.23.8";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,11 +10,97 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const RequestSchema = z.object({
+  articleId: z.string().uuid(),
+  mode: z.enum(["preview", "status", "submit"]).default("preview"),
+  force: z.boolean().optional().default(false),
+});
+
+type CorrectionStatus = "processing" | "completed" | "failed";
+
+interface CorrectionJobRecord {
+  articleId: string;
+  status: CorrectionStatus;
+  sourceDocumentUrl: string;
+  sourceReviewReportUrl: string;
+  startedAt: string;
+  completedAt?: string;
+  error?: string;
+  filePath?: string;
+  changeSummary?: string[];
+  previewText?: string;
+}
+
 function jsonResponse(body: object, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+}
+
+function getStatusPath(userId: string, articleId: string) {
+  return `${userId}/ai-corrections/${articleId}.json`;
+}
+
+function isMissingStorageObject(error: { message?: string } | null) {
+  return !!error?.message && /not found|no such object/i.test(error.message);
+}
+
+function isFreshRecord(record: CorrectionJobRecord | null, article: { document_url: string | null; review_report_url: string | null }) {
+  return !!record &&
+    record.sourceDocumentUrl === article.document_url &&
+    record.sourceReviewReportUrl === article.review_report_url;
+}
+
+async function readJobRecord(supabase: any, userId: string, articleId: string): Promise<CorrectionJobRecord | null> {
+  const statusPath = getStatusPath(userId, articleId);
+  const { data, error } = await supabase.storage.from("documents").download(statusPath);
+  if (error || !data) {
+    if (isMissingStorageObject(error)) return null;
+    console.error("Failed to read AI correction job:", error);
+    return null;
+  }
+
+  try {
+    return JSON.parse(await data.text()) as CorrectionJobRecord;
+  } catch (error) {
+    console.error("Invalid AI correction job payload:", error);
+    return null;
+  }
+}
+
+async function writeJobRecord(supabase: any, userId: string, articleId: string, record: CorrectionJobRecord) {
+  const { error } = await supabase.storage.from("documents").upload(
+    getStatusPath(userId, articleId),
+    new Blob([JSON.stringify(record)], { type: "application/json" }),
+    {
+      contentType: "application/json",
+      upsert: true,
+    }
+  );
+
+  if (error) {
+    throw new Error(`Failed to save AI correction status: ${error.message}`);
+  }
+}
+
+async function createStatusResponse(supabase: any, record: CorrectionJobRecord) {
+  let downloadUrl: string | null = null;
+
+  if (record.filePath) {
+    const { data } = await supabase.storage.from("documents").createSignedUrl(record.filePath, 60 * 60);
+    downloadUrl = data?.signedUrl || null;
+  }
+
+  return {
+    success: record.status === "completed",
+    status: record.status,
+    error: record.error || null,
+    filePath: record.filePath || null,
+    downloadUrl,
+    changeSummary: record.changeSummary || [],
+    previewText: record.previewText || "",
+  };
 }
 
 async function downloadDocxText(supabase: any, bucket: string, path: string) {
@@ -212,6 +299,138 @@ async function rewriteChunk(
   };
 }
 
+async function rewriteChunksInParallel(
+  lovableApiKey: string,
+  feedbackText: string,
+  chunks: string[],
+  concurrency = 2,
+) {
+  const results = new Array(chunks.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < chunks.length) {
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+      results[currentIndex] = await rewriteChunk(
+        lovableApiKey,
+        feedbackText,
+        chunks[currentIndex],
+        currentIndex,
+        chunks.length,
+      );
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.max(1, Math.min(concurrency, chunks.length)) }, () => worker())
+  );
+
+  return results as Array<{ rewrittenSection: string; chunkSummary: string[] }>;
+}
+
+async function processCorrectionInBackground({
+  supabase,
+  lovableApiKey,
+  userId,
+  article,
+  review,
+}: {
+  supabase: any;
+  lovableApiKey: string;
+  userId: string;
+  article: any;
+  review: any;
+}) {
+  try {
+    const manuscriptText = await downloadDocxText(supabase, "documents", article.document_url);
+    if (!manuscriptText || manuscriptText.trim().length < 50) {
+      throw new Error("Could not read the manuscript text");
+    }
+
+    const feedbackText = JSON.stringify(
+      {
+        summary: review.summary,
+        scores: {
+          grammar: review.grammar_score,
+          content: review.content_score,
+          overall: review.overall_score,
+        },
+        feedback: review.detailed_feedback,
+      },
+      null,
+      2
+    );
+
+    console.log(
+      "Starting AI correction:",
+      article.reference_number,
+      "manuscript chars:",
+      manuscriptText.length
+    );
+
+    const chunks = chunkManuscript(manuscriptText);
+    console.log("AI correction chunks:", chunks.length);
+
+    const rewrittenChunks = await rewriteChunksInParallel(lovableApiKey, feedbackText, chunks, 2);
+    const summarySet = new Set<string>();
+    const correctedText = rewrittenChunks
+      .map((chunk, index) => {
+        if (!chunk.rewrittenSection.trim()) {
+          throw new Error(`Corrected manuscript section ${index + 1} was empty`);
+        }
+        chunk.chunkSummary.forEach((item) => {
+          if (item?.trim()) summarySet.add(item.trim());
+        });
+        return chunk.rewrittenSection.trim();
+      })
+      .join("\n\n");
+
+    if (correctedText.trim().length < 100) {
+      throw new Error("Corrected manuscript was too short");
+    }
+
+    const docxBytes = await buildDocxFromText(article.title || "Corrected Manuscript", correctedText);
+    const filePath = `${userId}/ai-corrections/${article.id}-${Date.now()}-ai-corrected.docx`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("documents")
+      .upload(filePath, new Blob([docxBytes], {
+        type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      }), {
+        contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        upsert: false,
+      });
+
+    if (uploadError) {
+      throw new Error("Failed to save corrected manuscript");
+    }
+
+    await writeJobRecord(supabase, userId, article.id, {
+      articleId: article.id,
+      status: "completed",
+      sourceDocumentUrl: article.document_url,
+      sourceReviewReportUrl: article.review_report_url,
+      startedAt: new Date().toISOString(),
+      completedAt: new Date().toISOString(),
+      filePath,
+      changeSummary: Array.from(summarySet).slice(0, 12),
+      previewText: correctedText.slice(0, 4000),
+    });
+  } catch (error) {
+    console.error("AI correction background job failed:", error);
+    await writeJobRecord(supabase, userId, article.id, {
+      articleId: article.id,
+      status: "failed",
+      sourceDocumentUrl: article.document_url,
+      sourceReviewReportUrl: article.review_report_url,
+      startedAt: new Date().toISOString(),
+      completedAt: new Date().toISOString(),
+      error: error instanceof Error ? error.message : "AI correction failed",
+    });
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -230,13 +449,17 @@ serve(async (req) => {
     const authClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
+
     const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(token);
     if (claimsError || !claimsData?.claims) return jsonResponse({ error: "Unauthorized" }, 401);
     const userId = claimsData.claims.sub as string;
 
-    const body = await req.json();
-    const { articleId, mode } = body as { articleId: string; mode?: "preview" | "submit" };
-    if (!articleId) return jsonResponse({ error: "articleId required" }, 400);
+    const parsedBody = RequestSchema.safeParse(await req.json().catch(() => null));
+    if (!parsedBody.success) {
+      return jsonResponse({ error: parsedBody.error.flatten().fieldErrors }, 400);
+    }
+
+    const { articleId, mode, force } = parsedBody.data;
 
     const { data: article, error: articleError } = await supabase
       .from("articles")
@@ -257,8 +480,23 @@ serve(async (req) => {
       (!sub.expires_at || new Date(sub.expires_at) > new Date());
     if (!isPro) return jsonResponse({ error: "Pro plan required" }, 403);
 
+    const currentJob = await readJobRecord(supabase, userId, articleId);
+    const hasFreshJob = isFreshRecord(currentJob, article);
+
+    if (mode === "status") {
+      if (!hasFreshJob || !currentJob) {
+        return jsonResponse({ success: true, status: "idle" });
+      }
+
+      return jsonResponse(await createStatusResponse(supabase, currentJob));
+    }
+
     if (!article.review_report_url) {
       return jsonResponse({ error: "Generate the AI review report first" }, 400);
+    }
+
+    if (!article.document_url) {
+      return jsonResponse({ error: "No manuscript file on article" }, 400);
     }
 
     const { data: review } = await supabase
@@ -270,93 +508,16 @@ serve(async (req) => {
       .maybeSingle();
     if (!review) return jsonResponse({ error: "No AI review found" }, 400);
 
-    const docPath = article.document_url;
-    if (!docPath) return jsonResponse({ error: "No manuscript file on article" }, 400);
-    const manuscriptText = await downloadDocxText(supabase, "documents", docPath);
-    if (!manuscriptText || manuscriptText.trim().length < 50) {
-      return jsonResponse({ error: "Could not read the manuscript text" }, 400);
-    }
-
-    const feedback = review.detailed_feedback as any;
-    const feedbackText = JSON.stringify(
-      {
-        summary: review.summary,
-        scores: {
-          grammar: review.grammar_score,
-          content: review.content_score,
-          overall: review.overall_score,
-        },
-        feedback,
-      },
-      null,
-      2
-    );
-
-    console.log(
-      "Starting AI correction:",
-      article.reference_number,
-      "manuscript chars:",
-      manuscriptText.length
-    );
-
-    const chunks = chunkManuscript(manuscriptText);
-    console.log("AI correction chunks:", chunks.length);
-
-    const rewrittenChunks: string[] = [];
-    const summarySet = new Set<string>();
-
-    try {
-      for (let index = 0; index < chunks.length; index++) {
-        const result = await rewriteChunk(lovableApiKey, feedbackText, chunks[index], index, chunks.length);
-        if (!result.rewrittenSection.trim()) {
-          throw new Error(`Corrected manuscript section ${index + 1} was empty`);
-        }
-        rewrittenChunks.push(result.rewrittenSection.trim());
-        for (const item of result.chunkSummary) {
-          if (item?.trim()) summarySet.add(item.trim());
-        }
-      }
-    } catch (error) {
-      const status = (error as any)?.status;
-      if (status === 429 || status === 402) {
-        return jsonResponse({ error: error instanceof Error ? error.message : "AI correction failed" }, status);
-      }
-      console.error("Chunk rewrite error:", error);
-      return jsonResponse({ error: error instanceof Error ? error.message : "AI correction failed" }, 500);
-    }
-
-    const correctedText = rewrittenChunks.join("\n\n");
-    const changeSummary = Array.from(summarySet).slice(0, 12);
-
-    if (correctedText.trim().length < 100) {
-      return jsonResponse({ error: "Corrected manuscript was too short" }, 500);
-    }
-
-    const docxBytes = await buildDocxFromText(article.title || "Corrected Manuscript", correctedText);
-
-    const filePath = `${userId}/${crypto.randomUUID()}-ai-corrected.docx`;
-    const { error: uploadError } = await supabase.storage
-      .from("documents")
-      .upload(filePath, new Blob([docxBytes], {
-        type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      }), {
-        contentType:
-          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        upsert: false,
-      });
-
-    if (uploadError) {
-      console.error("Upload error:", uploadError);
-      return jsonResponse({ error: "Failed to save corrected manuscript" }, 500);
-    }
-
     if (mode === "submit") {
+      if (!hasFreshJob || !currentJob || currentJob.status !== "completed" || !currentJob.filePath) {
+        return jsonResponse({ error: "Corrected manuscript is not ready yet. Please wait for the AI job to finish." }, 409);
+      }
+
       const { error: updateError } = await supabase
         .from("articles")
         .update({
-          document_url: filePath,
+          document_url: currentJob.filePath,
           status: "revised_submitted" as any,
-          // Clear stale review report so admin/author can see a fresh re-analysis is needed
           review_report_url: null,
         })
         .eq("id", articleId);
@@ -369,6 +530,7 @@ serve(async (req) => {
         .from("user_roles")
         .select("user_id")
         .eq("role", "admin");
+
       if (admins && admins.length) {
         await supabase.from("notifications").insert(
           admins.map((a: any) => ({
@@ -380,20 +542,45 @@ serve(async (req) => {
           }))
         );
       }
+
+      return jsonResponse({
+        success: true,
+        status: "submitted",
+        filePath: currentJob.filePath,
+      });
     }
 
-    const { data: signed } = await supabase.storage
-      .from("documents")
-      .createSignedUrl(filePath, 60 * 60);
+    if (hasFreshJob && currentJob?.status === "processing") {
+      return jsonResponse({ success: true, status: "processing" }, 202);
+    }
+
+    if (hasFreshJob && currentJob?.status === "completed" && !force) {
+      return jsonResponse(await createStatusResponse(supabase, currentJob));
+    }
+
+    await writeJobRecord(supabase, userId, articleId, {
+      articleId,
+      status: "processing",
+      sourceDocumentUrl: article.document_url,
+      sourceReviewReportUrl: article.review_report_url,
+      startedAt: new Date().toISOString(),
+    });
+
+    EdgeRuntime.waitUntil(
+      processCorrectionInBackground({
+        supabase,
+        lovableApiKey,
+        userId,
+        article,
+        review,
+      })
+    );
 
     return jsonResponse({
       success: true,
-      mode: mode || "preview",
-      filePath,
-      downloadUrl: signed?.signedUrl || null,
-      changeSummary,
-      previewText: correctedText.slice(0, 4000),
-    });
+      status: "processing",
+      message: "AI correction started",
+    }, 202);
   } catch (err) {
     console.error("ai-correct-manuscript error:", err);
     return jsonResponse(
