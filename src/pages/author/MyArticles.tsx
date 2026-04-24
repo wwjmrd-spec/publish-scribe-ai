@@ -24,6 +24,7 @@ import {
   Award,
   Ban,
   RefreshCw,
+  Sparkles,
 } from 'lucide-react';
 import { WithdrawArticleDialog } from '@/components/articles/WithdrawArticleDialog';
 import { GalleyProofReviewSection } from '@/components/articles/GalleyProofReviewSection';
@@ -447,6 +448,40 @@ export default function MyArticles() {
                         >
                           <Award className="w-4 h-4 mr-1" />
                           Certificate
+                        </Button>
+                      )}
+
+                      {/* AI Auto-Correct (Pro feature, requires review report) */}
+                      {article.review_report_url && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-primary border-primary/40"
+                          onClick={() => {
+                            if (subscription.plan !== 'pro' || !subscription.isActive) {
+                              toast(
+                                <div className="flex flex-col gap-2">
+                                  <p className="font-semibold flex items-center gap-1">
+                                    <Crown className="w-4 h-4" /> Pro feature
+                                  </p>
+                                  <p className="text-sm text-muted-foreground">
+                                    Let AI auto-correct your manuscript using the review report. Available on Pro.
+                                  </p>
+                                  <Button size="sm" className="gradient-primary mt-1 w-fit" onClick={() => navigate('/author/subscription')}>
+                                    <Crown className="w-4 h-4 mr-1" /> Upgrade to Pro
+                                  </Button>
+                                </div>
+                              );
+                              return;
+                            }
+                            navigate(`/author/ai-correct/${article.id}`);
+                          }}
+                        >
+                          <Sparkles className="w-4 h-4 mr-1" />
+                          AI Auto-Correct
+                          {(subscription.plan !== 'pro' || !subscription.isActive) && (
+                            <Lock className="w-3 h-3 ml-1" />
+                          )}
                         </Button>
                       )}
 
