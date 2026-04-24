@@ -114,7 +114,7 @@ serve(async (req: Request) => {
     {
       const { data: articles, error } = await supabase
         .from("articles")
-        .select("id, title, reference_number, author_id, profiles:author_id (full_name, email)")
+        .select("id, title, reference_number, author_id, copyright_form_url, profiles:author_id (full_name, email)")
         .eq("status", "submitted")
         .eq("automation_paused", false)
         .lte("submission_date", fiveMinAgo);
