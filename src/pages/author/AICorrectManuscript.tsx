@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
@@ -36,8 +36,10 @@ export default function AICorrectManuscript() {
   const { subscription, isLoading: subLoading } = useSubscription();
 
   const [running, setRunning] = useState(false);
+  const [processing, setProcessing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<CorrectionResult | null>(null);
+  const pollingRef = useRef<number | null>(null);
 
   const { data: article, isLoading } = useQuery({
     queryKey: ['ai-correct-article', articleId],
@@ -57,15 +59,79 @@ export default function AICorrectManuscript() {
   const isPro = subscription.plan === 'pro' && subscription.isActive;
   const hasReview = !!article?.review_report_url;
 
-  const runCorrection = async () => {
+  const stopPolling = () => {
+    if (pollingRef.current) {
+      window.clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+  };
+
+  const pollCorrectionStatus = async () => {
+    if (!articleId) return;
+
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-correct-manuscript', {
+        body: { articleId, mode: 'status' },
+      });
+
+      if (error) throw new Error(error.message || 'Failed');
+
+      if (data?.status === 'completed' && data?.filePath) {
+        setResult({
+          filePath: data.filePath,
+          downloadUrl: data.downloadUrl,
+          changeSummary: data.changeSummary || [],
+          previewText: data.previewText || '',
+        });
+        setProcessing(false);
+        stopPolling();
+        toast.success('AI corrections ready — review below');
+        return;
+      }
+
+      if (data?.status === 'failed') {
+        setProcessing(false);
+        stopPolling();
+        toast.error(data?.error || 'AI correction failed');
+      }
+    } catch (err: any) {
+      setProcessing(false);
+      stopPolling();
+      toast.error(err.message || 'AI correction failed');
+    }
+  };
+
+  const startPolling = () => {
+    stopPolling();
+    pollingRef.current = window.setInterval(() => {
+      void pollCorrectionStatus();
+    }, 4000);
+  };
+
+  useEffect(() => {
+    if (!articleId) return;
+    void pollCorrectionStatus();
+    return () => stopPolling();
+  }, [articleId]);
+
+  const runCorrection = async (force = false) => {
     if (!articleId) return;
     setRunning(true);
+    setProcessing(false);
     setResult(null);
     try {
       const { data, error } = await supabase.functions.invoke('ai-correct-manuscript', {
-        body: { articleId, mode: 'preview' },
+        body: { articleId, mode: 'preview', force },
       });
       if (error) throw new Error(error.message || 'Failed');
+
+      if (data?.status === 'processing') {
+        setProcessing(true);
+        startPolling();
+        toast.info('AI correction started — this can take a little while');
+        return;
+      }
+
       if (!data?.success) throw new Error(data?.error || 'Failed to generate corrections');
       setResult({
         filePath: data.filePath,
@@ -197,13 +263,24 @@ export default function AICorrectManuscript() {
               AI will read your manuscript and the review report, then produce a fully corrected version.
               Factual content (data, citations, results) is preserved — only writing quality, structure, and clarity are improved.
             </p>
-            <Button onClick={runCorrection} disabled={running} className="gradient-primary">
-              {running ? (
+               <Button onClick={() => runCorrection()} disabled={running || processing} className="gradient-primary">
+               {running || processing ? (
                 <><GlassSpinner size="sm" /> <span className="ml-2">AI is correcting…</span></>
               ) : (
                 <><Sparkles className="w-4 h-4 mr-2" /> Make corrections as per review report</>
               )}
             </Button>
+          </GlassCard>
+        )}
+
+        {isPro && hasReview && processing && !result && (
+          <GlassCard className="mb-6">
+            <h3 className="font-semibold mb-2 flex items-center gap-2">
+              <Wand2 className="w-5 h-5 text-primary" /> AI correction in progress
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Your manuscript is being rewritten in the background. This page will update automatically when the corrected version is ready.
+            </p>
           </GlassCard>
         )}
 
@@ -232,7 +309,7 @@ export default function AICorrectManuscript() {
                     </Button>
                   </a>
                 )}
-                <Button variant="ghost" size="sm" onClick={runCorrection} disabled={running}>
+                <Button variant="ghost" size="sm" onClick={() => runCorrection(true)} disabled={running || processing}>
                   <Wand2 className="w-4 h-4 mr-1" /> Regenerate
                 </Button>
               </div>
