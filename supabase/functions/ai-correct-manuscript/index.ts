@@ -298,11 +298,24 @@ You MUST respond using the provided "return_corrected_manuscript" tool call ONLY
     }
 
     if (mode === "submit") {
+      // Determine the right "revised" status based on current state
+      const currentStatus = article.status as string | null;
+      const nextStatus =
+        currentStatus === "rejected" || currentStatus === "revision_requested"
+          ? "revised_submitted"
+          : currentStatus === "ai_review_generated" ||
+            currentStatus === "under_review" ||
+            currentStatus === "submitted"
+          ? "revised_submitted"
+          : "revised_submitted";
+
       const { error: updateError } = await supabase
         .from("articles")
         .update({
           document_url: filePath,
-          status: "submitted",
+          status: nextStatus as any,
+          // Clear stale review report so admin/author can see a fresh re-analysis is needed
+          review_report_url: null,
         })
         .eq("id", articleId);
       if (updateError) {
@@ -318,10 +331,10 @@ You MUST respond using the provided "return_corrected_manuscript" tool call ONLY
         await supabase.from("notifications").insert(
           admins.map((a: any) => ({
             user_id: a.user_id,
-            title: "AI-Corrected Manuscript Submitted ✨",
-            message: `Author submitted an AI-corrected revision for "${article.title}" (${article.reference_number}).`,
+            title: "Revised Manuscript Submitted ✨",
+            message: `Author submitted an AI-corrected revised manuscript for "${article.title}" (${article.reference_number}). Please re-analyze with AI Article Review.`,
             type: "info",
-            link: `/admin/articles/${articleId}`,
+            link: `/admin/ai-review?articleId=${articleId}`,
           }))
         );
       }
