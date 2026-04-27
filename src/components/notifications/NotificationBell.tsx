@@ -1,7 +1,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, Check, CheckCheck, Gift, Info, AlertCircle } from 'lucide-react';
+import { Bell, Check, CheckCheck, Gift, Info, AlertCircle, Trash2 } from 'lucide-react';
 import { useNotifications, Notification } from '@/hooks/useNotifications';
+import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
   Popover,
@@ -28,6 +32,8 @@ function getNotificationIcon(type: string) {
 export function NotificationBell() {
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [open, setOpen] = React.useState(false);
 
   const handleClick = (n: Notification) => {
@@ -36,6 +42,20 @@ export function NotificationBell() {
       setOpen(false);
       navigate((n as any).link);
     }
+  };
+
+  const clearAll = async () => {
+    if (!user?.id) return;
+    const { error } = await supabase
+      .from('notifications')
+      .delete()
+      .eq('user_id', user.id);
+    if (error) {
+      toast.error('Failed to clear notifications');
+      return;
+    }
+    queryClient.invalidateQueries({ queryKey: ['notifications', user.id] });
+    toast.success('All notifications cleared');
   };
 
   return (
@@ -53,17 +73,30 @@ export function NotificationBell() {
       <PopoverContent className="w-80 p-0 glass-card-strong" align="end">
         <div className="flex items-center justify-between p-4 border-b border-[hsl(var(--glass-border))]">
           <h3 className="font-display font-semibold text-sm">Notifications</h3>
-          {unreadCount > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-xs h-7 gap-1"
-              onClick={() => markAllAsRead()}
-            >
-              <CheckCheck className="w-3 h-3" />
-              Mark all read
-            </Button>
-          )}
+          <div className="flex items-center gap-1">
+            {unreadCount > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs h-7 gap-1"
+                onClick={() => markAllAsRead()}
+              >
+                <CheckCheck className="w-3 h-3" />
+                Mark all read
+              </Button>
+            )}
+            {notifications.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs h-7 gap-1 text-destructive hover:text-destructive"
+                onClick={clearAll}
+              >
+                <Trash2 className="w-3 h-3" />
+                Clear all
+              </Button>
+            )}
+          </div>
         </div>
         <ScrollArea className="h-[400px]">
           {notifications.length === 0 ? (
@@ -91,7 +124,7 @@ export function NotificationBell() {
                       )}>
                         {n.title}
                       </p>
-                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                      <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap break-words">
                         {n.message}
                       </p>
                       <p className="text-xs text-muted-foreground mt-1.5 opacity-60">
