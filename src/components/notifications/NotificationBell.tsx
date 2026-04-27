@@ -1,7 +1,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, Check, CheckCheck, Gift, Info, AlertCircle } from 'lucide-react';
+import { Bell, Check, CheckCheck, Gift, Info, AlertCircle, Trash2 } from 'lucide-react';
 import { useNotifications, Notification } from '@/hooks/useNotifications';
+import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
   Popover,
