@@ -384,7 +384,8 @@ serve(async (req) => {
     // Fetch publisher stamp image
     let stampImageBase64: string | null = null;
     try {
-      const stampUrl = `${supabaseUrl}/storage/v1/object/public/email-assets/publisher-stamp.png`;
+      const stampFile = journalKey === "WWJMER" ? "wwjmer-stamp.png" : "publisher-stamp.png";
+      const stampUrl = `${supabaseUrl}/storage/v1/object/public/email-assets/${stampFile}`;
       const stampRes = await fetch(stampUrl);
       if (stampRes.ok) {
         const stampBuffer = await stampRes.arrayBuffer();
@@ -396,8 +397,9 @@ serve(async (req) => {
     }
 
     // Generate PDF certificate
-    console.log("Generating PDF certificate for article:", articleId);
+    console.log("Generating PDF certificate for article:", articleId, "journal:", journalKey);
     const pdfBuffer = generateCertificatePdf(
+      journalConfig,
       authorName,
       authorAffiliation,
       article.title,
