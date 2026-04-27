@@ -46,16 +46,21 @@ export function NotificationBell() {
 
   const clearAll = async () => {
     if (!user?.id) return;
+    const readIds = notifications.filter((n) => n.is_read).map((n) => n.id);
+    if (readIds.length === 0) {
+      toast.info('No read notifications to clear');
+      return;
+    }
     const { error } = await supabase
       .from('notifications')
       .delete()
-      .eq('user_id', user.id);
+      .in('id', readIds);
     if (error) {
       toast.error('Failed to clear notifications');
       return;
     }
-    queryClient.invalidateQueries({ queryKey: ['notifications', user.id] });
-    toast.success('All notifications cleared');
+    await queryClient.invalidateQueries({ queryKey: ['notifications', user.id] });
+    toast.success(`Cleared ${readIds.length} read notification${readIds.length > 1 ? 's' : ''}`);
   };
 
   return (
