@@ -276,7 +276,7 @@ function generateCertificatePdf(
   const bottomY = pageHeight - 16;
   doc.setFontSize(8);
   doc.setTextColor(...grayText);
-  doc.text("World Wide Journal of Multidisciplinary Research and Development  |  Email: support@wwjmrd.com  |  Website: www.wwjmrd.com", pageWidth / 2, bottomY, { align: "center" });
+  doc.text(`${journal.fullName}  |  Email: ${journal.email}  |  Website: ${journal.website}`, pageWidth / 2, bottomY, { align: "center" });
 
   return doc.output("arraybuffer");
 }
