@@ -56,6 +56,7 @@ export default function AdminArticleDetail() {
     pageNumber: '',
     year: new Date().getFullYear().toString(),
     publishedLink: '',
+    journal: 'WWJMRD' as 'WWJMRD' | 'WWJMER',
   });
   const [editPublishDetails, setEditPublishDetails] = useState({
     volume: '',
@@ -137,6 +138,7 @@ export default function AdminArticleDetail() {
           pageNumber: publishDetails.pageNumber,
           year: publishDetails.year,
           publishedLink: publishDetails.publishedLink || null,
+          journal: publishDetails.journal,
         },
       });
 
@@ -189,7 +191,7 @@ export default function AdminArticleDetail() {
         console.error('Failed to send published email to admin:', emailError);
       }
 
-      setPublishDetails({ volume: '', issue: '', pageNumber: '', year: new Date().getFullYear().toString(), publishedLink: '' });
+      setPublishDetails({ volume: '', issue: '', pageNumber: '', year: new Date().getFullYear().toString(), publishedLink: '', journal: 'WWJMRD' });
 
       // Send referral reward emails if applicable
       try {
@@ -424,8 +426,20 @@ export default function AdminArticleDetail() {
                   )}
                   {article.submission_target && (
                     <div>
-                      <label className="text-xs text-muted-foreground">Submission Target</label>
-                      <p className="text-sm">{article.submission_target}</p>
+                      <label className="text-xs text-muted-foreground">Publish Target (Author Choice)</label>
+                      <p className="text-sm font-medium">
+                        {article.submission_target === 'WWJMRD' ? '📘 WWJMRD' : article.submission_target === 'WWJMER' ? '📕 WWJMER' : article.submission_target}
+                      </p>
+                      {(article.submission_target === 'WWJMRD' || article.submission_target === 'WWJMER') && (
+                        <a
+                          href={article.submission_target === 'WWJMRD' ? 'https://wwjmrd.com/' : 'https://wwjmer.com/'}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-primary hover:underline"
+                        >
+                          {article.submission_target === 'WWJMRD' ? 'wwjmrd.com' : 'wwjmer.com'}
+                        </a>
+                      )}
                     </div>
                   )}
                   {article.reason_of_research && (
@@ -437,7 +451,7 @@ export default function AdminArticleDetail() {
                   {(article as any).discovery_source && (
                     <div>
                       <label className="text-xs text-muted-foreground">Discovery Source</label>
-                      <p className="text-sm">{(article as any).discovery_source === 'google_search' ? '🔍 Google Search' : (article as any).discovery_source === 'friend_colleague' ? '👥 Friend/Colleague' : '📱 Social Media'}</p>
+                      <p className="text-sm">{(article as any).discovery_source === 'google_search' ? '🔍 Google Search' : (article as any).discovery_source === 'friend_colleague' ? '👥 Friend/Colleague' : (article as any).discovery_source === 'social_media' ? '📱 Social Media' : (article as any).discovery_source === 'email' ? '✉️ Email' : (article as any).discovery_source}</p>
                     </div>
                   )}
                 </div>
@@ -685,7 +699,11 @@ export default function AdminArticleDetail() {
                   variant="outline"
                   size="sm"
                   className="text-green-400 hover:text-green-300"
-                  onClick={() => setIsPublishDialogOpen(true)}
+                  onClick={() => {
+                    const target = (article.submission_target === 'WWJMER' ? 'WWJMER' : 'WWJMRD') as 'WWJMRD' | 'WWJMER';
+                    setPublishDetails((prev) => ({ ...prev, journal: target }));
+                    setIsPublishDialogOpen(true);
+                  }}
                   disabled={updateStatusMutation.isPending || article.status === 'published'}
                 >
                   <CheckCircle className="w-4 h-4 mr-2" /> Publish
@@ -908,6 +926,26 @@ export default function AdminArticleDetail() {
             <DialogDescription>Enter the publication details for the certificate</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="journal">Publish in Journal</Label>
+              <Select
+                value={publishDetails.journal}
+                onValueChange={(v) => setPublishDetails(prev => ({ ...prev, journal: v as 'WWJMRD' | 'WWJMER' }))}
+              >
+                <SelectTrigger id="journal" className="glass-input">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="WWJMRD">WWJMRD — World Wide Journal of Multidisciplinary Research and Development</SelectItem>
+                  <SelectItem value="WWJMER">WWJMER — World Wide Journal of Multidisciplinary Education and Research</SelectItem>
+                </SelectContent>
+              </Select>
+              {article?.submission_target && (
+                <p className="text-xs text-muted-foreground">
+                  Author requested: <span className="font-medium">{article.submission_target}</span>
+                </p>
+              )}
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="volume">Volume</Label>

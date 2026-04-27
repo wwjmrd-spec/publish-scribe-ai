@@ -10,6 +10,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useSubscription, incrementUsage } from '@/hooks/useSubscription';
 import { toast } from 'sonner';
+import { downloadFromUrl } from '@/lib/downloadFile';
 import {
   FileText,
   Eye,
@@ -47,14 +48,7 @@ export default function MyArticles() {
         toast.error('Failed to get galley proof download link');
         return;
       }
-      const link = document.createElement('a');
-      link.href = response.data.url;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      link.download = `galley-proof-${articleId}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      downloadFromUrl(response.data.url, `galley-proof-${articleId}.pdf`);
     } catch {
       toast.error('Failed to download galley proof');
     }
@@ -110,14 +104,7 @@ export default function MyArticles() {
         }
       }
 
-      const link = document.createElement('a');
-      link.href = response.data.url;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      link.download = `review-report-${articleId}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      downloadFromUrl(response.data.url, `review-report-${articleId}.pdf`);
     } catch (err) {
       toast.error('Failed to download report');
     }

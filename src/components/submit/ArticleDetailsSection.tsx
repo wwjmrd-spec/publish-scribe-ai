@@ -5,7 +5,19 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
-import { FileText, Sparkles, Globe, BookOpen, Target } from 'lucide-react';
+import { FileText, Sparkles, Globe, BookOpen, Target, ExternalLink } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+
+const PUBLISH_TARGETS: Record<string, { label: string; website: string }> = {
+  WWJMRD: { label: 'WWJMRD', website: 'https://wwjmrd.com/' },
+  WWJMER: { label: 'WWJMER', website: 'https://wwjmer.com/' },
+};
 
 interface ArticleDetailsSectionProps {
   title: string;
@@ -167,15 +179,32 @@ export function ArticleDetailsSection({
         <div className="space-y-2">
           <Label htmlFor="submissionTarget" className="flex items-center gap-1.5">
             <Target className="w-3.5 h-3.5" />
-            Where do you want to submit?
+            Where do you want to Publish? *
           </Label>
-          <Input
-            id="submissionTarget"
-            value={submissionTarget}
-            onChange={(e) => setSubmissionTarget(e.target.value)}
-            placeholder="e.g., WWJMRD, IEEE, Springer"
-            className="glass-input"
-          />
+          <Select
+            value={PUBLISH_TARGETS[submissionTarget] ? submissionTarget : ''}
+            onValueChange={setSubmissionTarget}
+          >
+            <SelectTrigger id="submissionTarget" className="glass-input">
+              <SelectValue placeholder="Select a journal" />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(PUBLISH_TARGETS).map(([key, { label }]) => (
+                <SelectItem key={key} value={key}>{label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {submissionTarget && PUBLISH_TARGETS[submissionTarget] && (
+            <a
+              href={PUBLISH_TARGETS[submissionTarget].website}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
+            >
+              <ExternalLink className="w-3 h-3" />
+              Visit the journal website ({PUBLISH_TARGETS[submissionTarget].website})
+            </a>
+          )}
         </div>
       </div>
     </GlassCard>

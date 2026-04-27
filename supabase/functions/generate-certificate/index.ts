@@ -18,7 +18,46 @@ function escapeHtml(unsafe: string): string {
     .replace(/'/g, '&#039;');
 }
 
+type JournalKey = "WWJMRD" | "WWJMER";
+
+interface JournalConfig {
+  fullName: string;
+  issn: string;
+  email: string;
+  website: string;
+  websiteDisplay: string;
+  // Theme colors as RGB triples
+  darkBlue: [number, number, number];
+  accentBlue: [number, number, number];
+  certRed: [number, number, number];
+}
+
+const JOURNAL_CONFIGS: Record<JournalKey, JournalConfig> = {
+  WWJMRD: {
+    fullName: "World Wide Journal of Multidisciplinary Research and Development",
+    issn: "ONLINE-ISSN: 2454-6615",
+    email: "support@wwjmrd.com",
+    website: "www.wwjmrd.com",
+    websiteDisplay: "www.wwjmrd.com",
+    darkBlue: [44, 62, 80],
+    accentBlue: [52, 152, 219],
+    certRed: [231, 76, 60],
+  },
+  WWJMER: {
+    fullName: "World Wide Journal of Multidisciplinary Education and Research",
+    issn: "ISSN: 2583-8466",
+    email: "wwjmer@gmail.com",
+    website: "www.wwjmer.com",
+    websiteDisplay: "www.wwjmer.com",
+    // Deep Pink / Magenta theme (#EB0A73 = RGB 235, 10, 115)
+    darkBlue: [120, 5, 60],     // deep magenta for headings
+    accentBlue: [235, 10, 115], // primary magenta accent
+    certRed: [235, 10, 115],    // magenta certificate title
+  },
+};
+
 function generateCertificatePdf(
+  journal: JournalConfig,
   authorName: string,
   authorAffiliation: string,
   articleTitle: string,
@@ -35,10 +74,10 @@ function generateCertificatePdf(
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
 
-  // Colors
-  const darkBlue = [44, 62, 80] as [number, number, number];
-  const accentBlue = [52, 152, 219] as [number, number, number];
-  const certRed = [231, 76, 60] as [number, number, number];
+  // Colors (from journal config)
+  const darkBlue = journal.darkBlue;
+  const accentBlue = journal.accentBlue;
+  const certRed = journal.certRed;
   const grayText = [102, 102, 102] as [number, number, number];
   const white = [255, 255, 255] as [number, number, number];
   const lightBg = [248, 249, 250] as [number, number, number];
@@ -60,7 +99,7 @@ function generateCertificatePdf(
   doc.setFont("helvetica", "bold");
   doc.setFontSize(18);
   doc.setTextColor(...darkBlue);
-  doc.text("World Wide Journal of Multidisciplinary Research and Development", pageWidth / 2, y, { align: "center" });
+  doc.text(journal.fullName, pageWidth / 2, y, { align: "center" });
   y += 10;
 
   // Badges line
@@ -82,7 +121,7 @@ function generateCertificatePdf(
   // ISSN (Online only)
   doc.setFontSize(9);
   doc.setTextColor(...grayText);
-  doc.text("ONLINE-ISSN: 2454-6615", pageWidth / 2, y, { align: "center" });
+  doc.text(journal.issn, pageWidth / 2, y, { align: "center" });
   y += 6;
 
   // Separator
@@ -237,7 +276,7 @@ function generateCertificatePdf(
   const bottomY = pageHeight - 16;
   doc.setFontSize(8);
   doc.setTextColor(...grayText);
-  doc.text("World Wide Journal of Multidisciplinary Research and Development  |  Email: support@wwjmrd.com  |  Website: www.wwjmrd.com", pageWidth / 2, bottomY, { align: "center" });
+  doc.text(`${journal.fullName}  |  Email: ${journal.email}  |  Website: ${journal.website}`, pageWidth / 2, bottomY, { align: "center" });
 
   return doc.output("arraybuffer");
 }
@@ -295,7 +334,7 @@ serve(async (req) => {
       });
     }
 
-    const { articleId, volume, issue, pageNumber, year, publishedLink } = await req.json();
+    const { articleId, volume, issue, pageNumber, year, publishedLink, journal: journalKeyRaw } = await req.json();
 
     if (!articleId || !volume || !issue || !pageNumber || !year) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
@@ -303,6 +342,9 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const journalKey: JournalKey = journalKeyRaw === "WWJMER" ? "WWJMER" : "WWJMRD";
+    const journalConfig = JOURNAL_CONFIGS[journalKey];
 
     // Fetch article with author and co-authors
     const { data: article, error: articleError } = await supabase
@@ -342,7 +384,8 @@ serve(async (req) => {
     // Fetch publisher stamp image
     let stampImageBase64: string | null = null;
     try {
-      const stampUrl = `${supabaseUrl}/storage/v1/object/public/email-assets/publisher-stamp.png`;
+      const stampFile = journalKey === "WWJMER" ? "wwjmer-stamp.png" : "publisher-stamp.png";
+      const stampUrl = `${supabaseUrl}/storage/v1/object/public/email-assets/${stampFile}`;
       const stampRes = await fetch(stampUrl);
       if (stampRes.ok) {
         const stampBuffer = await stampRes.arrayBuffer();
@@ -354,8 +397,9 @@ serve(async (req) => {
     }
 
     // Generate PDF certificate
-    console.log("Generating PDF certificate for article:", articleId);
+    console.log("Generating PDF certificate for article:", articleId, "journal:", journalKey);
     const pdfBuffer = generateCertificatePdf(
+      journalConfig,
       authorName,
       authorAffiliation,
       article.title,

@@ -10,6 +10,7 @@ import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { downloadFromUrl } from '@/lib/downloadFile';
 import { useSubscription } from '@/hooks/useSubscription';
 import {
   Award,
@@ -84,13 +85,7 @@ export default function Certificates() {
     },
     onSuccess: (data) => {
       if (data.url) {
-        const a = document.createElement('a');
-        a.href = data.url;
-        a.download = '';
-        a.target = '_blank';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        downloadFromUrl(data.url);
       }
     },
     onError: (error) => {
@@ -110,13 +105,7 @@ export default function Certificates() {
     },
     onSuccess: (data) => {
       if (data.url) {
-        const a = document.createElement('a');
-        a.href = data.url;
-        a.download = '';
-        a.target = '_blank';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        downloadFromUrl(data.url);
       }
     },
     onError: (error) => {
