@@ -31,6 +31,9 @@ export default function Auth() {
   const [error, setError] = useState<string | null>(null);
   const [formLoadTime] = useState(Date.now());
   const [honeypot, setHoneypot] = useState('');
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
 
   // Form fields
   const [email, setEmail] = useState('');
@@ -43,6 +46,28 @@ export default function Auth() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [googleLoading, setGoogleLoading] = useState(false);
+
+  const handleForgotPassword = async () => {
+    const target = (forgotEmail || email).trim();
+    const valid = z.string().email().safeParse(target);
+    if (!valid.success) {
+      toast({ title: 'Enter a valid email', variant: 'destructive' });
+      return;
+    }
+    setForgotLoading(true);
+    const { supabase } = await import('@/integrations/supabase/client');
+    const { error } = await supabase.auth.resetPasswordForEmail(target, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setForgotLoading(false);
+    if (error) {
+      toast({ title: 'Could not send reset email', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({ title: 'Check your email', description: 'We sent you a password reset link.' });
+    setForgotOpen(false);
+    setForgotEmail('');
+  };
 
   // Detect country on mount
   useEffect(() => {
@@ -343,6 +368,7 @@ export default function Auth() {
                 {!isSignUp &&
                 <button
                   type="button"
+                  onClick={() => { setForgotEmail(email); setForgotOpen(true); }}
                   className="text-sm text-primary hover:text-primary/80 transition-colors">
 
                     Forgot your password?
