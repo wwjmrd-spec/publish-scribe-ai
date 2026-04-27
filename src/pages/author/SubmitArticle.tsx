@@ -1114,6 +1114,7 @@ export default function SubmitArticle() {
                     { value: 'google_search', label: 'Google Search', icon: '🔍' },
                     { value: 'friend_colleague', label: 'Referred by Friend or Colleague', icon: '👥' },
                     { value: 'social_media', label: 'Social Media', icon: '📱' },
+                    { value: 'email', label: 'Email', icon: '✉️' },
                   ].map((option) => (
                     <label
                       key={option.value}

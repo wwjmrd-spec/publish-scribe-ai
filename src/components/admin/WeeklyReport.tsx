@@ -130,7 +130,12 @@ export function WeeklyReport() {
                 Select Week
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="end">
+            <PopoverContent
+              className="w-auto p-0 z-[60] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-6rem)] overflow-auto"
+              align="end"
+              sideOffset={6}
+              collisionPadding={12}
+            >
               <Calendar
                 mode="single"
                 selected={selectedDate}

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { GlassCard } from '@/components/layout/GlassCard';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
-import { Search, Users, Share2, CalendarDays } from 'lucide-react';
+import { Search, Users, Share2, CalendarDays, Mail } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -28,7 +28,7 @@ export function DiscoverySourceReport() {
 
       if (error) throw error;
 
-      const counts = { google_search: 0, friend_colleague: 0, social_media: 0, unknown: 0 };
+      const counts = { google_search: 0, friend_colleague: 0, social_media: 0, email: 0, unknown: 0 };
       articles?.forEach((a: any) => {
         if (a.discovery_source && counts.hasOwnProperty(a.discovery_source)) {
           counts[a.discovery_source as keyof typeof counts]++;
@@ -42,9 +42,10 @@ export function DiscoverySourceReport() {
   });
 
   const sources = [
-    { key: 'google_search', label: 'Google Search', icon: <Search className="w-5 h-5" />, color: 'text-blue-400' },
-    { key: 'friend_colleague', label: 'Friend / Colleague', icon: <Users className="w-5 h-5" />, color: 'text-emerald-400' },
-    { key: 'social_media', label: 'Social Media', icon: <Share2 className="w-5 h-5" />, color: 'text-purple-400' },
+    { key: 'google_search', label: 'Google Search', icon: <Search className="w-5 h-5" />, color: 'text-blue-400', bar: 'bg-blue-400' },
+    { key: 'friend_colleague', label: 'Friend / Colleague', icon: <Users className="w-5 h-5" />, color: 'text-emerald-400', bar: 'bg-emerald-400' },
+    { key: 'social_media', label: 'Social Media', icon: <Share2 className="w-5 h-5" />, color: 'text-purple-400', bar: 'bg-purple-400' },
+    { key: 'email', label: 'Email', icon: <Mail className="w-5 h-5" />, color: 'text-pink-400', bar: 'bg-pink-400' },
   ];
 
   if (isLoading) {
@@ -77,7 +78,12 @@ export function DiscoverySourceReport() {
                   {format(dateRange.from, 'MMM d')} – {format(dateRange.to, 'MMM d, yyyy')}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="end">
+              <PopoverContent
+                className="w-auto p-0 z-[60] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-6rem)] overflow-auto"
+                align="end"
+                sideOffset={6}
+                collisionPadding={12}
+              >
                 <Calendar
                   mode="range"
                   selected={{ from: dateRange.from, to: dateRange.to }}
@@ -89,14 +95,14 @@ export function DiscoverySourceReport() {
                     }
                   }}
                   className={cn("p-3 pointer-events-auto")}
-                  numberOfMonths={2}
+                  numberOfMonths={1}
                 />
               </PopoverContent>
             </Popover>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {sources.map((source) => {
             const count = data?.counts[source.key as keyof typeof data.counts] || 0;
             const pct = data?.total ? Math.round((count / data.total) * 100) : 0;
@@ -109,7 +115,7 @@ export function DiscoverySourceReport() {
                 <p className="text-2xl font-bold">{count}</p>
                 <div className="w-full bg-muted rounded-full h-2">
                   <div
-                    className={`h-2 rounded-full ${source.key === 'google_search' ? 'bg-blue-400' : source.key === 'friend_colleague' ? 'bg-emerald-400' : 'bg-purple-400'}`}
+                    className={`h-2 rounded-full ${source.bar}`}
                     style={{ width: `${pct}%` }}
                   />
                 </div>
