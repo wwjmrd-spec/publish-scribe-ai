@@ -9,6 +9,7 @@ import { CartProvider } from "@/contexts/CartContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import ResetPassword from "./pages/ResetPassword";
 import AuthorDashboard from "./pages/author/AuthorDashboard";
 import SubmitArticle from "./pages/author/SubmitArticle";
 import ResubmitArticle from "./pages/author/ResubmitArticle";
@@ -63,6 +64,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             
             {/* Author Routes */}
             <Route 

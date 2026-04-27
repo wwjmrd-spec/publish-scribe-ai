@@ -31,6 +31,9 @@ export default function Auth() {
   const [error, setError] = useState<string | null>(null);
   const [formLoadTime] = useState(Date.now());
   const [honeypot, setHoneypot] = useState('');
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
 
   // Form fields
   const [email, setEmail] = useState('');
@@ -43,6 +46,28 @@ export default function Auth() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [googleLoading, setGoogleLoading] = useState(false);
+
+  const handleForgotPassword = async () => {
+    const target = (forgotEmail || email).trim();
+    const valid = z.string().email().safeParse(target);
+    if (!valid.success) {
+      toast({ title: 'Enter a valid email', variant: 'destructive' });
+      return;
+    }
+    setForgotLoading(true);
+    const { supabase } = await import('@/integrations/supabase/client');
+    const { error } = await supabase.auth.resetPasswordForEmail(target, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setForgotLoading(false);
+    if (error) {
+      toast({ title: 'Could not send reset email', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({ title: 'Check your email', description: 'We sent you a password reset link.' });
+    setForgotOpen(false);
+    setForgotEmail('');
+  };
 
   // Detect country on mount
   useEffect(() => {
@@ -343,6 +368,7 @@ export default function Auth() {
                 {!isSignUp &&
                 <button
                   type="button"
+                  onClick={() => { setForgotEmail(email); setForgotOpen(true); }}
                   className="text-sm text-primary hover:text-primary/80 transition-colors">
 
                     Forgot your password?
@@ -495,6 +521,40 @@ export default function Auth() {
           </div>
         </motion.div>
       </div>
+
+      {/* Forgot Password Dialog */}
+      {forgotOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => !forgotLoading && setForgotOpen(false)}>
+          <div className="bg-background border border-border rounded-xl p-6 w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-xl font-semibold text-foreground mb-2">Reset password</h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              Enter your email and we'll send you a link to reset your password.
+            </p>
+            <div className="space-y-2 mb-4">
+              <Label htmlFor="forgot-email">Email</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  id="forgot-email"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  className="pl-10 h-11"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" disabled={forgotLoading} onClick={() => setForgotOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="button" disabled={forgotLoading} onClick={handleForgotPassword}>
+                {forgotLoading ? 'Sending…' : 'Send reset link'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>);
 
 }
