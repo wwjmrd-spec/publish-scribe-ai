@@ -334,7 +334,7 @@ serve(async (req) => {
       });
     }
 
-    const { articleId, volume, issue, pageNumber, year, publishedLink } = await req.json();
+    const { articleId, volume, issue, pageNumber, year, publishedLink, journal: journalKeyRaw } = await req.json();
 
     if (!articleId || !volume || !issue || !pageNumber || !year) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
@@ -342,6 +342,9 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const journalKey: JournalKey = journalKeyRaw === "WWJMER" ? "WWJMER" : "WWJMRD";
+    const journalConfig = JOURNAL_CONFIGS[journalKey];
 
     // Fetch article with author and co-authors
     const { data: article, error: articleError } = await supabase
