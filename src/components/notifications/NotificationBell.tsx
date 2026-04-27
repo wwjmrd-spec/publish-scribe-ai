@@ -32,6 +32,8 @@ function getNotificationIcon(type: string) {
 export function NotificationBell() {
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [open, setOpen] = React.useState(false);
 
   const handleClick = (n: Notification) => {
@@ -40,6 +42,20 @@ export function NotificationBell() {
       setOpen(false);
       navigate((n as any).link);
     }
+  };
+
+  const clearAll = async () => {
+    if (!user?.id) return;
+    const { error } = await supabase
+      .from('notifications')
+      .delete()
+      .eq('user_id', user.id);
+    if (error) {
+      toast.error('Failed to clear notifications');
+      return;
+    }
+    queryClient.invalidateQueries({ queryKey: ['notifications', user.id] });
+    toast.success('All notifications cleared');
   };
 
   return (
