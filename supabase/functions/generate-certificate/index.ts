@@ -390,7 +390,7 @@ serve(async (req) => {
       if (stampRes.ok) {
         const stampBuffer = await stampRes.arrayBuffer();
         const stampBytes = new Uint8Array(stampBuffer);
-        stampImageBase64 = "data:image/png;base64," + base64Encode(stampBytes);
+        stampImageBase64 = "data:image/png;base64," + base64Encode(stampBytes as any);
       }
     } catch (e) {
       console.error("Failed to fetch stamp image:", e);
