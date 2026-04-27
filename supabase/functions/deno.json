@@ -1,0 +1,9 @@
+{
+  "nodeModulesDir": "auto",
+  "imports": {
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2",
+    "jspdf": "npm:jspdf@2.5.2",
+    "resend": "npm:resend@4.0.0",
+    "mammoth": "npm:mammoth@1.6.0"
+  }
+}
