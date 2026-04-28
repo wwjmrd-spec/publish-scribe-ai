@@ -150,6 +150,8 @@ export default function AdminAuthorDetail() {
     },
     onError: (error) => toast.error('Failed: ' + error.message),
   });
+
+  const changeCurrencyMutation = useMutation({
     mutationFn: async (isIndian: boolean) => {
       const { error } = await supabase
         .from('profiles')
