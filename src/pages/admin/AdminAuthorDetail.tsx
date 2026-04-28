@@ -91,7 +91,65 @@ export default function AdminAuthorDetail() {
     enabled: !!articles?.length,
   });
 
-  const changeCurrencyMutation = useMutation({
+  const currentMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+
+  const { data: usageRows, refetch: refetchUsage } = useQuery({
+    queryKey: ['admin-author-usage', authorId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('plan_usage')
+        .select('id, usage_month, review_reports_used, coauthor_certs_used')
+        .eq('user_id', authorId!);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!authorId,
+  });
+
+  const lifetimeReports = (usageRows || []).reduce((s, r) => s + (r.review_reports_used || 0), 0);
+  const lifetimeCerts = (usageRows || []).reduce((s, r) => s + (r.coauthor_certs_used || 0), 0);
+  const currentMonthRow = (usageRows || []).find(r => r.usage_month === currentMonth);
+  const monthReports = currentMonthRow?.review_reports_used || 0;
+  const monthCerts = currentMonthRow?.coauthor_certs_used || 0;
+
+  const resetUsageMutation = useMutation({
+    mutationFn: async (scope: 'lifetime-reports' | 'month-reports' | 'lifetime-certs' | 'month-certs') => {
+      if (scope === 'lifetime-reports') {
+        const { error } = await supabase
+          .from('plan_usage')
+          .update({ review_reports_used: 0 })
+          .eq('user_id', authorId!);
+        if (error) throw error;
+      } else if (scope === 'lifetime-certs') {
+        const { error } = await supabase
+          .from('plan_usage')
+          .update({ coauthor_certs_used: 0 })
+          .eq('user_id', authorId!);
+        if (error) throw error;
+      } else if (scope === 'month-reports') {
+        const { error } = await supabase
+          .from('plan_usage')
+          .update({ review_reports_used: 0 })
+          .eq('user_id', authorId!)
+          .eq('usage_month', currentMonth);
+        if (error) throw error;
+      } else if (scope === 'month-certs') {
+        const { error } = await supabase
+          .from('plan_usage')
+          .update({ coauthor_certs_used: 0 })
+          .eq('user_id', authorId!)
+          .eq('usage_month', currentMonth);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      refetchUsage();
+      queryClient.invalidateQueries({ queryKey: ['plan-usage'] });
+      queryClient.invalidateQueries({ queryKey: ['plan-usage-lifetime'] });
+      toast.success('Usage reset successfully');
+    },
+    onError: (error) => toast.error('Failed: ' + error.message),
+  });
     mutationFn: async (isIndian: boolean) => {
       const { error } = await supabase
         .from('profiles')
