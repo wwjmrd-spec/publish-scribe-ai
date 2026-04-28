@@ -402,6 +402,104 @@ export default function AdminAuthorDetail() {
             </GlassCard>
 
             <GlassCard>
+              <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider">
+                Plan Usage
+              </h3>
+              <div className="space-y-4 text-sm">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <FileText className="w-3.5 h-3.5" /> Review Reports
+                    </span>
+                    <span className="font-medium">
+                      Free (lifetime): <span className="text-primary">{lifetimeReports}</span> / 2
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-muted-foreground">
+                      Pro (this month {currentMonth}):
+                    </span>
+                    <span className="text-xs font-medium">
+                      <span className="text-primary">{monthReports}</span> / 5
+                    </span>
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs"
+                      onClick={() => {
+                        if (confirm('Reset lifetime review report usage to 0? This affects the Free plan limit.')) {
+                          resetUsageMutation.mutate('lifetime-reports');
+                        }
+                      }}
+                      disabled={resetUsageMutation.isPending || lifetimeReports === 0}
+                    >
+                      <RotateCcw className="w-3 h-3 mr-1" /> Reset Lifetime
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs"
+                      onClick={() => {
+                        if (confirm(`Reset this month's review report usage to 0? This affects the Pro plan limit.`)) {
+                          resetUsageMutation.mutate('month-reports');
+                        }
+                      }}
+                      disabled={resetUsageMutation.isPending || monthReports === 0}
+                    >
+                      <RotateCcw className="w-3 h-3 mr-1" /> Reset Month
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="pt-3 border-t border-[hsl(var(--glass-border))]">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-muted-foreground">Co-author Certs</span>
+                    <span className="font-medium">
+                      Lifetime: <span className="text-primary">{lifetimeCerts}</span>
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-muted-foreground">Pro (this month):</span>
+                    <span className="text-xs font-medium">
+                      <span className="text-primary">{monthCerts}</span> / 4
+                    </span>
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs"
+                      onClick={() => {
+                        if (confirm('Reset lifetime co-author cert usage to 0?')) {
+                          resetUsageMutation.mutate('lifetime-certs');
+                        }
+                      }}
+                      disabled={resetUsageMutation.isPending || lifetimeCerts === 0}
+                    >
+                      <RotateCcw className="w-3 h-3 mr-1" /> Reset Lifetime
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs"
+                      onClick={() => {
+                        if (confirm(`Reset this month's co-author cert usage to 0?`)) {
+                          resetUsageMutation.mutate('month-certs');
+                        }
+                      }}
+                      disabled={resetUsageMutation.isPending || monthCerts === 0}
+                    >
+                      <RotateCcw className="w-3 h-3 mr-1" /> Reset Month
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </GlassCard>
+
+            <GlassCard>
+
               <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Info</h3>
               <div className="space-y-2 text-sm">
                 <div>
