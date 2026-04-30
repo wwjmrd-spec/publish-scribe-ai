@@ -156,6 +156,9 @@ serve(async (req) => {
     } else if (fileType === "formatted_document") {
       bucket = "formatted-articles";
       filePath = article.formatted_document_url || null;
+    } else if (fileType === "formatted_word") {
+      bucket = "formatted-articles";
+      filePath = (article as any).formatted_docx_url || null;
     } else if (fileType === "galley_proof_revision") {
       bucket = "formatted-articles";
       filePath = article.galley_proof_revision_url || null;
@@ -184,6 +187,7 @@ serve(async (req) => {
       certificate: ".pdf",
       review_report: ".pdf",
       formatted_document: ".pdf",
+      formatted_word: ".docx",
       galley_proof_revision: ".docx",
       galley_proof_word: ".docx",
       galley_proof_pdf: ".pdf",
