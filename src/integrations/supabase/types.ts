@@ -119,6 +119,7 @@ export type Database = {
           fee_reminder_email_sent_at: string | null
           formatted_content: string | null
           formatted_document_url: string | null
+          formatted_docx_url: string | null
           formatting_approved_at: string | null
           formatting_status: string | null
           formatting_suggestions: Json | null
@@ -164,6 +165,7 @@ export type Database = {
           fee_reminder_email_sent_at?: string | null
           formatted_content?: string | null
           formatted_document_url?: string | null
+          formatted_docx_url?: string | null
           formatting_approved_at?: string | null
           formatting_status?: string | null
           formatting_suggestions?: Json | null
@@ -209,6 +211,7 @@ export type Database = {
           fee_reminder_email_sent_at?: string | null
           formatted_content?: string | null
           formatted_document_url?: string | null
+          formatted_docx_url?: string | null
           formatting_approved_at?: string | null
           formatting_status?: string | null
           formatting_suggestions?: Json | null
