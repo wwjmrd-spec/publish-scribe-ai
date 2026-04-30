@@ -43,6 +43,7 @@ export default function AdminGalleyProofs() {
           profiles:author_id (full_name, email, country, affiliation)
         `)
         .not('galley_proof_status', 'is', null)
+        .neq('status', 'published')
         .order('galley_proof_sent_at', { ascending: false, nullsFirst: false });
 
       if (activeTab !== 'all') {
