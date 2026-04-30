@@ -73,10 +73,14 @@ export default function AdminFormatting() {
     },
   });
 
-  const handleDownloadFormatted = async (articleId: string, fileName: string) => {
+  const handleDownloadFormatted = async (
+    articleId: string,
+    fileName: string,
+    fileType: 'formatted_document' | 'formatted_word' = 'formatted_document'
+  ) => {
     try {
       const response = await supabase.functions.invoke('get-document-url', {
-        body: { articleId, fileType: 'formatted_document' },
+        body: { articleId, fileType },
       });
       if (response.error || !response.data?.url) {
         toast.error('Failed to get download link');
@@ -86,7 +90,7 @@ export default function AdminFormatting() {
       link.href = response.data.url;
       link.target = '_blank';
       link.rel = 'noopener noreferrer';
-      link.download = fileName || `formatted-article.pdf`;
+      link.download = fileName || `formatted-article.${fileType === 'formatted_word' ? 'docx' : 'pdf'}`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -174,6 +178,7 @@ export default function AdminFormatting() {
           const status = (article as any).formatting_status as FormattingStatus || 'pending';
           const suggestions: Suggestion[] = ((article as any).formatting_suggestions as Suggestion[]) || [];
           const formattedUrl = (article as any).formatted_document_url;
+          const formattedDocxUrl = (article as any).formatted_docx_url;
           const formattedContent = (article as any).formatted_content as string | null;
 
           return (
@@ -246,10 +251,21 @@ export default function AdminFormatting() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleDownloadFormatted(article.id, formattedUrl)}
+                        onClick={() => handleDownloadFormatted(article.id, formattedUrl, 'formatted_document')}
                       >
                         <Download className="w-4 h-4 mr-2" />
                         Download PDF
+                      </Button>
+                    )}
+
+                    {formattedDocxUrl && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDownloadFormatted(article.id, formattedDocxUrl, 'formatted_word')}
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        Download Word
                       </Button>
                     )}
 
