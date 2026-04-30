@@ -20,7 +20,6 @@ import {
   Footer as DocxFooter,
   PageNumber,
   ShadingType,
-  SectionType,
 } from "npm:docx@9.0.2";
 
 const corsHeaders = {
