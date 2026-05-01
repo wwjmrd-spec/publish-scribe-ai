@@ -167,11 +167,14 @@ export default function AdminAIReview() {
     saveScoresMutation.mutate({ reviewId, scores: scoreDraft });
   };
 
-  // Download review report
-  const handleDownloadReport = async (articleId: string) => {
+  // Download review report (approved version sent to author)
+  const handleDownloadReport = async (
+    articleId: string,
+    fileType: 'review_report' | 'pending_review_report' = 'review_report'
+  ) => {
     try {
       const response = await supabase.functions.invoke('get-document-url', {
-        body: { articleId, fileType: 'review_report' },
+        body: { articleId, fileType },
       });
 
       if (response.error || !response.data?.url) {
@@ -179,7 +182,6 @@ export default function AdminAIReview() {
         return;
       }
 
-      // Use anchor element to trigger download instead of window.open (avoids popup blocker)
       const link = document.createElement('a');
       link.href = response.data.url;
       link.target = '_blank';
