@@ -48,6 +48,9 @@ export type Database = {
       }
       article_reviews: {
         Row: {
+          approved: boolean
+          approved_at: string | null
+          approved_by: string | null
           article_id: string
           content_score: number | null
           detailed_feedback: Json | null
@@ -55,12 +58,17 @@ export type Database = {
           id: string
           overall_score: number | null
           plagiarism_score: number | null
+          report_url: string | null
           review_type: string
           reviewed_at: string | null
           reviewed_by: string | null
+          scores_edited: boolean
           summary: string | null
         }
         Insert: {
+          approved?: boolean
+          approved_at?: string | null
+          approved_by?: string | null
           article_id: string
           content_score?: number | null
           detailed_feedback?: Json | null
@@ -68,12 +76,17 @@ export type Database = {
           id?: string
           overall_score?: number | null
           plagiarism_score?: number | null
+          report_url?: string | null
           review_type?: string
           reviewed_at?: string | null
           reviewed_by?: string | null
+          scores_edited?: boolean
           summary?: string | null
         }
         Update: {
+          approved?: boolean
+          approved_at?: string | null
+          approved_by?: string | null
           article_id?: string
           content_score?: number | null
           detailed_feedback?: Json | null
@@ -81,9 +94,11 @@ export type Database = {
           id?: string
           overall_score?: number | null
           plagiarism_score?: number | null
+          report_url?: string | null
           review_type?: string
           reviewed_at?: string | null
           reviewed_by?: string | null
+          scores_edited?: boolean
           summary?: string | null
         }
         Relationships: [
