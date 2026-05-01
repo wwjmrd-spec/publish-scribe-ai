@@ -416,6 +416,24 @@ export default function AdminAIReview() {
                           );
                         })()
                       )}
+                      {/* Approval status badge */}
+                      {(latestReview as any).approved ? (
+                        <Badge className="bg-green-500/20 text-green-400 border border-green-500/40 flex items-center gap-1">
+                          <CheckCircle className="w-3 h-3" />
+                          Sent to author
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-yellow-500/20 text-yellow-400 border border-yellow-500/40 flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          Pending approval
+                        </Badge>
+                      )}
+                      {(latestReview as any).scores_edited && (
+                        <Badge variant="secondary" className="text-xs">
+                          <Pencil className="w-3 h-3 mr-1" />
+                          Scores edited
+                        </Badge>
+                      )}
                     </div>
                   )}
 
@@ -444,16 +462,53 @@ export default function AdminAIReview() {
                         </>
                       )}
                     </Button>
-                    {latestReview && article.review_report_url && (
+
+                    {/* Preview pending (unsent) report */}
+                    {latestReview && (latestReview as any).report_url && !(latestReview as any).approved && (
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleDownloadReport(article.id)}
+                        onClick={() => handleDownloadReport(article.id, 'pending_review_report')}
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        Preview Report
+                      </Button>
+                    )}
+
+                    {/* Approve & send to author */}
+                    {latestReview && (latestReview as any).report_url && !(latestReview as any).approved && (
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => approveMutation.mutate(latestReview.id)}
+                        disabled={approveMutation.isPending && approveMutation.variables === latestReview.id}
+                      >
+                        {approveMutation.isPending && approveMutation.variables === latestReview.id ? (
+                          <>
+                            <GlassSpinner size="sm" className="mr-2" />
+                            Sending...
+                          </>
+                        ) : (
+                          <>
+                            <Send className="w-4 h-4 mr-2" />
+                            Approve & Send
+                          </>
+                        )}
+                      </Button>
+                    )}
+
+                    {/* Approved report (visible to author) */}
+                    {latestReview && article.review_report_url && (latestReview as any).approved && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDownloadReport(article.id, 'review_report')}
                       >
                         <Download className="w-4 h-4 mr-2" />
                         Report
                       </Button>
                     )}
+
                     {latestReview && (
                       <Button
                         variant="ghost"
