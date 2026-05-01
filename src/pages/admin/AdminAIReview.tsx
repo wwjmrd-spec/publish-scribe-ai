@@ -18,6 +18,11 @@ import {
   ChevronUp,
   Download,
   Filter,
+  Send,
+  Pencil,
+  Save,
+  X,
+  Clock,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -79,21 +84,97 @@ export default function AdminAIReview() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['admin-articles-for-review'] });
-      const msg = data?.documentReviewed
+      const base = data?.documentReviewed
         ? 'AI review completed! Full document was analyzed.'
         : 'AI review completed (metadata only - no document found).';
-      toast.success(msg);
+      toast.success(`${base} Review the scores and approve to send to the author.`);
     },
     onError: (error) => {
       toast.error('Review failed: ' + error.message);
     },
   });
 
-  // Download review report
-  const handleDownloadReport = async (articleId: string) => {
+  // Approve & send review report to author
+  const approveMutation = useMutation({
+    mutationFn: async (reviewId: string) => {
+      const response = await supabase.functions.invoke('approve-review', {
+        body: { reviewId, action: 'approve' },
+      });
+      if (response.error) throw new Error(response.error.message);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-articles-for-review'] });
+      toast.success('Review approved and sent to the author.');
+    },
+    onError: (error) => {
+      toast.error('Approval failed: ' + (error as Error).message);
+    },
+  });
+
+  // Save edited scores → regenerates PDF; resets approval
+  const saveScoresMutation = useMutation({
+    mutationFn: async (payload: {
+      reviewId: string;
+      scores: {
+        plagiarism_score: number;
+        grammar_score: number;
+        content_score: number;
+        overall_score: number;
+      };
+    }) => {
+      const response = await supabase.functions.invoke('approve-review', {
+        body: { reviewId: payload.reviewId, action: 'update_scores', scores: payload.scores },
+      });
+      if (response.error) throw new Error(response.error.message);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-articles-for-review'] });
+      toast.success('Scores updated. Approve to send the new report to the author.');
+      setEditingScoresFor(null);
+    },
+    onError: (error) => {
+      toast.error('Failed to update scores: ' + (error as Error).message);
+    },
+  });
+
+  // Inline score editor state
+  const [editingScoresFor, setEditingScoresFor] = useState<string | null>(null);
+  const [scoreDraft, setScoreDraft] = useState<{
+    plagiarism_score: number;
+    grammar_score: number;
+    content_score: number;
+    overall_score: number;
+  } | null>(null);
+
+  const startEditingScores = (review: any) => {
+    setEditingScoresFor(review.id);
+    setScoreDraft({
+      plagiarism_score: review.plagiarism_score ?? 0,
+      grammar_score: review.grammar_score ?? 0,
+      content_score: review.content_score ?? 0,
+      overall_score: review.overall_score ?? 0,
+    });
+    setExpandedReview(review.article_id);
+  };
+  const cancelEditingScores = () => {
+    setEditingScoresFor(null);
+    setScoreDraft(null);
+  };
+  const saveScores = (reviewId: string) => {
+    if (!scoreDraft) return;
+    saveScoresMutation.mutate({ reviewId, scores: scoreDraft });
+  };
+
+  // Download review report (approved version sent to author)
+  const handleDownloadReport = async (
+    articleId: string,
+    fileType: 'review_report' | 'pending_review_report' = 'review_report'
+  ) => {
     try {
       const response = await supabase.functions.invoke('get-document-url', {
-        body: { articleId, fileType: 'review_report' },
+        body: { articleId, fileType },
       });
 
       if (response.error || !response.data?.url) {
@@ -101,7 +182,6 @@ export default function AdminAIReview() {
         return;
       }
 
-      // Use anchor element to trigger download instead of window.open (avoids popup blocker)
       const link = document.createElement('a');
       link.href = response.data.url;
       link.target = '_blank';
@@ -336,6 +416,24 @@ export default function AdminAIReview() {
                           );
                         })()
                       )}
+                      {/* Approval status badge */}
+                      {(latestReview as any).approved ? (
+                        <Badge className="bg-green-500/20 text-green-400 border border-green-500/40 flex items-center gap-1">
+                          <CheckCircle className="w-3 h-3" />
+                          Sent to author
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-yellow-500/20 text-yellow-400 border border-yellow-500/40 flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          Pending approval
+                        </Badge>
+                      )}
+                      {(latestReview as any).scores_edited && (
+                        <Badge variant="secondary" className="text-xs">
+                          <Pencil className="w-3 h-3 mr-1" />
+                          Scores edited
+                        </Badge>
+                      )}
                     </div>
                   )}
 
@@ -364,16 +462,53 @@ export default function AdminAIReview() {
                         </>
                       )}
                     </Button>
-                    {latestReview && article.review_report_url && (
+
+                    {/* Preview pending (unsent) report */}
+                    {latestReview && (latestReview as any).report_url && !(latestReview as any).approved && (
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleDownloadReport(article.id)}
+                        onClick={() => handleDownloadReport(article.id, 'pending_review_report')}
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        Preview Report
+                      </Button>
+                    )}
+
+                    {/* Approve & send to author */}
+                    {latestReview && (latestReview as any).report_url && !(latestReview as any).approved && (
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => approveMutation.mutate(latestReview.id)}
+                        disabled={approveMutation.isPending && approveMutation.variables === latestReview.id}
+                      >
+                        {approveMutation.isPending && approveMutation.variables === latestReview.id ? (
+                          <>
+                            <GlassSpinner size="sm" className="mr-2" />
+                            Sending...
+                          </>
+                        ) : (
+                          <>
+                            <Send className="w-4 h-4 mr-2" />
+                            Approve & Send
+                          </>
+                        )}
+                      </Button>
+                    )}
+
+                    {/* Approved report (visible to author) */}
+                    {latestReview && article.review_report_url && (latestReview as any).approved && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDownloadReport(article.id, 'review_report')}
                       >
                         <Download className="w-4 h-4 mr-2" />
                         Report
                       </Button>
                     )}
+
                     {latestReview && (
                       <Button
                         variant="ghost"
@@ -395,33 +530,107 @@ export default function AdminAIReview() {
                   <CollapsibleContent>
                     {latestReview && (
                       <div className="mt-6 pt-6 border-t border-[hsl(var(--glass-border))]">
-                        {/* Score Grid */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-                          <div className={`p-4 rounded-lg border ${getScoreBg(latestReview.plagiarism_score || 0)}`}>
-                            <p className="text-sm text-muted-foreground mb-1">Plagiarism</p>
-                            <p className={`text-2xl font-bold ${getScoreColor(latestReview.plagiarism_score || 0)}`}>
-                              {latestReview.plagiarism_score}%
-                            </p>
-                          </div>
-                          <div className={`p-4 rounded-lg border ${getScoreBg(latestReview.grammar_score || 0)}`}>
-                            <p className="text-sm text-muted-foreground mb-1">Grammar</p>
-                            <p className={`text-2xl font-bold ${getScoreColor(latestReview.grammar_score || 0)}`}>
-                              {latestReview.grammar_score}%
-                            </p>
-                          </div>
-                          <div className={`p-4 rounded-lg border ${getScoreBg(latestReview.content_score || 0)}`}>
-                            <p className="text-sm text-muted-foreground mb-1">Content</p>
-                            <p className={`text-2xl font-bold ${getScoreColor(latestReview.content_score || 0)}`}>
-                              {latestReview.content_score}%
-                            </p>
-                          </div>
-                          <div className={`p-4 rounded-lg border ${getScoreBg(latestReview.overall_score || 0)}`}>
-                            <p className="text-sm text-muted-foreground mb-1">Overall</p>
-                            <p className={`text-2xl font-bold ${getScoreColor(latestReview.overall_score || 0)}`}>
-                              {latestReview.overall_score}%
-                            </p>
-                          </div>
+                        {/* Score Edit Toolbar */}
+                        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                          <h4 className="font-medium">Review Scores</h4>
+                          {editingScoresFor === latestReview.id ? (
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="default"
+                                size="sm"
+                                onClick={() => saveScores(latestReview.id)}
+                                disabled={saveScoresMutation.isPending}
+                              >
+                                {saveScoresMutation.isPending ? (
+                                  <>
+                                    <GlassSpinner size="sm" className="mr-2" />
+                                    Saving...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Save className="w-4 h-4 mr-2" />
+                                    Save Scores
+                                  </>
+                                )}
+                              </Button>
+                              <Button variant="ghost" size="sm" onClick={cancelEditingScores}>
+                                <X className="w-4 h-4 mr-2" />
+                                Cancel
+                              </Button>
+                            </div>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => startEditingScores(latestReview)}
+                            >
+                              <Pencil className="w-4 h-4 mr-2" />
+                              Edit Scores
+                            </Button>
+                          )}
                         </div>
+
+                        {editingScoresFor === latestReview.id && scoreDraft ? (
+                          <>
+                            <p className="text-xs text-muted-foreground mb-3">
+                              Adjust any score (0-100). Saving regenerates the PDF report and resets the
+                              "Pending approval" status — you'll need to approve again to send to the author.
+                            </p>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                              {([
+                                { key: 'plagiarism_score', label: 'Plagiarism' },
+                                { key: 'grammar_score', label: 'Grammar' },
+                                { key: 'content_score', label: 'Content' },
+                                { key: 'overall_score', label: 'Overall' },
+                              ] as const).map(({ key, label }) => (
+                                <div
+                                  key={key}
+                                  className={`p-4 rounded-lg border ${getScoreBg(scoreDraft[key])}`}
+                                >
+                                  <p className="text-sm text-muted-foreground mb-1">{label}</p>
+                                  <Input
+                                    type="number"
+                                    min={0}
+                                    max={100}
+                                    value={scoreDraft[key]}
+                                    onChange={(e) => {
+                                      const v = Math.max(0, Math.min(100, Number(e.target.value) || 0));
+                                      setScoreDraft({ ...scoreDraft, [key]: v });
+                                    }}
+                                    className={`text-2xl font-bold h-auto py-1 ${getScoreColor(scoreDraft[key])} bg-transparent`}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </>
+                        ) : (
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                            <div className={`p-4 rounded-lg border ${getScoreBg(latestReview.plagiarism_score || 0)}`}>
+                              <p className="text-sm text-muted-foreground mb-1">Plagiarism</p>
+                              <p className={`text-2xl font-bold ${getScoreColor(latestReview.plagiarism_score || 0)}`}>
+                                {latestReview.plagiarism_score}%
+                              </p>
+                            </div>
+                            <div className={`p-4 rounded-lg border ${getScoreBg(latestReview.grammar_score || 0)}`}>
+                              <p className="text-sm text-muted-foreground mb-1">Grammar</p>
+                              <p className={`text-2xl font-bold ${getScoreColor(latestReview.grammar_score || 0)}`}>
+                                {latestReview.grammar_score}%
+                              </p>
+                            </div>
+                            <div className={`p-4 rounded-lg border ${getScoreBg(latestReview.content_score || 0)}`}>
+                              <p className="text-sm text-muted-foreground mb-1">Content</p>
+                              <p className={`text-2xl font-bold ${getScoreColor(latestReview.content_score || 0)}`}>
+                                {latestReview.content_score}%
+                              </p>
+                            </div>
+                            <div className={`p-4 rounded-lg border ${getScoreBg(latestReview.overall_score || 0)}`}>
+                              <p className="text-sm text-muted-foreground mb-1">Overall</p>
+                              <p className={`text-2xl font-bold ${getScoreColor(latestReview.overall_score || 0)}`}>
+                                {latestReview.overall_score}%
+                              </p>
+                            </div>
+                          </div>
+                        )}
 
                         {/* Summary */}
                         {latestReview.summary && (
