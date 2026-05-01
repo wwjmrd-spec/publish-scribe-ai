@@ -153,6 +153,23 @@ serve(async (req) => {
     } else if (fileType === "review_report") {
       bucket = "review-reports";
       filePath = article.review_report_url || null;
+    } else if (fileType === "pending_review_report") {
+      // Admin-only: preview the not-yet-approved review PDF stored on article_reviews
+      if (!isAdmin) {
+        return new Response(JSON.stringify({ error: "Access denied" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      bucket = "review-reports";
+      const { data: latestReview } = await supabase
+        .from("article_reviews")
+        .select("report_url")
+        .eq("article_id", articleId)
+        .order("reviewed_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      filePath = (latestReview as any)?.report_url || null;
     } else if (fileType === "formatted_document") {
       bucket = "formatted-articles";
       filePath = article.formatted_document_url || null;
