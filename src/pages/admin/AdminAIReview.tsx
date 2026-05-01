@@ -84,15 +84,88 @@ export default function AdminAIReview() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['admin-articles-for-review'] });
-      const msg = data?.documentReviewed
+      const base = data?.documentReviewed
         ? 'AI review completed! Full document was analyzed.'
         : 'AI review completed (metadata only - no document found).';
-      toast.success(msg);
+      toast.success(`${base} Review the scores and approve to send to the author.`);
     },
     onError: (error) => {
       toast.error('Review failed: ' + error.message);
     },
   });
+
+  // Approve & send review report to author
+  const approveMutation = useMutation({
+    mutationFn: async (reviewId: string) => {
+      const response = await supabase.functions.invoke('approve-review', {
+        body: { reviewId, action: 'approve' },
+      });
+      if (response.error) throw new Error(response.error.message);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-articles-for-review'] });
+      toast.success('Review approved and sent to the author.');
+    },
+    onError: (error) => {
+      toast.error('Approval failed: ' + (error as Error).message);
+    },
+  });
+
+  // Save edited scores → regenerates PDF; resets approval
+  const saveScoresMutation = useMutation({
+    mutationFn: async (payload: {
+      reviewId: string;
+      scores: {
+        plagiarism_score: number;
+        grammar_score: number;
+        content_score: number;
+        overall_score: number;
+      };
+    }) => {
+      const response = await supabase.functions.invoke('approve-review', {
+        body: { reviewId: payload.reviewId, action: 'update_scores', scores: payload.scores },
+      });
+      if (response.error) throw new Error(response.error.message);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-articles-for-review'] });
+      toast.success('Scores updated. Approve to send the new report to the author.');
+      setEditingScoresFor(null);
+    },
+    onError: (error) => {
+      toast.error('Failed to update scores: ' + (error as Error).message);
+    },
+  });
+
+  // Inline score editor state
+  const [editingScoresFor, setEditingScoresFor] = useState<string | null>(null);
+  const [scoreDraft, setScoreDraft] = useState<{
+    plagiarism_score: number;
+    grammar_score: number;
+    content_score: number;
+    overall_score: number;
+  } | null>(null);
+
+  const startEditingScores = (review: any) => {
+    setEditingScoresFor(review.id);
+    setScoreDraft({
+      plagiarism_score: review.plagiarism_score ?? 0,
+      grammar_score: review.grammar_score ?? 0,
+      content_score: review.content_score ?? 0,
+      overall_score: review.overall_score ?? 0,
+    });
+    setExpandedReview(review.article_id);
+  };
+  const cancelEditingScores = () => {
+    setEditingScoresFor(null);
+    setScoreDraft(null);
+  };
+  const saveScores = (reviewId: string) => {
+    if (!scoreDraft) return;
+    saveScoresMutation.mutate({ reviewId, scores: scoreDraft });
+  };
 
   // Download review report
   const handleDownloadReport = async (articleId: string) => {
