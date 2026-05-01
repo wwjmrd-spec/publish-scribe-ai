@@ -530,33 +530,107 @@ export default function AdminAIReview() {
                   <CollapsibleContent>
                     {latestReview && (
                       <div className="mt-6 pt-6 border-t border-[hsl(var(--glass-border))]">
-                        {/* Score Grid */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-                          <div className={`p-4 rounded-lg border ${getScoreBg(latestReview.plagiarism_score || 0)}`}>
-                            <p className="text-sm text-muted-foreground mb-1">Plagiarism</p>
-                            <p className={`text-2xl font-bold ${getScoreColor(latestReview.plagiarism_score || 0)}`}>
-                              {latestReview.plagiarism_score}%
-                            </p>
-                          </div>
-                          <div className={`p-4 rounded-lg border ${getScoreBg(latestReview.grammar_score || 0)}`}>
-                            <p className="text-sm text-muted-foreground mb-1">Grammar</p>
-                            <p className={`text-2xl font-bold ${getScoreColor(latestReview.grammar_score || 0)}`}>
-                              {latestReview.grammar_score}%
-                            </p>
-                          </div>
-                          <div className={`p-4 rounded-lg border ${getScoreBg(latestReview.content_score || 0)}`}>
-                            <p className="text-sm text-muted-foreground mb-1">Content</p>
-                            <p className={`text-2xl font-bold ${getScoreColor(latestReview.content_score || 0)}`}>
-                              {latestReview.content_score}%
-                            </p>
-                          </div>
-                          <div className={`p-4 rounded-lg border ${getScoreBg(latestReview.overall_score || 0)}`}>
-                            <p className="text-sm text-muted-foreground mb-1">Overall</p>
-                            <p className={`text-2xl font-bold ${getScoreColor(latestReview.overall_score || 0)}`}>
-                              {latestReview.overall_score}%
-                            </p>
-                          </div>
+                        {/* Score Edit Toolbar */}
+                        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                          <h4 className="font-medium">Review Scores</h4>
+                          {editingScoresFor === latestReview.id ? (
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="default"
+                                size="sm"
+                                onClick={() => saveScores(latestReview.id)}
+                                disabled={saveScoresMutation.isPending}
+                              >
+                                {saveScoresMutation.isPending ? (
+                                  <>
+                                    <GlassSpinner size="sm" className="mr-2" />
+                                    Saving...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Save className="w-4 h-4 mr-2" />
+                                    Save Scores
+                                  </>
+                                )}
+                              </Button>
+                              <Button variant="ghost" size="sm" onClick={cancelEditingScores}>
+                                <X className="w-4 h-4 mr-2" />
+                                Cancel
+                              </Button>
+                            </div>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => startEditingScores(latestReview)}
+                            >
+                              <Pencil className="w-4 h-4 mr-2" />
+                              Edit Scores
+                            </Button>
+                          )}
                         </div>
+
+                        {editingScoresFor === latestReview.id && scoreDraft ? (
+                          <>
+                            <p className="text-xs text-muted-foreground mb-3">
+                              Adjust any score (0-100). Saving regenerates the PDF report and resets the
+                              "Pending approval" status — you'll need to approve again to send to the author.
+                            </p>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                              {([
+                                { key: 'plagiarism_score', label: 'Plagiarism' },
+                                { key: 'grammar_score', label: 'Grammar' },
+                                { key: 'content_score', label: 'Content' },
+                                { key: 'overall_score', label: 'Overall' },
+                              ] as const).map(({ key, label }) => (
+                                <div
+                                  key={key}
+                                  className={`p-4 rounded-lg border ${getScoreBg(scoreDraft[key])}`}
+                                >
+                                  <p className="text-sm text-muted-foreground mb-1">{label}</p>
+                                  <Input
+                                    type="number"
+                                    min={0}
+                                    max={100}
+                                    value={scoreDraft[key]}
+                                    onChange={(e) => {
+                                      const v = Math.max(0, Math.min(100, Number(e.target.value) || 0));
+                                      setScoreDraft({ ...scoreDraft, [key]: v });
+                                    }}
+                                    className={`text-2xl font-bold h-auto py-1 ${getScoreColor(scoreDraft[key])} bg-transparent`}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </>
+                        ) : (
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                            <div className={`p-4 rounded-lg border ${getScoreBg(latestReview.plagiarism_score || 0)}`}>
+                              <p className="text-sm text-muted-foreground mb-1">Plagiarism</p>
+                              <p className={`text-2xl font-bold ${getScoreColor(latestReview.plagiarism_score || 0)}`}>
+                                {latestReview.plagiarism_score}%
+                              </p>
+                            </div>
+                            <div className={`p-4 rounded-lg border ${getScoreBg(latestReview.grammar_score || 0)}`}>
+                              <p className="text-sm text-muted-foreground mb-1">Grammar</p>
+                              <p className={`text-2xl font-bold ${getScoreColor(latestReview.grammar_score || 0)}`}>
+                                {latestReview.grammar_score}%
+                              </p>
+                            </div>
+                            <div className={`p-4 rounded-lg border ${getScoreBg(latestReview.content_score || 0)}`}>
+                              <p className="text-sm text-muted-foreground mb-1">Content</p>
+                              <p className={`text-2xl font-bold ${getScoreColor(latestReview.content_score || 0)}`}>
+                                {latestReview.content_score}%
+                              </p>
+                            </div>
+                            <div className={`p-4 rounded-lg border ${getScoreBg(latestReview.overall_score || 0)}`}>
+                              <p className="text-sm text-muted-foreground mb-1">Overall</p>
+                              <p className={`text-2xl font-bold ${getScoreColor(latestReview.overall_score || 0)}`}>
+                                {latestReview.overall_score}%
+                              </p>
+                            </div>
+                          </div>
+                        )}
 
                         {/* Summary */}
                         {latestReview.summary && (
