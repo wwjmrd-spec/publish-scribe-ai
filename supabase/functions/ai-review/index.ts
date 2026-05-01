@@ -638,19 +638,7 @@ Provide your response as a valid JSON object with this exact structure:
       console.error("Report upload error:", reportUploadError);
     }
 
-    // Update article with review report URL path and review lifecycle status
-    if (!reportUploadError) {
-      const nextStatus = article.status === "revised_submitted"
-        ? "revised_review_generated"
-        : "ai_review_generated";
-
-      await supabase
-        .from("articles")
-        .update({ review_report_url: reportFileName, status: nextStatus })
-        .eq("id", articleId);
-    }
-
-    // Store review in database
+    // Store review in database (NOT yet sent to author — admin must approve first)
     const { data: review, error: insertError } = await supabase
       .from("article_reviews")
       .insert({
@@ -663,6 +651,9 @@ Provide your response as a valid JSON object with this exact structure:
         summary: reviewData.summary,
         detailed_feedback: reviewData.detailedFeedback,
         reviewed_by: null,
+        approved: false,
+        report_url: reportUploadError ? null : reportFileName,
+        scores_edited: false,
       })
       .select()
       .single();
@@ -672,46 +663,14 @@ Provide your response as a valid JSON object with this exact structure:
       return jsonResponse({ error: "Failed to save review" }, 500);
     }
 
-    console.log(`AI review completed for article ${articleId}, report: ${reportFileName}`);
-
-    // Send email notification to author about review report
-    try {
-      const authorProfile = article.profiles as any;
-      if (authorProfile?.email) {
-        // Determine if score is below 90% for revise request
-        const overallScore = reviewData.overallScore || 0;
-        const isLowScore = overallScore < 90;
-
-        await fetch(`${supabaseUrl}/functions/v1/send-email`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${supabaseServiceKey}`,
-          },
-          body: JSON.stringify({
-            to: authorProfile.email,
-            template: "review-report-ready",
-            data: {
-              authorName: authorProfile.full_name || "Author",
-              articleTitle: article.title,
-              referenceNumber: article.reference_number,
-              overallScore: reviewData.overallScore,
-              recommendation: (reviewData.detailedFeedback?.recommendation || "N/A").replace(/_/g, " "),
-              isLowScore,
-            },
-          }),
-        });
-        console.log("Review report email sent to:", authorProfile.email);
-      }
-    } catch (emailError) {
-      console.error("Failed to send review report email:", emailError);
-    }
+    console.log(`AI review completed for article ${articleId}, report: ${reportFileName} (pending admin approval)`);
 
     return jsonResponse({
       success: true,
       review,
       reviewReportUrl: reportFileName,
       documentReviewed: !!documentText,
+      pendingApproval: true,
     });
   } catch (error) {
     console.error("AI review error:", error);
