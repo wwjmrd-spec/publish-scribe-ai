@@ -203,6 +203,7 @@ serve(async (req) => {
       document: ".docx",
       certificate: ".pdf",
       review_report: ".pdf",
+      pending_review_report: ".pdf",
       formatted_document: ".pdf",
       formatted_word: ".docx",
       galley_proof_revision: ".docx",
