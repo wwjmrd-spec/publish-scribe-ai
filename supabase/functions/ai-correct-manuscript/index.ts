@@ -680,7 +680,23 @@ async function processCorrectionInBackground({
       throw new Error("Corrected manuscript was too short");
     }
 
-    const docxBytes = await buildDocxFromText(article.title || "Corrected Manuscript", correctedText);
+    // Iterative polish loop: keep refining until score >= 91 (or max iterations)
+    const { finalText, finalScore } = await polishUntilTarget(
+      lovableApiKey,
+      article.title || "Corrected Manuscript",
+      correctedText,
+      91,
+      3,
+    );
+
+    if (finalScore) {
+      summarySet.add(`Final estimated score after polish: ${Math.round(finalScore.overall)}/100 (grammar ${Math.round(finalScore.grammar)}, content ${Math.round(finalScore.content)})`);
+      if (finalScore.overall >= 91) {
+        summarySet.add("Target score of 91+ reached.");
+      }
+    }
+
+    const docxBytes = await buildDocxFromText(article.title || "Corrected Manuscript", finalText);
     const filePath = `${userId}/ai-corrections/${article.id}-${Date.now()}-ai-corrected.docx`;
 
     const { error: uploadError } = await supabase.storage
