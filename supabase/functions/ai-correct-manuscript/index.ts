@@ -443,7 +443,7 @@ async function processCorrectionInBackground({
       throw new Error("Could not read the manuscript text");
     }
 
-    const feedbackText = JSON.stringify(
+    const reviewMetadata = JSON.stringify(
       {
         summary: review.summary,
         scores: {
@@ -457,11 +457,28 @@ async function processCorrectionInBackground({
       2
     );
 
+    // Pull the actual reviewer report text (the PDF/DOCX the admin sent)
+    let reviewReportText = "";
+    if (article.review_report_url) {
+      reviewReportText = await downloadReviewReportText(supabase, article.review_report_url);
+    }
+
+    // Build a clean numbered list of fixes the rewriter must apply
+    const feedbackText = await extractActionableIssues(
+      lovableApiKey,
+      reviewReportText,
+      reviewMetadata,
+    );
+
     console.log(
       "Starting AI correction:",
       article.reference_number,
       "manuscript chars:",
-      manuscriptText.length
+      manuscriptText.length,
+      "review report chars:",
+      reviewReportText.length,
+      "issue list chars:",
+      feedbackText.length,
     );
 
     const chunks = chunkManuscript(manuscriptText);
