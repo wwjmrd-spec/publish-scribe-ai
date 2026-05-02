@@ -173,22 +173,117 @@ function buildDocxFromText(title: string, body: string): Promise<Uint8Array> {
   return Packer.toBuffer(doc).then((b) => new Uint8Array(b));
 }
 
-const SYSTEM_PROMPT = `You are an elite academic editor for a peer-reviewed journal. You will receive (1) a manuscript section and (2) a peer-review report with weaknesses, issues, and suggestions.
+const SYSTEM_PROMPT = `You are an elite academic editor for a peer-reviewed journal performing a REVISION pass on a manuscript that just received a peer-review report.
 
-YOUR GOAL: rewrite the supplied section so the full manuscript would trend toward a 90+ score on a fresh AI peer review across originality, grammar/structure, and content quality.
+YOU WILL RECEIVE:
+1. A NUMBERED LIST OF SPECIFIC REVIEWER ISSUES that must be fixed.
+2. A SECTION of the manuscript to rewrite.
 
-QUALITY BAR:
-- Remove weak, generic, repetitive, and awkward phrasing.
-- Improve academic clarity, logical flow, transitions, precision, and structure.
-- Strengthen framing, discussion, implication, and conclusion language where relevant.
-- Preserve all factual content, data, numbers, citations, equations, dataset names, and references exactly as given.
+YOUR JOB: rewrite the section so that EVERY reviewer issue applicable to this section is visibly resolved in the rewritten text. The next AI peer review of the full manuscript must score noticeably higher (target 85-95) on grammar, structure, content quality, originality framing, and clarity.
 
-HARD RULES:
-- Do NOT invent data, results, numbers, citations, references, authors, or facts.
-- Keep section headings if present.
-- Keep the rewritten section at least as informative as the original.
-- Return ONLY the rewritten text for that section through the tool call.
+HOW TO APPLY THE REVIEW REPORT:
+- Treat each numbered reviewer issue as a hard requirement. If the issue is relevant to this section, fix it directly in the prose.
+- Improve weak/generic/repetitive/awkward phrasing flagged by the reviewer.
+- Strengthen the abstract, introduction framing, methodology clarity, results articulation, discussion depth, limitations, and conclusion as relevant.
+- Add transition sentences, topic sentences, and logical connectors where the reviewer flagged poor flow.
+- Tighten grammar, tense consistency, voice, and academic register.
+- Expand thin paragraphs into substantive analytical writing (without inventing data).
+
+HARD RULES — DO NOT VIOLATE:
+- Do NOT invent data, results, numbers, citations, references, authors, equations, or facts.
+- Keep all existing numbers, citations (e.g. [12], (Smith, 2020)), equations, dataset names, and references EXACTLY as given.
+- Keep section headings (Abstract, Introduction, Methods, Results, Discussion, Conclusion, References) when present.
+- Output must be at least as long and as informative as the original section.
+- Return ONLY the rewritten section text through the tool call. No preamble, no commentary.
 `;
+
+async function downloadReviewReportText(supabase: any, reportPath: string): Promise<string> {
+  // Try DOCX first via mammoth
+  try {
+    const text = await downloadDocxText(supabase, "review-reports", reportPath);
+    if (text && text.trim().length > 100) return text;
+  } catch (_e) {
+    // fall through to raw download
+  }
+  // Fallback: download as bytes and try to extract any embedded plain text
+  try {
+    const { data } = await supabase.storage.from("review-reports").download(reportPath);
+    if (!data) return "";
+    const buf = new Uint8Array(await data.arrayBuffer());
+    // Strip non-printable bytes; PDFs/DOCX still leak readable strings often enough to help
+    const decoder = new TextDecoder("utf-8", { fatal: false });
+    const raw = decoder.decode(buf);
+    const cleaned = raw.replace(/[^\x09\x0A\x0D\x20-\x7E]+/g, " ").replace(/\s{2,}/g, " ").trim();
+    return cleaned.length > 100 ? cleaned : "";
+  } catch (_e) {
+    return "";
+  }
+}
+
+async function extractActionableIssues(
+  lovableApiKey: string,
+  reviewReportText: string,
+  reviewMetadata: string,
+): Promise<string> {
+  const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${lovableApiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages: [
+        {
+          role: "system",
+          content: "You extract a clean, numbered, actionable issue list from a peer-review report. Each item must be a concrete fix the author must apply to their manuscript. No fluff, no praise, no scores — only fixes.",
+        },
+        {
+          role: "user",
+          content: `Below is a peer-review report (and metadata). Extract every concrete weakness, issue, suggestion, grammar problem, structural problem, clarity problem, and missing-content problem the reviewer raised.
+
+Return a NUMBERED list (1., 2., 3., ...) of short imperative fixes the author must perform. Be specific and exhaustive (15-40 items typical). Each item must be one sentence. Do not include praise or compliments.
+
+REVIEW METADATA:
+${reviewMetadata}
+
+REVIEW REPORT TEXT:
+${reviewReportText.slice(0, 60000)}`,
+        },
+      ],
+      tools: [
+        {
+          type: "function",
+          function: {
+            name: "return_issue_list",
+            description: "Return a numbered list of actionable reviewer issues.",
+            parameters: {
+              type: "object",
+              properties: {
+                issues: { type: "array", items: { type: "string" } },
+              },
+              required: ["issues"],
+              additionalProperties: false,
+            },
+          },
+        },
+      ],
+      tool_choice: { type: "function", function: { name: "return_issue_list" } },
+    }),
+  });
+
+  if (!aiResp.ok) {
+    console.error("Issue extraction failed:", aiResp.status);
+    return reviewMetadata; // fallback
+  }
+  const data = await aiResp.json();
+  const args = data.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
+  if (!args) return reviewMetadata;
+  try {
+    const parsed = JSON.parse(args) as { issues: string[] };
+    if (!parsed.issues?.length) return reviewMetadata;
+    return parsed.issues.map((it, i) => `${i + 1}. ${it}`).join("\n");
+  } catch {
+    return reviewMetadata;
+  }
+}
 
 function chunkManuscript(text: string, maxChars = 18000) {
   const paragraphs = text
@@ -237,12 +332,12 @@ async function rewriteChunk(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
+      model: "google/gemini-2.5-pro",
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         {
           role: "user",
-          content: `PEER-REVIEW REPORT (apply every relevant issue below):\n${feedbackText}\n\n---\n\nSECTION ${chunkIndex + 1} OF ${chunkCount}\nRewrite this manuscript section to satisfy the review report while preserving all factual content:\n\n${chunk}`,
+          content: `NUMBERED REVIEWER ISSUES (apply every item that is relevant to this section):\n${feedbackText}\n\n---\n\nSECTION ${chunkIndex + 1} OF ${chunkCount}\n\nRewrite the following section to visibly resolve every applicable reviewer issue above. Preserve all factual content, citations, numbers, and references EXACTLY:\n\n${chunk}`,
         },
       ],
       tools: [
@@ -348,7 +443,7 @@ async function processCorrectionInBackground({
       throw new Error("Could not read the manuscript text");
     }
 
-    const feedbackText = JSON.stringify(
+    const reviewMetadata = JSON.stringify(
       {
         summary: review.summary,
         scores: {
@@ -362,11 +457,28 @@ async function processCorrectionInBackground({
       2
     );
 
+    // Pull the actual reviewer report text (the PDF/DOCX the admin sent)
+    let reviewReportText = "";
+    if (article.review_report_url) {
+      reviewReportText = await downloadReviewReportText(supabase, article.review_report_url);
+    }
+
+    // Build a clean numbered list of fixes the rewriter must apply
+    const feedbackText = await extractActionableIssues(
+      lovableApiKey,
+      reviewReportText,
+      reviewMetadata,
+    );
+
     console.log(
       "Starting AI correction:",
       article.reference_number,
       "manuscript chars:",
-      manuscriptText.length
+      manuscriptText.length,
+      "review report chars:",
+      reviewReportText.length,
+      "issue list chars:",
+      feedbackText.length,
     );
 
     const chunks = chunkManuscript(manuscriptText);
