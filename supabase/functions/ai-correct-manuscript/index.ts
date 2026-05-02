@@ -332,12 +332,12 @@ async function rewriteChunk(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
+      model: "google/gemini-2.5-pro",
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         {
           role: "user",
-          content: `PEER-REVIEW REPORT (apply every relevant issue below):\n${feedbackText}\n\n---\n\nSECTION ${chunkIndex + 1} OF ${chunkCount}\nRewrite this manuscript section to satisfy the review report while preserving all factual content:\n\n${chunk}`,
+          content: `NUMBERED REVIEWER ISSUES (apply every item that is relevant to this section):\n${feedbackText}\n\n---\n\nSECTION ${chunkIndex + 1} OF ${chunkCount}\n\nRewrite the following section to visibly resolve every applicable reviewer issue above. Preserve all factual content, citations, numbers, and references EXACTLY:\n\n${chunk}`,
         },
       ],
       tools: [
