@@ -424,6 +424,184 @@ async function rewriteChunksInParallel(
   return results as Array<{ rewrittenSection: string; chunkSummary: string[] }>;
 }
 
+interface ScoreResult {
+  overall: number;
+  grammar: number;
+  content: number;
+  plagiarism: number;
+  weaknesses: string[];
+}
+
+async function scoreManuscript(lovableApiKey: string, title: string, text: string): Promise<ScoreResult | null> {
+  const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${lovableApiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages: [
+        {
+          role: "system",
+          content: "You are a strict but fair AI peer reviewer for an academic journal. Score the manuscript on plagiarism (originality of phrasing), grammar/structure, content quality, and overall (weighted average). Each score 0-100. Also list the top remaining weaknesses to fix.",
+        },
+        { role: "user", content: `Title: ${title}\n\n--- MANUSCRIPT ---\n${text.slice(0, 30000)}` },
+      ],
+      tools: [
+        {
+          type: "function",
+          function: {
+            name: "return_scores",
+            description: "Return numeric scores and remaining weaknesses.",
+            parameters: {
+              type: "object",
+              properties: {
+                plagiarism: { type: "number" },
+                grammar: { type: "number" },
+                content: { type: "number" },
+                overall: { type: "number" },
+                weaknesses: { type: "array", items: { type: "string" } },
+              },
+              required: ["plagiarism", "grammar", "content", "overall", "weaknesses"],
+              additionalProperties: false,
+            },
+          },
+        },
+      ],
+      tool_choice: { type: "function", function: { name: "return_scores" } },
+    }),
+  });
+
+  if (!aiResp.ok) {
+    console.error("Score pass failed:", aiResp.status);
+    return null;
+  }
+  const data = await aiResp.json();
+  const args = data.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
+  if (!args) return null;
+  try {
+    const parsed = JSON.parse(args);
+    return {
+      overall: Number(parsed.overall) || 0,
+      grammar: Number(parsed.grammar) || 0,
+      content: Number(parsed.content) || 0,
+      plagiarism: Number(parsed.plagiarism) || 0,
+      weaknesses: Array.isArray(parsed.weaknesses) ? parsed.weaknesses : [],
+    };
+  } catch {
+    return null;
+  }
+}
+
+const POLISH_SYSTEM_PROMPT = `You are an elite academic editor performing a FINAL POLISH pass on a manuscript section. The manuscript has already been revised once, but the latest AI peer review still found weaknesses.
+
+YOUR JOB: rewrite the section to fully resolve every weakness in the supplied list. The next review must score 91 or higher on grammar/structure, content quality, and overall.
+
+QUALITY BAR (must achieve all):
+- Crystal-clear academic prose, varied sentence structure, strong topic sentences, smooth transitions.
+- Every claim is framed analytically (not just descriptively); discussion paragraphs interpret findings.
+- Tense, voice, and terminology are consistent throughout.
+- No filler, no redundancy, no vague phrasing ("very", "a lot of", "things", etc.).
+
+HARD RULES:
+- NEVER invent data, results, numbers, citations, references, or facts.
+- Keep all numbers, citations, equations, and references EXACTLY as given.
+- Keep section headings.
+- Output must be at least as long and as informative as the input.
+- Return ONLY the polished section text via the tool call.`;
+
+async function polishChunk(
+  lovableApiKey: string,
+  weaknessList: string,
+  chunk: string,
+  chunkIndex: number,
+  chunkCount: number,
+) {
+  const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${lovableApiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-pro",
+      messages: [
+        { role: "system", content: POLISH_SYSTEM_PROMPT },
+        {
+          role: "user",
+          content: `REMAINING WEAKNESSES TO FIX:\n${weaknessList}\n\n---\n\nSECTION ${chunkIndex + 1} OF ${chunkCount}\n\nPolish this section so the manuscript scores 91+ on the next AI peer review. Preserve all factual content, citations, and numbers EXACTLY:\n\n${chunk}`,
+        },
+      ],
+      tools: [
+        {
+          type: "function",
+          function: {
+            name: "return_polished_section",
+            parameters: {
+              type: "object",
+              properties: { polished_section: { type: "string" } },
+              required: ["polished_section"],
+              additionalProperties: false,
+            },
+          },
+        },
+      ],
+      tool_choice: { type: "function", function: { name: "return_polished_section" } },
+    }),
+  });
+
+  if (!aiResp.ok) {
+    console.error("Polish pass failed:", aiResp.status);
+    return chunk;
+  }
+  const data = await aiResp.json();
+  const args = data.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
+  if (!args) return chunk;
+  try {
+    const parsed = JSON.parse(args);
+    return (parsed.polished_section || "").trim() || chunk;
+  } catch {
+    return chunk;
+  }
+}
+
+async function polishUntilTarget(
+  lovableApiKey: string,
+  title: string,
+  initialText: string,
+  targetScore = 91,
+  maxIterations = 3,
+): Promise<{ finalText: string; finalScore: ScoreResult | null }> {
+  let currentText = initialText;
+  let lastScore: ScoreResult | null = null;
+
+  for (let i = 0; i < maxIterations; i++) {
+    const score = await scoreManuscript(lovableApiKey, title, currentText);
+    lastScore = score;
+    console.log(`Polish iter ${i} pre-score:`, score?.overall, "weaknesses:", score?.weaknesses?.length);
+    if (!score) break;
+    if (score.overall >= targetScore) {
+      console.log(`Target ${targetScore} reached at iter ${i} (score ${score.overall})`);
+      return { finalText: currentText, finalScore: score };
+    }
+
+    const weaknessList = score.weaknesses.length
+      ? score.weaknesses.map((w, idx) => `${idx + 1}. ${w}`).join("\n")
+      : "1. Improve overall academic clarity, depth of analysis, transitions, and precision.";
+
+    const chunks = chunkManuscript(currentText);
+    const polished: string[] = new Array(chunks.length);
+    let cursor = 0;
+    async function worker() {
+      while (cursor < chunks.length) {
+        const idx = cursor++;
+        polished[idx] = await polishChunk(lovableApiKey, weaknessList, chunks[idx], idx, chunks.length);
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(2, chunks.length) }, () => worker()));
+    currentText = polished.join("\n\n");
+  }
+
+  const finalScore = await scoreManuscript(lovableApiKey, title, currentText);
+  console.log("Final score after polish loop:", finalScore?.overall);
+  return { finalText: currentText, finalScore: finalScore || lastScore };
+}
+
 async function processCorrectionInBackground({
   supabase,
   lovableApiKey,
