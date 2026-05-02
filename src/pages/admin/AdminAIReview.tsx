@@ -388,6 +388,17 @@ export default function AdminAIReview() {
                             Revised manuscript available — re-analyze
                           </Badge>
                         )}
+                        {(article as any).ai_autocorrected && (
+                          <Badge className="mt-2 ml-2 bg-purple-500/20 text-purple-300 border border-purple-400/40 hover:bg-purple-500/30">
+                            <Sparkles className="w-3 h-3 mr-1" />
+                            AI Auto-Corrected by author
+                            {(article as any).ai_autocorrected_at && (
+                              <span className="ml-1 opacity-80">
+                                • {new Date((article as any).ai_autocorrected_at).toLocaleDateString()}
+                              </span>
+                            )}
+                          </Badge>
+                        )}
                       </div>
                     </div>
                   </div>
