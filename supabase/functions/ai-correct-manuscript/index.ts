@@ -721,7 +721,7 @@ async function processCorrectionInBackground({
       completedAt: new Date().toISOString(),
       filePath,
       changeSummary: Array.from(summarySet).slice(0, 12),
-      previewText: correctedText.slice(0, 4000),
+      previewText: finalText.slice(0, 4000),
     });
   } catch (error) {
     console.error("AI correction background job failed:", error);
