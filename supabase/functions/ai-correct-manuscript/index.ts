@@ -519,7 +519,9 @@ serve(async (req) => {
           document_url: currentJob.filePath,
           status: "revised_submitted" as any,
           review_report_url: null,
-        })
+          ai_autocorrected: true,
+          ai_autocorrected_at: new Date().toISOString(),
+        } as any)
         .eq("id", articleId);
       if (updateError) {
         console.error("Article update error:", updateError);
