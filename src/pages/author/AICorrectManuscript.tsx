@@ -27,6 +27,8 @@ interface CorrectionResult {
   downloadUrl: string | null;
   changeSummary: string[];
   previewText: string;
+  pageCount?: number | null;
+  exceedsFreeLimit?: boolean;
 }
 
 export default function AICorrectManuscript() {
