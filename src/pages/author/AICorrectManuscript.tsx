@@ -352,7 +352,7 @@ export default function AICorrectManuscript() {
               <Button variant="outline" onClick={() => navigate('/author/articles')} disabled={submitting}>
                 Cancel
               </Button>
-              <Button onClick={sendForReview} disabled={submitting} className="gradient-primary min-w-[200px]">
+              <Button onClick={() => sendForReview(false)} disabled={submitting} className="gradient-primary min-w-[200px]">
                 {submitting ? (
                   <GlassSpinner size="sm" />
                 ) : (
