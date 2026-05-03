@@ -9,7 +9,8 @@ import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { FileUploadSection } from '@/components/submit/FileUploadSection';
-import { ArrowRight, ArrowLeft, FileText } from 'lucide-react';
+import { extractDocxPageCount } from '@/lib/docxPageCount';
+import { ArrowRight, ArrowLeft, FileText, AlertTriangle } from 'lucide-react';
 
 export default function ResubmitArticle() {
   const { user } = useAuth();
