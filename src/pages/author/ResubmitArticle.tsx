@@ -204,6 +204,16 @@ export default function ResubmitArticle() {
         </GlassCard>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {(article.page_count ?? 0) > 0 && (article.page_count ?? 0) <= 2 && (
+            <GlassCard className="mb-2 border border-amber-500/30">
+              <div className="flex gap-3 items-start text-sm">
+                <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
+                <p className="text-muted-foreground">
+                  Your original article qualifies for <strong>free 2-page publication</strong>. If your revised file exceeds 2 pages, the publication fee will apply after acceptance.
+                </p>
+              </div>
+            </GlassCard>
+          )}
           <FileUploadSection file={file} setFile={setFile} />
 
           <div className="flex justify-end gap-4">
