@@ -84,6 +84,8 @@ export default function AICorrectManuscript() {
           downloadUrl: data.downloadUrl,
           changeSummary: data.changeSummary || [],
           previewText: data.previewText || '',
+          pageCount: data.pageCount ?? null,
+          exceedsFreeLimit: !!data.exceedsFreeLimit,
         });
         setProcessing(false);
         stopPolling();
