@@ -313,6 +313,19 @@ export default function AICorrectManuscript() {
         {/* Result */}
         {result && (
           <>
+            {result.exceedsFreeLimit && (
+              <GlassCard className="mb-6 border-2 border-amber-500/40">
+                <div className="flex gap-3 items-start">
+                  <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm">
+                    <h3 className="font-semibold mb-1 text-amber-300">Publication fee will apply</h3>
+                    <p className="text-muted-foreground">
+                      The corrected manuscript is now ~<strong>{result.pageCount}</strong> pages. Your original fit the 2-page free limit; sending this revision will mark the article as fee-required after acceptance. Click <em>Regenerate</em> to try again under 2 pages.
+                    </p>
+                  </div>
+                </div>
+              </GlassCard>
+            )}
             <GlassCard className="mb-6">
               <h3 className="font-semibold mb-3 flex items-center gap-2">
                 <CheckCircle2 className="w-5 h-5 text-green-400" /> Corrections applied
