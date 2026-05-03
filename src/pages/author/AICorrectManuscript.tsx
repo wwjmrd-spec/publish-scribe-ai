@@ -159,16 +159,30 @@ export default function AICorrectManuscript() {
     }
   };
 
-  const sendForReview = async () => {
+  const sendForReview = async (acceptFee = false) => {
     if (!articleId) return;
+    if (result?.exceedsFreeLimit && !acceptFee) {
+      const ok = window.confirm(
+        `Your AI-corrected manuscript is now ~${result.pageCount} pages and exceeds the 2-page free publication limit. Publishing it will require the publication fee. Do you want to continue?`
+      );
+      if (!ok) {
+        toast.info('Submission cancelled. You can regenerate to keep it under 2 pages.');
+        return;
+      }
+      acceptFee = true;
+    }
     setSubmitting(true);
     try {
       const { data, error } = await supabase.functions.invoke('ai-correct-manuscript', {
-        body: { articleId, mode: 'submit' },
+        body: { articleId, mode: 'submit', acceptFee },
       });
       if (error) throw new Error(error.message || 'Failed');
       if (!data?.success) throw new Error(data?.error || 'Submission failed');
-      toast.success('Corrected manuscript sent for review');
+      toast.success(
+        data.exceedsFreeLimit
+          ? 'Revised manuscript sent. Publication fee will apply after acceptance.'
+          : 'Corrected manuscript sent for review'
+      );
       navigate('/author/articles');
     } catch (err: any) {
       toast.error(err.message || 'Failed to send for review');
