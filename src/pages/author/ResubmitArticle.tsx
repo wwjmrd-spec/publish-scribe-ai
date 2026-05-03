@@ -9,7 +9,8 @@ import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { FileUploadSection } from '@/components/submit/FileUploadSection';
-import { ArrowRight, ArrowLeft, FileText } from 'lucide-react';
+import { extractDocxPageCount } from '@/lib/docxPageCount';
+import { ArrowRight, ArrowLeft, FileText, AlertTriangle } from 'lucide-react';
 
 export default function ResubmitArticle() {
   const { user } = useAuth();
@@ -49,6 +50,22 @@ export default function ResubmitArticle() {
     setLoading(true);
 
     try {
+      // Detect page count of the revised file
+      const newPageCount = (await extractDocxPageCount(file)) || article.page_count || null;
+      const wasFreeTier = (article.page_count ?? 0) > 0 && (article.page_count ?? 0) <= 2;
+      const exceedsFreeLimit = wasFreeTier && newPageCount && newPageCount > 2;
+
+      if (exceedsFreeLimit) {
+        const ok = window.confirm(
+          `Your revised file is ~${newPageCount} pages. Your original fit the 2-page free publication. Submitting this version will require the publication fee after acceptance.\n\nClick OK to continue, or Cancel to upload a 2-page version instead.`
+        );
+        if (!ok) {
+          setLoading(false);
+          toast({ title: 'Submission cancelled', description: 'Please upload a revised file under 2 pages to keep free publication.' });
+          return;
+        }
+      }
+
       // Upload revised file
       const filePath = `${user.id}/${crypto.randomUUID()}.docx`;
       const { error: uploadError } = await supabase.storage
@@ -57,16 +74,28 @@ export default function ResubmitArticle() {
       if (uploadError) throw uploadError;
 
       // Update the existing article with the revised file and mark it ready for re-review
+      const updates: any = {
+        document_url: filePath,
+        status: 'revised_submitted',
+        review_report_url: null,
+      };
+      if (newPageCount) updates.page_count = newPageCount;
       const { error: updateError } = await supabase
         .from('articles')
-        .update({
-          document_url: filePath,
-          status: 'revised_submitted' as any,
-          review_report_url: null,
-        })
+        .update(updates)
         .eq('id', article.id);
 
       if (updateError) throw updateError;
+
+      if (exceedsFreeLimit) {
+        await supabase.from('notifications').insert({
+          user_id: user.id,
+          title: 'Publication fee will apply 💳',
+          message: `Your revised manuscript "${article.title}" is now ~${newPageCount} pages and no longer qualifies for the 2-page free publication. The publication fee will be required after acceptance.`,
+          type: 'warning',
+          link: '/author/articles',
+        });
+      }
 
       // Get author profile for emails
       const { data: profile } = await supabase
@@ -175,6 +204,16 @@ export default function ResubmitArticle() {
         </GlassCard>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {(article.page_count ?? 0) > 0 && (article.page_count ?? 0) <= 2 && (
+            <GlassCard className="mb-2 border border-amber-500/30">
+              <div className="flex gap-3 items-start text-sm">
+                <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
+                <p className="text-muted-foreground">
+                  Your original article qualifies for <strong>free 2-page publication</strong>. If your revised file exceeds 2 pages, the publication fee will apply after acceptance.
+                </p>
+              </div>
+            </GlassCard>
+          )}
           <FileUploadSection file={file} setFile={setFile} />
 
           <div className="flex justify-end gap-4">
