@@ -339,6 +339,7 @@ export default function AdminRevenue() {
                       <tr className="border-b border-[hsl(var(--glass-border))]">
                         <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Author</th>
                         <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Type</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Article Ref</th>
                         <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Amount</th>
                         <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Gateway</th>
                         <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Transaction ID</th>
@@ -350,6 +351,7 @@ export default function AdminRevenue() {
                         const profile = payment.profiles as any;
                         const type = getPaymentType(payment);
                         const currencySymbol = payment.currency === 'INR' ? '₹' : '$';
+                        const refs: string[] = (payment as any).article_references || [];
                         return (
                           <tr key={payment.id} className="border-b border-[hsl(var(--glass-border))] hover:bg-[hsl(var(--glass-bg))] transition-colors">
                             <td className="py-3 px-4">
@@ -360,6 +362,17 @@ export default function AdminRevenue() {
                               <Badge variant={type === 'Pro Plan' ? 'default' : 'secondary'}>
                                 {type}
                               </Badge>
+                            </td>
+                            <td className="py-3 px-4">
+                              {refs.length > 0 ? (
+                                <div className="flex flex-wrap gap-1 max-w-[180px]">
+                                  {refs.map((r) => (
+                                    <Badge key={r} variant="outline" className="text-[10px] font-mono">{r}</Badge>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">—</span>
+                              )}
                             </td>
                             <td className="py-3 px-4 font-bold">
                               {currencySymbol}{Number(payment.final_amount).toLocaleString()}
