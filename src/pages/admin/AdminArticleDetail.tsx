@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   FileText,
   Download,
@@ -22,6 +23,7 @@ import {
   PauseCircle,
   PlayCircle,
   RotateCcw,
+  Pencil,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -64,6 +66,17 @@ export default function AdminArticleDetail() {
     pageNumber: '',
     year: '',
     publishedLink: '',
+  });
+  const [isEditDetailsDialogOpen, setIsEditDetailsDialogOpen] = useState(false);
+  const [editDetails, setEditDetails] = useState({
+    title: '',
+    abstract: '',
+    keywords: '',
+    subject: '',
+    author_name: '',
+    country: '',
+    reason_of_research: '',
+    page_count: '',
   });
 
   const { data: article, isLoading } = useQuery({
@@ -315,6 +328,46 @@ export default function AdminArticleDetail() {
     },
   });
 
+  const updateDetailsMutation = useMutation({
+    mutationFn: async () => {
+      const payload: any = {
+        title: editDetails.title.trim(),
+        abstract: editDetails.abstract.trim() || null,
+        subject: editDetails.subject.trim() || null,
+        author_name: editDetails.author_name.trim() || null,
+        country: editDetails.country.trim() || null,
+        reason_of_research: editDetails.reason_of_research.trim() || null,
+        page_count: editDetails.page_count ? parseInt(editDetails.page_count, 10) : null,
+        keywords: editDetails.keywords
+          ? editDetails.keywords.split(',').map(k => k.trim()).filter(Boolean)
+          : null,
+      };
+      const { error } = await supabase.from('articles').update(payload).eq('id', articleId!);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Article details updated');
+      setIsEditDetailsDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['admin-article-detail', articleId] });
+    },
+    onError: (err: any) => toast.error('Failed to update: ' + err.message),
+  });
+
+  const openEditDetails = () => {
+    if (!article) return;
+    setEditDetails({
+      title: article.title || '',
+      abstract: article.abstract || '',
+      keywords: (article.keywords || []).join(', '),
+      subject: article.subject || '',
+      author_name: article.author_name || '',
+      country: article.country || '',
+      reason_of_research: article.reason_of_research || '',
+      page_count: (article as any).page_count ? String((article as any).page_count) : '',
+    });
+    setIsEditDetailsDialogOpen(true);
+  };
+
   const sendReminderMutation = useMutation({
     mutationFn: async () => {
       const response = await supabase.functions.invoke('send-payment-reminder', {
@@ -396,9 +449,13 @@ export default function AdminArticleDetail() {
             </GlassCard>
 
             {/* Submission Details */}
-            {(article.subject || article.country || article.reason_of_research || article.submission_target) && (
-              <GlassCard>
-                <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Submission Details</h3>
+            <GlassCard>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Submission Details</h3>
+                <Button size="sm" variant="outline" onClick={openEditDetails}>
+                  <Pencil className="w-3.5 h-3.5 mr-1.5" /> Edit Details
+                </Button>
+              </div>
                 <div className="grid grid-cols-2 gap-4">
                   {article.author_name && (
                     <div>
@@ -456,7 +513,6 @@ export default function AdminArticleDetail() {
                   )}
                 </div>
               </GlassCard>
-            )}
 
             {/* Abstract */}
             {article.abstract && (
@@ -1017,6 +1073,58 @@ export default function AdminArticleDetail() {
             <Button variant="outline" onClick={() => setIsEditPublishDialogOpen(false)}>Cancel</Button>
             <Button className="gradient-primary" onClick={() => updatePublishMutation.mutate()} disabled={updatePublishMutation.isPending || !editPublishDetails.volume || !editPublishDetails.issue || !editPublishDetails.pageNumber || !editPublishDetails.year}>
               {updatePublishMutation.isPending ? (<><GlassSpinner size="sm" className="mr-2" />Updating...</>) : (<><Award className="w-4 h-4 mr-2" />Update & Regenerate Certificate</>)}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Article Details Dialog */}
+      <Dialog open={isEditDetailsDialogOpen} onOpenChange={setIsEditDetailsDialogOpen}>
+        <DialogContent className="glass-card-strong max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="gradient-text">Edit Article Details</DialogTitle>
+            <DialogDescription>Update article metadata, page count, and submission information.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="ed-title">Title</Label>
+              <Input id="ed-title" className="glass-input" value={editDetails.title} onChange={(e) => setEditDetails(p => ({ ...p, title: e.target.value }))} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ed-author">Author Name (on article)</Label>
+              <Input id="ed-author" className="glass-input" value={editDetails.author_name} onChange={(e) => setEditDetails(p => ({ ...p, author_name: e.target.value }))} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="ed-pages">Page Count</Label>
+                <Input id="ed-pages" type="number" min={1} className="glass-input" value={editDetails.page_count} onChange={(e) => setEditDetails(p => ({ ...p, page_count: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="ed-country">Article Country</Label>
+                <Input id="ed-country" className="glass-input" value={editDetails.country} onChange={(e) => setEditDetails(p => ({ ...p, country: e.target.value }))} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ed-subject">Subject</Label>
+              <Input id="ed-subject" className="glass-input" value={editDetails.subject} onChange={(e) => setEditDetails(p => ({ ...p, subject: e.target.value }))} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ed-keywords">Keywords (comma-separated)</Label>
+              <Input id="ed-keywords" className="glass-input" value={editDetails.keywords} onChange={(e) => setEditDetails(p => ({ ...p, keywords: e.target.value }))} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ed-abstract">Abstract</Label>
+              <Textarea id="ed-abstract" rows={5} className="glass-input" value={editDetails.abstract} onChange={(e) => setEditDetails(p => ({ ...p, abstract: e.target.value }))} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ed-reason">Reason of Research</Label>
+              <Textarea id="ed-reason" rows={3} className="glass-input" value={editDetails.reason_of_research} onChange={(e) => setEditDetails(p => ({ ...p, reason_of_research: e.target.value }))} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDetailsDialogOpen(false)}>Cancel</Button>
+            <Button className="gradient-primary" onClick={() => updateDetailsMutation.mutate()} disabled={updateDetailsMutation.isPending || !editDetails.title.trim()}>
+              {updateDetailsMutation.isPending ? (<><GlassSpinner size="sm" className="mr-2" />Saving...</>) : 'Save Changes'}
             </Button>
           </DialogFooter>
         </DialogContent>
