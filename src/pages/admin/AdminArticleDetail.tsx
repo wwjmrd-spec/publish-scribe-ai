@@ -449,9 +449,13 @@ export default function AdminArticleDetail() {
             </GlassCard>
 
             {/* Submission Details */}
-            {(article.subject || article.country || article.reason_of_research || article.submission_target) && (
-              <GlassCard>
-                <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Submission Details</h3>
+            <GlassCard>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Submission Details</h3>
+                <Button size="sm" variant="outline" onClick={openEditDetails}>
+                  <Pencil className="w-3.5 h-3.5 mr-1.5" /> Edit Details
+                </Button>
+              </div>
                 <div className="grid grid-cols-2 gap-4">
                   {article.author_name && (
                     <div>
