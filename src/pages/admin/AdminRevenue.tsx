@@ -35,7 +35,32 @@ export default function AdminRevenue() {
         .eq('payment_status', 'success')
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return data;
+
+      // Collect all article IDs referenced in payments
+      const allIds = new Set<string>();
+      (data || []).forEach((p: any) => {
+        (p.article_ids || []).forEach((id: string) => id && allIds.add(id));
+        const items = (p.payment_items as any[]) || [];
+        items.forEach((it) => it?.articleId && allIds.add(it.articleId));
+      });
+
+      let refMap: Record<string, string> = {};
+      if (allIds.size > 0) {
+        const { data: arts } = await supabase
+          .from('articles')
+          .select('id, reference_number')
+          .in('id', Array.from(allIds));
+        (arts || []).forEach((a: any) => { refMap[a.id] = a.reference_number; });
+      }
+
+      return (data || []).map((p: any) => {
+        const ids = new Set<string>();
+        (p.article_ids || []).forEach((id: string) => id && ids.add(id));
+        const items = (p.payment_items as any[]) || [];
+        items.forEach((it) => it?.articleId && ids.add(it.articleId));
+        const refs = Array.from(ids).map((id) => refMap[id]).filter(Boolean);
+        return { ...p, article_references: refs };
+      });
     },
   });
 
