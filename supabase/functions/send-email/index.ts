@@ -875,36 +875,7 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const body: EmailRequest & { isAdmin?: boolean; test?: boolean } = await req.json();
 
-    // Allow a simple test mode to verify Resend connectivity
-    if (body.test === true) {
-      console.log("Test mode: sending test email to admin");
-      try {
-        const testResult = await resend.emails.send({
-      from: "WWJMRD <noreply@wwjmrdai.online>",
-          to: ["shubhmeena23@gmail.com"],
-          subject: "WWJMRD Test Email ✅",
-          html: wrapEmail("Test Email", `
-            ${emailH1("Email Delivery Test ✅")}
-            ${emailP("This is a test email to verify that WWJMRD email delivery is working correctly.")}
-            ${emailP("If you received this email, the Resend integration is functioning properly.")}
-            ${emailP(`Sent at: ${new Date().toISOString()}`)}
-          `),
-        });
-        console.log("Test email result:", JSON.stringify(testResult));
-        return new Response(JSON.stringify({ success: true, result: testResult }), {
-          status: 200,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
-      } catch (testErr: any) {
-        console.error("Test email failed:", testErr?.message, JSON.stringify(testErr));
-        return new Response(JSON.stringify({ success: false, error: testErr?.message || "Unknown error" }), {
-          status: 500,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
-      }
-    }
-
-    // Authenticate the request - accept valid user JWT or service role key
+    // Authenticate the request FIRST - accept valid user JWT or service role key
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       console.error("No Authorization header provided");
@@ -916,7 +887,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const token = authHeader.replace("Bearer ", "");
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const isServiceRole = token === serviceRoleKey;
+    const isServiceRole = !!serviceRoleKey && token === serviceRoleKey;
 
     if (!isServiceRole) {
       // Validate as user JWT using getUser
@@ -936,6 +907,40 @@ const handler = async (req: Request): Promise<Response> => {
       console.log("Email request authenticated for user:", userData.user.id);
     } else {
       console.log("Email request authenticated via service role");
+    }
+
+    // Test mode is restricted to service-role callers only
+    if (body.test === true) {
+      if (!isServiceRole) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
+      console.log("Test mode: sending test email to admin");
+      try {
+        const testResult = await resend.emails.send({
+          from: "WWJMRD <noreply@wwjmrdai.online>",
+          to: ["shubhmeena23@gmail.com"],
+          subject: "WWJMRD Test Email ✅",
+          html: wrapEmail("Test Email", `
+            ${emailH1("Email Delivery Test ✅")}
+            ${emailP("This is a test email to verify that WWJMRD email delivery is working correctly.")}
+            ${emailP("If you received this email, the Resend integration is functioning properly.")}
+            ${emailP(`Sent at: ${new Date().toISOString()}`)}
+          `),
+        });
+        return new Response(JSON.stringify({ success: true, result: testResult }), {
+          status: 200,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      } catch (testErr: any) {
+        console.error("Test email failed:", testErr?.message);
+        return new Response(JSON.stringify({ success: false, error: "Test failed" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
     }
 
     const { to, template, data, subject, html, from, isAdmin } = body;
