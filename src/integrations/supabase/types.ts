@@ -898,6 +898,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          referral_email_sent_at: string | null
           referred_id: string
           referrer_id: string
           reward_granted: boolean
@@ -907,6 +908,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          referral_email_sent_at?: string | null
           referred_id: string
           referrer_id: string
           reward_granted?: boolean
@@ -916,6 +918,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          referral_email_sent_at?: string | null
           referred_id?: string
           referrer_id?: string
           reward_granted?: boolean
