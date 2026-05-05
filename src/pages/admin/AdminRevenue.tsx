@@ -302,6 +302,7 @@ export default function AdminRevenue() {
                     const profile = payment.profiles as any;
                     const type = getPaymentType(payment);
                     const currencySymbol = payment.currency === 'INR' ? '₹' : '$';
+                    const refs: string[] = (payment as any).article_references || [];
                     return (
                       <div key={payment.id} className="p-3 rounded-lg bg-[hsl(var(--glass-bg))] space-y-2">
                         <div className="flex items-start justify-between gap-2">
@@ -313,6 +314,13 @@ export default function AdminRevenue() {
                             {type}
                           </Badge>
                         </div>
+                        {refs.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {refs.map((r) => (
+                              <Badge key={r} variant="outline" className="text-[10px] font-mono">{r}</Badge>
+                            ))}
+                          </div>
+                        )}
                         <div className="flex items-center justify-between text-sm">
                           <span className="font-bold">{currencySymbol}{Number(payment.final_amount).toLocaleString()}</span>
                           <span className="text-xs text-muted-foreground">
