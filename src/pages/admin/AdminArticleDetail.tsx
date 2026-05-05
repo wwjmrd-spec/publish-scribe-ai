@@ -513,7 +513,6 @@ export default function AdminArticleDetail() {
                   )}
                 </div>
               </GlassCard>
-            )}
 
             {/* Abstract */}
             {article.abstract && (
