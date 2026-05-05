@@ -23,27 +23,21 @@ function decodeJwtPayload(token: string) {
 
 function isAuthorizedSchedulerToken({
   token,
-  anonKey,
-  publishableKeys,
   serviceRoleKey,
   projectRef,
 }: {
   token: string | null;
-  anonKey: string;
-  publishableKeys: string[];
   serviceRoleKey: string;
   projectRef: string;
 }) {
   if (!token) return false;
-  if (token === anonKey || token === serviceRoleKey || publishableKeys.includes(token)) return true;
+  // Only the service-role key (or a JWT carrying the service_role claim for this project) is trusted.
+  if (token === serviceRoleKey) return true;
 
   const claims = decodeJwtPayload(token);
   if (!claims) return false;
 
-  return (
-    claims.ref === projectRef &&
-    (claims.role === "anon" || claims.role === "service_role")
-  );
+  return claims.ref === projectRef && claims.role === "service_role";
 }
 
 serve(async (req: Request) => {
