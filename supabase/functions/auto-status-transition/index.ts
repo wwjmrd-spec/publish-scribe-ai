@@ -23,27 +23,21 @@ function decodeJwtPayload(token: string) {
 
 function isAuthorizedSchedulerToken({
   token,
-  anonKey,
-  publishableKeys,
   serviceRoleKey,
   projectRef,
 }: {
   token: string | null;
-  anonKey: string;
-  publishableKeys: string[];
   serviceRoleKey: string;
   projectRef: string;
 }) {
   if (!token) return false;
-  if (token === anonKey || token === serviceRoleKey || publishableKeys.includes(token)) return true;
+  // Only the service-role key (or a JWT carrying the service_role claim for this project) is trusted.
+  if (token === serviceRoleKey) return true;
 
   const claims = decodeJwtPayload(token);
   if (!claims) return false;
 
-  return (
-    claims.ref === projectRef &&
-    (claims.role === "anon" || claims.role === "service_role")
-  );
+  return claims.ref === projectRef && claims.role === "service_role";
 }
 
 serve(async (req: Request) => {
@@ -56,16 +50,11 @@ serve(async (req: Request) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const projectRef = new URL(supabaseUrl).hostname.split(".")[0];
-    const publishableKeys = [
-      Deno.env.get("SUPABASE_PUBLISHABLE_KEY"),
-      Deno.env.get("VITE_SUPABASE_PUBLISHABLE_KEY"),
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15amJiYnl0Ynp6enNhYWlvaHJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAxMjMyMjksImV4cCI6MjA4NTY5OTIyOX0.9aPaE465Gbtchb2FHN6hlxmM2UjfQbGXWHnOyw1zDvY",
-    ].filter((value): value is string => Boolean(value));
 
-    // Authenticate scheduled requests safely
+    // Authenticate scheduled requests safely - service role only
     const authHeader = req.headers.get("Authorization");
     const token = authHeader?.replace("Bearer ", "");
-    if (!isAuthorizedSchedulerToken({ token: token ?? null, anonKey, publishableKeys, serviceRoleKey, projectRef })) {
+    if (!isAuthorizedSchedulerToken({ token: token ?? null, serviceRoleKey, projectRef })) {
       console.error("Unauthorized scheduler request");
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
@@ -356,19 +345,27 @@ serve(async (req: Request) => {
 
     // ===== STEP 4: Send referral reward emails for recently rewarded referrals =====
     {
-      // Find referrals rewarded in the last 5 minutes that haven't had emails sent yet
-      const fiveMinAgoISO = new Date(now.getTime() - 5 * 60 * 1000).toISOString();
       const { data: rewardedReferrals, error } = await supabase
         .from("referrals")
         .select("id, referrer_id, referred_id, rewarded_at")
         .eq("reward_granted", true)
-        .gte("rewarded_at", fiveMinAgoISO);
+        .is("referral_email_sent_at", null);
 
       if (error) {
         results.errors.push(`Step5 fetch: ${error.message}`);
       } else if (rewardedReferrals?.length) {
         for (const ref of rewardedReferrals) {
           try {
+            // Atomically claim this referral so concurrent runs cannot duplicate emails
+            const { data: claimed, error: claimErr } = await supabase
+              .from("referrals")
+              .update({ referral_email_sent_at: new Date().toISOString() })
+              .eq("id", ref.id)
+              .is("referral_email_sent_at", null)
+              .select("id")
+              .maybeSingle();
+            if (claimErr || !claimed) continue;
+
             // Get referrer profile
             const { data: referrerProfile } = await supabase
               .from("profiles")

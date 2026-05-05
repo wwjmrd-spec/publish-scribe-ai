@@ -48,8 +48,8 @@ async function verifyPayPalWebhook(req: Request, body: string): Promise<boolean>
   });
 
   if (!verifyRes.ok) {
-    console.warn('PayPal webhook verification API failed, proceeding with caution');
-    return true; // Fallback - in production, you'd want stricter checking
+    console.error('PayPal webhook verification API failed - rejecting webhook');
+    return false;
   }
 
   const verifyData = await verifyRes.json();
