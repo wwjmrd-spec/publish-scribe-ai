@@ -356,6 +356,16 @@ serve(async (req: Request) => {
       } else if (rewardedReferrals?.length) {
         for (const ref of rewardedReferrals) {
           try {
+            // Atomically claim this referral so concurrent runs cannot duplicate emails
+            const { data: claimed, error: claimErr } = await supabase
+              .from("referrals")
+              .update({ referral_email_sent_at: new Date().toISOString() })
+              .eq("id", ref.id)
+              .is("referral_email_sent_at", null)
+              .select("id")
+              .maybeSingle();
+            if (claimErr || !claimed) continue;
+
             // Get referrer profile
             const { data: referrerProfile } = await supabase
               .from("profiles")
