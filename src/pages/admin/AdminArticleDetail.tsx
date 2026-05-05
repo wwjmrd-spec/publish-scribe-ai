@@ -328,6 +328,46 @@ export default function AdminArticleDetail() {
     },
   });
 
+  const updateDetailsMutation = useMutation({
+    mutationFn: async () => {
+      const payload: any = {
+        title: editDetails.title.trim(),
+        abstract: editDetails.abstract.trim() || null,
+        subject: editDetails.subject.trim() || null,
+        author_name: editDetails.author_name.trim() || null,
+        country: editDetails.country.trim() || null,
+        reason_of_research: editDetails.reason_of_research.trim() || null,
+        page_count: editDetails.page_count ? parseInt(editDetails.page_count, 10) : null,
+        keywords: editDetails.keywords
+          ? editDetails.keywords.split(',').map(k => k.trim()).filter(Boolean)
+          : null,
+      };
+      const { error } = await supabase.from('articles').update(payload).eq('id', articleId!);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Article details updated');
+      setIsEditDetailsDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['admin-article-detail', articleId] });
+    },
+    onError: (err: any) => toast.error('Failed to update: ' + err.message),
+  });
+
+  const openEditDetails = () => {
+    if (!article) return;
+    setEditDetails({
+      title: article.title || '',
+      abstract: article.abstract || '',
+      keywords: (article.keywords || []).join(', '),
+      subject: article.subject || '',
+      author_name: article.author_name || '',
+      country: article.country || '',
+      reason_of_research: article.reason_of_research || '',
+      page_count: (article as any).page_count ? String((article as any).page_count) : '',
+    });
+    setIsEditDetailsDialogOpen(true);
+  };
+
   const sendReminderMutation = useMutation({
     mutationFn: async () => {
       const response = await supabase.functions.invoke('send-payment-reminder', {
