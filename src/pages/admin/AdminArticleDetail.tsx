@@ -67,6 +67,17 @@ export default function AdminArticleDetail() {
     year: '',
     publishedLink: '',
   });
+  const [isEditDetailsDialogOpen, setIsEditDetailsDialogOpen] = useState(false);
+  const [editDetails, setEditDetails] = useState({
+    title: '',
+    abstract: '',
+    keywords: '',
+    subject: '',
+    author_name: '',
+    country: '',
+    reason_of_research: '',
+    page_count: '',
+  });
 
   const { data: article, isLoading } = useQuery({
     queryKey: ['admin-article-detail', articleId],
