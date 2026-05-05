@@ -113,10 +113,12 @@ export default function AdminRevenue() {
     ? filteredByTab.filter((p) => {
         const profile = p.profiles as any;
         const q = searchQuery.toLowerCase();
+        const refs: string[] = (p as any).article_references || [];
         return (
           profile?.full_name?.toLowerCase().includes(q) ||
           profile?.email?.toLowerCase().includes(q) ||
-          p.transaction_id?.toLowerCase().includes(q)
+          p.transaction_id?.toLowerCase().includes(q) ||
+          refs.some((r) => r?.toLowerCase().includes(q))
         );
       })
     : filteredByTab;
