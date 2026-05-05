@@ -35,7 +35,32 @@ export default function AdminRevenue() {
         .eq('payment_status', 'success')
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return data;
+
+      // Collect all article IDs referenced in payments
+      const allIds = new Set<string>();
+      (data || []).forEach((p: any) => {
+        (p.article_ids || []).forEach((id: string) => id && allIds.add(id));
+        const items = (p.payment_items as any[]) || [];
+        items.forEach((it) => it?.articleId && allIds.add(it.articleId));
+      });
+
+      let refMap: Record<string, string> = {};
+      if (allIds.size > 0) {
+        const { data: arts } = await supabase
+          .from('articles')
+          .select('id, reference_number')
+          .in('id', Array.from(allIds));
+        (arts || []).forEach((a: any) => { refMap[a.id] = a.reference_number; });
+      }
+
+      return (data || []).map((p: any) => {
+        const ids = new Set<string>();
+        (p.article_ids || []).forEach((id: string) => id && ids.add(id));
+        const items = (p.payment_items as any[]) || [];
+        items.forEach((it) => it?.articleId && ids.add(it.articleId));
+        const refs = Array.from(ids).map((id) => refMap[id]).filter(Boolean);
+        return { ...p, article_references: refs };
+      });
     },
   });
 
@@ -88,10 +113,12 @@ export default function AdminRevenue() {
     ? filteredByTab.filter((p) => {
         const profile = p.profiles as any;
         const q = searchQuery.toLowerCase();
+        const refs: string[] = (p as any).article_references || [];
         return (
           profile?.full_name?.toLowerCase().includes(q) ||
           profile?.email?.toLowerCase().includes(q) ||
-          p.transaction_id?.toLowerCase().includes(q)
+          p.transaction_id?.toLowerCase().includes(q) ||
+          refs.some((r) => r?.toLowerCase().includes(q))
         );
       })
     : filteredByTab;
@@ -139,7 +166,7 @@ export default function AdminRevenue() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Search by author name, email, or transaction ID..."
+            placeholder="Search by author, email, transaction ID, or article reference..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10"
@@ -275,6 +302,7 @@ export default function AdminRevenue() {
                     const profile = payment.profiles as any;
                     const type = getPaymentType(payment);
                     const currencySymbol = payment.currency === 'INR' ? '₹' : '$';
+                    const refs: string[] = (payment as any).article_references || [];
                     return (
                       <div key={payment.id} className="p-3 rounded-lg bg-[hsl(var(--glass-bg))] space-y-2">
                         <div className="flex items-start justify-between gap-2">
@@ -286,6 +314,13 @@ export default function AdminRevenue() {
                             {type}
                           </Badge>
                         </div>
+                        {refs.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {refs.map((r) => (
+                              <Badge key={r} variant="outline" className="text-[10px] font-mono">{r}</Badge>
+                            ))}
+                          </div>
+                        )}
                         <div className="flex items-center justify-between text-sm">
                           <span className="font-bold">{currencySymbol}{Number(payment.final_amount).toLocaleString()}</span>
                           <span className="text-xs text-muted-foreground">
@@ -304,6 +339,7 @@ export default function AdminRevenue() {
                       <tr className="border-b border-[hsl(var(--glass-border))]">
                         <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Author</th>
                         <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Type</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Article Ref</th>
                         <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Amount</th>
                         <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Gateway</th>
                         <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Transaction ID</th>
@@ -315,6 +351,7 @@ export default function AdminRevenue() {
                         const profile = payment.profiles as any;
                         const type = getPaymentType(payment);
                         const currencySymbol = payment.currency === 'INR' ? '₹' : '$';
+                        const refs: string[] = (payment as any).article_references || [];
                         return (
                           <tr key={payment.id} className="border-b border-[hsl(var(--glass-border))] hover:bg-[hsl(var(--glass-bg))] transition-colors">
                             <td className="py-3 px-4">
@@ -325,6 +362,17 @@ export default function AdminRevenue() {
                               <Badge variant={type === 'Pro Plan' ? 'default' : 'secondary'}>
                                 {type}
                               </Badge>
+                            </td>
+                            <td className="py-3 px-4">
+                              {refs.length > 0 ? (
+                                <div className="flex flex-wrap gap-1 max-w-[180px]">
+                                  {refs.map((r) => (
+                                    <Badge key={r} variant="outline" className="text-[10px] font-mono">{r}</Badge>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">—</span>
+                              )}
                             </td>
                             <td className="py-3 px-4 font-bold">
                               {currencySymbol}{Number(payment.final_amount).toLocaleString()}
