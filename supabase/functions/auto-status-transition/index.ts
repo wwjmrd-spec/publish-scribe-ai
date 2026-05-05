@@ -345,13 +345,11 @@ serve(async (req: Request) => {
 
     // ===== STEP 4: Send referral reward emails for recently rewarded referrals =====
     {
-      // Find referrals rewarded in the last 5 minutes that haven't had emails sent yet
-      const fiveMinAgoISO = new Date(now.getTime() - 5 * 60 * 1000).toISOString();
       const { data: rewardedReferrals, error } = await supabase
         .from("referrals")
         .select("id, referrer_id, referred_id, rewarded_at")
         .eq("reward_granted", true)
-        .gte("rewarded_at", fiveMinAgoISO);
+        .is("referral_email_sent_at", null);
 
       if (error) {
         results.errors.push(`Step5 fetch: ${error.message}`);
