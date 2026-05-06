@@ -125,14 +125,15 @@ export default function AdminDiscounts() {
 
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-discounts'] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['admin-discounts'] });
+      await queryClient.refetchQueries({ queryKey: ['admin-discounts'] });
       toast.success('Discount code created');
       setIsCreateDialogOpen(false);
       resetForm();
     },
-    onError: (error) => {
-      toast.error('Failed to create: ' + error.message);
+    onError: (error: any) => {
+      toast.error('Failed to create: ' + (error?.message || 'Unknown error'));
     },
   });
 
@@ -141,10 +142,12 @@ export default function AdminDiscounts() {
       const { error } = await supabase.from('discount_codes').delete().eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-discounts'] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['admin-discounts'] });
+      await queryClient.refetchQueries({ queryKey: ['admin-discounts'] });
       toast.success('Discount code deleted');
     },
+    onError: (error: any) => toast.error('Failed to delete: ' + (error?.message || 'Unknown error')),
   });
 
   const toggleActiveMutation = useMutation({
@@ -155,9 +158,11 @@ export default function AdminDiscounts() {
         .eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-discounts'] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['admin-discounts'] });
+      await queryClient.refetchQueries({ queryKey: ['admin-discounts'] });
     },
+    onError: (error: any) => toast.error('Failed to update: ' + (error?.message || 'Unknown error')),
   });
 
   const resetForm = () => {
