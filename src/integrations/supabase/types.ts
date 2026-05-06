@@ -1069,6 +1069,25 @@ export type Database = {
         Args: { p_field: string; p_usage_month: string; p_user_id: string }
         Returns: undefined
       }
+      lookup_discount_code: {
+        Args: { p_code: string }
+        Returns: {
+          applies_to: string
+          article_position_limit: string
+          code: string
+          currency: Database["public"]["Enums"]["discount_currency"]
+          discount_type: Database["public"]["Enums"]["discount_type"]
+          discount_value: number
+          end_date: string
+          id: string
+          is_active: boolean
+          max_uses_per_user: number
+          specific_article_ids: string[]
+          start_date: string
+          usage_limit: number
+          used_count: number
+        }[]
+      }
     }
     Enums: {
       article_status:
