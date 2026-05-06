@@ -202,12 +202,9 @@ export default function Cart() {
 
     setApplyingDiscount(true);
     try {
-      const { data, error } = await supabase
-        .from('discount_codes')
-        .select('*')
-        .eq('code', trimmedCode)
-        .eq('is_active', true)
-        .single();
+      const { data: rows, error } = await supabase
+        .rpc('lookup_discount_code' as any, { p_code: trimmedCode });
+      const data: any = Array.isArray(rows) ? rows[0] : rows;
 
       if (error || !data) {
         toast({ title: 'Invalid discount code', description: 'The code you entered is invalid or expired', variant: 'destructive' });
