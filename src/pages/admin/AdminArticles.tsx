@@ -440,6 +440,16 @@ export default function AdminArticles() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-[hsl(var(--glass-border))]">
+                    <th className="py-3 px-2 w-10">
+                      <Checkbox
+                        checked={filteredArticles.length > 0 && filteredArticles.every(a => selectedIds.has(a.id))}
+                        onCheckedChange={(checked) => {
+                          if (checked) setSelectedIds(new Set(filteredArticles.map(a => a.id)));
+                          else setSelectedIds(new Set());
+                        }}
+                        aria-label="Select all"
+                      />
+                    </th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Reference</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Title</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Author</th>
@@ -452,6 +462,13 @@ export default function AdminArticles() {
                 <tbody>
                   {filteredArticles.map((article) => (
                     <tr key={article.id} className="border-b border-[hsl(var(--glass-border))] hover:bg-[hsl(var(--glass-bg))] transition-colors">
+                      <td className="py-3 px-2 text-center">
+                        <Checkbox
+                          checked={selectedIds.has(article.id)}
+                          onCheckedChange={() => toggleSelect(article.id)}
+                          aria-label={`Select ${article.reference_number}`}
+                        />
+                      </td>
                       <td className="py-3 px-4 font-mono text-sm">{article.reference_number}</td>
                       <td className="py-3 px-4 max-w-[200px] truncate">{article.title}</td>
                       <td className="py-3 px-4 text-sm">
