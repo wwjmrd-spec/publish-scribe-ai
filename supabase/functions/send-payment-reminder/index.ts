@@ -27,10 +27,13 @@ serve(async (req: Request) => {
       );
     }
 
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const isServiceRole = token === serviceRoleKey;
-    
-    // If not service role, verify the user is an admin
-    if (!isServiceRole) {
+    const isAnon = token === anonKey;
+    let isAdminUser = false;
+
+    // If not service role and not anon (cron), verify the user is an admin
+    if (!isServiceRole && !isAnon) {
       const authClient = createClient(supabaseUrl, supabaseKey, {
         global: { headers: { Authorization: authHeader! } }
       });
@@ -57,6 +60,7 @@ serve(async (req: Request) => {
           { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
+      isAdminUser = true;
     }
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
