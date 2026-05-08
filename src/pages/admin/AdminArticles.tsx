@@ -49,6 +49,7 @@ export default function AdminArticles() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedArticle, setSelectedArticle] = useState<any>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
   const [publishDetails, setPublishDetails] = useState({
     volume: '',
@@ -59,6 +60,49 @@ export default function AdminArticles() {
   });
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const bulkFeeReminderMutation = useMutation({
+    mutationFn: async () => {
+      const response = await supabase.functions.invoke('send-payment-reminder', {
+        body: { all: true, force: true },
+      });
+      if (response.error) throw new Error(response.error.message);
+      return response.data;
+    },
+    onSuccess: (data: any) => {
+      toast.success(`Fee reminders sent to ${data?.remindersSent ?? 0} author(s)`);
+    },
+    onError: (err: any) => toast.error('Bulk reminder failed: ' + err.message),
+  });
+
+  const bulkRevisionMutation = useMutation({
+    mutationFn: async () => {
+      const ids = Array.from(selectedIds);
+      if (ids.length === 0) throw new Error('No articles selected');
+      const results = await Promise.allSettled(
+        ids.map(id =>
+          supabase.functions.invoke('request-manuscript-revision', { body: { articleId: id } })
+        )
+      );
+      const failed = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && (r.value as any)?.error));
+      return { total: ids.length, failed: failed.length };
+    },
+    onSuccess: ({ total, failed }) => {
+      if (failed === 0) toast.success(`Revision requested for ${total} article(s)`);
+      else toast.warning(`Revision requested for ${total - failed} of ${total} (${failed} failed)`);
+      setSelectedIds(new Set());
+      queryClient.invalidateQueries({ queryKey: ['admin-articles'] });
+    },
+    onError: (err: any) => toast.error('Bulk revision failed: ' + err.message),
+  });
 
   const { data: articles, isLoading } = useQuery({
     queryKey: ['admin-articles', statusFilter],
