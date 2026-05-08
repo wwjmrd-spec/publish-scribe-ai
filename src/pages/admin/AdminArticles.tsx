@@ -16,7 +16,10 @@ import {
   Download,
   Brain,
   Award,
+  Mail,
+  RotateCcw,
 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
@@ -46,6 +49,7 @@ export default function AdminArticles() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedArticle, setSelectedArticle] = useState<any>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
   const [publishDetails, setPublishDetails] = useState({
     volume: '',
@@ -56,6 +60,49 @@ export default function AdminArticles() {
   });
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const bulkFeeReminderMutation = useMutation({
+    mutationFn: async () => {
+      const response = await supabase.functions.invoke('send-payment-reminder', {
+        body: { all: true, force: true },
+      });
+      if (response.error) throw new Error(response.error.message);
+      return response.data;
+    },
+    onSuccess: (data: any) => {
+      toast.success(`Fee reminders sent to ${data?.remindersSent ?? 0} author(s)`);
+    },
+    onError: (err: any) => toast.error('Bulk reminder failed: ' + err.message),
+  });
+
+  const bulkRevisionMutation = useMutation({
+    mutationFn: async () => {
+      const ids = Array.from(selectedIds);
+      if (ids.length === 0) throw new Error('No articles selected');
+      const results = await Promise.allSettled(
+        ids.map(id =>
+          supabase.functions.invoke('request-manuscript-revision', { body: { articleId: id } })
+        )
+      );
+      const failed = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && (r.value as any)?.error));
+      return { total: ids.length, failed: failed.length };
+    },
+    onSuccess: ({ total, failed }) => {
+      if (failed === 0) toast.success(`Revision requested for ${total} article(s)`);
+      else toast.warning(`Revision requested for ${total - failed} of ${total} (${failed} failed)`);
+      setSelectedIds(new Set());
+      queryClient.invalidateQueries({ queryKey: ['admin-articles'] });
+    },
+    onError: (err: any) => toast.error('Bulk revision failed: ' + err.message),
+  });
 
   const { data: articles, isLoading } = useQuery({
     queryKey: ['admin-articles', statusFilter],
@@ -302,6 +349,42 @@ export default function AdminArticles() {
         </Select>
       </div>
 
+      {/* Bulk action toolbar */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <Button
+          size="sm"
+          variant="outline"
+          className="text-amber-400 hover:text-amber-300"
+          onClick={() => {
+            if (!confirm('Send fee reminder emails to ALL articles currently in pending_fee / manuscript_accepted status?')) return;
+            bulkFeeReminderMutation.mutate();
+          }}
+          disabled={bulkFeeReminderMutation.isPending}
+        >
+          <Mail className="w-4 h-4 mr-2" />
+          {bulkFeeReminderMutation.isPending ? 'Sending…' : 'Send All Fee Reminders'}
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="text-orange-400 hover:text-orange-300"
+          onClick={() => {
+            if (selectedIds.size === 0) { toast.error('Select articles first'); return; }
+            if (!confirm(`Request manuscript revision for ${selectedIds.size} selected article(s)?`)) return;
+            bulkRevisionMutation.mutate();
+          }}
+          disabled={bulkRevisionMutation.isPending || selectedIds.size === 0}
+        >
+          <RotateCcw className="w-4 h-4 mr-2" />
+          {bulkRevisionMutation.isPending ? 'Requesting…' : `Request Revision (${selectedIds.size})`}
+        </Button>
+        {selectedIds.size > 0 && (
+          <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>
+            Clear selection
+          </Button>
+        )}
+      </div>
+
       {/* Articles Table */}
       <GlassCard>
         {!filteredArticles?.length ? (
@@ -357,6 +440,16 @@ export default function AdminArticles() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-[hsl(var(--glass-border))]">
+                    <th className="py-3 px-2 w-10">
+                      <Checkbox
+                        checked={filteredArticles.length > 0 && filteredArticles.every(a => selectedIds.has(a.id))}
+                        onCheckedChange={(checked) => {
+                          if (checked) setSelectedIds(new Set(filteredArticles.map(a => a.id)));
+                          else setSelectedIds(new Set());
+                        }}
+                        aria-label="Select all"
+                      />
+                    </th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Reference</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Title</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Author</th>
@@ -369,6 +462,13 @@ export default function AdminArticles() {
                 <tbody>
                   {filteredArticles.map((article) => (
                     <tr key={article.id} className="border-b border-[hsl(var(--glass-border))] hover:bg-[hsl(var(--glass-bg))] transition-colors">
+                      <td className="py-3 px-2 text-center">
+                        <Checkbox
+                          checked={selectedIds.has(article.id)}
+                          onCheckedChange={() => toggleSelect(article.id)}
+                          aria-label={`Select ${article.reference_number}`}
+                        />
+                      </td>
                       <td className="py-3 px-4 font-mono text-sm">{article.reference_number}</td>
                       <td className="py-3 px-4 max-w-[200px] truncate">{article.title}</td>
                       <td className="py-3 px-4 text-sm">

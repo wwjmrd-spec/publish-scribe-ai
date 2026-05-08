@@ -27,10 +27,13 @@ serve(async (req: Request) => {
       );
     }
 
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const isServiceRole = token === serviceRoleKey;
-    
-    // If not service role, verify the user is an admin
-    if (!isServiceRole) {
+    const isAnon = token === anonKey;
+    let isAdminUser = false;
+
+    // If not service role and not anon (cron), verify the user is an admin
+    if (!isServiceRole && !isAnon) {
       const authClient = createClient(supabaseUrl, supabaseKey, {
         global: { headers: { Authorization: authHeader! } }
       });
@@ -57,12 +60,13 @@ serve(async (req: Request) => {
           { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
+      isAdminUser = true;
     }
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     const body = await req.json().catch(() => ({}));
-    const { articleId } = body;
+    const { articleId, all, force } = body as { articleId?: string; all?: boolean; force?: boolean };
 
     // Fetch reminder settings
     const { data: settingsRow } = await supabase
@@ -73,6 +77,9 @@ serve(async (req: Request) => {
 
     const frequencyHours = settingsRow?.frequency_hours ?? 24;
     const maxDays = settingsRow?.max_days ?? 2;
+
+    // Admin manual calls bypass cutoff & frequency throttling by default
+    const bypassWindow = isAdminUser || force === true;
 
     let articles: any[] = [];
 
@@ -92,27 +99,32 @@ serve(async (req: Request) => {
         );
       }
 
-      // Check if article is still within the max_days window
-      const statusChangedAt = new Date(data.updated_at);
-      const cutoffDate = new Date(statusChangedAt.getTime() + maxDays * 24 * 60 * 60 * 1000);
-      if (new Date() > cutoffDate) {
-        return new Response(
-          JSON.stringify({ error: `Reminder window expired (max ${maxDays} days after pending_fee)` }),
-          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-        );
+      if (!bypassWindow) {
+        const statusChangedAt = new Date(data.updated_at);
+        const cutoffDate = new Date(statusChangedAt.getTime() + maxDays * 24 * 60 * 60 * 1000);
+        if (new Date() > cutoffDate) {
+          return new Response(
+            JSON.stringify({ error: `Reminder window expired (max ${maxDays} days after pending_fee)` }),
+            { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+          );
+        }
       }
 
       articles = [data];
     } else {
-      // Auto trigger (cron): find all articles pending_fee
-      // that are within the max_days window from when they became pending_fee
-      // Only auto-send for articles with more than 2 pages
-      const { data, error } = await supabase
+      // Bulk / auto trigger: all articles in pending_fee or manuscript_accepted.
+      // Admin "all=true" bulk action ignores page_count filter & cutoff window.
+      let query = supabase
         .from("articles")
         .select("id, title, reference_number, author_id, status, updated_at, page_count, profiles:author_id (full_name, email)")
-        .in("status", ["pending_fee", "manuscript_accepted"])
-        .gt("page_count", 2);
+        .in("status", ["pending_fee", "manuscript_accepted"]);
 
+      // Cron path keeps page_count > 2 filter; admin bulk-all sends to everyone
+      if (!(isAdminUser && all)) {
+        query = query.gt("page_count", 2);
+      }
+
+      const { data, error } = await query;
       if (error) {
         console.error("Error fetching articles:", error);
         throw error;
@@ -122,25 +134,23 @@ serve(async (req: Request) => {
       const frequencyMs = frequencyHours * 60 * 60 * 1000;
       const frequencyAgo = new Date(now.getTime() - frequencyMs).toISOString();
 
-      // Filter: within max_days window AND no reminder sent within frequency period
       const filteredArticles = [];
       for (const art of (data || [])) {
-        const statusChangedAt = new Date(art.updated_at);
-        const cutoffDate = new Date(statusChangedAt.getTime() + maxDays * 24 * 60 * 60 * 1000);
+        if (!bypassWindow) {
+          const statusChangedAt = new Date(art.updated_at);
+          const cutoffDate = new Date(statusChangedAt.getTime() + maxDays * 24 * 60 * 60 * 1000);
+          if (now > cutoffDate) continue;
 
-        // Skip if past the max_days window
-        if (now > cutoffDate) continue;
+          const { data: recentReminder } = await supabase
+            .from("payment_reminders")
+            .select("id")
+            .eq("article_id", art.id)
+            .gte("sent_at", frequencyAgo)
+            .limit(1);
 
-        const { data: recentReminder } = await supabase
-          .from("payment_reminders")
-          .select("id")
-          .eq("article_id", art.id)
-          .gte("sent_at", frequencyAgo)
-          .limit(1);
-
-        if (!recentReminder || recentReminder.length === 0) {
-          filteredArticles.push(art);
+          if (recentReminder && recentReminder.length > 0) continue;
         }
+        filteredArticles.push(art);
       }
       articles = filteredArticles;
     }

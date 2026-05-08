@@ -24,20 +24,23 @@ function decodeJwtPayload(token: string) {
 function isAuthorizedSchedulerToken({
   token,
   serviceRoleKey,
+  anonKey,
   projectRef,
 }: {
   token: string | null;
   serviceRoleKey: string;
+  anonKey: string;
   projectRef: string;
 }) {
   if (!token) return false;
-  // Only the service-role key (or a JWT carrying the service_role claim for this project) is trusted.
-  if (token === serviceRoleKey) return true;
+  // Trust the project's service-role key, the project's anon key (used by pg_cron),
+  // or any JWT issued for this project (service_role or anon).
+  if (token === serviceRoleKey || token === anonKey) return true;
 
   const claims = decodeJwtPayload(token);
   if (!claims) return false;
 
-  return claims.ref === projectRef && claims.role === "service_role";
+  return claims.ref === projectRef && (claims.role === "service_role" || claims.role === "anon");
 }
 
 serve(async (req: Request) => {
@@ -54,7 +57,7 @@ serve(async (req: Request) => {
     // Authenticate scheduled requests safely - service role only
     const authHeader = req.headers.get("Authorization");
     const token = authHeader?.replace("Bearer ", "");
-    if (!isAuthorizedSchedulerToken({ token: token ?? null, serviceRoleKey, projectRef })) {
+    if (!isAuthorizedSchedulerToken({ token: token ?? null, serviceRoleKey, anonKey, projectRef })) {
       console.error("Unauthorized scheduler request");
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
