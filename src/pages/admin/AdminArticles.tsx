@@ -349,6 +349,42 @@ export default function AdminArticles() {
         </Select>
       </div>
 
+      {/* Bulk action toolbar */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <Button
+          size="sm"
+          variant="outline"
+          className="text-amber-400 hover:text-amber-300"
+          onClick={() => {
+            if (!confirm('Send fee reminder emails to ALL articles currently in pending_fee / manuscript_accepted status?')) return;
+            bulkFeeReminderMutation.mutate();
+          }}
+          disabled={bulkFeeReminderMutation.isPending}
+        >
+          <Mail className="w-4 h-4 mr-2" />
+          {bulkFeeReminderMutation.isPending ? 'Sending…' : 'Send All Fee Reminders'}
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="text-orange-400 hover:text-orange-300"
+          onClick={() => {
+            if (selectedIds.size === 0) { toast.error('Select articles first'); return; }
+            if (!confirm(`Request manuscript revision for ${selectedIds.size} selected article(s)?`)) return;
+            bulkRevisionMutation.mutate();
+          }}
+          disabled={bulkRevisionMutation.isPending || selectedIds.size === 0}
+        >
+          <RotateCcw className="w-4 h-4 mr-2" />
+          {bulkRevisionMutation.isPending ? 'Requesting…' : `Request Revision (${selectedIds.size})`}
+        </Button>
+        {selectedIds.size > 0 && (
+          <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>
+            Clear selection
+          </Button>
+        )}
+      </div>
+
       {/* Articles Table */}
       <GlassCard>
         {!filteredArticles?.length ? (
