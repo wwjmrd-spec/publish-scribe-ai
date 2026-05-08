@@ -57,7 +57,7 @@ serve(async (req: Request) => {
     // Authenticate scheduled requests safely - service role only
     const authHeader = req.headers.get("Authorization");
     const token = authHeader?.replace("Bearer ", "");
-    if (!isAuthorizedSchedulerToken({ token: token ?? null, serviceRoleKey, projectRef })) {
+    if (!isAuthorizedSchedulerToken({ token: token ?? null, serviceRoleKey, anonKey, projectRef })) {
       console.error("Unauthorized scheduler request");
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
