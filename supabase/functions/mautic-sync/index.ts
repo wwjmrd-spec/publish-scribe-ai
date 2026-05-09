@@ -200,6 +200,13 @@ serve(async (req) => {
       }
     }
 
+    // Short-circuit if Mautic is known unreachable (avoid 150s edge timeouts)
+    if (isMauticDown() && action !== 'get_mautic_url') {
+      return new Response(JSON.stringify({ success: false, skipped: true, reason: 'mautic_unreachable' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     switch (action) {
       case 'sync_contact': {
         const { email, firstname, lastname, country, company, phone, tags } = data;
