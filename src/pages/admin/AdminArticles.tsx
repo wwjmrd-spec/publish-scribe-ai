@@ -71,14 +71,23 @@ export default function AdminArticles() {
 
   const bulkFeeReminderMutation = useMutation({
     mutationFn: async () => {
-      const response = await supabase.functions.invoke('send-payment-reminder', {
-        body: { all: true, force: true },
-      });
-      if (response.error) throw new Error(response.error.message);
-      return response.data;
+      const ids = Array.from(selectedIds);
+      if (ids.length === 0) throw new Error('No articles selected');
+      const results = await Promise.allSettled(
+        ids.map(id =>
+          supabase.functions.invoke('send-payment-reminder', {
+            body: { articleId: id, force: true },
+          })
+        )
+      );
+      const failed = results.filter(
+        r => r.status === 'rejected' || (r.status === 'fulfilled' && (r.value as any)?.error)
+      );
+      return { total: ids.length, failed: failed.length };
     },
-    onSuccess: (data: any) => {
-      toast.success(`Fee reminders sent to ${data?.remindersSent ?? 0} author(s)`);
+    onSuccess: ({ total, failed }) => {
+      if (failed === 0) toast.success(`Fee reminders sent to ${total} author(s)`);
+      else toast.warning(`Fee reminders sent to ${total - failed} of ${total} (${failed} failed)`);
     },
     onError: (err: any) => toast.error('Bulk reminder failed: ' + err.message),
   });
@@ -356,13 +365,14 @@ export default function AdminArticles() {
           variant="outline"
           className="text-amber-400 hover:text-amber-300"
           onClick={() => {
-            if (!confirm('Send fee reminder emails to ALL articles currently in pending_fee / manuscript_accepted status?')) return;
+            if (selectedIds.size === 0) { toast.error('Select articles first'); return; }
+            if (!confirm(`Send fee reminder emails to ${selectedIds.size} selected article(s)?`)) return;
             bulkFeeReminderMutation.mutate();
           }}
-          disabled={bulkFeeReminderMutation.isPending}
+          disabled={bulkFeeReminderMutation.isPending || selectedIds.size === 0}
         >
           <Mail className="w-4 h-4 mr-2" />
-          {bulkFeeReminderMutation.isPending ? 'Sending…' : 'Send All Fee Reminders'}
+          {bulkFeeReminderMutation.isPending ? 'Sending…' : `Send Fee Reminders (${selectedIds.size})`}
         </Button>
         <Button
           size="sm"
