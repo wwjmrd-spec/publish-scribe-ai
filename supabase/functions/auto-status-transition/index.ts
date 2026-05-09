@@ -70,12 +70,51 @@ serve(async (req: Request) => {
     const supabase = createClient(supabaseUrl, serviceRoleKey);
     const now = new Date();
     const results = {
+      step0_aiReviewsTriggered: 0,
       step1_submittedToUnderReview: 0,
       step2_toManuscriptAccepted: 0,
       step3_toPendingFee: 0,
       step4_referralRewardEmails: 0,
       errors: [] as string[],
     };
+
+    // ===== STEP 0: Auto-generate AI review report for newly submitted articles =====
+    // The report is saved to article_reviews (admin-visible) but NOT published to
+    // the author until an admin approves it via /admin/ai-review.
+    {
+      const { data: pending, error } = await supabase
+        .from("articles")
+        .select("id, document_url, article_reviews(id)")
+        .eq("status", "submitted")
+        .eq("automation_paused", false)
+        .not("document_url", "is", null)
+        .limit(20);
+
+      if (error) {
+        results.errors.push(`Step0 fetch: ${error.message}`);
+      } else if (pending?.length) {
+        const needsReview = pending.filter(
+          (a: any) => !a.article_reviews || a.article_reviews.length === 0
+        );
+        for (const art of needsReview) {
+          try {
+            // Fire-and-forget AI review generation (do NOT await long-running call here
+            // to keep the cron fast — Lovable's invoke runs the function asynchronously).
+            fetch(`${supabaseUrl}/functions/v1/ai-review`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${serviceRoleKey}`,
+              },
+              body: JSON.stringify({ articleId: art.id }),
+            }).catch((err) => console.error(`ai-review trigger failed for ${art.id}:`, err));
+            results.step0_aiReviewsTriggered++;
+          } catch (e: any) {
+            results.errors.push(`Step0 invoke ${art.id}: ${e?.message || e}`);
+          }
+        }
+      }
+    }
 
     // ===== Helper: notify all admins =====
     async function notifyAdmins(title: string, message: string, link?: string) {
