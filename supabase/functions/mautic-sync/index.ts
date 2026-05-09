@@ -41,6 +41,7 @@ async function getAccessToken(): Promise<string> {
       client_id: clientId,
       client_secret: clientSecret,
     }),
+    signal: AbortSignal.timeout(8000),
   });
 
   const text = await response.text();
