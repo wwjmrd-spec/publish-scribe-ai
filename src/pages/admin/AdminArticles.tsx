@@ -365,13 +365,14 @@ export default function AdminArticles() {
           variant="outline"
           className="text-amber-400 hover:text-amber-300"
           onClick={() => {
-            if (!confirm('Send fee reminder emails to ALL articles currently in pending_fee / manuscript_accepted status?')) return;
+            if (selectedIds.size === 0) { toast.error('Select articles first'); return; }
+            if (!confirm(`Send fee reminder emails to ${selectedIds.size} selected article(s)?`)) return;
             bulkFeeReminderMutation.mutate();
           }}
-          disabled={bulkFeeReminderMutation.isPending}
+          disabled={bulkFeeReminderMutation.isPending || selectedIds.size === 0}
         >
           <Mail className="w-4 h-4 mr-2" />
-          {bulkFeeReminderMutation.isPending ? 'Sending…' : 'Send All Fee Reminders'}
+          {bulkFeeReminderMutation.isPending ? 'Sending…' : `Send Fee Reminders (${selectedIds.size})`}
         </Button>
         <Button
           size="sm"
