@@ -67,6 +67,7 @@ export const MANUAL_ADMIN_STATUSES: { value: string; label: string }[] = [
   { value: 'revised_submitted', label: 'Revised Manuscript Submitted' },
   { value: 'revised_review_generated', label: 'Revised Review Generated' },
   { value: 'pending_fee', label: 'Pending Fee' },
+  { value: 'paid', label: 'Paid' },
   { value: 'galley_proof_sent', label: 'Galley Proof Sent' },
   { value: 'galley_proof_approved', label: 'Galley Proof Approved' },
   { value: 'galley_proof_revised', label: 'Revised Galley Proof Submitted' },
