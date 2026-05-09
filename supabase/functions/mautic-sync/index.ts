@@ -391,8 +391,14 @@ serve(async (req) => {
     }
   } catch (error) {
     console.error('Mautic sync error:', error);
-    return new Response(JSON.stringify({ error: 'Internal server error' }), {
-      status: 500,
+    const msg = (error as Error)?.message || '';
+    const name = (error as Error)?.name || '';
+    if (name === 'TimeoutError' || msg.includes('timed out') || msg.includes('ETIMEDOUT') || msg.includes('error sending request')) {
+      markMauticDown();
+    }
+    // Return 200 so client callers (fire-and-forget) don't surface 5xx errors
+    return new Response(JSON.stringify({ success: false, error: 'mautic_unavailable' }), {
+      status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
