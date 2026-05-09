@@ -80,6 +80,7 @@ async function mauticRequest(path: string, method: string, body?: unknown) {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
+    signal: AbortSignal.timeout(8000),
   };
 
   if (body) {
