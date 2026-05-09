@@ -12,6 +12,15 @@ interface MauticTokenResponse {
 }
 
 let cachedToken: { token: string; expiresAt: number } | null = null;
+let mauticDownUntil = 0;
+
+function isMauticDown() {
+  return Date.now() < mauticDownUntil;
+}
+function markMauticDown() {
+  // Skip Mautic calls for 5 minutes after a network failure
+  mauticDownUntil = Date.now() + 5 * 60 * 1000;
+}
 
 function getMauticConfig() {
   let baseUrl = Deno.env.get('VITE_MAUTIC_BASE_URL') || '';
