@@ -12,6 +12,15 @@ interface MauticTokenResponse {
 }
 
 let cachedToken: { token: string; expiresAt: number } | null = null;
+let mauticDownUntil = 0;
+
+function isMauticDown() {
+  return Date.now() < mauticDownUntil;
+}
+function markMauticDown() {
+  // Skip Mautic calls for 5 minutes after a network failure
+  mauticDownUntil = Date.now() + 5 * 60 * 1000;
+}
 
 function getMauticConfig() {
   let baseUrl = Deno.env.get('VITE_MAUTIC_BASE_URL') || '';
@@ -41,6 +50,7 @@ async function getAccessToken(): Promise<string> {
       client_id: clientId,
       client_secret: clientSecret,
     }),
+    signal: AbortSignal.timeout(8000),
   });
 
   const text = await response.text();
@@ -79,6 +89,7 @@ async function mauticRequest(path: string, method: string, body?: unknown) {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
+    signal: AbortSignal.timeout(8000),
   };
 
   if (body) {
@@ -187,6 +198,13 @@ serve(async (req) => {
           { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+    }
+
+    // Short-circuit if Mautic is known unreachable (avoid 150s edge timeouts)
+    if (isMauticDown() && action !== 'get_mautic_url') {
+      return new Response(JSON.stringify({ success: false, skipped: true, reason: 'mautic_unreachable' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     switch (action) {
@@ -373,8 +391,14 @@ serve(async (req) => {
     }
   } catch (error) {
     console.error('Mautic sync error:', error);
-    return new Response(JSON.stringify({ error: 'Internal server error' }), {
-      status: 500,
+    const msg = (error as Error)?.message || '';
+    const name = (error as Error)?.name || '';
+    if (name === 'TimeoutError' || msg.includes('timed out') || msg.includes('ETIMEDOUT') || msg.includes('error sending request')) {
+      markMauticDown();
+    }
+    // Return 200 so client callers (fire-and-forget) don't surface 5xx errors
+    return new Response(JSON.stringify({ success: false, error: 'mautic_unavailable' }), {
+      status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
