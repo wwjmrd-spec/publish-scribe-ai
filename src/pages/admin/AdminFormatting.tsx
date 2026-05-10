@@ -29,6 +29,7 @@ import {
   CollapsibleContent,
 } from '@/components/ui/collapsible';
 import { ArticleContentEditor } from '@/components/admin/ArticleContentEditor';
+import { downloadFormattedAsPdf, downloadFormattedAsDocx } from '@/lib/exportFormattedArticle';
 
 type FormattingStatus = 'pending' | 'formatting' | 'ready_for_review' | 'approved' | 'failed';
 
@@ -74,28 +75,26 @@ export default function AdminFormatting() {
   });
 
   const handleDownloadFormatted = async (
-    articleId: string,
-    fileName: string,
+    article: any,
     fileType: 'formatted_document' | 'formatted_word' = 'formatted_document'
   ) => {
+    const html: string | null = article.formatted_content;
+    const baseName = `formatted-${article.reference_number || 'article'}`;
+    if (!html) {
+      toast.error('No formatted preview available yet — run Format first.');
+      return;
+    }
     try {
-      const response = await supabase.functions.invoke('get-document-url', {
-        body: { articleId, fileType },
-      });
-      if (response.error || !response.data?.url) {
-        toast.error('Failed to get download link');
-        return;
+      toast.info(fileType === 'formatted_word' ? 'Building Word file…' : 'Building PDF…');
+      if (fileType === 'formatted_word') {
+        await downloadFormattedAsDocx(html, baseName);
+      } else {
+        await downloadFormattedAsPdf(html, baseName);
       }
-      const link = document.createElement('a');
-      link.href = response.data.url;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      link.download = fileName || `formatted-article.${fileType === 'formatted_word' ? 'docx' : 'pdf'}`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch {
-      toast.error('Failed to download formatted article');
+      toast.success('Download ready');
+    } catch (err: any) {
+      console.error(err);
+      toast.error('Failed to generate file: ' + (err?.message || 'unknown error'));
     }
   };
 
@@ -247,22 +246,22 @@ export default function AdminFormatting() {
                       </Button>
                     )}
 
-                    {formattedUrl && (
+                    {formattedContent && (
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleDownloadFormatted(article.id, formattedUrl, 'formatted_document')}
+                        onClick={() => handleDownloadFormatted(article, 'formatted_document')}
                       >
                         <Download className="w-4 h-4 mr-2" />
                         Download PDF
                       </Button>
                     )}
 
-                    {formattedDocxUrl && (
+                    {formattedContent && (
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleDownloadFormatted(article.id, formattedDocxUrl, 'formatted_word')}
+                        onClick={() => handleDownloadFormatted(article, 'formatted_word')}
                       >
                         <Download className="w-4 h-4 mr-2" />
                         Download Word
