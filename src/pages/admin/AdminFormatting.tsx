@@ -29,6 +29,7 @@ import {
   CollapsibleContent,
 } from '@/components/ui/collapsible';
 import { ArticleContentEditor } from '@/components/admin/ArticleContentEditor';
+import { downloadFormattedAsPdf, downloadFormattedAsDocx } from '@/lib/exportFormattedArticle';
 
 type FormattingStatus = 'pending' | 'formatting' | 'ready_for_review' | 'approved' | 'failed';
 
