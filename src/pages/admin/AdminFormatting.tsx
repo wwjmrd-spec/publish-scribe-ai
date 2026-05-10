@@ -246,22 +246,22 @@ export default function AdminFormatting() {
                       </Button>
                     )}
 
-                    {formattedUrl && (
+                    {formattedContent && (
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleDownloadFormatted(article.id, formattedUrl, 'formatted_document')}
+                        onClick={() => handleDownloadFormatted(article, 'formatted_document')}
                       >
                         <Download className="w-4 h-4 mr-2" />
                         Download PDF
                       </Button>
                     )}
 
-                    {formattedDocxUrl && (
+                    {formattedContent && (
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleDownloadFormatted(article.id, formattedDocxUrl, 'formatted_word')}
+                        onClick={() => handleDownloadFormatted(article, 'formatted_word')}
                       >
                         <Download className="w-4 h-4 mr-2" />
                         Download Word
