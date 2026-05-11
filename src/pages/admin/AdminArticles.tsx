@@ -541,12 +541,38 @@ export default function AdminArticles() {
                         {new Date(article.created_at || '').toLocaleDateString()}
                       </td>
                       <td className="py-3 px-4">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1 flex-wrap">
                           <Button size="sm" variant="ghost" onClick={() => navigate(`/admin/articles/${article.id}`)} title="View Details">
                             <Eye className="w-4 h-4" />
                           </Button>
                           <Button size="sm" variant="ghost" onClick={() => navigate(`/admin/ai-review?articleId=${article.id}`)} title="AI Review">
                             <Brain className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className={article.publication_type === 'fast_track' ? 'text-amber-400' : 'text-muted-foreground'}
+                            onClick={() => togglePublicationTypeMutation.mutate({
+                              id: article.id,
+                              type: article.publication_type === 'fast_track' ? 'normal' : 'fast_track',
+                            })}
+                            disabled={togglePublicationTypeMutation.isPending}
+                            title={article.publication_type === 'fast_track' ? 'Remove Fast Track' : 'Mark as Fast Track'}
+                          >
+                            <Zap className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className={article.status === 'paid' ? 'text-cyan-400' : 'text-muted-foreground'}
+                            onClick={() => markPaidMutation.mutate({
+                              id: article.id,
+                              paid: article.status !== 'paid',
+                            })}
+                            disabled={markPaidMutation.isPending}
+                            title={article.status === 'paid' ? 'Unmark Paid' : 'Mark as Paid'}
+                          >
+                            <IndianRupee className="w-4 h-4" />
                           </Button>
                           {article.document_url && (
                             <Button size="sm" variant="ghost" onClick={() => downloadMutation.mutate({ articleId: article.id, fileType: 'document' })} disabled={downloadMutation.isPending} title="Download Document">
