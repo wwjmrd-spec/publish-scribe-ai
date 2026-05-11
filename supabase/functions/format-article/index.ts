@@ -1077,10 +1077,10 @@ function generateEditorHtml(meta: ArticleMetadata, body: Block[], images: Map<st
         ${bodyHtml}
         ${refsHtml}
       </div>
-    </div>
+    </td>
 
     <!-- RIGHT: SIDEBAR -->
-    <aside style="flex:0 0 200px;font-family:Arial,Helvetica,sans-serif;">
+    <td style="width:215px;padding:14px 24px 8px 0;font-family:Arial,Helvetica,sans-serif;">
 
       <!-- PubPortal -->
       <div style="border:1px solid #c7d2fe;border-radius:8px;background:linear-gradient(160deg,#1e1b4b,#312e81);padding:10px;margin-bottom:10px;text-align:center;">
@@ -1123,16 +1123,16 @@ function generateEditorHtml(meta: ArticleMetadata, body: Block[], images: Map<st
         <p style="font-size:8.5px;margin:2px 0;">🌐 www.wwjmrd.com</p>
         <p style="font-size:8.5px;margin:2px 0;">📍 India</p>
       </div>
-    </aside>
-  </div>
+    </td>
+  </tr></table>
 
   <!-- ============ METADATA ============ -->
-  <div style="margin:8px 24px;border-top:2px solid #1e3a8a;padding-top:12px;">
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;">
+  <div style="margin:6px 24px 0;border-top:2px solid #1e3a8a;padding-top:10px;">
+    <table style="width:100%;border-collapse:separate;border-spacing:6px 0;margin-bottom:10px;"><tr>
       ${[["Received", receivedDate],["Revised", revisedDate],["Accepted", acceptedDate],["Published", publishedDate]].map(([l,v]) =>
-        `<div style="border:1px solid #cbd5e1;border-radius:5px;padding:8px;text-align:center;background:#f8fafc;font-family:Arial,sans-serif;"><div style="font-size:8px;color:#64748b;font-weight:bold;letter-spacing:1px;">${l.toUpperCase()}</div><div style="font-size:10px;color:#1e3a8a;font-weight:bold;margin-top:3px;">${v}</div></div>`
+        `<td style="border:1px solid #cbd5e1;border-radius:5px;padding:6px;text-align:center;background:#f8fafc;font-family:Arial,sans-serif;width:25%;"><div style="font-size:8px;color:#64748b;font-weight:bold;letter-spacing:1px;">${l.toUpperCase()}</div><div style="font-size:10px;color:#1e3a8a;font-weight:bold;margin-top:2px;">${v}</div></td>`
       ).join("")}
-    </div>
+    </tr></table>
 
     <div style="border-left:3px solid #1e3a8a;background:#f1f5f9;padding:8px 12px;border-radius:0 4px 4px 0;">
       <div style="font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#1e3a8a;letter-spacing:1px;margin-bottom:3px;">HOW TO CITE THIS ARTICLE</div>
