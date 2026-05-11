@@ -1038,19 +1038,15 @@ function generateEditorHtml(meta: ArticleMetadata, body: Block[], images: Map<st
 <div style="font-family:'Georgia','Times New Roman',serif;color:#0f172a;background:#fff;max-width:780px;margin:0 auto;padding:0;">
 
   <!-- ============ HEADER ============ -->
-  <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 24px 10px;border-bottom:3px solid #1e3a8a;">
-    <div style="display:flex;align-items:center;gap:12px;">
-      <div style="width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#1e3a8a,#3b82f6);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px;font-family:Arial,sans-serif;letter-spacing:0.5px;">WW</div>
-      <div>
-        <div style="font-family:Arial,Helvetica,sans-serif;font-weight:bold;font-size:15px;color:#1e3a8a;letter-spacing:0.5px;line-height:1.1;">WORLD WIDE JOURNAL</div>
-        <div style="font-family:Arial,Helvetica,sans-serif;font-size:9px;color:#334155;letter-spacing:1px;margin-top:2px;">OF MULTIDISCIPLINARY RESEARCH AND DEVELOPMENT</div>
-      </div>
-    </div>
-    <div style="text-align:right;font-family:Arial,sans-serif;font-size:9px;color:#1e3a8a;line-height:1.5;">
+  <table style="width:100%;border-collapse:collapse;border-bottom:3px solid #1e3a8a;"><tr>
+    <td style="padding:10px 24px 8px;vertical-align:middle;">
+      <img src="/wwjmrd-logo.png" alt="WWJMRD" style="height:48px;width:auto;display:block;" />
+    </td>
+    <td style="padding:10px 24px 8px;vertical-align:middle;text-align:right;font-family:Arial,sans-serif;font-size:9px;color:#1e3a8a;line-height:1.5;">
       <div style="font-weight:bold;">E-ISSN: 2454-6615</div>
       <div>www.wwjmrd.com</div>
-    </div>
-  </div>
+    </td>
+  </tr></table>
 
   <!-- ============ TOP ARTICLE BAR ============ -->
   <div style="display:flex;align-items:center;justify-content:space-between;background:#f1f5f9;padding:8px 24px;border-bottom:1px solid #cbd5e1;">
@@ -1059,10 +1055,9 @@ function generateEditorHtml(meta: ArticleMetadata, body: Block[], images: Map<st
   </div>
 
   <!-- ============ MAIN GRID ============ -->
-  <div style="display:flex;gap:18px;padding:18px 24px 8px;">
-
+  <table style="width:100%;border-collapse:collapse;"><tr style="vertical-align:top;">
     <!-- LEFT: ARTICLE -->
-    <div style="flex:1;min-width:0;">
+    <td style="padding:14px 12px 8px 24px;">
       <h1 style="font-family:Georgia,serif;font-size:18px;font-weight:bold;color:#0f172a;line-height:1.3;margin:0 0 10px;">${esc(meta.title)}</h1>
       <p style="font-size:11px;color:#1e3a8a;font-weight:600;margin:0 0 6px;line-height:1.5;">${authorsInline}</p>
       <div style="margin:0 0 12px;">${affiliationsList}</div>
@@ -1082,24 +1077,24 @@ function generateEditorHtml(meta: ArticleMetadata, body: Block[], images: Map<st
         ${bodyHtml}
         ${refsHtml}
       </div>
-    </div>
+    </td>
 
     <!-- RIGHT: SIDEBAR -->
-    <aside style="flex:0 0 200px;font-family:Arial,Helvetica,sans-serif;">
+    <td style="width:215px;padding:14px 24px 8px 0;font-family:Arial,Helvetica,sans-serif;">
 
       <!-- PubPortal -->
-      <div style="border:1px solid #c7d2fe;border-radius:8px;background:linear-gradient(160deg,#eef2ff,#ede9fe);padding:12px;margin-bottom:14px;">
-        <div style="font-size:8px;font-weight:bold;color:#4338ca;letter-spacing:1.2px;margin-bottom:4px;">SUBMITTED VIA</div>
-        <div style="font-size:14px;font-weight:bold;color:#1e1b4b;letter-spacing:-0.3px;margin-bottom:8px;">PubPortal<span style="color:#7c3aed;">.</span></div>
-        <ul style="list-style:none;padding:0;margin:0 0 10px;font-size:9px;color:#312e81;line-height:1.7;">
+      <div style="border:1px solid #c7d2fe;border-radius:8px;background:linear-gradient(160deg,#1e1b4b,#312e81);padding:10px;margin-bottom:10px;text-align:center;">
+        <div style="font-size:8px;font-weight:bold;color:#c4b5fd;letter-spacing:1.2px;margin-bottom:4px;">SUBMITTED VIA</div>
+        <img src="/pubportal-logo.png" alt="PubPortal" style="height:28px;width:auto;display:inline-block;margin:2px 0 6px;" />
+        <ul style="list-style:none;padding:0;margin:0 0 8px;font-size:9px;color:#e0e7ff;line-height:1.6;text-align:left;">
           <li>✓ Easy Online Submission</li>
           <li>✓ Real-time Tracking</li>
           <li>✓ Peer Review Management</li>
           <li>✓ Faster Decision</li>
           <li>✓ Wider Visibility</li>
         </ul>
-        <a href="https://www.wwjmrdai.online" style="display:block;text-align:center;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;font-size:10px;font-weight:bold;padding:8px;border-radius:6px;text-decoration:none;letter-spacing:0.5px;">Submit Now →</a>
-        <div style="text-align:center;font-size:8px;color:#4338ca;margin-top:6px;font-weight:600;">www.wwjmrdai.online</div>
+        <a href="https://www.wwjmrdai.online" style="display:block;text-align:center;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;font-size:10px;font-weight:bold;padding:7px;border-radius:6px;text-decoration:none;letter-spacing:0.5px;">Submit Now →</a>
+        <div style="text-align:center;font-size:8px;color:#c4b5fd;margin-top:5px;font-weight:600;">www.wwjmrdai.online</div>
       </div>
 
       <!-- About -->
@@ -1128,16 +1123,16 @@ function generateEditorHtml(meta: ArticleMetadata, body: Block[], images: Map<st
         <p style="font-size:8.5px;margin:2px 0;">🌐 www.wwjmrd.com</p>
         <p style="font-size:8.5px;margin:2px 0;">📍 India</p>
       </div>
-    </aside>
-  </div>
+    </td>
+  </tr></table>
 
   <!-- ============ METADATA ============ -->
-  <div style="margin:8px 24px;border-top:2px solid #1e3a8a;padding-top:12px;">
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;">
+  <div style="margin:6px 24px 0;border-top:2px solid #1e3a8a;padding-top:10px;">
+    <table style="width:100%;border-collapse:separate;border-spacing:6px 0;margin-bottom:10px;"><tr>
       ${[["Received", receivedDate],["Revised", revisedDate],["Accepted", acceptedDate],["Published", publishedDate]].map(([l,v]) =>
-        `<div style="border:1px solid #cbd5e1;border-radius:5px;padding:8px;text-align:center;background:#f8fafc;font-family:Arial,sans-serif;"><div style="font-size:8px;color:#64748b;font-weight:bold;letter-spacing:1px;">${l.toUpperCase()}</div><div style="font-size:10px;color:#1e3a8a;font-weight:bold;margin-top:3px;">${v}</div></div>`
+        `<td style="border:1px solid #cbd5e1;border-radius:5px;padding:6px;text-align:center;background:#f8fafc;font-family:Arial,sans-serif;width:25%;"><div style="font-size:8px;color:#64748b;font-weight:bold;letter-spacing:1px;">${l.toUpperCase()}</div><div style="font-size:10px;color:#1e3a8a;font-weight:bold;margin-top:2px;">${v}</div></td>`
       ).join("")}
-    </div>
+    </tr></table>
 
     <div style="border-left:3px solid #1e3a8a;background:#f1f5f9;padding:8px 12px;border-radius:0 4px 4px 0;">
       <div style="font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#1e3a8a;letter-spacing:1px;margin-bottom:3px;">HOW TO CITE THIS ARTICLE</div>
@@ -1146,22 +1141,22 @@ function generateEditorHtml(meta: ArticleMetadata, body: Block[], images: Map<st
   </div>
 
   <!-- ============ INDEXING / SOCIAL ============ -->
-  <div style="margin:14px 24px 0;padding:12px 0;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
-    <div style="font-family:Arial,sans-serif;font-size:9px;color:#64748b;">
+  <table style="width:calc(100% - 48px);margin:10px 24px 0;border-collapse:collapse;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;"><tr>
+    <td style="padding:10px 0;font-family:Arial,sans-serif;font-size:9px;color:#64748b;">
       <span style="font-weight:bold;color:#1e3a8a;letter-spacing:1px;margin-right:8px;">INDEXED IN:</span>
       <span style="display:inline-block;padding:3px 8px;border:1px solid #cbd5e1;border-radius:3px;margin:0 3px;font-weight:600;color:#334155;">Crossref</span>
       <span style="display:inline-block;padding:3px 8px;border:1px solid #cbd5e1;border-radius:3px;margin:0 3px;font-weight:600;color:#334155;">Google Scholar</span>
       <span style="display:inline-block;padding:3px 8px;border:1px solid #cbd5e1;border-radius:3px;margin:0 3px;font-weight:600;color:#334155;">ROAD</span>
       <span style="display:inline-block;padding:3px 8px;border:1px solid #cbd5e1;border-radius:3px;margin:0 3px;font-weight:600;color:#334155;">WorldCat</span>
       <span style="display:inline-block;padding:3px 8px;border:1px solid #cbd5e1;border-radius:3px;margin:0 3px;font-weight:600;color:#334155;">ISI</span>
-    </div>
-    <div style="font-family:Arial,sans-serif;font-size:11px;">
-      <span style="display:inline-block;width:24px;height:24px;border-radius:50%;background:#1e3a8a;color:#fff;text-align:center;line-height:24px;margin:0 2px;font-weight:bold;">f</span>
-      <span style="display:inline-block;width:24px;height:24px;border-radius:50%;background:#0f172a;color:#fff;text-align:center;line-height:24px;margin:0 2px;font-weight:bold;">𝕏</span>
-      <span style="display:inline-block;width:24px;height:24px;border-radius:50%;background:#0a66c2;color:#fff;text-align:center;line-height:24px;margin:0 2px;font-weight:bold;font-size:9px;">in</span>
-      <span style="display:inline-block;width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#f09433,#dc2743,#bc1888);color:#fff;text-align:center;line-height:24px;margin:0 2px;font-weight:bold;font-size:10px;">◉</span>
-    </div>
-  </div>
+    </td>
+    <td style="padding:10px 0;text-align:right;font-family:Arial,sans-serif;font-size:11px;white-space:nowrap;">
+      <span style="display:inline-block;width:22px;height:22px;border-radius:50%;background:#1e3a8a;color:#fff;text-align:center;line-height:22px;margin:0 2px;font-weight:bold;">f</span>
+      <span style="display:inline-block;width:22px;height:22px;border-radius:50%;background:#0f172a;color:#fff;text-align:center;line-height:22px;margin:0 2px;font-weight:bold;">𝕏</span>
+      <span style="display:inline-block;width:22px;height:22px;border-radius:50%;background:#0a66c2;color:#fff;text-align:center;line-height:22px;margin:0 2px;font-weight:bold;font-size:9px;">in</span>
+      <span style="display:inline-block;width:22px;height:22px;border-radius:50%;background:#dc2743;color:#fff;text-align:center;line-height:22px;margin:0 2px;font-weight:bold;font-size:10px;">◉</span>
+    </td>
+  </tr></table>
 
   <!-- ============ FOOTER ============ -->
   <div style="background:#0f172a;color:#fff;text-align:center;padding:12px;margin-top:14px;font-family:Arial,sans-serif;font-size:11px;letter-spacing:2px;font-weight:bold;">
