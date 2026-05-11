@@ -1141,22 +1141,22 @@ function generateEditorHtml(meta: ArticleMetadata, body: Block[], images: Map<st
   </div>
 
   <!-- ============ INDEXING / SOCIAL ============ -->
-  <div style="margin:14px 24px 0;padding:12px 0;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
-    <div style="font-family:Arial,sans-serif;font-size:9px;color:#64748b;">
+  <table style="width:calc(100% - 48px);margin:10px 24px 0;border-collapse:collapse;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;"><tr>
+    <td style="padding:10px 0;font-family:Arial,sans-serif;font-size:9px;color:#64748b;">
       <span style="font-weight:bold;color:#1e3a8a;letter-spacing:1px;margin-right:8px;">INDEXED IN:</span>
       <span style="display:inline-block;padding:3px 8px;border:1px solid #cbd5e1;border-radius:3px;margin:0 3px;font-weight:600;color:#334155;">Crossref</span>
       <span style="display:inline-block;padding:3px 8px;border:1px solid #cbd5e1;border-radius:3px;margin:0 3px;font-weight:600;color:#334155;">Google Scholar</span>
       <span style="display:inline-block;padding:3px 8px;border:1px solid #cbd5e1;border-radius:3px;margin:0 3px;font-weight:600;color:#334155;">ROAD</span>
       <span style="display:inline-block;padding:3px 8px;border:1px solid #cbd5e1;border-radius:3px;margin:0 3px;font-weight:600;color:#334155;">WorldCat</span>
       <span style="display:inline-block;padding:3px 8px;border:1px solid #cbd5e1;border-radius:3px;margin:0 3px;font-weight:600;color:#334155;">ISI</span>
-    </div>
-    <div style="font-family:Arial,sans-serif;font-size:11px;">
-      <span style="display:inline-block;width:24px;height:24px;border-radius:50%;background:#1e3a8a;color:#fff;text-align:center;line-height:24px;margin:0 2px;font-weight:bold;">f</span>
-      <span style="display:inline-block;width:24px;height:24px;border-radius:50%;background:#0f172a;color:#fff;text-align:center;line-height:24px;margin:0 2px;font-weight:bold;">𝕏</span>
-      <span style="display:inline-block;width:24px;height:24px;border-radius:50%;background:#0a66c2;color:#fff;text-align:center;line-height:24px;margin:0 2px;font-weight:bold;font-size:9px;">in</span>
-      <span style="display:inline-block;width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#f09433,#dc2743,#bc1888);color:#fff;text-align:center;line-height:24px;margin:0 2px;font-weight:bold;font-size:10px;">◉</span>
-    </div>
-  </div>
+    </td>
+    <td style="padding:10px 0;text-align:right;font-family:Arial,sans-serif;font-size:11px;white-space:nowrap;">
+      <span style="display:inline-block;width:22px;height:22px;border-radius:50%;background:#1e3a8a;color:#fff;text-align:center;line-height:22px;margin:0 2px;font-weight:bold;">f</span>
+      <span style="display:inline-block;width:22px;height:22px;border-radius:50%;background:#0f172a;color:#fff;text-align:center;line-height:22px;margin:0 2px;font-weight:bold;">𝕏</span>
+      <span style="display:inline-block;width:22px;height:22px;border-radius:50%;background:#0a66c2;color:#fff;text-align:center;line-height:22px;margin:0 2px;font-weight:bold;font-size:9px;">in</span>
+      <span style="display:inline-block;width:22px;height:22px;border-radius:50%;background:#dc2743;color:#fff;text-align:center;line-height:22px;margin:0 2px;font-weight:bold;font-size:10px;">◉</span>
+    </td>
+  </tr></table>
 
   <!-- ============ FOOTER ============ -->
   <div style="background:#0f172a;color:#fff;text-align:center;padding:12px;margin-top:14px;font-family:Arial,sans-serif;font-size:11px;letter-spacing:2px;font-weight:bold;">
