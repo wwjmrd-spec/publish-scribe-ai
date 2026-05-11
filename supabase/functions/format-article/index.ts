@@ -1038,19 +1038,15 @@ function generateEditorHtml(meta: ArticleMetadata, body: Block[], images: Map<st
 <div style="font-family:'Georgia','Times New Roman',serif;color:#0f172a;background:#fff;max-width:780px;margin:0 auto;padding:0;">
 
   <!-- ============ HEADER ============ -->
-  <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 24px 10px;border-bottom:3px solid #1e3a8a;">
-    <div style="display:flex;align-items:center;gap:12px;">
-      <div style="width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#1e3a8a,#3b82f6);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px;font-family:Arial,sans-serif;letter-spacing:0.5px;">WW</div>
-      <div>
-        <div style="font-family:Arial,Helvetica,sans-serif;font-weight:bold;font-size:15px;color:#1e3a8a;letter-spacing:0.5px;line-height:1.1;">WORLD WIDE JOURNAL</div>
-        <div style="font-family:Arial,Helvetica,sans-serif;font-size:9px;color:#334155;letter-spacing:1px;margin-top:2px;">OF MULTIDISCIPLINARY RESEARCH AND DEVELOPMENT</div>
-      </div>
-    </div>
-    <div style="text-align:right;font-family:Arial,sans-serif;font-size:9px;color:#1e3a8a;line-height:1.5;">
+  <table style="width:100%;border-collapse:collapse;border-bottom:3px solid #1e3a8a;"><tr>
+    <td style="padding:10px 24px 8px;vertical-align:middle;">
+      <img src="/wwjmrd-logo.png" alt="WWJMRD" style="height:48px;width:auto;display:block;" />
+    </td>
+    <td style="padding:10px 24px 8px;vertical-align:middle;text-align:right;font-family:Arial,sans-serif;font-size:9px;color:#1e3a8a;line-height:1.5;">
       <div style="font-weight:bold;">E-ISSN: 2454-6615</div>
       <div>www.wwjmrd.com</div>
-    </div>
-  </div>
+    </td>
+  </tr></table>
 
   <!-- ============ TOP ARTICLE BAR ============ -->
   <div style="display:flex;align-items:center;justify-content:space-between;background:#f1f5f9;padding:8px 24px;border-bottom:1px solid #cbd5e1;">
@@ -1088,18 +1084,18 @@ function generateEditorHtml(meta: ArticleMetadata, body: Block[], images: Map<st
     <aside style="flex:0 0 200px;font-family:Arial,Helvetica,sans-serif;">
 
       <!-- PubPortal -->
-      <div style="border:1px solid #c7d2fe;border-radius:8px;background:linear-gradient(160deg,#eef2ff,#ede9fe);padding:12px;margin-bottom:14px;">
-        <div style="font-size:8px;font-weight:bold;color:#4338ca;letter-spacing:1.2px;margin-bottom:4px;">SUBMITTED VIA</div>
-        <div style="font-size:14px;font-weight:bold;color:#1e1b4b;letter-spacing:-0.3px;margin-bottom:8px;">PubPortal<span style="color:#7c3aed;">.</span></div>
-        <ul style="list-style:none;padding:0;margin:0 0 10px;font-size:9px;color:#312e81;line-height:1.7;">
+      <div style="border:1px solid #c7d2fe;border-radius:8px;background:linear-gradient(160deg,#1e1b4b,#312e81);padding:10px;margin-bottom:10px;text-align:center;">
+        <div style="font-size:8px;font-weight:bold;color:#c4b5fd;letter-spacing:1.2px;margin-bottom:4px;">SUBMITTED VIA</div>
+        <img src="/pubportal-logo.png" alt="PubPortal" style="height:28px;width:auto;display:inline-block;margin:2px 0 6px;" />
+        <ul style="list-style:none;padding:0;margin:0 0 8px;font-size:9px;color:#e0e7ff;line-height:1.6;text-align:left;">
           <li>✓ Easy Online Submission</li>
           <li>✓ Real-time Tracking</li>
           <li>✓ Peer Review Management</li>
           <li>✓ Faster Decision</li>
           <li>✓ Wider Visibility</li>
         </ul>
-        <a href="https://www.wwjmrdai.online" style="display:block;text-align:center;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;font-size:10px;font-weight:bold;padding:8px;border-radius:6px;text-decoration:none;letter-spacing:0.5px;">Submit Now →</a>
-        <div style="text-align:center;font-size:8px;color:#4338ca;margin-top:6px;font-weight:600;">www.wwjmrdai.online</div>
+        <a href="https://www.wwjmrdai.online" style="display:block;text-align:center;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;font-size:10px;font-weight:bold;padding:7px;border-radius:6px;text-decoration:none;letter-spacing:0.5px;">Submit Now →</a>
+        <div style="text-align:center;font-size:8px;color:#c4b5fd;margin-top:5px;font-weight:600;">www.wwjmrdai.online</div>
       </div>
 
       <!-- About -->
