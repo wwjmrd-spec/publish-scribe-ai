@@ -18,6 +18,8 @@ import {
   Award,
   Mail,
   RotateCcw,
+  Zap,
+  IndianRupee,
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -285,6 +287,33 @@ export default function AdminArticles() {
     onError: (error) => {
       toast.error('Failed to get download URL: ' + error.message);
     },
+  });
+
+  const togglePublicationTypeMutation = useMutation({
+    mutationFn: async ({ id, type }: { id: string; type: 'normal' | 'fast_track' }) => {
+      const { error } = await supabase.from('articles').update({ publication_type: type }).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: (_, { type }) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-articles'] });
+      toast.success(type === 'fast_track' ? 'Marked as Fast Track' : 'Removed Fast Track');
+    },
+    onError: (e: any) => toast.error('Failed: ' + e.message),
+  });
+
+  const markPaidMutation = useMutation({
+    mutationFn: async ({ id, paid }: { id: string; paid: boolean }) => {
+      const { error } = await supabase
+        .from('articles')
+        .update({ status: (paid ? 'paid' : 'pending_fee') as ArticleStatus })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: (_, { paid }) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-articles'] });
+      toast.success(paid ? 'Marked as Paid' : 'Marked as Pending Fee');
+    },
+    onError: (e: any) => toast.error('Failed: ' + e.message),
   });
 
   const filteredArticles = articles?.filter(article =>
