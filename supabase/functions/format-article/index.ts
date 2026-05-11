@@ -1055,10 +1055,9 @@ function generateEditorHtml(meta: ArticleMetadata, body: Block[], images: Map<st
   </div>
 
   <!-- ============ MAIN GRID ============ -->
-  <div style="display:flex;gap:18px;padding:18px 24px 8px;">
-
+  <table style="width:100%;border-collapse:collapse;"><tr style="vertical-align:top;">
     <!-- LEFT: ARTICLE -->
-    <div style="flex:1;min-width:0;">
+    <td style="padding:14px 12px 8px 24px;">
       <h1 style="font-family:Georgia,serif;font-size:18px;font-weight:bold;color:#0f172a;line-height:1.3;margin:0 0 10px;">${esc(meta.title)}</h1>
       <p style="font-size:11px;color:#1e3a8a;font-weight:600;margin:0 0 6px;line-height:1.5;">${authorsInline}</p>
       <div style="margin:0 0 12px;">${affiliationsList}</div>
