@@ -20,6 +20,7 @@ import {
   RotateCcw,
   Zap,
   IndianRupee,
+  MoreHorizontal,
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -40,6 +41,13 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
 import { useNavigate } from 'react-router-dom';
