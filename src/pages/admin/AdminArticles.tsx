@@ -549,55 +549,63 @@ export default function AdminArticles() {
                         {new Date(article.created_at || '').toLocaleDateString()}
                       </td>
                       <td className="py-3 px-4">
-                        <div className="flex items-center gap-1 flex-wrap">
-                          <Button size="sm" variant="ghost" onClick={() => navigate(`/admin/articles/${article.id}`)} title="View Details">
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          <Button size="sm" variant="ghost" onClick={() => navigate(`/admin/ai-review?articleId=${article.id}`)} title="AI Review">
-                            <Brain className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className={article.publication_type === 'fast_track' ? 'text-amber-400' : 'text-muted-foreground'}
-                            onClick={() => togglePublicationTypeMutation.mutate({
-                              id: article.id,
-                              type: article.publication_type === 'fast_track' ? 'normal' : 'fast_track',
-                            })}
-                            disabled={togglePublicationTypeMutation.isPending}
-                            title={article.publication_type === 'fast_track' ? 'Remove Fast Track' : 'Mark as Fast Track'}
-                          >
-                            <Zap className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className={article.status === 'paid' ? 'text-cyan-400' : 'text-muted-foreground'}
-                            onClick={() => markPaidMutation.mutate({
-                              id: article.id,
-                              paid: article.status !== 'paid',
-                            })}
-                            disabled={markPaidMutation.isPending}
-                            title={article.status === 'paid' ? 'Unmark Paid' : 'Mark as Paid'}
-                          >
-                            <IndianRupee className="w-4 h-4" />
-                          </Button>
-                          {article.document_url && (
-                            <Button size="sm" variant="ghost" onClick={() => downloadMutation.mutate({ articleId: article.id, fileType: 'document' })} disabled={downloadMutation.isPending} title="Download Document">
-                              <Download className="w-4 h-4" />
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button size="sm" variant="ghost" onClick={(e) => e.stopPropagation()}>
+                              <MoreHorizontal className="w-4 h-4" />
                             </Button>
-                          )}
-                          {article.certificate_url && (
-                            <Button size="sm" variant="ghost" onClick={() => downloadMutation.mutate({ articleId: article.id, fileType: 'certificate' })} disabled={downloadMutation.isPending} title="Download Certificate">
-                              <Award className="w-4 h-4" />
-                            </Button>
-                          )}
-                          {article.review_report_url && (
-                            <Button size="sm" variant="ghost" onClick={() => downloadMutation.mutate({ articleId: article.id, fileType: 'review_report' })} disabled={downloadMutation.isPending} title="Download Review Report">
-                              <FileText className="w-4 h-4" />
-                            </Button>
-                          )}
-                        </div>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-52">
+                            <DropdownMenuItem onClick={() => navigate(`/admin/articles/${article.id}`)}>
+                              <Eye className="w-4 h-4 mr-2" />
+                              View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => navigate(`/admin/ai-review?articleId=${article.id}`)}>
+                              <Brain className="w-4 h-4 mr-2" />
+                              AI Review
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => togglePublicationTypeMutation.mutate({
+                                id: article.id,
+                                type: article.publication_type === 'fast_track' ? 'normal' : 'fast_track',
+                              })}
+                              disabled={togglePublicationTypeMutation.isPending}
+                            >
+                              <Zap className="w-4 h-4 mr-2" />
+                              {article.publication_type === 'fast_track' ? 'Remove Fast Track' : 'Mark Fast Track'}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => markPaidMutation.mutate({
+                                id: article.id,
+                                paid: article.status !== 'paid',
+                              })}
+                              disabled={markPaidMutation.isPending}
+                            >
+                              <IndianRupee className="w-4 h-4 mr-2" />
+                              {article.status === 'paid' ? 'Unmark Paid' : 'Mark as Paid'}
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            {article.document_url && (
+                              <DropdownMenuItem onClick={() => downloadMutation.mutate({ articleId: article.id, fileType: 'document' })} disabled={downloadMutation.isPending}>
+                                <Download className="w-4 h-4 mr-2" />
+                                Download Document
+                              </DropdownMenuItem>
+                            )}
+                            {article.certificate_url && (
+                              <DropdownMenuItem onClick={() => downloadMutation.mutate({ articleId: article.id, fileType: 'certificate' })} disabled={downloadMutation.isPending}>
+                                <Award className="w-4 h-4 mr-2" />
+                                Download Certificate
+                              </DropdownMenuItem>
+                            )}
+                            {article.review_report_url && (
+                              <DropdownMenuItem onClick={() => downloadMutation.mutate({ articleId: article.id, fileType: 'review_report' })} disabled={downloadMutation.isPending}>
+                                <FileText className="w-4 h-4 mr-2" />
+                                Download Review Report
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </td>
                     </tr>
                   ))}
