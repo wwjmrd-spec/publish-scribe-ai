@@ -724,7 +724,7 @@ export default function AdminArticleDetail() {
 
             <GlassCard>
               <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Actions</h3>
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2 [&>button]:justify-start [&>button]:whitespace-normal [&>button]:text-left [&>button]:h-auto [&>button]:py-2 [&>button]:leading-tight">
                 <Button
                   variant="outline"
                   size="sm"

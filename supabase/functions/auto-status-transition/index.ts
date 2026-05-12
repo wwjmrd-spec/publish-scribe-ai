@@ -11,10 +11,8 @@ function decodeJwtPayload(token: string) {
   try {
     const [, payload] = token.split(".");
     if (!payload) return null;
-
     const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
     const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), "=");
-
     return JSON.parse(atob(padded));
   } catch {
     return null;
@@ -22,24 +20,12 @@ function decodeJwtPayload(token: string) {
 }
 
 function isAuthorizedSchedulerToken({
-  token,
-  serviceRoleKey,
-  anonKey,
-  projectRef,
-}: {
-  token: string | null;
-  serviceRoleKey: string;
-  anonKey: string;
-  projectRef: string;
-}) {
+  token, serviceRoleKey, anonKey, projectRef,
+}: { token: string | null; serviceRoleKey: string; anonKey: string; projectRef: string; }) {
   if (!token) return false;
-  // Trust the project's service-role key, the project's anon key (used by pg_cron),
-  // or any JWT issued for this project (service_role or anon).
   if (token === serviceRoleKey || token === anonKey) return true;
-
   const claims = decodeJwtPayload(token);
   if (!claims) return false;
-
   return claims.ref === projectRef && (claims.role === "service_role" || claims.role === "anon");
 }
 
@@ -54,74 +40,28 @@ serve(async (req: Request) => {
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const projectRef = new URL(supabaseUrl).hostname.split(".")[0];
 
-    // Authenticate scheduled requests safely - service role only
     const authHeader = req.headers.get("Authorization");
     const token = authHeader?.replace("Bearer ", "");
     if (!isAuthorizedSchedulerToken({ token: token ?? null, serviceRoleKey, anonKey, projectRef })) {
-      console.error("Unauthorized scheduler request");
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
+        status: 401, headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
-
-    console.log("Auto-status-transition invoked");
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
     const now = new Date();
     const results = {
       step0_aiReviewsTriggered: 0,
-      step1_submittedToUnderReview: 0,
-      step2_toManuscriptAccepted: 0,
-      step3_toPendingFee: 0,
-      step4_referralRewardEmails: 0,
+      step1_reviewsAutoApproved: 0,
+      step2_accepted: 0,
+      step2_pendingFee: 0,
+      step2_revisionRequested: 0,
+      step3_referralRewardEmails: 0,
       errors: [] as string[],
     };
 
-    // ===== STEP 0: Auto-generate AI review report for newly submitted articles =====
-    // The report is saved to article_reviews (admin-visible) but NOT published to
-    // the author until an admin approves it via /admin/ai-review.
-    {
-      const { data: pending, error } = await supabase
-        .from("articles")
-        .select("id, document_url, article_reviews(id)")
-        .eq("status", "submitted")
-        .eq("automation_paused", false)
-        .not("document_url", "is", null)
-        .limit(20);
-
-      if (error) {
-        results.errors.push(`Step0 fetch: ${error.message}`);
-      } else if (pending?.length) {
-        const needsReview = pending.filter(
-          (a: any) => !a.article_reviews || a.article_reviews.length === 0
-        );
-        for (const art of needsReview) {
-          try {
-            // Fire-and-forget AI review generation (do NOT await long-running call here
-            // to keep the cron fast — Lovable's invoke runs the function asynchronously).
-            fetch(`${supabaseUrl}/functions/v1/ai-review`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${serviceRoleKey}`,
-              },
-              body: JSON.stringify({ articleId: art.id }),
-            }).catch((err) => console.error(`ai-review trigger failed for ${art.id}:`, err));
-            results.step0_aiReviewsTriggered++;
-          } catch (e: any) {
-            results.errors.push(`Step0 invoke ${art.id}: ${e?.message || e}`);
-          }
-        }
-      }
-    }
-
-    // ===== Helper: notify all admins =====
     async function notifyAdmins(title: string, message: string, link?: string) {
-      const { data: admins } = await supabase
-        .from("user_roles")
-        .select("user_id")
-        .eq("role", "admin");
+      const { data: admins } = await supabase.from("user_roles").select("user_id").eq("role", "admin");
       if (admins) {
         for (const admin of admins) {
           await supabase.from("notifications").insert({
@@ -131,261 +71,202 @@ serve(async (req: Request) => {
       }
     }
 
-    // ===== Helper: send email via edge function =====
     async function sendEmail(to: string, template: string, data: Record<string, any>) {
-      await fetch(`${supabaseUrl}/functions/v1/send-email`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceRoleKey}` },
-        body: JSON.stringify({ to, template, data }),
-      });
+      try {
+        await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceRoleKey}` },
+          body: JSON.stringify({ to, template, data }),
+        });
+      } catch (e) { console.error("sendEmail failed", e); }
     }
 
-    // ===== STEP 1: submitted → under_review (5 min) =====
-    const fiveMinAgo = new Date(now.getTime() - 5 * 60 * 1000).toISOString();
+    // ===== STEP 0: Trigger AI review for newly submitted articles missing reviews =====
     {
-      const { data: articles, error } = await supabase
+      const { data: pending, error } = await supabase
         .from("articles")
-        .select("id, title, reference_number, author_id, copyright_form_url, profiles:author_id (full_name, email)")
-        .eq("status", "submitted")
+        .select("id, document_url, article_reviews(id)")
+        .in("status", ["submitted", "revised_submitted"])
         .eq("automation_paused", false)
-        .lte("submission_date", fiveMinAgo);
+        .not("document_url", "is", null)
+        .limit(20);
 
       if (error) {
-        results.errors.push(`Step1 fetch: ${error.message}`);
-      } else if (articles?.length) {
-        const ids = articles.map((a: any) => a.id);
-        const { error: updateErr } = await supabase
-          .from("articles")
-          .update({ status: "under_review" })
-          .in("id", ids);
-
-        if (updateErr) {
-          results.errors.push(`Step1 update: ${updateErr.message}`);
-        } else {
-          results.step1_submittedToUnderReview = ids.length;
-          for (const article of articles) {
-            const profile = (article as any).profiles;
-            // Author notification
-            await supabase.from("notifications").insert({
-              user_id: article.author_id,
-              title: "Article Under Review 📝",
-              message: `Your article "${article.title}" is now under review.`,
-              type: "info",
-              link: "/author/articles",
-            });
-            // Admin notification
-            await notifyAdmins(
-              "Article Under Review 📝",
-              `Article "${article.title}" (${article.reference_number}) is now under review.`,
-              `/admin/articles/${article.id}`
-            );
-            // Author email - status update
-            if (profile?.email && !article.copyright_form_url) {
-              await sendEmail(profile.email, "status-update", {
-                authorName: profile.full_name || "Author",
-                articleTitle: article.title,
-                referenceNumber: article.reference_number,
-                newStatus: "Under Review",
-                message: "Your article has been received and is now under review by our editorial team.",
-              });
-              await sendEmail(profile.email, "copyright-form-request", {
-                authorName: profile.full_name || "Author",
-                articleTitle: article.title,
-                referenceNumber: article.reference_number,
-              });
-            } else if (profile?.email) {
-              await sendEmail(profile.email, "status-update", {
-                authorName: profile.full_name || "Author",
-                articleTitle: article.title,
-                referenceNumber: article.reference_number,
-                newStatus: "Under Review",
-                message: "Your article has been received and is now under review by our editorial team.",
-              });
-            }
-            if (!article.copyright_form_url) {
-              await supabase.from("notifications").insert({
-                user_id: article.author_id,
-                title: "Copyright Form Required 📝",
-                message: `Please submit the copyright transfer form for "${article.title}".`,
-                type: "warning",
-                link: "/author/articles",
-              });
-            }
-          }
+        results.errors.push(`Step0 fetch: ${error.message}`);
+      } else if (pending?.length) {
+        const needsReview = pending.filter((a: any) => !a.article_reviews || a.article_reviews.length === 0);
+        for (const art of needsReview) {
+          fetch(`${supabaseUrl}/functions/v1/ai-review`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceRoleKey}` },
+            body: JSON.stringify({ articleId: art.id }),
+          }).catch((err) => console.error(`ai-review trigger failed for ${art.id}:`, err));
+          results.step0_aiReviewsTriggered++;
         }
       }
     }
 
-    // ===== STEP 2: under_review → manuscript_accepted (2 hours) =====
-    // Score thresholds: 1-page articles NEVER auto-accepted, ≤2 pages need ≥90%, >2 pages need ≥80%
-    const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString();
+    // ===== STEP 1: Auto-approve AI reviews older than 6 hours and apply outcome =====
+    const sixHoursAgo = new Date(now.getTime() - 6 * 60 * 60 * 1000).toISOString();
+
+    // Check 2-page free setting
+    const { data: twoPageFreeSetting } = await supabase
+      .from("admin_settings").select("setting_value").eq("setting_key", "two_page_free_enabled").maybeSingle();
+    const twoPageFreeEnabled = twoPageFreeSetting?.setting_value !== "false";
+
     {
-      const { data: articles, error } = await supabase
-        .from("articles")
-        .select("id, title, reference_number, author_id, page_count, profiles:author_id (full_name, email)")
-        .eq("status", "under_review")
-        .eq("automation_paused", false)
-        .lte("updated_at", twoHoursAgo);
+      const { data: reviews, error } = await supabase
+        .from("article_reviews")
+        .select("id, article_id, report_url, overall_score, detailed_feedback, summary, reviewed_at, approved")
+        .eq("approved", false)
+        .not("report_url", "is", null)
+        .lte("reviewed_at", sixHoursAgo)
+        .limit(50);
 
       if (error) {
-        results.errors.push(`Step2 fetch: ${error.message}`);
-      } else if (articles?.length) {
-        const eligibleForAcceptance: any[] = [];
+        results.errors.push(`Step1 fetch: ${error.message}`);
+      } else if (reviews?.length) {
+        for (const review of reviews) {
+          try {
+            // Fetch article + author
+            const { data: article } = await supabase
+              .from("articles")
+              .select("id, title, reference_number, author_id, status, page_count, automation_paused, profiles:author_id (full_name, email)")
+              .eq("id", review.article_id)
+              .maybeSingle();
+            if (!article) continue;
+            if ((article as any).automation_paused) continue;
 
-        for (const article of articles) {
-          const pageCount = (article as any).page_count || 0;
+            const profile = (article as any).profiles;
+            const authorEmail = profile?.email as string | undefined;
+            const authorName = (profile?.full_name as string) || "Author";
+            const pageCount = (article as any).page_count || 0;
+            const overall = Number(review.overall_score ?? 0);
 
-          // 1-page articles are NEVER auto-accepted
-          if (pageCount <= 1) {
-            console.log(`Skipping article ${article.id}: 1-page articles cannot be auto-accepted`);
-            continue;
-          }
+            // (a) Approve & publish review
+            const reviewGeneratedStatus = article.status === "revised_submitted"
+              ? "revised_review_generated" : "ai_review_generated";
 
-          // Check review score
-          const { data: review } = await supabase
-            .from("article_reviews")
-            .select("overall_score")
-            .eq("article_id", article.id)
-            .order("reviewed_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
+            await supabase.from("articles")
+              .update({ review_report_url: review.report_url, status: reviewGeneratedStatus })
+              .eq("id", article.id);
 
-          const overallScore = review?.overall_score ?? 0;
-          const requiredScore = pageCount <= 2 ? 90 : 80;
+            await supabase.from("article_reviews")
+              .update({ approved: true, approved_at: new Date().toISOString() })
+              .eq("id", review.id);
 
-          if (overallScore < requiredScore) {
-            console.log(`Skipping article ${article.id}: score ${overallScore} below ${requiredScore}% threshold (${pageCount} pages)`);
-            continue;
-          }
+            results.step1_reviewsAutoApproved++;
 
-          eligibleForAcceptance.push(article);
-        }
+            await supabase.from("notifications").insert({
+              user_id: article.author_id,
+              title: "AI Review Report Ready 📊",
+              message: `The review report for "${article.title}" is now available.`,
+              type: "info", link: "/author/articles",
+            });
 
-        if (eligibleForAcceptance.length) {
-          const ids = eligibleForAcceptance.map((a: any) => a.id);
-          const { error: updateErr } = await supabase
-            .from("articles")
-            .update({ status: "manuscript_accepted" })
-            .in("id", ids);
+            if (authorEmail) {
+              await sendEmail(authorEmail, "review-report-ready", {
+                authorName, articleTitle: article.title,
+                referenceNumber: article.reference_number,
+                overallScore: overall,
+                recommendation: ((review.detailed_feedback as any)?.recommendation || "N/A").replace(/_/g, " "),
+                isLowScore: overall < 90,
+              });
+            }
 
-          if (updateErr) {
-            results.errors.push(`Step2 update: ${updateErr.message}`);
-          } else {
-            results.step2_toManuscriptAccepted = ids.length;
+            // (b) Determine outcome based on page count + overall score
+            const meetsAcceptance = pageCount > 2 ? overall >= 80 : overall >= 90;
 
-            for (const article of eligibleForAcceptance) {
-              const profile = (article as any).profiles;
-
-              // Track manuscript accepted email sent
-              await supabase.from("articles").update({ manuscript_accepted_email_sent_at: new Date().toISOString() }).eq("id", article.id);
+            if (meetsAcceptance) {
+              // Manuscript accepted
+              await supabase.from("articles").update({
+                status: "manuscript_accepted",
+                manuscript_accepted_email_sent_at: new Date().toISOString(),
+              }).eq("id", article.id);
+              results.step2_accepted++;
 
               await supabase.from("notifications").insert({
                 user_id: article.author_id,
                 title: "Manuscript Accepted! 🎉",
                 message: `Your manuscript "${article.title}" has been accepted!`,
-                type: "success",
-                link: "/author/articles",
+                type: "success", link: "/author/articles",
               });
-
-              await notifyAdmins(
-                "Manuscript Accepted ✅",
-                `Article "${article.title}" (${article.reference_number}) has been accepted.`,
-                `/admin/articles/${article.id}`
-              );
-
-              if (profile?.email) {
-                await sendEmail(profile.email, "status-update", {
-                  authorName: profile.full_name || "Author",
-                  articleTitle: article.title,
+              await notifyAdmins("Manuscript Accepted ✅",
+                `Article "${article.title}" (${article.reference_number}) auto-accepted.`,
+                `/admin/articles/${article.id}`);
+              if (authorEmail) {
+                await sendEmail(authorEmail, "status-update", {
+                  authorName, articleTitle: article.title,
                   referenceNumber: article.reference_number,
                   newStatus: "Manuscript Accepted",
                   message: "Congratulations! Your manuscript has been accepted for publication.",
                 });
               }
-            }
-          }
-        }
-      }
-    }
 
-    // ===== STEP 3: manuscript_accepted (5 min) → pending_fee (NORMAL publications) =====
-    // Check if 2-page free setting is enabled
-    const { data: twoPageFreeSetting } = await supabase
-      .from("admin_settings")
-      .select("setting_value")
-      .eq("setting_key", "two_page_free_enabled")
-      .maybeSingle();
-    const twoPageFreeEnabled = twoPageFreeSetting?.setting_value !== 'false'; // default true
+              // If article requires fee (>2 pages OR free disabled), move to pending_fee
+              const requiresFee = pageCount > 2 || !twoPageFreeEnabled;
+              if (requiresFee) {
+                await supabase.from("articles").update({
+                  status: "pending_fee",
+                  fee_reminder_email_sent_at: new Date().toISOString(),
+                  automation_paused: true,
+                }).eq("id", article.id);
+                results.step2_pendingFee++;
 
-    {
-      const { data: articles, error } = await supabase
-        .from("articles")
-        .select("id, title, reference_number, author_id, updated_at, publication_type, page_count, profiles:author_id (full_name, email)")
-        .eq("status", "manuscript_accepted")
-        .eq("publication_type", "normal")
-        .eq("automation_paused", false)
-        .lte("updated_at", fiveMinAgo);
+                await supabase.from("notifications").insert({
+                  user_id: article.author_id,
+                  title: "Publication Fee Pending 💳",
+                  message: `Your article "${article.title}" (${pageCount} pages) requires a publication fee.`,
+                  type: "warning", link: "/author/cart",
+                });
+                await notifyAdmins("Article Pending Fee 💳",
+                  `Article "${article.title}" (${article.reference_number}) is pending fee. Automation paused.`,
+                  `/admin/articles/${article.id}`);
+                if (authorEmail) {
+                  await sendEmail(authorEmail, "status-update", {
+                    authorName, articleTitle: article.title,
+                    referenceNumber: article.reference_number,
+                    newStatus: "Pending Fee",
+                    message: `Your article has ${pageCount} pages and requires a publication fee to proceed. Please pay your publication fee to continue.`,
+                  });
+                }
+              } else {
+                // Free tier — pause automation now
+                await supabase.from("articles").update({ automation_paused: true }).eq("id", article.id);
+              }
+            } else {
+              // Low score — request manuscript revision and pause
+              await supabase.from("articles").update({
+                status: "revision_requested",
+                automation_paused: true,
+              }).eq("id", article.id);
+              results.step2_revisionRequested++;
 
-      if (error) {
-        results.errors.push(`Step3 fetch: ${error.message}`);
-      } else if (articles?.length) {
-        // If 2-page free is enabled, only articles >2 pages go to pending_fee
-        // If disabled, ALL articles go to pending_fee
-        const eligibleArticles = twoPageFreeEnabled
-          ? articles.filter((a: any) => (a.page_count || 0) > 2)
-          : articles;
-        
-        if (eligibleArticles.length) {
-          const ids = eligibleArticles.map((a: any) => a.id);
-          const { error: updateErr } = await supabase
-            .from("articles")
-            .update({ status: "pending_fee" })
-            .in("id", ids);
-
-          if (updateErr) {
-            results.errors.push(`Step3 update: ${updateErr.message}`);
-          } else {
-            results.step3_toPendingFee = ids.length;
-            for (const article of eligibleArticles) {
-              const profile = (article as any).profiles;
-              const pageCount = (article as any).page_count || 0;
-              // Track fee reminder email sent
-              await supabase.from("articles").update({ fee_reminder_email_sent_at: new Date().toISOString() }).eq("id", article.id);
-              // Author notification
               await supabase.from("notifications").insert({
                 user_id: article.author_id,
-                title: "Publication Fee Pending 💳",
-                message: twoPageFreeEnabled
-                  ? `Your article "${article.title}" has ${pageCount} pages which exceeds the 2-page free publication limit. Please pay the publication fee to proceed.`
-                  : `Your article "${article.title}" requires a publication fee to proceed.`,
-                type: "warning",
-                link: "/author/cart",
+                title: "Manuscript Revision Required ✏️",
+                message: `Your article "${article.title}" requires revision. Please review the feedback and resubmit.`,
+                type: "warning", link: "/author/articles",
               });
-              // Admin notification
-              await notifyAdmins(
-                "Article Pending Fee 💳",
-                `Article "${article.title}" (${article.reference_number}) has ${pageCount} pages and is now pending fee payment.`,
-                `/admin/articles/${article.id}`
-              );
-              // Author email
-              if (profile?.email) {
-                await sendEmail(profile.email, "status-update", {
-                  authorName: profile.full_name || "Author",
-                  articleTitle: article.title,
+              await notifyAdmins("Revision Requested ✏️",
+                `Article "${article.title}" (${article.reference_number}) auto-flagged for revision (score ${overall}%, ${pageCount} pages). Automation paused.`,
+                `/admin/articles/${article.id}`);
+              if (authorEmail) {
+                await sendEmail(authorEmail, "manuscript-revise", {
+                  authorName, articleTitle: article.title,
                   referenceNumber: article.reference_number,
-                  newStatus: "Pending Fee",
-                  message: twoPageFreeEnabled
-                    ? `Your article has ${pageCount} pages, which exceeds the 2-page free publication limit. Articles with more than 2 pages require a publication fee. Please pay your publication fee to proceed with the publication process.`
-                    : `Your article requires a publication fee to proceed with publication. Please pay your publication fee to continue.`,
+                  pageCount: pageCount || "N/A",
                 });
               }
             }
+          } catch (e: any) {
+            results.errors.push(`Step1 review ${review.id}: ${e?.message || e}`);
           }
         }
       }
     }
 
-    // ===== STEP 4: Send referral reward emails for recently rewarded referrals =====
+    // ===== STEP 3: Referral reward emails =====
     {
       const { data: rewardedReferrals, error } = await supabase
         .from("referrals")
@@ -394,70 +275,42 @@ serve(async (req: Request) => {
         .is("referral_email_sent_at", null);
 
       if (error) {
-        results.errors.push(`Step5 fetch: ${error.message}`);
+        results.errors.push(`Step3 fetch: ${error.message}`);
       } else if (rewardedReferrals?.length) {
         for (const ref of rewardedReferrals) {
           try {
-            // Atomically claim this referral so concurrent runs cannot duplicate emails
             const { data: claimed, error: claimErr } = await supabase
               .from("referrals")
               .update({ referral_email_sent_at: new Date().toISOString() })
               .eq("id", ref.id)
               .is("referral_email_sent_at", null)
-              .select("id")
-              .maybeSingle();
+              .select("id").maybeSingle();
             if (claimErr || !claimed) continue;
 
-            // Get referrer profile
-            const { data: referrerProfile } = await supabase
-              .from("profiles")
-              .select("full_name, email")
-              .eq("id", ref.referrer_id)
-              .single();
-
-            // Get referred profile
-            const { data: referredProfile } = await supabase
-              .from("profiles")
-              .select("full_name, email")
-              .eq("id", ref.referred_id)
-              .single();
-
+            const { data: referrerProfile } = await supabase.from("profiles")
+              .select("full_name, email").eq("id", ref.referrer_id).single();
+            const { data: referredProfile } = await supabase.from("profiles")
+              .select("full_name, email").eq("id", ref.referred_id).single();
             if (!referrerProfile || !referredProfile) continue;
 
-            // Count total rewarded for this referrer to determine tier
-            const { count: totalRewarded } = await supabase
-              .from("referrals")
+            const { count: totalRewarded } = await supabase.from("referrals")
               .select("id", { count: "exact", head: true })
-              .eq("referrer_id", ref.referrer_id)
-              .eq("reward_granted", true);
+              .eq("referrer_id", ref.referrer_id).eq("reward_granted", true);
 
             let discountAmount = 10;
             if ((totalRewarded || 0) >= 3) discountAmount = 50;
             else if ((totalRewarded || 0) === 2) discountAmount = 30;
 
-            // Find the referrer's discount code created around the same time
-            const { data: referrerCodes } = await supabase
-              .from("discount_codes")
-              .select("code, discount_value")
-              .eq("created_by", ref.referrer_id)
-              .like("code", "REF-%")
-              .order("created_at", { ascending: false })
-              .limit(1);
-
+            const { data: referrerCodes } = await supabase.from("discount_codes")
+              .select("code, discount_value").eq("created_by", ref.referrer_id)
+              .like("code", "REF-%").order("created_at", { ascending: false }).limit(1);
             const referrerCode = referrerCodes?.[0]?.code || "N/A";
 
-            // Find the referred author's discount code
-            const { data: referredCodes } = await supabase
-              .from("discount_codes")
-              .select("code, discount_value")
-              .eq("created_by", ref.referred_id)
-              .like("code", "WELCOME-%")
-              .order("created_at", { ascending: false })
-              .limit(1);
-
+            const { data: referredCodes } = await supabase.from("discount_codes")
+              .select("code, discount_value").eq("created_by", ref.referred_id)
+              .like("code", "WELCOME-%").order("created_at", { ascending: false }).limit(1);
             const referredCode = referredCodes?.[0]?.code || "N/A";
 
-            // Send email to referrer
             await sendEmail(referrerProfile.email, "referral-reward", {
               rewardType: "referrer",
               referrerName: referrerProfile.full_name,
@@ -465,8 +318,6 @@ serve(async (req: Request) => {
               referralDiscountCode: referrerCode,
               referralDiscountAmount: discountAmount,
             });
-
-            // Send email to referred author
             await sendEmail(referredProfile.email, "referral-reward", {
               rewardType: "referred",
               referredName: referredProfile.full_name,
@@ -474,20 +325,17 @@ serve(async (req: Request) => {
               referralDiscountCode: referredCode,
               referralDiscountAmount: 10,
             });
-
-            results.step4_referralRewardEmails++;
+            results.step3_referralRewardEmails++;
           } catch (err: any) {
-            results.errors.push(`Step4 email error: ${err.message}`);
+            results.errors.push(`Step3 email error: ${err.message}`);
           }
         }
       }
     }
 
     console.log("Auto status transition results:", JSON.stringify(results));
-
     return new Response(JSON.stringify({ success: true, ...results }), {
-      status: 200,
-      headers: { "Content-Type": "application/json", ...corsHeaders },
+      status: 200, headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   } catch (error: any) {
     console.error("Auto status transition error:", error);
