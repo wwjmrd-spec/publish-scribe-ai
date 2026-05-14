@@ -110,7 +110,7 @@ serve(async (req: Request) => {
       const { data: pending, error } = await supabase
         .from("articles")
         .select("id, document_url, article_reviews(id)")
-        .in("status", ["submitted", "revised_submitted"])
+        .in("status", ["submitted", "under_review", "revised_submitted"])
         .eq("automation_paused", false)
         .not("document_url", "is", null)
         .limit(20);
