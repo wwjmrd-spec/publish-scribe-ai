@@ -51,6 +51,7 @@ serve(async (req: Request) => {
     const supabase = createClient(supabaseUrl, serviceRoleKey);
     const now = new Date();
     const results = {
+      step_submittedToUnderReview: 0,
       step0_aiReviewsTriggered: 0,
       step1_reviewsAutoApproved: 0,
       step2_accepted: 0,
@@ -81,12 +82,35 @@ serve(async (req: Request) => {
       } catch (e) { console.error("sendEmail failed", e); }
     }
 
+    // ===== STEP -1: Move 'submitted' articles older than 5 minutes to 'under_review' =====
+    {
+      const fiveMinAgo = new Date(now.getTime() - 5 * 60 * 1000).toISOString();
+      const { data: toReview, error } = await supabase
+        .from("articles")
+        .select("id")
+        .eq("status", "submitted")
+        .eq("automation_paused", false)
+        .lte("submission_date", fiveMinAgo)
+        .limit(100);
+      if (error) {
+        results.errors.push(`StepUR fetch: ${error.message}`);
+      } else if (toReview?.length) {
+        const ids = toReview.map((a: any) => a.id);
+        const { error: updErr } = await supabase
+          .from("articles")
+          .update({ status: "under_review" })
+          .in("id", ids);
+        if (updErr) results.errors.push(`StepUR update: ${updErr.message}`);
+        else results.step_submittedToUnderReview = ids.length;
+      }
+    }
+
     // ===== STEP 0: Trigger AI review for newly submitted articles missing reviews =====
     {
       const { data: pending, error } = await supabase
         .from("articles")
         .select("id, document_url, article_reviews(id)")
-        .in("status", ["submitted", "revised_submitted"])
+        .in("status", ["submitted", "under_review", "revised_submitted"])
         .eq("automation_paused", false)
         .not("document_url", "is", null)
         .limit(20);
