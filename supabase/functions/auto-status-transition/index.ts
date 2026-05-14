@@ -82,6 +82,29 @@ serve(async (req: Request) => {
       } catch (e) { console.error("sendEmail failed", e); }
     }
 
+    // ===== STEP -1: Move 'submitted' articles older than 5 minutes to 'under_review' =====
+    {
+      const fiveMinAgo = new Date(now.getTime() - 5 * 60 * 1000).toISOString();
+      const { data: toReview, error } = await supabase
+        .from("articles")
+        .select("id")
+        .eq("status", "submitted")
+        .eq("automation_paused", false)
+        .lte("submission_date", fiveMinAgo)
+        .limit(100);
+      if (error) {
+        results.errors.push(`StepUR fetch: ${error.message}`);
+      } else if (toReview?.length) {
+        const ids = toReview.map((a: any) => a.id);
+        const { error: updErr } = await supabase
+          .from("articles")
+          .update({ status: "under_review" })
+          .in("id", ids);
+        if (updErr) results.errors.push(`StepUR update: ${updErr.message}`);
+        else results.step_submittedToUnderReview = ids.length;
+      }
+    }
+
     // ===== STEP 0: Trigger AI review for newly submitted articles missing reviews =====
     {
       const { data: pending, error } = await supabase
