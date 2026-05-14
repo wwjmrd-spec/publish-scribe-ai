@@ -51,6 +51,7 @@ serve(async (req: Request) => {
     const supabase = createClient(supabaseUrl, serviceRoleKey);
     const now = new Date();
     const results = {
+      step_submittedToUnderReview: 0,
       step0_aiReviewsTriggered: 0,
       step1_reviewsAutoApproved: 0,
       step2_accepted: 0,
