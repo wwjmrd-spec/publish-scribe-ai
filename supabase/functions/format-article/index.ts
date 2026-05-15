@@ -123,7 +123,7 @@ function parseHtmlToBlocks(html: string): Block[] {
   // Normalize whitespace
   const cleaned = html.replace(/\r?\n/g, " ").replace(/\s{2,}/g, " ");
   // Match top-level elements: h1-h3, p, ul, ol, table, img
-  const tagRe = /<(h[1-6]|p|ul|ol|table|blockquote|div)([^>]*)>([\s\S]*?)<\/\1>|<img([^>]*)\/?>/gi;
+  const tagRe = /<(h[1-6]|p|ul|ol|table)([^>]*)>([\s\S]*?)<\/\1>|<img([^>]*)\/?>/gi;
   let m: RegExpExecArray | null;
   while ((m = tagRe.exec(cleaned)) !== null) {
     if (m[1]) {
