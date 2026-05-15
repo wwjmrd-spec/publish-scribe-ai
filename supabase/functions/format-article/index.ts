@@ -1289,10 +1289,11 @@ serve(async (req) => {
       meta = await extractMetadata(extracted.rawText, lovableApiKey, article.title || "Untitled");
     } catch (e: any) {
       console.error("Metadata extraction failed:", e?.message);
-      await supabase.from("articles").update({ formatting_status: "failed" }).eq("id", articleId);
-      if (e?.message === "RATE_LIMIT") return jsonResponse({ error: "Rate limited. Please try again later." }, 429);
-      if (e?.message === "CREDITS_EXHAUSTED") return jsonResponse({ error: "AI credits exhausted." }, 402);
-      return jsonResponse({ error: "AI metadata extraction failed" }, 500);
+      meta = buildFallbackMetadata(
+        extracted.rawText,
+        article.title || "Untitled",
+        article.author_name || article.profiles?.full_name,
+      );
     }
 
     // 4. Slice body
