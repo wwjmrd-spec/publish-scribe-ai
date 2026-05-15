@@ -123,15 +123,16 @@ function parseHtmlToBlocks(html: string): Block[] {
   // Normalize whitespace
   const cleaned = html.replace(/\r?\n/g, " ").replace(/\s{2,}/g, " ");
   // Match top-level elements: h1-h3, p, ul, ol, table, img
-  const tagRe = /<(h[1-3]|p|ul|ol|table|img)([^>]*)>([\s\S]*?)<\/\1>|<img([^>]*)\/?>/gi;
+  const tagRe = /<(h[1-6]|p|ul|ol|table|blockquote|div)([^>]*)>([\s\S]*?)<\/\1>|<img([^>]*)\/?>/gi;
   let m: RegExpExecArray | null;
   while ((m = tagRe.exec(cleaned)) !== null) {
     if (m[1]) {
       const tag = m[1].toLowerCase();
       const inner = m[3] || "";
-      if (tag === "h1" || tag === "h2" || tag === "h3") {
+      if (/^h[1-6]$/.test(tag)) {
         const text = stripTags(inner);
-        if (text) blocks.push({ kind: "heading", level: parseInt(tag[1], 10) as 1 | 2 | 3, text });
+        const lvl = Math.min(3, parseInt(tag[1], 10)) as 1 | 2 | 3;
+        if (text) blocks.push({ kind: "heading", level: lvl, text });
       } else if (tag === "p") {
         // Check if paragraph contains only an image
         const imgOnly = /^\s*<img[^>]*>\s*$/i.test(inner);
