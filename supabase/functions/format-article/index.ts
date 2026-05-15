@@ -338,6 +338,57 @@ async function extractMetadata(rawText: string, lovableApiKey: string, fallbackT
   return meta;
 }
 
+function extractSection(rawText: string, start: RegExp, end: RegExp): string {
+  const startMatch = rawText.match(start);
+  if (!startMatch?.index) return "";
+  const from = startMatch.index + startMatch[0].length;
+  const rest = rawText.slice(from);
+  const endMatch = rest.match(end);
+  return (endMatch?.index != null ? rest.slice(0, endMatch.index) : rest)
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function splitReferences(rawText: string): string[] {
+  const refs = extractSection(rawText, /\b(references|bibliography)\b\s*:?/i, /\n\s*(appendix|annex)\b/i);
+  if (!refs) return [];
+  return refs
+    .split(/(?:\n\s*|\s{2,})(?:\[?\d+\]?\.?\)?\s+)/)
+    .map((r) => r.replace(/^\s*\[?\d+\]?\.?\)?\s*/, "").trim())
+    .filter((r) => r.length > 20)
+    .slice(0, 80);
+}
+
+function buildFallbackMetadata(rawText: string, fallbackTitle: string, authorName?: string): ArticleMetadata {
+  const currentYear = String(new Date().getFullYear());
+  const abstract = extractSection(rawText, /\babstract\b\s*:?/i, /\b(keywords?|introduction|1\.?\s*introduction)\b\s*:?/i);
+  const keywordSection = extractSection(rawText, /\bkeywords?\b\s*:?/i, /\b(introduction|1\.?\s*introduction)\b\s*:?/i);
+  const keywords = keywordSection
+    .split(/[;,]/)
+    .map((k) => k.replace(/^[-–—\s]+/, "").trim())
+    .filter((k) => k.length > 1 && k.length < 60)
+    .slice(0, 7);
+
+  return {
+    header: { year: currentYear, volume: "12", issue: "01", page_range: "01-10" },
+    title: fallbackTitle || "Untitled Article",
+    authors: [{ name: authorName || "Author", designation: "" }],
+    correspondence: { name: authorName || "Author", designation: "" },
+    abstract: abstract || "Abstract not detected in the source manuscript.",
+    keywords: keywords.length ? keywords : ["Research", "Article"],
+    references: splitReferences(rawText),
+    body_start_heading: "Introduction",
+    references_heading: "References",
+    suggestions: [
+      {
+        type: "metadata_fallback",
+        message: "AI metadata extraction was unavailable, so formatting used the manuscript text and default metadata. Please review title, author, abstract, keywords, and references before approval.",
+        severity: "warning",
+      },
+    ],
+  };
+}
+
 // =========================================================================
 // 4. SLICE THE BODY  — keep blocks BETWEEN intro heading and references heading
 // =========================================================================
