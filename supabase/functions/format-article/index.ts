@@ -123,15 +123,16 @@ function parseHtmlToBlocks(html: string): Block[] {
   // Normalize whitespace
   const cleaned = html.replace(/\r?\n/g, " ").replace(/\s{2,}/g, " ");
   // Match top-level elements: h1-h3, p, ul, ol, table, img
-  const tagRe = /<(h[1-3]|p|ul|ol|table|img)([^>]*)>([\s\S]*?)<\/\1>|<img([^>]*)\/?>/gi;
+  const tagRe = /<(h[1-6]|p|ul|ol|table)([^>]*)>([\s\S]*?)<\/\1>|<img([^>]*)\/?>/gi;
   let m: RegExpExecArray | null;
   while ((m = tagRe.exec(cleaned)) !== null) {
     if (m[1]) {
       const tag = m[1].toLowerCase();
       const inner = m[3] || "";
-      if (tag === "h1" || tag === "h2" || tag === "h3") {
+      if (/^h[1-6]$/.test(tag)) {
         const text = stripTags(inner);
-        if (text) blocks.push({ kind: "heading", level: parseInt(tag[1], 10) as 1 | 2 | 3, text });
+        const lvl = Math.min(3, parseInt(tag[1], 10)) as 1 | 2 | 3;
+        if (text) blocks.push({ kind: "heading", level: lvl, text });
       } else if (tag === "p") {
         // Check if paragraph contains only an image
         const imgOnly = /^\s*<img[^>]*>\s*$/i.test(inner);
@@ -400,6 +401,8 @@ function normHeading(s: string): string {
 function sliceBodyBlocks(blocks: Block[], meta: ArticleMetadata): Block[] {
   const startKey = normHeading(meta.body_start_heading || "introduction");
   const refKey = normHeading(meta.references_heading || "references");
+  const skipKeys = new Set(["abstract", "keywords", "keyword"]);
+
   let start = -1, end = blocks.length;
   for (let i = 0; i < blocks.length; i++) {
     const b = blocks[i];
@@ -412,15 +415,29 @@ function sliceBodyBlocks(blocks: Block[], meta: ArticleMetadata): Block[] {
       }
     }
   }
-  if (start < 0) {
-    // Fall back: drop everything up to the first paragraph that's longer than the abstract
-    for (let i = 0; i < blocks.length; i++) {
-      const b = blocks[i];
-      if (b.kind === "heading") { start = i; break; }
+
+  // Heuristic: if we couldn't locate the body start, OR the slice ended up
+  // suspiciously small (< 30% of total blocks), include the FULL document
+  // (skipping obvious title/abstract/keywords headings + the very next paragraph).
+  const sliced = start >= 0 ? blocks.slice(start, end) : [];
+  if (sliced.length < Math.max(5, blocks.length * 0.3)) {
+    const filtered: Block[] = [];
+    let skipNext = false;
+    for (const b of blocks) {
+      if (b.kind === "heading" && skipKeys.has(normHeading(b.text))) {
+        skipNext = true;
+        continue;
+      }
+      if (skipNext && b.kind === "paragraph") {
+        skipNext = false;
+        continue;
+      }
+      skipNext = false;
+      filtered.push(b);
     }
-    if (start < 0) start = 0;
+    return filtered;
   }
-  return blocks.slice(start, end);
+  return sliced;
 }
 
 // =========================================================================
