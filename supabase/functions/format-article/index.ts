@@ -401,6 +401,8 @@ function normHeading(s: string): string {
 function sliceBodyBlocks(blocks: Block[], meta: ArticleMetadata): Block[] {
   const startKey = normHeading(meta.body_start_heading || "introduction");
   const refKey = normHeading(meta.references_heading || "references");
+  const skipKeys = new Set(["abstract", "keywords", "keyword"]);
+
   let start = -1, end = blocks.length;
   for (let i = 0; i < blocks.length; i++) {
     const b = blocks[i];
@@ -413,15 +415,29 @@ function sliceBodyBlocks(blocks: Block[], meta: ArticleMetadata): Block[] {
       }
     }
   }
-  if (start < 0) {
-    // Fall back: drop everything up to the first paragraph that's longer than the abstract
-    for (let i = 0; i < blocks.length; i++) {
-      const b = blocks[i];
-      if (b.kind === "heading") { start = i; break; }
+
+  // Heuristic: if we couldn't locate the body start, OR the slice ended up
+  // suspiciously small (< 30% of total blocks), include the FULL document
+  // (skipping obvious title/abstract/keywords headings + the very next paragraph).
+  const sliced = start >= 0 ? blocks.slice(start, end) : [];
+  if (sliced.length < Math.max(5, blocks.length * 0.3)) {
+    const filtered: Block[] = [];
+    let skipNext = false;
+    for (const b of blocks) {
+      if (b.kind === "heading" && skipKeys.has(normHeading(b.text))) {
+        skipNext = true;
+        continue;
+      }
+      if (skipNext && b.kind === "paragraph") {
+        skipNext = false;
+        continue;
+      }
+      skipNext = false;
+      filtered.push(b);
     }
-    if (start < 0) start = 0;
+    return filtered;
   }
-  return blocks.slice(start, end);
+  return sliced;
 }
 
 // =========================================================================
