@@ -486,7 +486,6 @@ async function extractActionableIssues(cfg: AiGatewayConfig, reviewReportText: s
         },
       }],
       tool_choice: { type: "function", function: { name: "return_issue_list" } },
-    }),
   });
   if (!aiResp.ok) return reviewMetadata;
   const data = await aiResp.json();
@@ -529,7 +528,6 @@ async function rewriteChunk(cfg: AiGatewayConfig, feedbackText: string, chunk: s
         },
       }],
       tool_choice: { type: "function", function: { name: "return_rewritten_section" } },
-    }),
   });
   if (!aiResp.ok) {
     const err = await aiResp.text();
@@ -590,7 +588,6 @@ async function scoreManuscript(cfg: AiGatewayConfig, title: string, text: string
         },
       }],
       tool_choice: { type: "function", function: { name: "return_scores" } },
-    }),
   });
   if (!aiResp.ok) return null;
   const data = await aiResp.json();
@@ -618,7 +615,6 @@ async function polishChunk(cfg: AiGatewayConfig, weaknessList: string, chunk: st
       ],
       tools: [{ type: "function", function: { name: "return_polished_section", parameters: { type: "object", properties: { polished_section: { type: "string" } }, required: ["polished_section"], additionalProperties: false } } }],
       tool_choice: { type: "function", function: { name: "return_polished_section" } },
-    }),
   });
   if (!aiResp.ok) return chunk;
   const data = await aiResp.json();
