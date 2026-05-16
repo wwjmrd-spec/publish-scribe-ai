@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { aiChatCompletion, getAiGatewayConfig, type AiGatewayConfig } from "../_shared/ai-gateway.ts";
 import mammoth from "npm:mammoth@1.6.0";
 import { jsPDF } from "npm:jspdf@2.5.2";
 import {
@@ -245,21 +246,14 @@ Extract:
 DO NOT rewrite text. DO NOT summarize. Copy verbatim from the source.
 `;
 
-async function extractMetadata(rawText: string, lovableApiKey: string, fallbackTitle: string): Promise<ArticleMetadata> {
+async function extractMetadata(rawText: string, cfg: AiGatewayConfig, fallbackTitle: string): Promise<ArticleMetadata> {
   const truncated = rawText.substring(0, 35000);
 
-  const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${lovableApiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      messages: [
-        { role: "system", content: METADATA_SYSTEM_PROMPT },
-        { role: "user", content: `Extract metadata from this article:\n\n${truncated}` },
-      ],
+  const aiResponse = await aiChatCompletion(cfg, {
+    messages: [
+      { role: "system", content: METADATA_SYSTEM_PROMPT },
+      { role: "user", content: `Extract metadata from this article:\n\n${truncated}` },
+    ],
       tools: [{
         type: "function",
         function: {
@@ -317,8 +311,7 @@ async function extractMetadata(rawText: string, lovableApiKey: string, fallbackT
           },
         },
       }],
-      tool_choice: { type: "function", function: { name: "extract_metadata" } },
-    }),
+    tool_choice: { type: "function", function: { name: "extract_metadata" } },
   });
 
   if (!aiResponse.ok) {
@@ -1247,7 +1240,7 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY")!;
+    const aiGateway = await getAiGatewayConfig();
 
     const authClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
@@ -1303,7 +1296,7 @@ serve(async (req) => {
     // 3. AI metadata extraction
     let meta: ArticleMetadata;
     try {
-      meta = await extractMetadata(extracted.rawText, lovableApiKey, article.title || "Untitled");
+      meta = await extractMetadata(extracted.rawText, aiGateway, article.title || "Untitled");
     } catch (e: any) {
       console.error("Metadata extraction failed:", e?.message);
       meta = buildFallbackMetadata(
