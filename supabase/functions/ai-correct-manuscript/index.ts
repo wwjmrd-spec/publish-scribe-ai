@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { aiChatCompletion, getAiGatewayConfig, type AiGatewayConfig } from "../_shared/ai-gateway.ts";
 import mammoth from "npm:mammoth@1.6.0";
 import {
   Document,
@@ -471,12 +472,8 @@ async function downloadReviewReportText(supabase: any, reportPath: string): Prom
   }
 }
 
-async function extractActionableIssues(lovableApiKey: string, reviewReportText: string, reviewMetadata: string): Promise<string> {
-  const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${lovableApiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
+async function extractActionableIssues(cfg: AiGatewayConfig, reviewReportText: string, reviewMetadata: string): Promise<string> {
+  const aiResp = await aiChatCompletion(cfg, {
       messages: [
         { role: "system", content: "You extract a clean, numbered, actionable issue list from a peer-review report. Each item must be a concrete fix the author must apply to their manuscript. No fluff, no praise, no scores — only fixes." },
         { role: "user", content: `REVIEW METADATA:\n${reviewMetadata}\n\nREVIEW REPORT TEXT:\n${reviewReportText.slice(0, 60000)}\n\nReturn a NUMBERED list of concrete imperative fixes the author must perform.` },
@@ -518,12 +515,8 @@ function chunkSerialized(text: string, maxChars = 16000) {
   return chunks.length ? chunks : [text.slice(0, maxChars)];
 }
 
-async function rewriteChunk(lovableApiKey: string, feedbackText: string, chunk: string, idx: number, total: number) {
-  const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${lovableApiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-pro",
+async function rewriteChunk(cfg: AiGatewayConfig, feedbackText: string, chunk: string, idx: number, total: number) {
+  const aiResp = await aiChatCompletion(cfg, {
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: `NUMBERED REVIEWER ISSUES:\n${feedbackText}\n\n---\n\nSECTION ${idx + 1} OF ${total}\n\nRewrite the section to resolve every applicable issue. KEEP every [[FIGURE:...]], [[TABLE:...]] and [[H#]] marker EXACTLY where it appears:\n\n${chunk}` },
@@ -555,13 +548,13 @@ async function rewriteChunk(lovableApiKey: string, feedbackText: string, chunk: 
   };
 }
 
-async function rewriteChunksInParallel(lovableApiKey: string, feedbackText: string, chunks: string[], concurrency = 2) {
+async function rewriteChunksInParallel(cfg: AiGatewayConfig, feedbackText: string, chunks: string[], concurrency = 2) {
   const results = new Array(chunks.length);
   let next = 0;
   async function worker() {
     while (next < chunks.length) {
       const i = next++;
-      results[i] = await rewriteChunk(lovableApiKey, feedbackText, chunks[i], i, chunks.length);
+      results[i] = await rewriteChunk(cfg, feedbackText, chunks[i], i, chunks.length);
     }
   }
   await Promise.all(Array.from({ length: Math.max(1, Math.min(concurrency, chunks.length)) }, () => worker()));
@@ -583,12 +576,8 @@ function ensureMarkersPresent(corrected: string, originalSerialized: string): st
 
 interface ScoreResult { overall: number; grammar: number; content: number; plagiarism: number; weaknesses: string[] }
 
-async function scoreManuscript(lovableApiKey: string, title: string, text: string): Promise<ScoreResult | null> {
-  const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${lovableApiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
+async function scoreManuscript(cfg: AiGatewayConfig, title: string, text: string): Promise<ScoreResult | null> {
+  const aiResp = await aiChatCompletion(cfg, {
       messages: [
         { role: "system", content: "You are a strict but fair AI peer reviewer. Score plagiarism, grammar, content, overall (0-100). List remaining weaknesses." },
         { role: "user", content: `Title: ${title}\n\n--- MANUSCRIPT ---\n${text.slice(0, 30000)}` },
@@ -621,12 +610,8 @@ HARD RULES:
 - Output at least as long as the input.
 - Return ONLY the polished text via the tool call.`;
 
-async function polishChunk(lovableApiKey: string, weaknessList: string, chunk: string, idx: number, total: number) {
-  const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${lovableApiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-pro",
+async function polishChunk(cfg: AiGatewayConfig, weaknessList: string, chunk: string, idx: number, total: number) {
+  const aiResp = await aiChatCompletion(cfg, {
       messages: [
         { role: "system", content: POLISH_SYSTEM_PROMPT },
         { role: "user", content: `REMAINING WEAKNESSES:\n${weaknessList}\n\nSECTION ${idx + 1} OF ${total}\n\n${chunk}` },
@@ -642,11 +627,11 @@ async function polishChunk(lovableApiKey: string, weaknessList: string, chunk: s
   try { const p = JSON.parse(args); return (p.polished_section || "").trim() || chunk; } catch { return chunk; }
 }
 
-async function polishUntilTarget(lovableApiKey: string, title: string, initial: string, target = 91, maxIters = 3): Promise<{ finalText: string; finalScore: ScoreResult | null }> {
+async function polishUntilTarget(cfg: AiGatewayConfig, title: string, initial: string, target = 91, maxIters = 3): Promise<{ finalText: string; finalScore: ScoreResult | null }> {
   let cur = initial;
   let last: ScoreResult | null = null;
   for (let i = 0; i < maxIters; i++) {
-    const score = await scoreManuscript(lovableApiKey, title, cur);
+    const score = await scoreManuscript(cfg, title, cur);
     last = score;
     if (!score) break;
     if (score.overall >= target) return { finalText: cur, finalScore: score };
@@ -654,11 +639,11 @@ async function polishUntilTarget(lovableApiKey: string, title: string, initial: 
     const chunks = chunkSerialized(cur);
     const out: string[] = new Array(chunks.length);
     let cursor = 0;
-    async function worker() { while (cursor < chunks.length) { const i = cursor++; out[i] = await polishChunk(lovableApiKey, weakness, chunks[i], i, chunks.length); } }
+    async function worker() { while (cursor < chunks.length) { const i = cursor++; out[i] = await polishChunk(cfg, weakness, chunks[i], i, chunks.length); } }
     await Promise.all(Array.from({ length: Math.min(2, chunks.length) }, () => worker()));
     cur = ensureMarkersPresent(out.join("\n\n"), initial);
   }
-  const final = await scoreManuscript(lovableApiKey, title, cur);
+  const final = await scoreManuscript(cfg, title, cur);
   return { finalText: cur, finalScore: final || last };
 }
 
@@ -681,7 +666,7 @@ function estimatePageCount(blocks: Block[]): number {
 // =========================================================================
 // Background processor
 // =========================================================================
-async function processCorrectionInBackground({ supabase, lovableApiKey, userId, article, review }: { supabase: any; lovableApiKey: string; userId: string; article: any; review: any; }) {
+async function processCorrectionInBackground({ supabase, cfg, userId, article, review }: { supabase: any; cfg: AiGatewayConfig; userId: string; article: any; review: any; }) {
   try {
     const { blocks, images, tables, rawText } = await extractDocxStructured(supabase, article.document_url);
     if (!rawText || rawText.trim().length < 50) throw new Error("Could not read the manuscript text");
@@ -694,13 +679,13 @@ async function processCorrectionInBackground({ supabase, lovableApiKey, userId, 
 
     let reviewReportText = "";
     if (article.review_report_url) reviewReportText = await downloadReviewReportText(supabase, article.review_report_url);
-    const feedbackText = await extractActionableIssues(lovableApiKey, reviewReportText, reviewMetadata);
+    const feedbackText = await extractActionableIssues(cfg, reviewReportText, reviewMetadata);
 
     const serialized = serializeBlocks(blocks);
     console.log("AI correction: blocks=", blocks.length, "images=", images.size, "tables=", tables.size, "serialized chars=", serialized.length);
 
     const chunks = chunkSerialized(serialized);
-    const rewritten = await rewriteChunksInParallel(lovableApiKey, feedbackText, chunks, 2);
+    const rewritten = await rewriteChunksInParallel(cfg, feedbackText, chunks, 2);
     const summarySet = new Set<string>();
     let combined = rewritten.map((c, i) => {
       if (!c.rewrittenSection.trim()) throw new Error(`Section ${i + 1} came back empty`);
@@ -719,7 +704,7 @@ async function processCorrectionInBackground({ supabase, lovableApiKey, userId, 
     if (originalPageCount <= 2 && estimatePages(combined) > 2) {
       // Light condense pass: ask AI to keep it within 2 pages.
       const condensed = await polishChunk(
-        lovableApiKey,
+        cfg,
         "1. Tighten the prose so the manuscript fits in 2 printed pages without losing factual content. Keep every figure, table, citation and number. Remove only redundancy and filler.",
         combined, 0, 1,
       );
@@ -727,7 +712,7 @@ async function processCorrectionInBackground({ supabase, lovableApiKey, userId, 
       if (estimatePages(candidate) <= 2) combined = candidate;
     }
 
-    const { finalText, finalScore } = await polishUntilTarget(lovableApiKey, article.title || "Corrected Manuscript", combined, 91, 3);
+    const { finalText, finalScore } = await polishUntilTarget(cfg, article.title || "Corrected Manuscript", combined, 91, 3);
     if (finalScore) {
       summarySet.add(`Final estimated score: ${Math.round(finalScore.overall)}/100 (grammar ${Math.round(finalScore.grammar)}, content ${Math.round(finalScore.content)})`);
       if (finalScore.overall >= 91) summarySet.add("Target score of 91+ reached.");
@@ -798,7 +783,7 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY")!;
+    const cfg = await getAiGatewayConfig();
 
     const token = authHeader.replace("Bearer ", "").trim();
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -898,7 +883,7 @@ serve(async (req) => {
       startedAt: new Date().toISOString(),
     });
 
-    EdgeRuntime.waitUntil(processCorrectionInBackground({ supabase, lovableApiKey, userId, article, review }));
+    EdgeRuntime.waitUntil(processCorrectionInBackground({ supabase, cfg, userId, article, review }));
     return jsonResponse({ success: true, status: "processing", message: "AI correction started" }, 202);
   } catch (err) {
     console.error("ai-correct-manuscript error:", err);
