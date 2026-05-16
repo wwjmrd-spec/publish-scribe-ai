@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import mammoth from "npm:mammoth@1.6.0";
 import { jsPDF } from "npm:jspdf@2.5.2";
+import { aiChatCompletion, getAiGatewayConfig } from "../_shared/ai-gateway.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
