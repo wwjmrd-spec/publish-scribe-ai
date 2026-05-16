@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { aiChatCompletion, getAiGatewayConfig } from "../_shared/ai-gateway.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -66,10 +67,11 @@ serve(async (req) => {
       });
     }
 
-    // Call AI to analyze and generate troubleshooting response
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      return new Response(JSON.stringify({ error: "AI not configured" }), {
+    let aiGateway;
+    try {
+      aiGateway = await getAiGatewayConfig();
+    } catch (e) {
+      return new Response(JSON.stringify({ error: (e as Error).message }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -91,19 +93,11 @@ Provide:
 
 Keep it concise and user-friendly. Do not use markdown headers.`;
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: "You are a helpful technical support assistant." },
-          { role: "user", content: aiPrompt },
-        ],
-      }),
+    const aiResponse = await aiChatCompletion(aiGateway, {
+      messages: [
+        { role: "system", content: "You are a helpful technical support assistant." },
+        { role: "user", content: aiPrompt },
+      ],
     });
 
     if (!aiResponse.ok) {
