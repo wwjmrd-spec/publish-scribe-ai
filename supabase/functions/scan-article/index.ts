@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { aiChatCompletion, getAiGatewayConfig } from "../_shared/ai-gateway.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -184,8 +185,7 @@ export const handler = async (req: Request) => {
 
     const validation = validateArticleSections(text);
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("AI service is not configured");
+    const aiGateway = await getAiGatewayConfig();
 
     const fullText = text.trim();
     const truncatedText = fullText.substring(0, 15000);
@@ -197,17 +197,8 @@ export const handler = async (req: Request) => {
       ? `The uploaded DOCX metadata reports exactly ${trustedDocxPageCount} pages. Treat that as the canonical page_count.`
       : `The document appears to be about ${estimatedPageCount} pages based on extracted text density and explicit page markers.`;
 
-    const response = await fetch(
-      "https://ai.gateway.lovable.dev/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
-          messages: [
+    const response = await aiChatCompletion(aiGateway, {
+      messages: [
             {
               role: "system",
               content: `You are an academic article metadata extractor. Extract structured metadata from the article text. You MUST call the extract_article_metadata function. For page_count: look for page numbers, headers, footers, or "Page X" indicators. ${pageCountGuidance} Only return a different page_count if the text contains clear explicit evidence.`,
