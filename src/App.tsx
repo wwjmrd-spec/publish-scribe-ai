@@ -38,6 +38,7 @@ import AdminRevenue from "./pages/admin/AdminRevenue";
 import AdminPaymentActivity from "./pages/admin/AdminPaymentActivity";
 import AdminEmailLog from "./pages/admin/AdminEmailLog";
 import AdminProSubscribers from "./pages/admin/AdminProSubscribers";
+import AdminAISettings from "./pages/admin/AdminAISettings";
 import NotFound from "./pages/NotFound";
 import { ReferralPopup } from "./components/referral/ReferralPopup";
 import { CookieConsent } from "./components/CookieConsent";
