@@ -302,6 +302,14 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
+            <Route
+              path="/admin/ai-settings"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminAISettings />
+                </ProtectedRoute>
+              }
+            />
 
             {/* Catch-all */}
             <Route path="*" element={<NotFound />} />
