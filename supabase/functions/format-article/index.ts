@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { aiChatCompletion, getAiGatewayConfig, type AiGatewayConfig } from "../_shared/ai-gateway.ts";
 import mammoth from "npm:mammoth@1.6.0";
 import { jsPDF } from "npm:jspdf@2.5.2";
 import {
@@ -1239,7 +1240,7 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY")!;
+    const aiGateway = await getAiGatewayConfig();
 
     const authClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
@@ -1295,7 +1296,7 @@ serve(async (req) => {
     // 3. AI metadata extraction
     let meta: ArticleMetadata;
     try {
-      meta = await extractMetadata(extracted.rawText, lovableApiKey, article.title || "Untitled");
+      meta = await extractMetadata(extracted.rawText, aiGateway, article.title || "Untitled");
     } catch (e: any) {
       console.error("Metadata extraction failed:", e?.message);
       meta = buildFallbackMetadata(
