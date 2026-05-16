@@ -426,7 +426,7 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY")!;
+    const aiGateway = await getAiGatewayConfig();
 
     // Auth: allow service role key (for internal cron calls) or verify JWT for admin
     const token = authHeader.replace("Bearer ", "").trim();
@@ -535,16 +535,9 @@ serve(async (req) => {
     const reviewSource = documentText ? "full_document" : "metadata_only";
     console.log("Sending article for AI review:", article.reference_number, "Source:", reviewSource, "Content length:", contentToReview.length);
 
-    // Call Lovable AI Gateway for review
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${lovableApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
+    // Call configured AI provider for review
+    const aiResponse = await aiChatCompletion(aiGateway, {
+      messages: [
           {
             role: "system",
             content: `You are an expert academic article reviewer. Analyze the submitted article (including its full document content if provided) and provide a comprehensive review covering:
