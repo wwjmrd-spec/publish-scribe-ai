@@ -245,21 +245,14 @@ Extract:
 DO NOT rewrite text. DO NOT summarize. Copy verbatim from the source.
 `;
 
-async function extractMetadata(rawText: string, lovableApiKey: string, fallbackTitle: string): Promise<ArticleMetadata> {
+async function extractMetadata(rawText: string, cfg: AiGatewayConfig, fallbackTitle: string): Promise<ArticleMetadata> {
   const truncated = rawText.substring(0, 35000);
 
-  const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${lovableApiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      messages: [
-        { role: "system", content: METADATA_SYSTEM_PROMPT },
-        { role: "user", content: `Extract metadata from this article:\n\n${truncated}` },
-      ],
+  const aiResponse = await aiChatCompletion(cfg, {
+    messages: [
+      { role: "system", content: METADATA_SYSTEM_PROMPT },
+      { role: "user", content: `Extract metadata from this article:\n\n${truncated}` },
+    ],
       tools: [{
         type: "function",
         function: {
@@ -317,8 +310,7 @@ async function extractMetadata(rawText: string, lovableApiKey: string, fallbackT
           },
         },
       }],
-      tool_choice: { type: "function", function: { name: "extract_metadata" } },
-    }),
+    tool_choice: { type: "function", function: { name: "extract_metadata" } },
   });
 
   if (!aiResponse.ok) {
