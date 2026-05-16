@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { aiChatCompletion, getAiGatewayConfig } from "../_shared/ai-gateway.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -45,35 +46,21 @@ serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
-    }
+    const aiGateway = await getAiGatewayConfig();
 
-    const response = await fetch(
-      "https://ai.gateway.lovable.dev/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
+    const response = await aiChatCompletion(aiGateway, {
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are an academic subject classifier. Given a research abstract, return ONLY the primary academic subject/discipline (e.g., 'Computer Science', 'Mechanical Engineering', 'Environmental Biology', 'Public Health', 'Economics'). Return just the subject name, nothing else. Be specific but concise (2-4 words max).",
         },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash-lite",
-          messages: [
-            {
-              role: "system",
-              content:
-                "You are an academic subject classifier. Given a research abstract, return ONLY the primary academic subject/discipline (e.g., 'Computer Science', 'Mechanical Engineering', 'Environmental Biology', 'Public Health', 'Economics'). Return just the subject name, nothing else. Be specific but concise (2-4 words max).",
-            },
-            {
-              role: "user",
-              content: `Classify the following abstract into its primary academic subject:\n\n${abstract.trim().substring(0, 3000)}`,
-            },
-          ],
-        }),
-      }
-    );
+        {
+          role: "user",
+          content: `Classify the following abstract into its primary academic subject:\n\n${abstract.trim().substring(0, 3000)}`,
+        },
+      ],
+    });
 
     if (!response.ok) {
       if (response.status === 429) {
