@@ -84,7 +84,7 @@ export default function AdminAISettings() {
 
   if (loading) {
     return (
-      <DashboardLayout>
+      <DashboardLayout type="admin">
         <div className="flex items-center justify-center min-h-[400px]">
           <Loader2 className="w-8 h-8 animate-spin" />
         </div>
@@ -93,7 +93,7 @@ export default function AdminAISettings() {
   }
 
   return (
-    <DashboardLayout>
+    <DashboardLayout type="admin">
       <div className="max-w-3xl mx-auto space-y-6">
         <div>
           <h1 className="text-3xl font-bold">AI Settings</h1>
