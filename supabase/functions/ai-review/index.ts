@@ -582,8 +582,7 @@ Provide your response as a valid JSON object with this exact structure:
             content: `Please review the following academic article submission:\n\n${contentToReview}`,
           },
         ],
-        temperature: 0.3,
-      }),
+      temperature: 0.3,
     });
 
     if (!aiResponse.ok) {
