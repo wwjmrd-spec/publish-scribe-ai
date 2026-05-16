@@ -246,10 +246,8 @@ export const handler = async (req: Request) => {
               },
             },
           ],
-          tool_choice: { type: "function", function: { name: "extract_article_metadata" } },
-        }),
-      }
-    );
+      tool_choice: { type: "function", function: { name: "extract_article_metadata" } },
+    });
 
     if (!response.ok) {
       if (response.status === 429) {
