@@ -6,17 +6,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 
 const PROVIDER_DEFAULTS: Record<string, string> = {
-  gemini: "gemini-2.0-flash",
+  gemini: "gemini-2.5-flash",
   openai: "gpt-4o-mini",
   groq: "llama-3.3-70b-versatile",
 };
 
+const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash", "gemini-2.0-flash-lite"];
+
 const PROVIDER_HINTS: Record<string, string> = {
-  gemini: "Get a key at https://aistudio.google.com/apikey. Examples: gemini-2.0-flash, gemini-1.5-pro, gemini-2.5-flash.",
+  gemini: "Get a key at https://aistudio.google.com/apikey. Recommended: gemini-2.5-flash. If one model is limited, switch models here.",
   openai: "Get a key at https://platform.openai.com/api-keys. Examples: gpt-4o-mini, gpt-4o, gpt-4-turbo.",
   groq: "Get a key at https://console.groq.com/keys. Examples: llama-3.3-70b-versatile, llama-3.1-8b-instant, mixtral-8x7b-32768.",
 };
@@ -27,7 +30,7 @@ export default function AdminAISettings() {
   const [saving, setSaving] = useState(false);
   const [provider, setProvider] = useState("gemini");
   const [apiKey, setApiKey] = useState("");
-  const [model, setModel] = useState("gemini-2.0-flash");
+  const [model, setModel] = useState("gemini-2.5-flash");
 
   useEffect(() => {
     (async () => {
@@ -102,45 +105,66 @@ export default function AdminAISettings() {
           </p>
         </div>
 
-        <GlassCard className="p-6 space-y-5">
-          <div className="space-y-2">
-            <Label>AI Provider</Label>
-            <Select value={provider} onValueChange={handleProviderChange}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="gemini">Google Gemini</SelectItem>
-                <SelectItem value="openai">OpenAI (ChatGPT)</SelectItem>
-                <SelectItem value="groq">Groq</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">{PROVIDER_HINTS[provider]}</p>
-          </div>
+        <GlassCard className="p-6">
+          <Tabs defaultValue="gemini" className="space-y-5">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="gemini">Gemini</TabsTrigger>
+              <TabsTrigger value="advanced">Advanced</TabsTrigger>
+            </TabsList>
 
-          <div className="space-y-2">
-            <Label>API Key</Label>
-            <Input
-              type="password"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder="Paste your API key here"
-              autoComplete="off"
-            />
-            <p className="text-xs text-muted-foreground">
-              Leave blank to fall back to the server environment variable for this provider.
-            </p>
-          </div>
+            <TabsContent value="gemini" className="space-y-5">
+              <div className="space-y-2">
+                <Label>Gemini API Key</Label>
+                <Input
+                  type="password"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder="Paste your Gemini API key here"
+                  autoComplete="off"
+                />
+              </div>
 
-          <div className="space-y-2">
-            <Label>Model</Label>
-            <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder={PROVIDER_DEFAULTS[provider]} />
-          </div>
+              <div className="space-y-2">
+                <Label>Gemini Model</Label>
+                <Select value={model} onValueChange={(value) => { setProvider("gemini"); setModel(value); }}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {GEMINI_MODELS.map((geminiModel) => (
+                      <SelectItem key={geminiModel} value={geminiModel}>{geminiModel}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">{PROVIDER_HINTS.gemini}</p>
+              </div>
+            </TabsContent>
 
-          <div className="flex justify-end gap-3">
-            <Button onClick={save} disabled={saving}>
-              {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Save Settings
-            </Button>
-          </div>
+            <TabsContent value="advanced" className="space-y-5">
+              <div className="space-y-2">
+                <Label>AI Provider</Label>
+                <Select value={provider} onValueChange={handleProviderChange}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="gemini">Google Gemini</SelectItem>
+                    <SelectItem value="openai">OpenAI (ChatGPT)</SelectItem>
+                    <SelectItem value="groq">Groq</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">{PROVIDER_HINTS[provider]}</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Model</Label>
+                <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder={PROVIDER_DEFAULTS[provider]} />
+              </div>
+            </TabsContent>
+
+            <div className="flex justify-end gap-3">
+              <Button onClick={save} disabled={saving}>
+                {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Save Settings
+              </Button>
+            </div>
+          </Tabs>
         </GlassCard>
 
         <GlassCard className="p-6">

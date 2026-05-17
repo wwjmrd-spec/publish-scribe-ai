@@ -16,6 +16,38 @@ function jsonResponse(body: object, status = 200) {
   });
 }
 
+async function readAiError(response: Response) {
+  const text = await response.text();
+  let message = text;
+  let retryDelay = "";
+
+  try {
+    const parsed = JSON.parse(text);
+    const error = Array.isArray(parsed) ? parsed[0]?.error : parsed?.error;
+    message = error?.message || parsed?.message || text;
+    retryDelay = error?.details?.find((detail: any) => detail?.["@type"]?.includes("RetryInfo"))?.retryDelay || "";
+  } catch {
+    // Keep raw provider text when it is not JSON.
+  }
+
+  return { text, message, retryDelay };
+}
+
+function providerErrorMessage(status: number, provider: string, model: string, message: string, retryDelay = "") {
+  const providerName = provider === "gemini" ? "Gemini" : provider.toUpperCase();
+  const retryText = retryDelay ? ` Retry after ${retryDelay}.` : "";
+
+  if (status === 429) {
+    return `${providerName} rejected model ${model} with a temporary rate limit.${retryText} You can also switch to another Gemini model in Admin > AI Settings.`;
+  }
+
+  if (status === 402) {
+    return `${providerName} rejected this request for billing on model ${model}. Please check the provider billing/API access for this key.`;
+  }
+
+  return message ? `${providerName} error on ${model}: ${message}` : `${providerName} request failed on ${model}.`;
+}
+
 async function extractDocxText(supabase: any, documentUrl: string): Promise<string> {
   console.log("Downloading document from storage:", documentUrl);
   const { data: fileData, error: downloadError } = await supabase.storage
@@ -587,15 +619,27 @@ Provide your response as a valid JSON object with this exact structure:
     });
 
     if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error("AI Gateway error:", aiResponse.status, errorText);
+      const aiError = await readAiError(aiResponse);
+      console.error("AI Gateway error:", aiResponse.status, aiGateway.provider, aiGateway.model, aiError.text);
       if (aiResponse.status === 429) {
-        return jsonResponse({ error: "AI_RATE_LIMITED", message: "AI provider is rate-limited. Please try again later.", retryable: true }, 200);
+        return jsonResponse({
+          error: "AI_RATE_LIMITED",
+          message: providerErrorMessage(aiResponse.status, aiGateway.provider, aiGateway.model, aiError.message, aiError.retryDelay),
+          retryable: true,
+          provider: aiGateway.provider,
+          model: aiGateway.model,
+        }, 200);
       }
       if (aiResponse.status === 402) {
-        return jsonResponse({ error: "AI_CREDITS_EXHAUSTED", message: "AI credits are exhausted. Please add funds in Settings > Cloud & AI balance.", retryable: false }, 200);
+        return jsonResponse({
+          error: "AI_BILLING_ERROR",
+          message: providerErrorMessage(aiResponse.status, aiGateway.provider, aiGateway.model, aiError.message),
+          retryable: false,
+          provider: aiGateway.provider,
+          model: aiGateway.model,
+        }, 200);
       }
-      return jsonResponse({ error: "AI review failed" }, 500);
+      return jsonResponse({ error: "AI review failed", message: providerErrorMessage(aiResponse.status, aiGateway.provider, aiGateway.model, aiError.message) }, 500);
     }
 
     const aiData = await aiResponse.json();
