@@ -16,6 +16,38 @@ function jsonResponse(body: object, status = 200) {
   });
 }
 
+async function readAiError(response: Response) {
+  const text = await response.text();
+  let message = text;
+  let retryDelay = "";
+
+  try {
+    const parsed = JSON.parse(text);
+    const error = Array.isArray(parsed) ? parsed[0]?.error : parsed?.error;
+    message = error?.message || parsed?.message || text;
+    retryDelay = error?.details?.find((detail: any) => detail?.["@type"]?.includes("RetryInfo"))?.retryDelay || "";
+  } catch {
+    // Keep raw provider text when it is not JSON.
+  }
+
+  return { text, message, retryDelay };
+}
+
+function providerErrorMessage(status: number, provider: string, model: string, message: string, retryDelay = "") {
+  const providerName = provider === "gemini" ? "Gemini" : provider.toUpperCase();
+  const retryText = retryDelay ? ` Retry after ${retryDelay}.` : "";
+
+  if (status === 429) {
+    return `${providerName} rejected model ${model} with a temporary rate limit.${retryText} You can also switch to another Gemini model in Admin > AI Settings.`;
+  }
+
+  if (status === 402) {
+    return `${providerName} rejected this request for billing on model ${model}. Please check the provider billing/API access for this key.`;
+  }
+
+  return message ? `${providerName} error on ${model}: ${message}` : `${providerName} request failed on ${model}.`;
+}
+
 async function extractDocxText(supabase: any, documentUrl: string): Promise<string> {
   console.log("Downloading document from storage:", documentUrl);
   const { data: fileData, error: downloadError } = await supabase.storage
