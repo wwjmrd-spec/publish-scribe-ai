@@ -6,17 +6,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 
 const PROVIDER_DEFAULTS: Record<string, string> = {
-  gemini: "gemini-2.0-flash",
+  gemini: "gemini-2.5-flash",
   openai: "gpt-4o-mini",
   groq: "llama-3.3-70b-versatile",
 };
 
+const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash", "gemini-2.0-flash-lite"];
+
 const PROVIDER_HINTS: Record<string, string> = {
-  gemini: "Get a key at https://aistudio.google.com/apikey. Examples: gemini-2.0-flash, gemini-1.5-pro, gemini-2.5-flash.",
+  gemini: "Get a key at https://aistudio.google.com/apikey. Recommended: gemini-2.5-flash. If one model is limited, switch models here.",
   openai: "Get a key at https://platform.openai.com/api-keys. Examples: gpt-4o-mini, gpt-4o, gpt-4-turbo.",
   groq: "Get a key at https://console.groq.com/keys. Examples: llama-3.3-70b-versatile, llama-3.1-8b-instant, mixtral-8x7b-32768.",
 };
@@ -27,7 +30,7 @@ export default function AdminAISettings() {
   const [saving, setSaving] = useState(false);
   const [provider, setProvider] = useState("gemini");
   const [apiKey, setApiKey] = useState("");
-  const [model, setModel] = useState("gemini-2.0-flash");
+  const [model, setModel] = useState("gemini-2.5-flash");
 
   useEffect(() => {
     (async () => {
