@@ -619,15 +619,27 @@ Provide your response as a valid JSON object with this exact structure:
     });
 
     if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error("AI Gateway error:", aiResponse.status, errorText);
+      const aiError = await readAiError(aiResponse);
+      console.error("AI Gateway error:", aiResponse.status, aiGateway.provider, aiGateway.model, aiError.text);
       if (aiResponse.status === 429) {
-        return jsonResponse({ error: "AI_RATE_LIMITED", message: "AI provider is rate-limited. Please try again later.", retryable: true }, 200);
+        return jsonResponse({
+          error: "AI_RATE_LIMITED",
+          message: providerErrorMessage(aiResponse.status, aiGateway.provider, aiGateway.model, aiError.message, aiError.retryDelay),
+          retryable: true,
+          provider: aiGateway.provider,
+          model: aiGateway.model,
+        }, 200);
       }
       if (aiResponse.status === 402) {
-        return jsonResponse({ error: "AI_CREDITS_EXHAUSTED", message: "AI credits are exhausted. Please add funds in Settings > Cloud & AI balance.", retryable: false }, 200);
+        return jsonResponse({
+          error: "AI_BILLING_ERROR",
+          message: providerErrorMessage(aiResponse.status, aiGateway.provider, aiGateway.model, aiError.message),
+          retryable: false,
+          provider: aiGateway.provider,
+          model: aiGateway.model,
+        }, 200);
       }
-      return jsonResponse({ error: "AI review failed" }, 500);
+      return jsonResponse({ error: "AI review failed", message: providerErrorMessage(aiResponse.status, aiGateway.provider, aiGateway.model, aiError.message) }, 500);
     }
 
     const aiData = await aiResponse.json();
