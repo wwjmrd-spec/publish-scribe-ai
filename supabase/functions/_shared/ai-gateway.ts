@@ -94,7 +94,7 @@ function buildHeaders(cfg: AiGatewayConfig): Record<string, string> {
 }
 
 function shouldFallbackToLovable(cfg: AiGatewayConfig, response: Response): boolean {
-  return cfg.provider !== FALLBACK_PROVIDER && (response.status === 429 || response.status === 402);
+  return cfg.provider !== FALLBACK_PROVIDER && (response.status === 429 || response.status >= 500);
 }
 
 function getLovableFallbackConfig(): AiGatewayConfig | null {
