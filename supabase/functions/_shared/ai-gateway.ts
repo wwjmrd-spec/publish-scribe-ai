@@ -15,6 +15,8 @@ export interface AiGatewayConfig {
   model: string;
 }
 
+const FALLBACK_PROVIDER: AiProvider = "lovable";
+
 const DEFAULT_MODELS: Record<AiProvider, string> = {
   gemini: "gemini-2.0-flash",
   openai: "gpt-4o-mini",
@@ -76,6 +78,37 @@ export async function getAiGatewayConfig(): Promise<AiGatewayConfig> {
   return { provider, url: PROVIDER_URLS[provider], apiKey, model };
 }
 
+function buildHeaders(cfg: AiGatewayConfig): Record<string, string> {
+  if (cfg.provider === "lovable") {
+    return {
+      "Lovable-API-Key": cfg.apiKey,
+      "X-Lovable-AIG-SDK": "vercel-ai-sdk",
+      "Content-Type": "application/json",
+    };
+  }
+
+  return {
+    Authorization: `Bearer ${cfg.apiKey}`,
+    "Content-Type": "application/json",
+  };
+}
+
+function shouldFallbackToLovable(cfg: AiGatewayConfig, response: Response): boolean {
+  return cfg.provider !== FALLBACK_PROVIDER && (response.status === 429 || response.status === 402);
+}
+
+function getLovableFallbackConfig(): AiGatewayConfig | null {
+  const apiKey = Deno.env.get(ENV_KEYS.lovable) || "";
+  if (!apiKey) return null;
+
+  return {
+    provider: FALLBACK_PROVIDER,
+    url: PROVIDER_URLS.lovable,
+    apiKey,
+    model: DEFAULT_MODELS.lovable,
+  };
+}
+
 /**
  * Convenience wrapper that POSTs an OpenAI-compatible chat completion payload
  * to the configured provider. Caller can pass any fields (messages, tools, etc.)
@@ -85,12 +118,29 @@ export async function aiChatCompletion(
   cfg: AiGatewayConfig,
   payload: Record<string, unknown>,
 ): Promise<Response> {
-  return await fetch(cfg.url, {
+  const body = JSON.stringify({ ...payload, model: cfg.model });
+  const response = await fetch(cfg.url, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${cfg.apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ ...payload, model: cfg.model }),
+    headers: buildHeaders(cfg),
+    body,
+  });
+
+  if (!shouldFallbackToLovable(cfg, response)) return response;
+
+  const errorText = await response.text();
+  console.error(
+    `AI provider '${cfg.provider}' failed with ${response.status}; retrying with Lovable AI fallback.`,
+    errorText,
+  );
+
+  const fallback = getLovableFallbackConfig();
+  if (!fallback) {
+    return new Response(errorText, { status: response.status, headers: response.headers });
+  }
+
+  return await fetch(fallback.url, {
+    method: "POST",
+    headers: buildHeaders(fallback),
+    body: JSON.stringify({ ...payload, model: fallback.model }),
   });
 }
