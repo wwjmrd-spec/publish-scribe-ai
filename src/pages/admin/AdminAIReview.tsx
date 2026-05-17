@@ -81,6 +81,7 @@ export default function AdminAIReview() {
       });
 
       if (response.error) throw new Error(response.error.message);
+      if (response.data?.error) throw new Error(response.data.message || response.data.error);
       return response.data;
     },
     onSuccess: (data) => {
