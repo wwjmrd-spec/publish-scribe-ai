@@ -105,45 +105,66 @@ export default function AdminAISettings() {
           </p>
         </div>
 
-        <GlassCard className="p-6 space-y-5">
-          <div className="space-y-2">
-            <Label>AI Provider</Label>
-            <Select value={provider} onValueChange={handleProviderChange}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="gemini">Google Gemini</SelectItem>
-                <SelectItem value="openai">OpenAI (ChatGPT)</SelectItem>
-                <SelectItem value="groq">Groq</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">{PROVIDER_HINTS[provider]}</p>
-          </div>
+        <GlassCard className="p-6">
+          <Tabs defaultValue="gemini" className="space-y-5">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="gemini">Gemini</TabsTrigger>
+              <TabsTrigger value="advanced">Advanced</TabsTrigger>
+            </TabsList>
 
-          <div className="space-y-2">
-            <Label>API Key</Label>
-            <Input
-              type="password"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder="Paste your API key here"
-              autoComplete="off"
-            />
-            <p className="text-xs text-muted-foreground">
-              Leave blank to fall back to the server environment variable for this provider.
-            </p>
-          </div>
+            <TabsContent value="gemini" className="space-y-5">
+              <div className="space-y-2">
+                <Label>Gemini API Key</Label>
+                <Input
+                  type="password"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder="Paste your Gemini API key here"
+                  autoComplete="off"
+                />
+              </div>
 
-          <div className="space-y-2">
-            <Label>Model</Label>
-            <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder={PROVIDER_DEFAULTS[provider]} />
-          </div>
+              <div className="space-y-2">
+                <Label>Gemini Model</Label>
+                <Select value={model} onValueChange={(value) => { setProvider("gemini"); setModel(value); }}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {GEMINI_MODELS.map((geminiModel) => (
+                      <SelectItem key={geminiModel} value={geminiModel}>{geminiModel}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">{PROVIDER_HINTS.gemini}</p>
+              </div>
+            </TabsContent>
 
-          <div className="flex justify-end gap-3">
-            <Button onClick={save} disabled={saving}>
-              {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Save Settings
-            </Button>
-          </div>
+            <TabsContent value="advanced" className="space-y-5">
+              <div className="space-y-2">
+                <Label>AI Provider</Label>
+                <Select value={provider} onValueChange={handleProviderChange}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="gemini">Google Gemini</SelectItem>
+                    <SelectItem value="openai">OpenAI (ChatGPT)</SelectItem>
+                    <SelectItem value="groq">Groq</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">{PROVIDER_HINTS[provider]}</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Model</Label>
+                <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder={PROVIDER_DEFAULTS[provider]} />
+              </div>
+            </TabsContent>
+
+            <div className="flex justify-end gap-3">
+              <Button onClick={save} disabled={saving}>
+                {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Save Settings
+              </Button>
+            </div>
+          </Tabs>
         </GlassCard>
 
         <GlassCard className="p-6">
