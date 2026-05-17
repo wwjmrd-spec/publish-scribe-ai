@@ -72,36 +72,9 @@ export async function getAiGatewayConfig(): Promise<AiGatewayConfig> {
 }
 
 function buildHeaders(cfg: AiGatewayConfig): Record<string, string> {
-  if (cfg.provider === "lovable") {
-    return {
-      "Lovable-API-Key": cfg.apiKey,
-      "X-Lovable-AIG-SDK": "vercel-ai-sdk",
-      "Content-Type": "application/json",
-    };
-  }
-
   return {
     Authorization: `Bearer ${cfg.apiKey}`,
     "Content-Type": "application/json",
-  };
-}
-
-function shouldFallbackToLovable(_cfg: AiGatewayConfig, _response: Response): boolean {
-  // Fallback disabled: the admin's configured provider (Gemini/OpenAI/Groq) is
-  // always used. Errors surface directly so issues with the configured key are
-  // visible instead of being masked by a Lovable AI retry.
-  return false;
-}
-
-function getLovableFallbackConfig(): AiGatewayConfig | null {
-  const apiKey = Deno.env.get(ENV_KEYS.lovable) || "";
-  if (!apiKey) return null;
-
-  return {
-    provider: FALLBACK_PROVIDER,
-    url: PROVIDER_URLS.lovable,
-    apiKey,
-    model: DEFAULT_MODELS.lovable,
   };
 }
 
@@ -121,22 +94,5 @@ export async function aiChatCompletion(
     body,
   });
 
-  if (!shouldFallbackToLovable(cfg, response)) return response;
-
-  const errorText = await response.text();
-  console.error(
-    `AI provider '${cfg.provider}' failed with ${response.status}; retrying with Lovable AI fallback.`,
-    errorText,
-  );
-
-  const fallback = getLovableFallbackConfig();
-  if (!fallback) {
-    return new Response(errorText, { status: response.status, headers: response.headers });
-  }
-
-  return await fetch(fallback.url, {
-    method: "POST",
-    headers: buildHeaders(fallback),
-    body: JSON.stringify({ ...payload, model: fallback.model }),
-  });
+  return response;
 }
