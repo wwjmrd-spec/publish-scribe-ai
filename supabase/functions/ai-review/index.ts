@@ -589,8 +589,12 @@ Provide your response as a valid JSON object with this exact structure:
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
       console.error("AI Gateway error:", aiResponse.status, errorText);
-      if (aiResponse.status === 429) return jsonResponse({ error: "Rate limit exceeded. Please try again later." }, 429);
-      if (aiResponse.status === 402) return jsonResponse({ error: "AI credits exhausted. Please add funds." }, 402);
+      if (aiResponse.status === 429) {
+        return jsonResponse({ error: "AI_RATE_LIMITED", message: "AI provider is rate-limited. Please try again later.", retryable: true }, 200);
+      }
+      if (aiResponse.status === 402) {
+        return jsonResponse({ error: "AI_CREDITS_EXHAUSTED", message: "AI credits are exhausted. Please add funds in Settings > Cloud & AI balance.", retryable: false }, 200);
+      }
       return jsonResponse({ error: "AI review failed" }, 500);
     }
 
