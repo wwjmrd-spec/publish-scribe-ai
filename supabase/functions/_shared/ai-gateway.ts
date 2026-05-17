@@ -93,8 +93,11 @@ function buildHeaders(cfg: AiGatewayConfig): Record<string, string> {
   };
 }
 
-function shouldFallbackToLovable(cfg: AiGatewayConfig, response: Response): boolean {
-  return cfg.provider !== FALLBACK_PROVIDER && (response.status === 429 || response.status >= 500);
+function shouldFallbackToLovable(_cfg: AiGatewayConfig, _response: Response): boolean {
+  // Fallback disabled: the admin's configured provider (Gemini/OpenAI/Groq) is
+  // always used. Errors surface directly so issues with the configured key are
+  // visible instead of being masked by a Lovable AI retry.
+  return false;
 }
 
 function getLovableFallbackConfig(): AiGatewayConfig | null {
