@@ -6,7 +6,7 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-export type AiProvider = "gemini" | "openai" | "groq" | "lovable";
+export type AiProvider = "gemini" | "openai" | "groq";
 
 export interface AiGatewayConfig {
   provider: AiProvider;
@@ -15,34 +15,28 @@ export interface AiGatewayConfig {
   model: string;
 }
 
-const FALLBACK_PROVIDER: AiProvider = "lovable";
-
 const DEFAULT_MODELS: Record<AiProvider, string> = {
-  gemini: "gemini-2.0-flash",
+  gemini: "gemini-2.5-flash",
   openai: "gpt-4o-mini",
   groq: "llama-3.3-70b-versatile",
-  lovable: "google/gemini-3-flash-preview",
 };
 
 const PROVIDER_URLS: Record<AiProvider, string> = {
   gemini: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
   openai: "https://api.openai.com/v1/chat/completions",
   groq: "https://api.groq.com/openai/v1/chat/completions",
-  lovable: "https://ai.gateway.lovable.dev/v1/chat/completions",
 };
 
 const ENV_KEYS: Record<AiProvider, string> = {
   gemini: "GEMINI_API_KEY",
   openai: "OPENAI_API_KEY",
   groq: "GROQ_API_KEY",
-  lovable: "LOVABLE_API_KEY",
 };
 
 function normalizeProvider(value: string | undefined): AiProvider {
   const v = (value || "").toLowerCase().trim();
   if (v === "openai" || v === "chatgpt" || v === "gpt") return "openai";
   if (v === "groq") return "groq";
-  if (v === "lovable") return "lovable";
   return "gemini";
 }
 
@@ -65,7 +59,6 @@ export async function getAiGatewayConfig(): Promise<AiGatewayConfig> {
   const apiKey =
     (map.ai_api_key && map.ai_api_key.trim()) ||
     Deno.env.get(ENV_KEYS[provider]) ||
-    Deno.env.get("LOVABLE_API_KEY") ||
     "";
   const model = (map.ai_model && map.ai_model.trim()) || DEFAULT_MODELS[provider];
 
