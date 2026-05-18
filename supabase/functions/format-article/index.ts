@@ -433,6 +433,12 @@ function sliceBodyBlocks(blocks: Block[], meta: ArticleMetadata): Block[] {
   return sliced;
 }
 
+function removeReferenceSection(blocks: Block[], meta: ArticleMetadata): Block[] {
+  const refKeys = new Set([normHeading(meta.references_heading || "references"), "references", "bibliography", "works cited"]);
+  const end = blocks.findIndex((b) => b.kind === "heading" && refKeys.has(normHeading(b.text)));
+  return end >= 0 ? blocks.slice(0, end) : blocks;
+}
+
 // =========================================================================
 // 5. IMAGE DIMENSIONS (PNG/JPEG sniffer)
 // =========================================================================
