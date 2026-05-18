@@ -39,6 +39,7 @@ import AdminPaymentActivity from "./pages/admin/AdminPaymentActivity";
 import AdminEmailLog from "./pages/admin/AdminEmailLog";
 import AdminProSubscribers from "./pages/admin/AdminProSubscribers";
 import AdminAISettings from "./pages/admin/AdminAISettings";
+import AdminPublishQueue from "./pages/admin/AdminPublishQueue";
 import NotFound from "./pages/NotFound";
 import { ReferralPopup } from "./components/referral/ReferralPopup";
 import { CookieConsent } from "./components/CookieConsent";
@@ -301,6 +302,14 @@ const App = () => (
                   <AdminProSubscribers />
                 </ProtectedRoute>
               } 
+            />
+            <Route
+              path="/admin/publish-queue"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminPublishQueue />
+                </ProtectedRoute>
+              }
             />
             <Route
               path="/admin/ai-settings"
