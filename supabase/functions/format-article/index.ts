@@ -1036,59 +1036,48 @@ function generateEditorHtml(meta: ArticleMetadata, body: Block[], images: Map<st
   const iss = meta.header.issue || "01";
   const pgRange = meta.header.page_range || "01-10";
 
-  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
-  const authorsBlock = (meta.authors || []).map(a =>
-    `<p style="margin:2px 0;font-size:9px;"><strong>${esc(a.name)}</strong><br/><span style="font-size:8px;font-style:italic;">${esc(a.designation || "")}</span></p>`
-  ).join("");
-
-  const corrBlock = meta.correspondence?.name
-    ? `<p style="margin:8px 0 2px;font-size:9px;"><strong>Correspondence:</strong><br/><strong>${esc(meta.correspondence.name)}</strong><br/><span style="font-size:8px;font-style:italic;">${esc(meta.correspondence.designation || "")}</span></p>`
-    : "";
+  const esc = (s = "") => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
   const renderImage = (id: string, caption?: string) => {
     const img = images.get(id);
     if (!img) return "";
     const dataUrl = `data:${img.mime};base64,${bytesToBase64(img.data)}`;
-    const cap = caption ? `<p style="text-align:center;font-weight:bold;font-style:italic;font-size:10px;margin:2px 0 8px;">${esc(caption)}</p>` : "";
-    return `<div style="text-align:center;margin:8px 0;"><img src="${dataUrl}" style="max-width:100%;height:auto;display:inline-block;" alt="figure"/></div>${cap}`;
+    const cap = caption ? `<p class="ww-caption">${esc(caption)}</p>` : "";
+    return `<figure class="ww-figure"><img src="${dataUrl}" alt="figure" />${cap}</figure>`;
   };
 
   const renderTable = (rows: string[][]) => {
     const trs = rows.map((r, ri) =>
       `<tr>${r.map(c => `<${ri === 0 ? "th" : "td"}>${esc(c)}</${ri === 0 ? "th" : "td"}>`).join("")}</tr>`
     ).join("");
-    return `<table style="border-collapse:collapse;width:100%;margin:8px 0;font-size:10px;">${trs}</table>`;
+    return `<table class="ww-data-table">${trs}</table>`;
   };
 
   const bodyHtml = body.map(b => {
-    if (b.kind === "heading") {
-      const tag = `h${b.level}`;
-      const sz = b.level === 1 ? 13 : b.level === 2 ? 12 : 11;
-      return `<${tag} style="font-size:${sz}px;font-weight:bold;margin:10px 0 4px;">${esc(b.text)}</${tag}>`;
-    }
-    if (b.kind === "paragraph") return `<p style="text-align:justify;font-size:10px;line-height:1.5;margin:4px 0;">${esc(b.text)}</p>`;
+    if (b.kind === "heading") return `<h${b.level}>${esc(b.text)}</h${b.level}>`;
+    if (b.kind === "paragraph") return `<p>${esc(b.text)}</p>`;
     if (b.kind === "image") return renderImage(b.id, b.caption);
     if (b.kind === "table") return renderTable(b.rows);
     if (b.kind === "list") {
       const tag = b.ordered ? "ol" : "ul";
-      return `<${tag} style="font-size:10px;margin:4px 0 4px 20px;">${b.items.map(i => `<li>${esc(i)}</li>`).join("")}</${tag}>`;
+      return `<${tag}>${b.items.map(i => `<li>${esc(i)}</li>`).join("")}</${tag}>`;
     }
     return "";
   }).join("");
 
-  const refsHtml = (meta.references?.length || 0) > 0
-    ? `<h2 style="font-size:12px;font-weight:bold;margin:12px 0 4px;">References</h2><ol style="font-size:9px;padding-left:18px;line-height:1.5;">${meta.references.map(r => `<li>${esc(r)}</li>`).join("")}</ol>`
+  const singleReference = (meta.references || []).slice(0, 1);
+  const refsHtml = singleReference.length
+    ? `<h2>References</h2><ol class="ww-references">${singleReference.map(r => `<li>${esc(r)}</li>`).join("")}</ol>`
     : "";
 
   const authorsInline = (meta.authors || []).map((a, i) => {
-    const sup = a.designation ? `<sup style="font-size:8px;">${i + 1}</sup>` : "";
+    const sup = a.designation ? `<sup>${i + 1}</sup>` : "";
     return `${esc(a.name)}${sup}`;
   }).join(", ");
 
   const affiliationsList = (meta.authors || [])
     .filter(a => a.designation)
-    .map((a, i) => `<p style="margin:2px 0;font-size:9px;color:#333;"><sup style="color:#1e3a8a;font-weight:bold;">${i + 1}</sup> ${esc(a.designation || "")}</p>`)
+    .map((a, i) => `<p><sup>${i + 1}</sup> ${esc(a.designation || "")}</p>`)
     .join("");
 
   const today = new Date();
@@ -1097,141 +1086,72 @@ function generateEditorHtml(meta: ArticleMetadata, body: Block[], images: Map<st
   const revisedDate = fmtDate(new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000));
   const acceptedDate = fmtDate(new Date(today.getTime() - 10 * 24 * 60 * 60 * 1000));
   const publishedDate = fmtDate(today);
-
-  const firstAuthor = (meta.authors || [])[0]?.name || "Author";
-  const citationAuthors = (meta.authors || []).map(a => a.name).join(", ") || firstAuthor;
+  const citationAuthors = (meta.authors || []).map(a => a.name).join(", ") || "Author";
 
   return `
-<div style="font-family:'Georgia','Times New Roman',serif;color:#0f172a;background:#fff;max-width:780px;margin:0 auto;padding:0;">
-
-  <!-- ============ HEADER ============ -->
-  <table style="width:100%;border-collapse:collapse;border-bottom:3px solid #1e3a8a;"><tr>
-    <td style="padding:10px 24px 8px;vertical-align:middle;">
-      <img src="/wwjmrd-logo.png" alt="WWJMRD" style="height:48px;width:auto;display:block;" />
-    </td>
-    <td style="padding:10px 24px 8px;vertical-align:middle;text-align:right;font-family:Arial,sans-serif;font-size:9px;color:#1e3a8a;line-height:1.5;">
-      <div style="font-weight:bold;">E-ISSN: 2454-6615</div>
-      <div>www.wwjmrd.com</div>
-    </td>
-  </tr></table>
-
-  <!-- ============ TOP ARTICLE BAR ============ -->
-  <div style="display:flex;align-items:center;justify-content:space-between;background:#f1f5f9;padding:8px 24px;border-bottom:1px solid #cbd5e1;">
-    <span style="background:#1e3a8a;color:#fff;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;letter-spacing:1.2px;padding:5px 12px;border-radius:2px;">REVIEW ARTICLE</span>
-    <span style="font-family:Arial,sans-serif;font-size:9px;color:#334155;font-weight:600;">Volume ${vol} | Issue ${iss} | ${currentMonth}-${yr} | Pages ${pgRange}</span>
-  </div>
-
-  <!-- ============ MAIN GRID ============ -->
-  <table style="width:100%;border-collapse:collapse;"><tr style="vertical-align:top;">
-    <!-- LEFT: ARTICLE -->
-    <td style="padding:14px 12px 8px 24px;">
-      <h1 style="font-family:Georgia,serif;font-size:18px;font-weight:bold;color:#0f172a;line-height:1.3;margin:0 0 10px;">${esc(meta.title)}</h1>
-      <p style="font-size:11px;color:#1e3a8a;font-weight:600;margin:0 0 6px;line-height:1.5;">${authorsInline}</p>
-      <div style="margin:0 0 12px;">${affiliationsList}</div>
-
-      <!-- ABSTRACT BOX -->
-      <div style="border:1px solid #cbd5e1;border-left:4px solid #1e3a8a;border-radius:6px;background:#f8fafc;padding:12px 14px;margin:10px 0 14px;">
-        <div style="font-family:Arial,sans-serif;font-weight:bold;color:#1e3a8a;font-size:11px;letter-spacing:1.5px;margin-bottom:6px;">ABSTRACT</div>
-        <p style="text-align:justify;font-size:10px;line-height:1.6;margin:0 0 8px;color:#1f2937;">${esc(meta.abstract || "")}</p>
-        <div style="border-top:1px dashed #cbd5e1;padding-top:6px;margin-top:6px;">
-          <span style="font-family:Arial,sans-serif;font-weight:bold;color:#1e3a8a;font-size:9px;letter-spacing:1.2px;">KEYWORDS: </span>
-          <span style="font-size:10px;font-style:italic;color:#334155;">${esc((meta.keywords || []).join(", "))}</span>
-        </div>
-      </div>
-
-      <!-- BODY -->
-      <div style="font-size:10.5px;line-height:1.6;color:#1f2937;">
-        ${bodyHtml}
-        ${refsHtml}
-      </div>
-    </td>
-
-    <!-- RIGHT: SIDEBAR -->
-    <td style="width:215px;padding:14px 24px 8px 0;font-family:Arial,Helvetica,sans-serif;">
-
-      <!-- PubPortal -->
-      <div style="border:1px solid #c7d2fe;border-radius:8px;background:linear-gradient(160deg,#1e1b4b,#312e81);padding:10px;margin-bottom:10px;text-align:center;">
-        <div style="font-size:8px;font-weight:bold;color:#c4b5fd;letter-spacing:1.2px;margin-bottom:4px;">SUBMITTED VIA</div>
-        <img src="/pubportal-logo.png" alt="PubPortal" style="height:28px;width:auto;display:inline-block;margin:2px 0 6px;" />
-        <ul style="list-style:none;padding:0;margin:0 0 8px;font-size:9px;color:#e0e7ff;line-height:1.6;text-align:left;">
-          <li>✓ Easy Online Submission</li>
-          <li>✓ Real-time Tracking</li>
-          <li>✓ Peer Review Management</li>
-          <li>✓ Faster Decision</li>
-          <li>✓ Wider Visibility</li>
-        </ul>
-        <a href="https://www.wwjmrdai.online" style="display:block;text-align:center;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;font-size:10px;font-weight:bold;padding:7px;border-radius:6px;text-decoration:none;letter-spacing:0.5px;">Submit Now →</a>
-        <div style="text-align:center;font-size:8px;color:#c4b5fd;margin-top:5px;font-weight:600;">www.wwjmrdai.online</div>
-      </div>
-
-      <!-- About -->
-      <div style="border:1px solid #cbd5e1;border-radius:6px;padding:10px 12px;margin-bottom:12px;background:#fff;">
-        <div style="font-size:9px;font-weight:bold;color:#1e3a8a;letter-spacing:1.2px;border-bottom:2px solid #1e3a8a;padding-bottom:4px;margin-bottom:6px;">ABOUT THE JOURNAL</div>
-        <p style="font-size:9px;line-height:1.5;color:#334155;margin:0;">WWJMRD is a peer-reviewed, refereed and indexed international multidisciplinary publication platform welcoming research across all disciplines.</p>
-      </div>
-
-      <!-- Highlights -->
-      <div style="border:1px solid #cbd5e1;border-radius:6px;padding:10px 12px;margin-bottom:12px;background:#fff;">
-        <div style="font-size:9px;font-weight:bold;color:#1e3a8a;letter-spacing:1.2px;border-bottom:2px solid #1e3a8a;padding-bottom:4px;margin-bottom:6px;">JOURNAL HIGHLIGHTS</div>
-        <ul style="list-style:none;padding:0;margin:0;font-size:9px;color:#334155;line-height:1.8;">
-          <li>◆ Peer Reviewed Journal</li>
-          <li>◆ Refereed Journal</li>
-          <li>◆ Indexed Journal</li>
-          <li>◆ Global Indexing & Archiving</li>
-          <li>◆ Impact Factor (SJIF)</li>
-        </ul>
-      </div>
-
-      <!-- Contact -->
-      <div style="border:1px solid #1e3a8a;border-radius:6px;padding:10px 12px;background:#1e3a8a;color:#fff;">
-        <div style="font-size:9px;font-weight:bold;letter-spacing:1.2px;border-bottom:1px solid #3b82f6;padding-bottom:4px;margin-bottom:6px;">CONTACT US</div>
-        <p style="font-size:8.5px;line-height:1.5;margin:0 0 4px;font-weight:bold;">World Wide Journal of Multidisciplinary Research and Development (WWJMRD)</p>
-        <p style="font-size:8.5px;margin:2px 0;">✉ support@wwjmrd.com</p>
-        <p style="font-size:8.5px;margin:2px 0;">🌐 www.wwjmrd.com</p>
-        <p style="font-size:8.5px;margin:2px 0;">📍 India</p>
-      </div>
-    </td>
-  </tr></table>
-
-  <!-- ============ METADATA ============ -->
-  <div style="margin:6px 24px 0;border-top:2px solid #1e3a8a;padding-top:10px;">
-    <table style="width:100%;border-collapse:separate;border-spacing:6px 0;margin-bottom:10px;"><tr>
-      ${[["Received", receivedDate],["Revised", revisedDate],["Accepted", acceptedDate],["Published", publishedDate]].map(([l,v]) =>
-        `<td style="border:1px solid #cbd5e1;border-radius:5px;padding:6px;text-align:center;background:#f8fafc;font-family:Arial,sans-serif;width:25%;"><div style="font-size:8px;color:#64748b;font-weight:bold;letter-spacing:1px;">${l.toUpperCase()}</div><div style="font-size:10px;color:#1e3a8a;font-weight:bold;margin-top:2px;">${v}</div></td>`
-      ).join("")}
+<style>
+  .wwjmrd-article { font-family: Georgia, 'Times New Roman', serif; color:#0f172a; background:#fff; }
+  .ww-a4-page { width:180mm; min-height:267mm; margin:0 auto; background:#fff; }
+  .ww-first-page { max-width:780px; padding:0; }
+  .ww-body-page { width:180mm; margin:0 auto; padding:0; background:#fff; }
+  .ww-body-flow { max-width:166mm; margin:0 auto; padding:0; font-size:10.8px; line-height:1.62; color:#1f2937; }
+  .ww-body-flow h1, .ww-body-flow h2, .ww-body-flow h3 { font-family:Georgia,'Times New Roman',serif; color:#0f172a; font-weight:bold; margin:12px 0 5px; line-height:1.25; }
+  .ww-body-flow h1 { font-size:14px; } .ww-body-flow h2 { font-size:12.5px; } .ww-body-flow h3 { font-size:11.5px; }
+  .ww-body-flow p { text-align:justify; margin:4px 0; }
+  .ww-body-flow ul, .ww-body-flow ol { margin:5px 0 6px 18px; padding:0; }
+  .ww-body-flow li { margin:2px 0; text-align:justify; }
+  .ww-figure { page-break-inside:avoid; break-inside:avoid; text-align:center; margin:10px 0 12px; }
+  .ww-figure img { max-width:100%; height:auto; display:inline-block; }
+  .ww-caption { text-align:center !important; font-weight:bold; font-style:italic; font-size:10px; margin:3px 0 0 !important; }
+  .ww-data-table { page-break-inside:avoid; break-inside:avoid; border-collapse:collapse; width:100%; margin:9px 0 12px; table-layout:auto; }
+  .ww-data-table th, .ww-data-table td { border:1px solid #94a3b8; padding:4px 5px; font-size:9.2px; vertical-align:top; overflow-wrap:anywhere; }
+  .ww-data-table th { background:#e2e8f0; font-weight:bold; }
+  .ww-references { font-size:9.5px; line-height:1.45; }
+  @media print { .ww-a4-page, .ww-body-page { page-break-after:always; break-after:page; } }
+</style>
+<div class="wwjmrd-article">
+  <section class="ww-a4-page ww-first-page" data-a4-page="first">
+    <table style="width:100%;border-collapse:collapse;border-bottom:3px solid #1e3a8a;"><tr>
+      <td style="padding:10px 24px 8px;vertical-align:middle;"><img src="/wwjmrd-logo.png" alt="WWJMRD" style="height:48px;width:auto;display:block;" /></td>
+      <td style="padding:10px 24px 8px;vertical-align:middle;text-align:right;font-family:Arial,sans-serif;font-size:9px;color:#1e3a8a;line-height:1.5;"><div style="font-weight:bold;">E-ISSN: 2454-6615</div><div>www.wwjmrd.com</div></td>
     </tr></table>
-
-    <div style="border-left:3px solid #1e3a8a;background:#f1f5f9;padding:8px 12px;border-radius:0 4px 4px 0;">
-      <div style="font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#1e3a8a;letter-spacing:1px;margin-bottom:3px;">HOW TO CITE THIS ARTICLE</div>
-      <p style="font-size:9.5px;line-height:1.5;margin:0;color:#334155;">${esc(citationAuthors)}. ${esc(meta.title)}. <em>World Wide Journal of Multidisciplinary Research and Development</em>, ${yr}; ${vol}(${iss}): ${pgRange}.</p>
+    <div style="display:flex;align-items:center;justify-content:space-between;background:#f1f5f9;padding:8px 24px;border-bottom:1px solid #cbd5e1;">
+      <span style="background:#1e3a8a;color:#fff;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;letter-spacing:1.2px;padding:5px 12px;border-radius:2px;">RESEARCH ARTICLE</span>
+      <span style="font-family:Arial,sans-serif;font-size:9px;color:#334155;font-weight:600;">Volume ${vol} | Issue ${iss} | ${currentMonth}-${yr} | Pages ${pgRange}</span>
     </div>
-  </div>
-
-  <!-- ============ INDEXING / SOCIAL ============ -->
-  <table style="width:calc(100% - 48px);margin:10px 24px 0;border-collapse:collapse;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;"><tr>
-    <td style="padding:10px 0;font-family:Arial,sans-serif;font-size:9px;color:#64748b;">
-      <span style="font-weight:bold;color:#1e3a8a;letter-spacing:1px;margin-right:8px;">INDEXED IN:</span>
-      <span style="display:inline-block;padding:3px 8px;border:1px solid #cbd5e1;border-radius:3px;margin:0 3px;font-weight:600;color:#334155;">Crossref</span>
-      <span style="display:inline-block;padding:3px 8px;border:1px solid #cbd5e1;border-radius:3px;margin:0 3px;font-weight:600;color:#334155;">Google Scholar</span>
-      <span style="display:inline-block;padding:3px 8px;border:1px solid #cbd5e1;border-radius:3px;margin:0 3px;font-weight:600;color:#334155;">ROAD</span>
-      <span style="display:inline-block;padding:3px 8px;border:1px solid #cbd5e1;border-radius:3px;margin:0 3px;font-weight:600;color:#334155;">WorldCat</span>
-      <span style="display:inline-block;padding:3px 8px;border:1px solid #cbd5e1;border-radius:3px;margin:0 3px;font-weight:600;color:#334155;">ISI</span>
-    </td>
-    <td style="padding:10px 0;text-align:right;font-family:Arial,sans-serif;font-size:11px;white-space:nowrap;">
-      <span style="display:inline-block;width:22px;height:22px;border-radius:50%;background:#1e3a8a;color:#fff;text-align:center;line-height:22px;margin:0 2px;font-weight:bold;">f</span>
-      <span style="display:inline-block;width:22px;height:22px;border-radius:50%;background:#0f172a;color:#fff;text-align:center;line-height:22px;margin:0 2px;font-weight:bold;">𝕏</span>
-      <span style="display:inline-block;width:22px;height:22px;border-radius:50%;background:#0a66c2;color:#fff;text-align:center;line-height:22px;margin:0 2px;font-weight:bold;font-size:9px;">in</span>
-      <span style="display:inline-block;width:22px;height:22px;border-radius:50%;background:#dc2743;color:#fff;text-align:center;line-height:22px;margin:0 2px;font-weight:bold;font-size:10px;">◉</span>
-    </td>
-  </tr></table>
-
-  <!-- ============ FOOTER ============ -->
-  <div style="background:#0f172a;color:#fff;text-align:center;padding:12px;margin-top:14px;font-family:Arial,sans-serif;font-size:11px;letter-spacing:2px;font-weight:bold;">
-    www.wwjmrd.com
-  </div>
+    <table style="width:100%;border-collapse:collapse;"><tr style="vertical-align:top;">
+      <td style="padding:14px 12px 8px 24px;">
+        <h1 style="font-family:Georgia,serif;font-size:18px;font-weight:bold;color:#0f172a;line-height:1.3;margin:0 0 10px;">${esc(meta.title)}</h1>
+        <p style="font-size:11px;color:#1e3a8a;font-weight:600;margin:0 0 6px;line-height:1.5;">${authorsInline}</p>
+        <div style="margin:0 0 12px;font-size:9px;color:#333;">${affiliationsList}</div>
+        <div style="border:1px solid #cbd5e1;border-left:4px solid #1e3a8a;border-radius:6px;background:#f8fafc;padding:12px 14px;margin:10px 0 14px;">
+          <div style="font-family:Arial,sans-serif;font-weight:bold;color:#1e3a8a;font-size:11px;letter-spacing:1.5px;margin-bottom:6px;">ABSTRACT</div>
+          <p style="text-align:justify;font-size:10px;line-height:1.6;margin:0 0 8px;color:#1f2937;">${esc(meta.abstract || "")}</p>
+          <div style="border-top:1px dashed #cbd5e1;padding-top:6px;margin-top:6px;"><span style="font-family:Arial,sans-serif;font-weight:bold;color:#1e3a8a;font-size:9px;letter-spacing:1.2px;">KEYWORDS: </span><span style="font-size:10px;font-style:italic;color:#334155;">${esc((meta.keywords || []).join(", "))}</span></div>
+        </div>
+      </td>
+      <td style="width:215px;padding:14px 24px 8px 0;font-family:Arial,Helvetica,sans-serif;">
+        <div style="border:1px solid #c7d2fe;border-radius:8px;background:linear-gradient(160deg,#1e1b4b,#312e81);padding:10px;margin-bottom:10px;text-align:center;">
+          <div style="font-size:8px;font-weight:bold;color:#c4b5fd;letter-spacing:1.2px;margin-bottom:4px;">SUBMITTED VIA</div>
+          <img src="/pubportal-logo.png" alt="PubPortal" style="height:28px;width:auto;display:inline-block;margin:2px 0 6px;" />
+          <ul style="list-style:none;padding:0;margin:0 0 8px;font-size:9px;color:#e0e7ff;line-height:1.6;text-align:left;"><li>✓ Easy Online Submission</li><li>✓ Real-time Tracking</li><li>✓ Peer Review Management</li><li>✓ Faster Decision</li><li>✓ Wider Visibility</li></ul>
+          <div style="text-align:center;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;font-size:10px;font-weight:bold;padding:7px;border-radius:6px;letter-spacing:0.5px;">Submit Now →</div>
+          <div style="text-align:center;font-size:8px;color:#c4b5fd;margin-top:5px;font-weight:600;">www.wwjmrdai.online</div>
+        </div>
+        <div style="border:1px solid #cbd5e1;border-radius:6px;padding:10px 12px;margin-bottom:12px;background:#fff;"><div style="font-size:9px;font-weight:bold;color:#1e3a8a;letter-spacing:1.2px;border-bottom:2px solid #1e3a8a;padding-bottom:4px;margin-bottom:6px;">ABOUT THE JOURNAL</div><p style="font-size:9px;line-height:1.5;color:#334155;margin:0;">WWJMRD is a peer-reviewed, refereed and indexed international multidisciplinary publication platform welcoming research across all disciplines.</p></div>
+        <div style="border:1px solid #cbd5e1;border-radius:6px;padding:10px 12px;margin-bottom:12px;background:#fff;"><div style="font-size:9px;font-weight:bold;color:#1e3a8a;letter-spacing:1.2px;border-bottom:2px solid #1e3a8a;padding-bottom:4px;margin-bottom:6px;">JOURNAL HIGHLIGHTS</div><ul style="list-style:none;padding:0;margin:0;font-size:9px;color:#334155;line-height:1.8;"><li>◆ Peer Reviewed Journal</li><li>◆ Refereed Journal</li><li>◆ Indexed Journal</li><li>◆ Global Indexing & Archiving</li><li>◆ Impact Factor (SJIF)</li></ul></div>
+        <div style="border:1px solid #1e3a8a;border-radius:6px;padding:10px 12px;background:#1e3a8a;color:#fff;"><div style="font-size:9px;font-weight:bold;letter-spacing:1.2px;border-bottom:1px solid #3b82f6;padding-bottom:4px;margin-bottom:6px;">CONTACT US</div><p style="font-size:8.5px;line-height:1.5;margin:0 0 4px;font-weight:bold;">World Wide Journal of Multidisciplinary Research and Development (WWJMRD)</p><p style="font-size:8.5px;margin:2px 0;">support@wwjmrd.com</p><p style="font-size:8.5px;margin:2px 0;">www.wwjmrd.com</p></div>
+      </td>
+    </tr></table>
+    <div style="margin:6px 24px 0;border-top:2px solid #1e3a8a;padding-top:10px;">
+      <table style="width:100%;border-collapse:separate;border-spacing:6px 0;margin-bottom:10px;"><tr>${[["Received", receivedDate],["Revised", revisedDate],["Accepted", acceptedDate],["Published", publishedDate]].map(([l,v]) => `<td style="border:1px solid #cbd5e1;border-radius:5px;padding:6px;text-align:center;background:#f8fafc;font-family:Arial,sans-serif;width:25%;"><div style="font-size:8px;color:#64748b;font-weight:bold;letter-spacing:1px;">${l.toUpperCase()}</div><div style="font-size:10px;color:#1e3a8a;font-weight:bold;margin-top:2px;">${v}</div></td>`).join("")}</tr></table>
+      <div style="border-left:3px solid #1e3a8a;background:#f1f5f9;padding:8px 12px;border-radius:0 4px 4px 0;"><div style="font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#1e3a8a;letter-spacing:1px;margin-bottom:3px;">HOW TO CITE THIS ARTICLE</div><p style="font-size:9.5px;line-height:1.5;margin:0;color:#334155;">${esc(citationAuthors)}. ${esc(meta.title)}. <em>World Wide Journal of Multidisciplinary Research and Development</em>, ${yr}; ${vol}(${iss}): ${pgRange}.</p></div>
+    </div>
+    <div style="background:#0f172a;color:#fff;text-align:center;padding:12px;margin-top:14px;font-family:Arial,sans-serif;font-size:11px;letter-spacing:2px;font-weight:bold;">www.wwjmrd.com</div>
+  </section>
+  <section class="ww-body-page" data-flow-root="true"><div class="ww-body-flow">${bodyHtml}${refsHtml}</div></section>
 </div>`;
 }
-
 // =========================================================================
 // 9. MAIN HANDLER
 // =========================================================================
