@@ -1,5 +1,6 @@
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import { buildPagedFormattedArticleHtml } from './formattedArticlePagination';
 
 /**
  * Render formatted-article HTML into an offscreen container that mirrors
@@ -8,8 +9,8 @@ import jsPDF from 'jspdf';
 export async function downloadFormattedAsPdf(html: string, fileName: string) {
   const container = document.createElement('div');
   container.style.cssText =
-    'position:fixed;left:0;top:0;width:820px;background:#ffffff;z-index:-9999;opacity:0;pointer-events:none;';
-  container.innerHTML = html;
+    'position:absolute;left:-10000px;top:0;width:210mm;background:#ffffff;z-index:-9999;pointer-events:none;';
+  container.innerHTML = await buildPagedFormattedArticleHtml(html);
   document.body.appendChild(container);
 
   // Force absolute URLs for relative image src so html2canvas + cors works
@@ -35,13 +36,14 @@ export async function downloadFormattedAsPdf(html: string, fileName: string) {
   );
 
   try {
-    const canvas = await html2canvas(container, {
+    const target = (container.querySelector('.formatted-a4-document') as HTMLElement) || container;
+    const canvas = await html2canvas(target, {
       scale: 2,
       useCORS: true,
       allowTaint: true,
       backgroundColor: '#ffffff',
       logging: false,
-      windowWidth: 820,
+      windowWidth: Math.ceil(210 * 96 / 25.4),
     });
 
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
@@ -77,7 +79,8 @@ export async function downloadFormattedAsPdf(html: string, fileName: string) {
 export async function downloadFormattedAsDocx(html: string, fileName: string) {
   const origin = window.location.origin;
   // Make image URLs absolute so Word can resolve them
-  const absHtml = html.replace(/src="\/(?!\/)/g, `src="${origin}/`);
+  const pagedHtml = await buildPagedFormattedArticleHtml(html);
+  const absHtml = pagedHtml.replace(/src="\/(?!\/)/g, `src="${origin}/`);
 
   const fullHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Article</title></head><body>${absHtml}</body></html>`;
 
