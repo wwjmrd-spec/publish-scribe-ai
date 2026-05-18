@@ -148,6 +148,7 @@ export type Database = {
           galley_proof_status: string | null
           galley_proof_word_url: string | null
           id: string
+          in_publish_queue: boolean
           issue: string | null
           keywords: string[] | null
           manuscript_accepted_email_sent_at: string | null
@@ -155,6 +156,7 @@ export type Database = {
           page_number: string | null
           publication_type: string
           publication_year: string | null
+          publish_queue_added_at: string | null
           published_link: string | null
           reason_of_research: string | null
           reference_number: string
@@ -196,6 +198,7 @@ export type Database = {
           galley_proof_status?: string | null
           galley_proof_word_url?: string | null
           id?: string
+          in_publish_queue?: boolean
           issue?: string | null
           keywords?: string[] | null
           manuscript_accepted_email_sent_at?: string | null
@@ -203,6 +206,7 @@ export type Database = {
           page_number?: string | null
           publication_type?: string
           publication_year?: string | null
+          publish_queue_added_at?: string | null
           published_link?: string | null
           reason_of_research?: string | null
           reference_number: string
@@ -244,6 +248,7 @@ export type Database = {
           galley_proof_status?: string | null
           galley_proof_word_url?: string | null
           id?: string
+          in_publish_queue?: boolean
           issue?: string | null
           keywords?: string[] | null
           manuscript_accepted_email_sent_at?: string | null
@@ -251,6 +256,7 @@ export type Database = {
           page_number?: string | null
           publication_type?: string
           publication_year?: string | null
+          publish_queue_added_at?: string | null
           published_link?: string | null
           reason_of_research?: string | null
           reference_number?: string
