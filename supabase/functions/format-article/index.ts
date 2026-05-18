@@ -1233,7 +1233,7 @@ serve(async (req) => {
     }
 
     // 4. Slice body
-    const body = sliceBodyBlocks(allBlocks, meta);
+    const body = removeReferenceSection(sliceBodyBlocks(allBlocks, meta), meta);
     console.log(`Body has ${body.length} blocks (out of ${allBlocks.length})`);
 
     // Image lookup map
