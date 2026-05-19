@@ -82,7 +82,10 @@ export async function downloadFormattedAsDocx(html: string, fileName: string) {
 
   const fullHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Article</title></head><body>${absHtml}</body></html>`;
 
-  const mod: any = await import('html-docx-js-typescript');
+  const mod = await import('html-docx-js-typescript') as {
+    asBlob?: (html: string, options: unknown) => Promise<Blob>;
+    default?: { asBlob?: (html: string, options: unknown) => Promise<Blob> };
+  };
   const asBlob = mod.asBlob || mod.default?.asBlob;
   if (!asBlob) throw new Error('Word export library failed to load');
 
