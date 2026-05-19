@@ -285,191 +285,43 @@ export function ArticleContentEditor({
     }
   };
 
-  // Build paginated A4 preview HTML
-  const buildPaginatedPreview = () => {
-    const content = getContent();
-    const colStyle = columns > 1 ? `column-count: ${columns}; column-gap: 16px;` : '';
-    const contentWidthMM = A4_WIDTH_MM - MARGIN_MM * 2;
-    
-    return `<!DOCTYPE html><html><head><meta charset="utf-8">
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Times New Roman', Times, serif; background: #525659; padding: 20px; }
-  
-  .a4-page {
-    background: white;
-    width: ${A4_WIDTH_MM}mm;
-    min-height: ${A4_HEIGHT_MM}mm;
-    max-height: ${A4_HEIGHT_MM}mm;
-    margin: 0 auto 20px;
-    padding: ${MARGIN_MM}mm;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
-    position: relative;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  }
-  
-  .page-content {
-    flex: 1;
-    overflow: hidden;
-  }
-  
-  .page-footer {
-    text-align: center;
-    font-size: 10px;
-    color: #555;
-    padding-top: 8px;
-    border-top: 1px solid #ddd;
-    margin-top: auto;
-    font-family: 'Times New Roman', serif;
-    height: ${FOOTER_HEIGHT_MM}mm;
-    flex-shrink: 0;
-  }
-  
-  .page-content h1 { font-size: 16px; text-align: center; margin: 12px 0; font-weight: bold; }
-  .page-content h2 { font-size: 14px; margin: 16px 0 8px; font-weight: bold; }
-  .page-content h3 { font-size: 13px; margin: 12px 0 6px; font-weight: bold; }
-  .page-content p { text-align: justify; font-size: 11px; line-height: 1.6; margin: 4px 0; }
-  .page-content strong { font-weight: bold; }
-  .page-content em { font-style: italic; }
-  .page-content ul, .page-content ol { margin: 4px 0 4px 20px; font-size: 11px; }
-  .page-content table { border-collapse: collapse; width: 100%; margin: 8px 0; }
-  .page-content td, .page-content th { border: 1px solid #999; padding: 4px 6px; font-size: 10px; }
-  .page-content th { background: #f0f0f0; font-weight: bold; }
-  .page-content hr { border: none; border-top: 1px solid #ccc; margin: 12px 0; }
-  .layout-two-col { column-count: 2; column-gap: 16px; }
-  .layout-three-col { column-count: 3; column-gap: 12px; }
-  .layout-sidebar-left { display: flex; gap: 12px; }
-  .layout-sidebar-left > div:first-child { flex: 1; }
-  .layout-sidebar-left > div:last-child { flex: 2; }
-  .layout-sidebar-right { display: flex; gap: 12px; }
-  .layout-sidebar-right > div:first-child { flex: 2; }
-  .layout-sidebar-right > div:last-child { flex: 1; }
-  table.table-bordered td, table.table-bordered th { border: 2px solid #333; }
-  table.table-minimal td, table.table-minimal th { border: none; border-bottom: 1px solid #ddd; }
-  table.table-striped tr:nth-child(even) td { background: #f9f9f9; }
-  table.table-colored th { background: #2c7a7b; color: #fff; }
-  
-  .page-break { display: none; }
-  
-  @media print {
-    body { background: white; padding: 0; }
-    .a4-page { box-shadow: none; margin: 0; page-break-after: always; height: auto; min-height: ${A4_HEIGHT_MM}mm; }
-    .a4-page:last-child { page-break-after: auto; }
-  }
-</style>
-<script>
-  // Recursively flatten single-child wrapper divs to get actual content elements
-  function flattenChildren(html) {
-    var tmp = document.createElement('div');
-    tmp.innerHTML = html.trim();
-    var nodes = [];
-    for (var i = 0; i < tmp.childNodes.length; i++) {
-      var n = tmp.childNodes[i];
-      if (n.nodeType === 1) nodes.push(n);
-      else if (n.nodeType === 3 && n.textContent.trim()) nodes.push(n);
+  // Open A4 preview — use the SAME pagination pipeline as PDF/Word exports
+  // so editor preview, PDF, and Word stay perfectly in sync.
+  const openPaginatedPreview = useCallback(async () => {
+    setShowPreview(true);
+    setPreviewBuilding(true);
+    try {
+      const html = getContent();
+      const paged = await buildPagedFormattedArticleHtml(html);
+      setPreviewHtml(paged);
+    } catch (e: any) {
+      console.error(e);
+      toast.error('Preview failed: ' + (e?.message || 'unknown error'));
+    } finally {
+      setPreviewBuilding(false);
     }
-    // If there's only one element child and it's a div (wrapper), recurse into it
-    var elementNodes = nodes.filter(function(n) { return n.nodeType === 1; });
-    if (elementNodes.length === 1 && elementNodes[0].tagName === 'DIV' && elementNodes[0].children.length > 1) {
-      var inner = elementNodes[0];
-      var result = [];
-      for (var j = 0; j < inner.childNodes.length; j++) {
-        var c = inner.childNodes[j];
-        if (c.nodeType === 1) result.push(c.outerHTML);
-        else if (c.nodeType === 3 && c.textContent.trim()) result.push(c.textContent);
-      }
-      return result;
-    }
-    // Otherwise return outerHTML of each node
-    var result2 = [];
-    for (var k = 0; k < nodes.length; k++) {
-      var nd = nodes[k];
-      if (nd.nodeType === 1) result2.push(nd.outerHTML);
-      else result2.push(nd.textContent);
-    }
-    return result2;
-  }
+  }, [getContent]);
 
-  window.addEventListener('load', function() {
-    var body = document.body;
-    var rawContent = document.getElementById('raw-content');
-    var rawHTML = rawContent.innerHTML;
-    rawContent.style.display = 'none';
-    var container = document.getElementById('pages-container');
-    var colStyle = '${colStyle}';
-    
-    // mm to px conversion (96dpi)
-    var maxH = ${CONTENT_HEIGHT_MM} * 3.7795;
-    
-    // Split by explicit page breaks
-    var sections = rawHTML.split(/<hr[^>]*class=["']page-break["'][^>]*\\/?>|<hr[^>]*class=\\"page-break\\"[^>]*\\/?>/gi);
-    var pageNum = 1;
-    
-    for (var s = 0; s < sections.length; s++) {
-      var secHTML = sections[s].trim();
-      if (!secHTML) continue;
-      
-      // Flatten wrapper divs to get actual paginatable elements
-      var children = flattenChildren(secHTML);
-      
-      if (children.length === 0) continue;
-      
-      // Measure each element incrementally
-      var measure = document.createElement('div');
-      measure.style.cssText = 'position:absolute;visibility:hidden;left:-9999px;width:${contentWidthMM}mm;font-family:Times New Roman,serif;font-size:11px;line-height:1.6;';
-      if (colStyle) { measure.style.columnCount = '${columns}'; measure.style.columnGap = '16px'; }
-      body.appendChild(measure);
-      
-      var currentContent = '';
-      
-      for (var j = 0; j < children.length; j++) {
-        var elHTML = children[j];
-        measure.innerHTML = currentContent + elHTML;
-        
-        if (measure.scrollHeight > maxH && currentContent.trim()) {
-          createPage(container, currentContent, pageNum++, colStyle);
-          currentContent = elHTML;
-          measure.innerHTML = elHTML;
-          
-          // If single element still exceeds page, emit it anyway
-          if (measure.scrollHeight > maxH) {
-            createPage(container, currentContent, pageNum++, colStyle);
-            currentContent = '';
-            measure.innerHTML = '';
-          }
-        } else {
-          currentContent += elHTML;
-        }
-      }
-      
-      if (currentContent.trim()) {
-        createPage(container, currentContent, pageNum++, colStyle);
-      }
-      
-      body.removeChild(measure);
+  const handleDownloadPdf = useCallback(async () => {
+    try {
+      toast.info('Building PDF…');
+      await downloadFormattedAsPdf(getContent(), `formatted-${referenceNumber || 'article'}`);
+      toast.success('PDF ready');
+    } catch (e: any) {
+      toast.error('PDF export failed: ' + (e?.message || 'unknown error'));
     }
-    
-    // Update totals
-    var total = pageNum - 1;
-    var spans = document.querySelectorAll('.page-total');
-    for (var k = 0; k < spans.length; k++) spans[k].textContent = total;
-  });
-  
-  function createPage(container, content, pageNum, colStyle) {
-    var page = document.createElement('div');
-    page.className = 'a4-page';
-    page.innerHTML = '<div class="page-content" style="' + colStyle + '">' + content + '</div>' +
-      '<div class="page-footer">~ ' + pageNum + ' / <span class="page-total">...</span> ~</div>';
-    container.appendChild(page);
-  }
-</script>
-</head><body>
-<div id="raw-content" style="display:none;">${content}</div>
-<div id="pages-container"></div>
-</body></html>`;
-  };
+  }, [getContent, referenceNumber]);
+
+  const handleDownloadDocx = useCallback(async () => {
+    try {
+      toast.info('Building Word file…');
+      await downloadFormattedAsDocx(getContent(), `formatted-${referenceNumber || 'article'}`);
+      toast.success('Word file ready');
+    } catch (e: any) {
+      toast.error('Word export failed: ' + (e?.message || 'unknown error'));
+    }
+  }, [getContent, referenceNumber]);
+
 
   const ToolbarBtn = ({ cmd, value, icon: Icon, title }: { cmd: string; value?: string; icon: any; title: string }) => (
     <Button
