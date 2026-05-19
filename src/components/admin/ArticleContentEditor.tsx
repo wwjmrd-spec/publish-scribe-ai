@@ -105,6 +105,8 @@ export function ArticleContentEditor({
   const [saving, setSaving] = useState(false);
   const [approving, setApproving] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState<string>('');
+  const [previewBuilding, setPreviewBuilding] = useState(false);
   const [ready, setReady] = useState(false);
   const [columns, setColumns] = useState<1 | 2 | 3>(1);
   const queryClient = useQueryClient();
