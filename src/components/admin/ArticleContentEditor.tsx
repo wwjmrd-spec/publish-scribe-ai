@@ -503,9 +503,15 @@ export function ArticleContentEditor({
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-3 mt-4">
-          <Button variant="outline" onClick={() => setShowPreview(true)}>
+        <div className="flex items-center justify-end gap-3 mt-4 flex-wrap">
+          <Button variant="outline" onClick={openPaginatedPreview}>
             <Eye className="w-4 h-4 mr-2" /> Preview A4 Pages
+          </Button>
+          <Button variant="outline" onClick={handleDownloadPdf}>
+            Download PDF
+          </Button>
+          <Button variant="outline" onClick={handleDownloadDocx}>
+            Download Word
           </Button>
           <Button variant="outline" onClick={handleSave} disabled={saving}>
             {saving ? <GlassSpinner size="sm" className="mr-2" /> : <Save className="w-4 h-4 mr-2" />}
