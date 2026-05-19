@@ -357,7 +357,7 @@ export function ArticleContentEditor({
                 </SelectContent>
               </Select>
             </div>
-            <Button variant="ghost" size="sm" onClick={() => setShowPreview(true)}>
+            <Button variant="ghost" size="sm" onClick={openPaginatedPreview}>
               <Eye className="w-4 h-4 mr-1" /> Preview A4
             </Button>
             <Button variant="ghost" size="icon" onClick={onClose}>
