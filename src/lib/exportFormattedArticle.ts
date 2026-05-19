@@ -2,9 +2,32 @@ import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { buildPagedFormattedArticleHtml } from './formattedArticlePagination';
 
+async function waitForImages(root: ParentNode) {
+  const imgs = Array.from(root.querySelectorAll('img')) as HTMLImageElement[];
+  await Promise.all(
+    imgs.map(
+      (img) =>
+        new Promise<void>((resolve) => {
+          if (img.complete) return resolve();
+          img.addEventListener('load', () => resolve(), { once: true });
+          img.addEventListener('error', () => resolve(), { once: true });
+        }),
+    ),
+  );
+}
+
+function makeImagesExportSafe(root: ParentNode) {
+  const origin = window.location.origin;
+  root.querySelectorAll('img').forEach((img) => {
+    const src = img.getAttribute('src') || '';
+    if (src.startsWith('/')) img.setAttribute('src', origin + src);
+    if (!src.startsWith('data:')) (img as HTMLImageElement).crossOrigin = 'anonymous';
+  });
+}
+
 /**
- * Render formatted-article HTML into an offscreen container that mirrors
- * the website preview, then capture it as a multi-page PDF.
+ * Render each A4 page separately. Capturing one very tall canvas can hit
+ * browser canvas limits and silently export only the first pages.
  */
 export async function downloadFormattedAsPdf(html: string, fileName: string) {
   const container = document.createElement('div');
@@ -13,56 +36,33 @@ export async function downloadFormattedAsPdf(html: string, fileName: string) {
   container.innerHTML = await buildPagedFormattedArticleHtml(html);
   document.body.appendChild(container);
 
-  // Force absolute URLs for relative image src so html2canvas + cors works
-  const origin = window.location.origin;
-  container.querySelectorAll('img').forEach((img) => {
-    const src = img.getAttribute('src') || '';
-    if (src.startsWith('/')) img.setAttribute('src', origin + src);
-    img.crossOrigin = 'anonymous';
-  });
-
-  // Wait for images
-  const imgs = Array.from(container.querySelectorAll('img'));
-  await Promise.all(
-    imgs.map(
-      (img) =>
-        new Promise<void>((resolve) => {
-          const el = img as HTMLImageElement;
-          if (el.complete && el.naturalWidth > 0) return resolve();
-          el.addEventListener('load', () => resolve(), { once: true });
-          el.addEventListener('error', () => resolve(), { once: true });
-        }),
-    ),
-  );
+  makeImagesExportSafe(container);
+  await waitForImages(container);
 
   try {
-    const target = (container.querySelector('.formatted-a4-document') as HTMLElement) || container;
-    const canvas = await html2canvas(target, {
-      scale: 2,
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: '#ffffff',
-      logging: false,
-      windowWidth: Math.ceil(210 * 96 / 25.4),
-    });
+    const pages = Array.from(container.querySelectorAll('.formatted-a4-page')) as HTMLElement[];
+    if (!pages.length) throw new Error('No A4 pages were generated');
 
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
-    const imgW = pageW;
-    const imgH = (canvas.height * imgW) / canvas.width;
 
-    let heightLeft = imgH;
-    let position = 0;
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+    for (let index = 0; index < pages.length; index++) {
+      const page = pages[index];
+      if (index > 0) pdf.addPage();
 
-    pdf.addImage(dataUrl, 'JPEG', 0, position, imgW, imgH);
-    heightLeft -= pageH;
-    while (heightLeft > 0) {
-      position = heightLeft - imgH;
-      pdf.addPage();
-      pdf.addImage(dataUrl, 'JPEG', 0, position, imgW, imgH);
-      heightLeft -= pageH;
+      const canvas = await html2canvas(page, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+        windowWidth: page.scrollWidth,
+        windowHeight: page.scrollHeight,
+      });
+
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.94);
+      pdf.addImage(dataUrl, 'JPEG', 0, 0, pageW, pageH);
     }
 
     pdf.save(fileName.endsWith('.pdf') ? fileName : `${fileName}.pdf`);
@@ -73,12 +73,10 @@ export async function downloadFormattedAsPdf(html: string, fileName: string) {
 
 /**
  * Convert formatted-article HTML to a Word (.docx) blob via dynamic import,
- * so a missing optional dep won't break the bundle. Word has limited CSS
- * support, but the table-based layout in `format-article` carries over well.
+ * so a missing optional dep won't break the bundle.
  */
 export async function downloadFormattedAsDocx(html: string, fileName: string) {
   const origin = window.location.origin;
-  // Make image URLs absolute so Word can resolve them
   const pagedHtml = await buildPagedFormattedArticleHtml(html);
   const absHtml = pagedHtml.replace(/src="\/(?!\/)/g, `src="${origin}/`);
 
