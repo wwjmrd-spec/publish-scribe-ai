@@ -262,7 +262,11 @@ export async function buildPagedFormattedArticleHtml(html: string): Promise<stri
 
   const existingPages = template.content.querySelectorAll('.formatted-a4-page');
   const firstPage = template.content.querySelector('[data-a4-page="first"], .ww-first-page, [data-formatted-page="first"]') as HTMLElement | null;
-  const flowRoot = template.content.querySelector('[data-flow-root="true"] .ww-body-flow, [data-flow-root="true"], .ww-body-flow') as HTMLElement | null;
+  const flowRoot = (
+    template.content.querySelector('[data-flow-root="true"] .ww-body-flow') ||
+    template.content.querySelector('.ww-body-flow') ||
+    template.content.querySelector('[data-flow-root="true"]')
+  ) as HTMLElement | null;
 
   if (existingPages.length && !flowRoot) {
     return `<!DOCTYPE html><html><head><meta charset="utf-8">${pageCss}</head><body>${template.innerHTML}</body></html>`;
