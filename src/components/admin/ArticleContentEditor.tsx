@@ -528,10 +528,16 @@ export function ArticleContentEditor({
       <Dialog open={showPreview} onOpenChange={setShowPreview}>
         <DialogContent className="max-w-5xl max-h-[95vh] p-0 overflow-hidden">
           <DialogHeader className="px-4 pt-4 pb-2">
-            <DialogTitle>A4 Page Preview — {referenceNumber} ({columns}-column layout)</DialogTitle>
+            <DialogTitle>A4 Page Preview — {referenceNumber}</DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-auto" style={{ height: '85vh', background: '#525659' }}>
-            <iframe srcDoc={buildPaginatedPreview()} className="w-full h-full border-0" title="A4 Preview" style={{ minHeight: '85vh' }} />
+            {previewBuilding ? (
+              <div className="flex items-center justify-center h-full text-white/80">
+                <GlassSpinner size="lg" className="mr-3" /> Building preview…
+              </div>
+            ) : (
+              <iframe srcDoc={previewHtml} className="w-full h-full border-0" title="A4 Preview" style={{ minHeight: '85vh' }} />
+            )}
           </div>
         </DialogContent>
       </Dialog>
