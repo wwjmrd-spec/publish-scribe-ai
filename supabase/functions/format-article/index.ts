@@ -391,6 +391,43 @@ function normHeading(s: string): string {
   return s.toLowerCase().replace(/^\s*\d+[.)]?\s*/, "").replace(/[^a-z0-9]/g, "").trim();
 }
 
+function blockText(b: Block): string {
+  if (b.kind === "heading") return b.text;
+  if (b.kind === "paragraph") return b.text;
+  if (b.kind === "list") return b.items.join(" ");
+  if (b.kind === "table") return b.rows.flat().join(" ");
+  return b.caption || "";
+}
+
+function removeFrontMatterBlocks(blocks: Block[], meta: ArticleMetadata): Block[] {
+  const titleKey = normHeading(meta.title || "");
+  const frontMatterKeys = new Set(["abstract", "keyword", "keywords"]);
+  const cleaned: Block[] = [];
+  let skipUntilHeading = false;
+
+  for (let i = 0; i < blocks.length; i++) {
+    const b = blocks[i];
+    const text = blockText(b).replace(/\s+/g, " ").trim();
+    const key = normHeading(text);
+
+    if (skipUntilHeading) {
+      if (b.kind !== "heading") continue;
+      skipUntilHeading = false;
+    }
+
+    if (titleKey && i < 8 && key === titleKey) continue;
+    if (b.kind === "heading" && frontMatterKeys.has(key)) {
+      skipUntilHeading = true;
+      continue;
+    }
+    if (/^(abstract|keywords?|key\s*words?)\s*[:\-]/i.test(text)) continue;
+
+    cleaned.push(b);
+  }
+
+  return cleaned;
+}
+
 function sliceBodyBlocks(blocks: Block[], meta: ArticleMetadata): Block[] {
   const startKey = normHeading(meta.body_start_heading || "introduction");
   const refKey = normHeading(meta.references_heading || "references");
@@ -428,9 +465,9 @@ function sliceBodyBlocks(blocks: Block[], meta: ArticleMetadata): Block[] {
       skipNext = false;
       filtered.push(b);
     }
-    return filtered;
+    return removeFrontMatterBlocks(filtered, meta);
   }
-  return sliced;
+  return removeFrontMatterBlocks(sliced, meta);
 }
 
 function removeReferenceSection(blocks: Block[], meta: ArticleMetadata): Block[] {
