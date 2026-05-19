@@ -15,8 +15,11 @@ const waitForImages = async (root: ParentNode) => {
       (img) =>
         new Promise<void>((resolve) => {
           if (img.complete) return resolve();
+          const timeout = window.setTimeout(() => resolve(), 2500);
           img.addEventListener('load', () => resolve(), { once: true });
           img.addEventListener('error', () => resolve(), { once: true });
+          img.addEventListener('load', () => window.clearTimeout(timeout), { once: true });
+          img.addEventListener('error', () => window.clearTimeout(timeout), { once: true });
         }),
     ),
   );
