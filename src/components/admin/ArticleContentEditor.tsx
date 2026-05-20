@@ -427,7 +427,7 @@ export function ArticleContentEditor({
             <h3 className="font-semibold text-lg">Edit Formatted Article</h3>
             <p className="text-sm text-muted-foreground">{referenceNumber} — {articleTitle}</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {/* Column setting */}
             <div className="flex items-center gap-1.5">
               <Label className="text-xs text-muted-foreground">Columns:</Label>
@@ -442,6 +442,80 @@ export function ArticleContentEditor({
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Line spacing */}
+            <div className="flex items-center gap-1.5">
+              <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                <MoveVertical className="w-3 h-3" /> Line:
+              </Label>
+              <Select value={lineHeight} onValueChange={setLineHeight}>
+                <SelectTrigger className="h-7 w-[70px] text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {['1.15', '1.3', '1.5', '1.6', '1.8', '2.0', '2.5'].map(v => (
+                    <SelectItem key={v} value={v}>{v}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Paragraph spacing */}
+            <div className="flex items-center gap-1.5">
+              <Label className="text-xs text-muted-foreground">¶ Gap:</Label>
+              <Select value={paraSpacing} onValueChange={setParaSpacing}>
+                <SelectTrigger className="h-7 w-[70px] text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {['0', '2', '4', '6', '8', '12', '16'].map(v => (
+                    <SelectItem key={v} value={v}>{v}px</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Page number start */}
+            <div className="flex items-center gap-1.5">
+              <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                <Hash className="w-3 h-3" /> Page #:
+              </Label>
+              <input
+                type="number"
+                min={1}
+                value={startPage}
+                onChange={(e) => setStartPage(Math.max(1, Number(e.target.value) || 1))}
+                className="h-7 w-[55px] text-xs rounded border border-input bg-background px-2"
+                title="Starting page number"
+              />
+            </div>
+
+            {/* Image controls (only enabled when an image is selected) */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button type="button" variant="ghost" size="sm" className="h-7 px-1.5 gap-1" title="Image">
+                  <ImageIcon className="w-3.5 h-3.5" />
+                  <span className="text-[10px]">Image</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuLabel className="text-xs">
+                  {selectedImg ? 'Resize selected image' : 'Click an image to select'}
+                </DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => resizeSelectedImage(25)}>Width 25%</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => resizeSelectedImage(50)}>Width 50%</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => resizeSelectedImage(75)}>Width 75%</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => resizeSelectedImage(100)}>Width 100%</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-xs">Crop (aspect ratio)</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => cropSelectedImage('1 / 1')}><Crop className="w-4 h-4 mr-2" /> Square 1:1</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => cropSelectedImage('4 / 3')}><Crop className="w-4 h-4 mr-2" /> 4:3</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => cropSelectedImage('16 / 9')}><Crop className="w-4 h-4 mr-2" /> 16:9</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => cropSelectedImage('3 / 4')}><Crop className="w-4 h-4 mr-2" /> 3:4 portrait</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => cropSelectedImage('none')}>Remove crop</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={removeSelectedImage} className="text-red-600">
+                  <Trash2 className="w-4 h-4 mr-2" /> Delete image
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             <Button variant="ghost" size="sm" onClick={openPaginatedPreview}>
               <Eye className="w-4 h-4 mr-1" /> Preview A4
             </Button>
