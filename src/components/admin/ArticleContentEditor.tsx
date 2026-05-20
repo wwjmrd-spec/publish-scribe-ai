@@ -35,30 +35,51 @@ interface ArticleContentEditorProps {
   onClose: () => void;
 }
 
+// A4 content area inside the editor: 210mm wide, page break visualised every 297mm.
+// The iframe body gets a repeating linear-gradient that paints a faint divider every page.
+const PAGE_HEIGHT_MM = 297;
 const EDITOR_STYLES = `
   * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: transparent; }
   body {
     font-family: 'Times New Roman', Times, serif;
     font-size: 12px;
-    line-height: 1.6;
+    line-height: var(--ww-line-height, 1.6);
     color: #000;
-    background: #fff;
+    background:
+      repeating-linear-gradient(
+        to bottom,
+        #ffffff 0,
+        #ffffff calc(${PAGE_HEIGHT_MM}mm - 2px),
+        #cbd5e1 calc(${PAGE_HEIGHT_MM}mm - 2px),
+        #cbd5e1 ${PAGE_HEIGHT_MM}mm,
+        #f1f5f9 ${PAGE_HEIGHT_MM}mm,
+        #f1f5f9 calc(${PAGE_HEIGHT_MM}mm + 14px),
+        #ffffff calc(${PAGE_HEIGHT_MM}mm + 14px)
+      );
     padding: 0;
     margin: 0;
+    min-height: ${PAGE_HEIGHT_MM}mm;
   }
   body:focus { outline: none; }
   h1 { font-size: 16px; text-align: center; margin: 12px 0; font-weight: bold; }
   h2 { font-size: 14px; margin: 16px 0 8px; font-weight: bold; }
   h3 { font-size: 13px; margin: 12px 0 6px; font-weight: bold; }
-  p { text-align: justify; font-size: 11px; line-height: 1.6; margin: 4px 0; }
+  p { text-align: justify; font-size: 11px; line-height: var(--ww-line-height, 1.6); margin: var(--ww-para-spacing, 4px) 0; }
   strong { font-weight: bold; }
   em { font-style: italic; }
   ul, ol { margin: 4px 0 4px 20px; font-size: 11px; }
+  li { margin: var(--ww-para-spacing, 2px) 0; }
   table { border-collapse: collapse; width: 100%; margin: 8px 0; }
   td, th { border: 1px solid #999; padding: 4px 6px; font-size: 10px; min-width: 30px; }
   th { background: #f0f0f0; font-weight: bold; }
   hr { border: none; border-top: 1px solid #ccc; margin: 12px 0; }
   a { color: #0066cc; }
+  img { max-width: 100%; cursor: pointer; }
+  img.ww-selected { outline: 2px solid #2563eb; outline-offset: 2px; }
+  figure { margin: 8px 0; text-align: center; }
+  .ww-img-wrap { display: inline-block; position: relative; max-width: 100%; }
+  .ww-img-wrap.ww-cropped { overflow: hidden; }
   .layout-two-col { column-count: 2; column-gap: 16px; }
   .layout-three-col { column-count: 3; column-gap: 12px; }
   .layout-sidebar-left { display: flex; gap: 12px; }
@@ -71,7 +92,7 @@ const EDITOR_STYLES = `
   table.table-minimal td, table.table-minimal th { border: none; border-bottom: 1px solid #ddd; }
   table.table-striped tr:nth-child(even) td { background: #f9f9f9; }
   table.table-colored th { background: #2c7a7b; color: #fff; }
-  .page-break { 
+  .page-break {
     page-break-before: always; break-before: page;
     border: none; border-top: 2px dashed #e74c3c; margin: 20px 0; position: relative;
   }
