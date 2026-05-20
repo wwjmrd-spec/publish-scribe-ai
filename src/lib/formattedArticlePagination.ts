@@ -77,6 +77,11 @@ function createBodyPage(content: string, pageNumber: number, totalPlaceholder = 
   </section>`;
 }
 
+export interface PaginationOptions {
+  startPage?: number;            // starting page number (default 1)
+  showFirstPageNumber?: boolean; // include footer/page-number on the cover page
+}
+
 function cloneContentRoot(source: ParentNode): HTMLElement {
   const wrapper = document.createElement('div');
   wrapper.innerHTML = topLevelHtml(source).join('');
