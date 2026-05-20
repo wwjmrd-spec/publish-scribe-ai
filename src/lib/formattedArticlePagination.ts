@@ -261,8 +261,13 @@ function splitOversizedBlock(block: string, measure: HTMLElement, maxHeightPx: n
   return [block];
 }
 
-export async function buildPagedFormattedArticleHtml(html: string): Promise<string> {
+export async function buildPagedFormattedArticleHtml(
+  html: string,
+  options: PaginationOptions = {},
+): Promise<string> {
   if (!html.trim()) return html;
+  const startPage = Math.max(1, Math.floor(options.startPage ?? 1));
+  const showFirstPageNumber = options.showFirstPageNumber ?? true;
 
   const template = document.createElement('template');
   template.innerHTML = html;
@@ -319,13 +324,19 @@ export async function buildPagedFormattedArticleHtml(html: string): Promise<stri
   if (current.trim()) pages.push(current);
   document.body.removeChild(measureHost);
 
+  const totalPages = (firstPage ? 1 : 0) + pages.length;
+
   const firstPageHtml = firstPage
-    ? `<section class="formatted-a4-page" data-formatted-page="first"><div class="formatted-page-content">${firstPage.innerHTML}</div></section>`
+    ? `<section class="formatted-a4-page formatted-cover-page" data-formatted-page="first">
+        <div class="formatted-page-content">${firstPage.innerHTML}</div>
+        ${showFirstPageNumber
+          ? `<div class="formatted-page-footer">~ ${startPage} / <span class="formatted-total-pages">${totalPages}</span> ~</div>`
+          : ''}
+      </section>`
     : '';
 
-  const bodyStart = firstPageHtml ? 2 : 1;
+  const bodyStart = startPage + (firstPage ? 1 : 0);
   const bodyPagesHtml = pages.map((content, index) => createBodyPage(content, bodyStart + index)).join('');
-  const totalPages = (firstPageHtml ? 1 : 0) + pages.length;
   const doc = `<div class="formatted-a4-document">${firstPageHtml}${bodyPagesHtml}</div>`.replace(/<span class="formatted-total-pages">\.\.\.<\/span>/g, `<span class="formatted-total-pages">${totalPages}</span>`);
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8">${pageCss}${styleTags}</head><body>${doc}</body></html>`;
