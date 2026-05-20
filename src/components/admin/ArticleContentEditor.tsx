@@ -190,6 +190,46 @@ export function ArticleContentEditor({
     doc.execCommand('insertHTML', false, html);
   }, []);
 
+  const resizeSelectedImage = useCallback((widthPct: number) => {
+    if (!selectedImg) { toast.error('Click an image first'); return; }
+    selectedImg.style.width = `${widthPct}%`;
+    selectedImg.style.height = 'auto';
+    selectedImg.removeAttribute('width');
+    selectedImg.removeAttribute('height');
+  }, [selectedImg]);
+
+  const cropSelectedImage = useCallback((aspect: string) => {
+    if (!selectedImg) { toast.error('Click an image first'); return; }
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc) return;
+    let wrap = selectedImg.closest('.ww-img-wrap') as HTMLElement | null;
+    if (!wrap) {
+      wrap = doc.createElement('span');
+      wrap.className = 'ww-img-wrap';
+      selectedImg.parentNode?.insertBefore(wrap, selectedImg);
+      wrap.appendChild(selectedImg);
+    }
+    if (aspect === 'none') {
+      wrap.classList.remove('ww-cropped');
+      wrap.style.aspectRatio = '';
+      selectedImg.style.height = 'auto';
+      (selectedImg.style as any).objectFit = '';
+    } else {
+      wrap.classList.add('ww-cropped');
+      wrap.style.aspectRatio = aspect;
+      selectedImg.style.width = '100%';
+      selectedImg.style.height = '100%';
+      (selectedImg.style as any).objectFit = 'cover';
+    }
+  }, [selectedImg]);
+
+  const removeSelectedImage = useCallback(() => {
+    if (!selectedImg) { toast.error('Click an image first'); return; }
+    const wrap = selectedImg.closest('.ww-img-wrap');
+    (wrap || selectedImg).remove();
+    setSelectedImg(null);
+  }, [selectedImg]);
+
   const insertTable = useCallback((rows: number, cols: number, style?: string) => {
     const cls = style ? ` class="${style}"` : '';
     let html = `<table${cls}>`;
