@@ -168,14 +168,6 @@ export function ArticleContentEditor({
       const ro = new ResizeObserver(resize);
       ro.observe(doc.body);
       doc.body.addEventListener('input', resize);
-        doc.body.querySelectorAll('img.ww-selected').forEach((n) => n.classList.remove('ww-selected'));
-        if (target?.tagName === 'IMG') {
-          (target as HTMLImageElement).classList.add('ww-selected');
-          setSelectedImg(target as HTMLImageElement);
-        } else {
-          setSelectedImg(null);
-        }
-      });
 
       setReady(true);
     };
