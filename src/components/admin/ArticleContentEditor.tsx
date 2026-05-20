@@ -8,6 +8,7 @@ import {
   List, ListOrdered, Undo, Redo, Strikethrough,
   Table2, Columns2, Columns3, LayoutGrid, Minus, Plus,
   Trash2, PaintBucket, Grid3X3, SeparatorHorizontal, Hash,
+  ImageIcon, Crop, MoveVertical,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
