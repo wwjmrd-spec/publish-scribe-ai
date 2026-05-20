@@ -29,11 +29,11 @@ function makeImagesExportSafe(root: ParentNode) {
  * Render each A4 page separately. Capturing one very tall canvas can hit
  * browser canvas limits and silently export only the first pages.
  */
-export async function downloadFormattedAsPdf(html: string, fileName: string) {
+export async function downloadFormattedAsPdf(html: string, fileName: string, options: PaginationOptions = {}) {
   const container = document.createElement('div');
   container.style.cssText =
     'position:absolute;left:-10000px;top:0;width:210mm;background:#ffffff;z-index:-9999;pointer-events:none;';
-  container.innerHTML = await buildPagedFormattedArticleHtml(html);
+  container.innerHTML = await buildPagedFormattedArticleHtml(html, options);
   document.body.appendChild(container);
 
   makeImagesExportSafe(container);
