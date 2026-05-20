@@ -39,9 +39,10 @@ const pageCss = `
     * { box-sizing: border-box; }
     body { margin: 0; background: #525659; font-family: Georgia, 'Times New Roman', serif; }
     .formatted-a4-document { background: #525659; padding: 20px 0; }
-    .formatted-a4-page { width: ${A4_WIDTH_MM}mm; min-height: ${A4_HEIGHT_MM}mm; height: ${A4_HEIGHT_MM}mm; margin: 0 auto 18px; padding: ${PAGE_PADDING_MM}mm; background: #fff; color: #0f172a; box-shadow: 0 5px 18px rgba(0,0,0,.32); overflow: hidden; page-break-after: always; break-after: page; }
+    .formatted-a4-page { width: ${A4_WIDTH_MM}mm; min-height: ${A4_HEIGHT_MM}mm; height: ${A4_HEIGHT_MM}mm; margin: 0 auto 18px; padding: ${PAGE_PADDING_MM}mm; background: #fff; color: #0f172a; box-shadow: 0 5px 18px rgba(0,0,0,.32); overflow: hidden; page-break-after: always; break-after: page; position: relative; display: flex; flex-direction: column; }
     .formatted-a4-page:last-child { page-break-after: auto; break-after: auto; }
-    .formatted-page-content { width: ${CONTENT_WIDTH_MM}mm; min-height: ${CONTENT_HEIGHT_MM}mm; }
+    .formatted-page-content { width: ${CONTENT_WIDTH_MM}mm; flex: 1; min-height: 0; }
+    .formatted-cover-page .formatted-page-footer { margin-top: auto; }
     .formatted-body-page { display: flex; flex-direction: column; }
     .formatted-running-head { height: ${BODY_HEADER_MM}mm; border-bottom: 1px solid #cbd5e1; color: #475569; font-family: Arial, sans-serif; font-size: 9px; line-height: 5mm; }
     .formatted-body-content { width: ${CONTENT_WIDTH_MM}mm; height: ${BODY_CONTENT_HEIGHT_MM}mm; margin: 0 auto; padding-top: 4mm; overflow: hidden; font-size: 10.8px; line-height: 1.62; color: #1f2937; }
