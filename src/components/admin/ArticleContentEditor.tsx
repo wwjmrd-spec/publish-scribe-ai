@@ -8,6 +8,7 @@ import {
   List, ListOrdered, Undo, Redo, Strikethrough,
   Table2, Columns2, Columns3, LayoutGrid, Minus, Plus,
   Trash2, PaintBucket, Grid3X3, SeparatorHorizontal, Hash,
+  ImageIcon, Crop, MoveVertical,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -34,30 +35,51 @@ interface ArticleContentEditorProps {
   onClose: () => void;
 }
 
+// A4 content area inside the editor: 210mm wide, page break visualised every 297mm.
+// The iframe body gets a repeating linear-gradient that paints a faint divider every page.
+const PAGE_HEIGHT_MM = 297;
 const EDITOR_STYLES = `
   * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: transparent; }
   body {
     font-family: 'Times New Roman', Times, serif;
     font-size: 12px;
-    line-height: 1.6;
+    line-height: var(--ww-line-height, 1.6);
     color: #000;
-    background: #fff;
+    background:
+      repeating-linear-gradient(
+        to bottom,
+        #ffffff 0,
+        #ffffff calc(${PAGE_HEIGHT_MM}mm - 2px),
+        #cbd5e1 calc(${PAGE_HEIGHT_MM}mm - 2px),
+        #cbd5e1 ${PAGE_HEIGHT_MM}mm,
+        #f1f5f9 ${PAGE_HEIGHT_MM}mm,
+        #f1f5f9 calc(${PAGE_HEIGHT_MM}mm + 14px),
+        #ffffff calc(${PAGE_HEIGHT_MM}mm + 14px)
+      );
     padding: 0;
     margin: 0;
+    min-height: ${PAGE_HEIGHT_MM}mm;
   }
   body:focus { outline: none; }
   h1 { font-size: 16px; text-align: center; margin: 12px 0; font-weight: bold; }
   h2 { font-size: 14px; margin: 16px 0 8px; font-weight: bold; }
   h3 { font-size: 13px; margin: 12px 0 6px; font-weight: bold; }
-  p { text-align: justify; font-size: 11px; line-height: 1.6; margin: 4px 0; }
+  p { text-align: justify; font-size: 11px; line-height: var(--ww-line-height, 1.6); margin: var(--ww-para-spacing, 4px) 0; }
   strong { font-weight: bold; }
   em { font-style: italic; }
   ul, ol { margin: 4px 0 4px 20px; font-size: 11px; }
+  li { margin: var(--ww-para-spacing, 2px) 0; }
   table { border-collapse: collapse; width: 100%; margin: 8px 0; }
   td, th { border: 1px solid #999; padding: 4px 6px; font-size: 10px; min-width: 30px; }
   th { background: #f0f0f0; font-weight: bold; }
   hr { border: none; border-top: 1px solid #ccc; margin: 12px 0; }
   a { color: #0066cc; }
+  img { max-width: 100%; cursor: pointer; }
+  img.ww-selected { outline: 2px solid #2563eb; outline-offset: 2px; }
+  figure { margin: 8px 0; text-align: center; }
+  .ww-img-wrap { display: inline-block; position: relative; max-width: 100%; }
+  .ww-img-wrap.ww-cropped { overflow: hidden; }
   .layout-two-col { column-count: 2; column-gap: 16px; }
   .layout-three-col { column-count: 3; column-gap: 12px; }
   .layout-sidebar-left { display: flex; gap: 12px; }
@@ -70,7 +92,7 @@ const EDITOR_STYLES = `
   table.table-minimal td, table.table-minimal th { border: none; border-bottom: 1px solid #ddd; }
   table.table-striped tr:nth-child(even) td { background: #f9f9f9; }
   table.table-colored th { background: #2c7a7b; color: #fff; }
-  .page-break { 
+  .page-break {
     page-break-before: always; break-before: page;
     border: none; border-top: 2px dashed #e74c3c; margin: 20px 0; position: relative;
   }
@@ -109,6 +131,10 @@ export function ArticleContentEditor({
   const [previewBuilding, setPreviewBuilding] = useState(false);
   const [ready, setReady] = useState(false);
   const [columns, setColumns] = useState<1 | 2 | 3>(1);
+  const [lineHeight, setLineHeight] = useState<string>('1.6');
+  const [paraSpacing, setParaSpacing] = useState<string>('4');
+  const [startPage, setStartPage] = useState<number>(1);
+  const [selectedImg, setSelectedImg] = useState<HTMLImageElement | null>(null);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -120,12 +146,42 @@ export function ArticleContentEditor({
       doc.open();
       doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><style>${EDITOR_STYLES}</style></head><body contenteditable="true">${initialContent}</body></html>`);
       doc.close();
+
+      doc.body.addEventListener('click', (e) => {
+        const target = e.target as HTMLElement;
+        doc.body.querySelectorAll('img.ww-selected').forEach((n) => n.classList.remove('ww-selected'));
+        if (target?.tagName === 'IMG') {
+          (target as HTMLImageElement).classList.add('ww-selected');
+          setSelectedImg(target as HTMLImageElement);
+        } else {
+          setSelectedImg(null);
+        }
+      });
+
+      // Auto-grow the iframe to its content height so the paged background
+      // shows full A4 pages instead of one long scrollable block.
+      const resize = () => {
+        const h = Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight);
+        iframe.style.height = `${h + 24}px`;
+      };
+      resize();
+      const ro = new ResizeObserver(resize);
+      ro.observe(doc.body);
+      doc.body.addEventListener('input', resize);
+
       setReady(true);
     };
     iframe.addEventListener('load', onLoad);
     iframe.src = 'about:blank';
     return () => iframe.removeEventListener('load', onLoad);
   }, [initialContent]);
+
+  useEffect(() => {
+    const body = iframeRef.current?.contentDocument?.body;
+    if (!body) return;
+    body.style.setProperty('--ww-line-height', lineHeight);
+    body.style.setProperty('--ww-para-spacing', `${paraSpacing}px`);
+  }, [lineHeight, paraSpacing, ready]);
 
   const getContent = useCallback(() => {
     return iframeRef.current?.contentDocument?.body?.innerHTML || '';
@@ -144,6 +200,46 @@ export function ArticleContentEditor({
     if (!doc) return;
     doc.execCommand('insertHTML', false, html);
   }, []);
+
+  const resizeSelectedImage = useCallback((widthPct: number) => {
+    if (!selectedImg) { toast.error('Click an image first'); return; }
+    selectedImg.style.width = `${widthPct}%`;
+    selectedImg.style.height = 'auto';
+    selectedImg.removeAttribute('width');
+    selectedImg.removeAttribute('height');
+  }, [selectedImg]);
+
+  const cropSelectedImage = useCallback((aspect: string) => {
+    if (!selectedImg) { toast.error('Click an image first'); return; }
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc) return;
+    let wrap = selectedImg.closest('.ww-img-wrap') as HTMLElement | null;
+    if (!wrap) {
+      wrap = doc.createElement('span');
+      wrap.className = 'ww-img-wrap';
+      selectedImg.parentNode?.insertBefore(wrap, selectedImg);
+      wrap.appendChild(selectedImg);
+    }
+    if (aspect === 'none') {
+      wrap.classList.remove('ww-cropped');
+      wrap.style.aspectRatio = '';
+      selectedImg.style.height = 'auto';
+      (selectedImg.style as any).objectFit = '';
+    } else {
+      wrap.classList.add('ww-cropped');
+      wrap.style.aspectRatio = aspect;
+      selectedImg.style.width = '100%';
+      selectedImg.style.height = '100%';
+      (selectedImg.style as any).objectFit = 'cover';
+    }
+  }, [selectedImg]);
+
+  const removeSelectedImage = useCallback(() => {
+    if (!selectedImg) { toast.error('Click an image first'); return; }
+    const wrap = selectedImg.closest('.ww-img-wrap');
+    (wrap || selectedImg).remove();
+    setSelectedImg(null);
+  }, [selectedImg]);
 
   const insertTable = useCallback((rows: number, cols: number, style?: string) => {
     const cls = style ? ` class="${style}"` : '';
@@ -292,7 +388,7 @@ export function ArticleContentEditor({
     setPreviewBuilding(true);
     try {
       const html = getContent();
-      const paged = await buildPagedFormattedArticleHtml(html);
+      const paged = await buildPagedFormattedArticleHtml(html, { startPage, showFirstPageNumber: true });
       setPreviewHtml(paged);
     } catch (e: any) {
       console.error(e);
@@ -300,27 +396,27 @@ export function ArticleContentEditor({
     } finally {
       setPreviewBuilding(false);
     }
-  }, [getContent]);
+  }, [getContent, startPage]);
 
   const handleDownloadPdf = useCallback(async () => {
     try {
       toast.info('Building PDF…');
-      await downloadFormattedAsPdf(getContent(), `formatted-${referenceNumber || 'article'}`);
+      await downloadFormattedAsPdf(getContent(), `formatted-${referenceNumber || 'article'}`, { startPage, showFirstPageNumber: true });
       toast.success('PDF ready');
     } catch (e: any) {
       toast.error('PDF export failed: ' + (e?.message || 'unknown error'));
     }
-  }, [getContent, referenceNumber]);
+  }, [getContent, referenceNumber, startPage]);
 
   const handleDownloadDocx = useCallback(async () => {
     try {
       toast.info('Building Word file…');
-      await downloadFormattedAsDocx(getContent(), `formatted-${referenceNumber || 'article'}`);
+      await downloadFormattedAsDocx(getContent(), `formatted-${referenceNumber || 'article'}`, { startPage, showFirstPageNumber: true });
       toast.success('Word file ready');
     } catch (e: any) {
       toast.error('Word export failed: ' + (e?.message || 'unknown error'));
     }
-  }, [getContent, referenceNumber]);
+  }, [getContent, referenceNumber, startPage]);
 
 
   const ToolbarBtn = ({ cmd, value, icon: Icon, title }: { cmd: string; value?: string; icon: any; title: string }) => (
@@ -342,7 +438,7 @@ export function ArticleContentEditor({
             <h3 className="font-semibold text-lg">Edit Formatted Article</h3>
             <p className="text-sm text-muted-foreground">{referenceNumber} — {articleTitle}</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {/* Column setting */}
             <div className="flex items-center gap-1.5">
               <Label className="text-xs text-muted-foreground">Columns:</Label>
@@ -357,6 +453,80 @@ export function ArticleContentEditor({
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Line spacing */}
+            <div className="flex items-center gap-1.5">
+              <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                <MoveVertical className="w-3 h-3" /> Line:
+              </Label>
+              <Select value={lineHeight} onValueChange={setLineHeight}>
+                <SelectTrigger className="h-7 w-[70px] text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {['1.15', '1.3', '1.5', '1.6', '1.8', '2.0', '2.5'].map(v => (
+                    <SelectItem key={v} value={v}>{v}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Paragraph spacing */}
+            <div className="flex items-center gap-1.5">
+              <Label className="text-xs text-muted-foreground">¶ Gap:</Label>
+              <Select value={paraSpacing} onValueChange={setParaSpacing}>
+                <SelectTrigger className="h-7 w-[70px] text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {['0', '2', '4', '6', '8', '12', '16'].map(v => (
+                    <SelectItem key={v} value={v}>{v}px</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Page number start */}
+            <div className="flex items-center gap-1.5">
+              <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                <Hash className="w-3 h-3" /> Page #:
+              </Label>
+              <input
+                type="number"
+                min={1}
+                value={startPage}
+                onChange={(e) => setStartPage(Math.max(1, Number(e.target.value) || 1))}
+                className="h-7 w-[55px] text-xs rounded border border-input bg-background px-2"
+                title="Starting page number"
+              />
+            </div>
+
+            {/* Image controls (only enabled when an image is selected) */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button type="button" variant="ghost" size="sm" className="h-7 px-1.5 gap-1" title="Image">
+                  <ImageIcon className="w-3.5 h-3.5" />
+                  <span className="text-[10px]">Image</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuLabel className="text-xs">
+                  {selectedImg ? 'Resize selected image' : 'Click an image to select'}
+                </DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => resizeSelectedImage(25)}>Width 25%</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => resizeSelectedImage(50)}>Width 50%</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => resizeSelectedImage(75)}>Width 75%</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => resizeSelectedImage(100)}>Width 100%</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-xs">Crop (aspect ratio)</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => cropSelectedImage('1 / 1')}><Crop className="w-4 h-4 mr-2" /> Square 1:1</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => cropSelectedImage('4 / 3')}><Crop className="w-4 h-4 mr-2" /> 4:3</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => cropSelectedImage('16 / 9')}><Crop className="w-4 h-4 mr-2" /> 16:9</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => cropSelectedImage('3 / 4')}><Crop className="w-4 h-4 mr-2" /> 3:4 portrait</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => cropSelectedImage('none')}>Remove crop</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={removeSelectedImage} className="text-red-600">
+                  <Trash2 className="w-4 h-4 mr-2" /> Delete image
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             <Button variant="ghost" size="sm" onClick={openPaginatedPreview}>
               <Eye className="w-4 h-4 mr-1" /> Preview A4
             </Button>

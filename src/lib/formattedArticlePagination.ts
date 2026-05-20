@@ -39,9 +39,10 @@ const pageCss = `
     * { box-sizing: border-box; }
     body { margin: 0; background: #525659; font-family: Georgia, 'Times New Roman', serif; }
     .formatted-a4-document { background: #525659; padding: 20px 0; }
-    .formatted-a4-page { width: ${A4_WIDTH_MM}mm; min-height: ${A4_HEIGHT_MM}mm; height: ${A4_HEIGHT_MM}mm; margin: 0 auto 18px; padding: ${PAGE_PADDING_MM}mm; background: #fff; color: #0f172a; box-shadow: 0 5px 18px rgba(0,0,0,.32); overflow: hidden; page-break-after: always; break-after: page; }
+    .formatted-a4-page { width: ${A4_WIDTH_MM}mm; min-height: ${A4_HEIGHT_MM}mm; height: ${A4_HEIGHT_MM}mm; margin: 0 auto 18px; padding: ${PAGE_PADDING_MM}mm; background: #fff; color: #0f172a; box-shadow: 0 5px 18px rgba(0,0,0,.32); overflow: hidden; page-break-after: always; break-after: page; position: relative; display: flex; flex-direction: column; }
     .formatted-a4-page:last-child { page-break-after: auto; break-after: auto; }
-    .formatted-page-content { width: ${CONTENT_WIDTH_MM}mm; min-height: ${CONTENT_HEIGHT_MM}mm; }
+    .formatted-page-content { width: ${CONTENT_WIDTH_MM}mm; flex: 1; min-height: 0; }
+    .formatted-cover-page .formatted-page-footer { margin-top: auto; }
     .formatted-body-page { display: flex; flex-direction: column; }
     .formatted-running-head { height: ${BODY_HEADER_MM}mm; border-bottom: 1px solid #cbd5e1; color: #475569; font-family: Arial, sans-serif; font-size: 9px; line-height: 5mm; }
     .formatted-body-content { width: ${CONTENT_WIDTH_MM}mm; height: ${BODY_CONTENT_HEIGHT_MM}mm; margin: 0 auto; padding-top: 4mm; overflow: hidden; font-size: 10.8px; line-height: 1.62; color: #1f2937; }
@@ -75,6 +76,11 @@ function createBodyPage(content: string, pageNumber: number, totalPlaceholder = 
     <div class="formatted-body-content">${content}</div>
     <div class="formatted-page-footer">~ ${pageNumber} / <span class="formatted-total-pages">${totalPlaceholder}</span> ~</div>
   </section>`;
+}
+
+export interface PaginationOptions {
+  startPage?: number;            // starting page number (default 1)
+  showFirstPageNumber?: boolean; // include footer/page-number on the cover page
 }
 
 function cloneContentRoot(source: ParentNode): HTMLElement {
@@ -256,8 +262,13 @@ function splitOversizedBlock(block: string, measure: HTMLElement, maxHeightPx: n
   return [block];
 }
 
-export async function buildPagedFormattedArticleHtml(html: string): Promise<string> {
+export async function buildPagedFormattedArticleHtml(
+  html: string,
+  options: PaginationOptions = {},
+): Promise<string> {
   if (!html.trim()) return html;
+  const startPage = Math.max(1, Math.floor(options.startPage ?? 1));
+  const showFirstPageNumber = options.showFirstPageNumber ?? true;
 
   const template = document.createElement('template');
   template.innerHTML = html;
@@ -314,13 +325,19 @@ export async function buildPagedFormattedArticleHtml(html: string): Promise<stri
   if (current.trim()) pages.push(current);
   document.body.removeChild(measureHost);
 
+  const totalPages = (firstPage ? 1 : 0) + pages.length;
+
   const firstPageHtml = firstPage
-    ? `<section class="formatted-a4-page" data-formatted-page="first"><div class="formatted-page-content">${firstPage.innerHTML}</div></section>`
+    ? `<section class="formatted-a4-page formatted-cover-page" data-formatted-page="first">
+        <div class="formatted-page-content">${firstPage.innerHTML}</div>
+        ${showFirstPageNumber
+          ? `<div class="formatted-page-footer">~ ${startPage} / <span class="formatted-total-pages">${totalPages}</span> ~</div>`
+          : ''}
+      </section>`
     : '';
 
-  const bodyStart = firstPageHtml ? 2 : 1;
+  const bodyStart = startPage + (firstPage ? 1 : 0);
   const bodyPagesHtml = pages.map((content, index) => createBodyPage(content, bodyStart + index)).join('');
-  const totalPages = (firstPageHtml ? 1 : 0) + pages.length;
   const doc = `<div class="formatted-a4-document">${firstPageHtml}${bodyPagesHtml}</div>`.replace(/<span class="formatted-total-pages">\.\.\.<\/span>/g, `<span class="formatted-total-pages">${totalPages}</span>`);
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8">${pageCss}${styleTags}</head><body>${doc}</body></html>`;
