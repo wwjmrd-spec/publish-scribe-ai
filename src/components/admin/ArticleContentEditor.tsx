@@ -377,7 +377,7 @@ export function ArticleContentEditor({
     setPreviewBuilding(true);
     try {
       const html = getContent();
-      const paged = await buildPagedFormattedArticleHtml(html);
+      const paged = await buildPagedFormattedArticleHtml(html, { startPage, showFirstPageNumber: true });
       setPreviewHtml(paged);
     } catch (e: any) {
       console.error(e);
@@ -385,27 +385,27 @@ export function ArticleContentEditor({
     } finally {
       setPreviewBuilding(false);
     }
-  }, [getContent]);
+  }, [getContent, startPage]);
 
   const handleDownloadPdf = useCallback(async () => {
     try {
       toast.info('Building PDF…');
-      await downloadFormattedAsPdf(getContent(), `formatted-${referenceNumber || 'article'}`);
+      await downloadFormattedAsPdf(getContent(), `formatted-${referenceNumber || 'article'}`, { startPage, showFirstPageNumber: true });
       toast.success('PDF ready');
     } catch (e: any) {
       toast.error('PDF export failed: ' + (e?.message || 'unknown error'));
     }
-  }, [getContent, referenceNumber]);
+  }, [getContent, referenceNumber, startPage]);
 
   const handleDownloadDocx = useCallback(async () => {
     try {
       toast.info('Building Word file…');
-      await downloadFormattedAsDocx(getContent(), `formatted-${referenceNumber || 'article'}`);
+      await downloadFormattedAsDocx(getContent(), `formatted-${referenceNumber || 'article'}`, { startPage, showFirstPageNumber: true });
       toast.success('Word file ready');
     } catch (e: any) {
       toast.error('Word export failed: ' + (e?.message || 'unknown error'));
     }
-  }, [getContent, referenceNumber]);
+  }, [getContent, referenceNumber, startPage]);
 
 
   const ToolbarBtn = ({ cmd, value, icon: Icon, title }: { cmd: string; value?: string; icon: any; title: string }) => (
