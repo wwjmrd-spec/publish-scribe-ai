@@ -1,6 +1,6 @@
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-import { buildPagedFormattedArticleHtml } from './formattedArticlePagination';
+import { buildPagedFormattedArticleHtml, type PaginationOptions } from './formattedArticlePagination';
 
 async function waitForImages(root: ParentNode) {
   const imgs = Array.from(root.querySelectorAll('img')) as HTMLImageElement[];
