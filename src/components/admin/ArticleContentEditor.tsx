@@ -131,6 +131,10 @@ export function ArticleContentEditor({
   const [previewBuilding, setPreviewBuilding] = useState(false);
   const [ready, setReady] = useState(false);
   const [columns, setColumns] = useState<1 | 2 | 3>(1);
+  const [lineHeight, setLineHeight] = useState<string>('1.6');
+  const [paraSpacing, setParaSpacing] = useState<string>('4');
+  const [startPage, setStartPage] = useState<number>(1);
+  const [selectedImg, setSelectedImg] = useState<HTMLImageElement | null>(null);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -142,12 +146,31 @@ export function ArticleContentEditor({
       doc.open();
       doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><style>${EDITOR_STYLES}</style></head><body contenteditable="true">${initialContent}</body></html>`);
       doc.close();
+
+      doc.body.addEventListener('click', (e) => {
+        const target = e.target as HTMLElement;
+        doc.body.querySelectorAll('img.ww-selected').forEach((n) => n.classList.remove('ww-selected'));
+        if (target?.tagName === 'IMG') {
+          (target as HTMLImageElement).classList.add('ww-selected');
+          setSelectedImg(target as HTMLImageElement);
+        } else {
+          setSelectedImg(null);
+        }
+      });
+
       setReady(true);
     };
     iframe.addEventListener('load', onLoad);
     iframe.src = 'about:blank';
     return () => iframe.removeEventListener('load', onLoad);
   }, [initialContent]);
+
+  useEffect(() => {
+    const body = iframeRef.current?.contentDocument?.body;
+    if (!body) return;
+    body.style.setProperty('--ww-line-height', lineHeight);
+    body.style.setProperty('--ww-para-spacing', `${paraSpacing}px`);
+  }, [lineHeight, paraSpacing, ready]);
 
   const getContent = useCallback(() => {
     return iframeRef.current?.contentDocument?.body?.innerHTML || '';
