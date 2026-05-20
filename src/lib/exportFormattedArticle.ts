@@ -75,9 +75,9 @@ export async function downloadFormattedAsPdf(html: string, fileName: string, opt
  * Convert formatted-article HTML to a Word (.docx) blob via dynamic import,
  * so a missing optional dep won't break the bundle.
  */
-export async function downloadFormattedAsDocx(html: string, fileName: string) {
+export async function downloadFormattedAsDocx(html: string, fileName: string, options: PaginationOptions = {}) {
   const origin = window.location.origin;
-  const pagedHtml = await buildPagedFormattedArticleHtml(html);
+  const pagedHtml = await buildPagedFormattedArticleHtml(html, options);
   const absHtml = pagedHtml.replace(/src="\/(?!\/)/g, `src="${origin}/`);
 
   const fullHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Article</title></head><body>${absHtml}</body></html>`;
