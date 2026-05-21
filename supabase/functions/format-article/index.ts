@@ -239,7 +239,7 @@ Extract:
 - Correspondence (typically the first or contact author)
 - Abstract: a single paragraph (200–300 words). Copy verbatim from the article — do NOT rewrite.
 - Keywords: array of 3-7 keywords
-- References: array of references in the order they appear, with their original numbering removed (we'll re-number). Keep raw URLs.
+- References: array of EVERY reference in the order they appear (do not skip, do not summarize, do not truncate). Remove the original numbering (we'll re-number). Keep raw URLs. If the article has 30 references, return all 30.
 - body_start_heading: the EXACT text of the first heading where the main body begins (usually "Introduction" or "1. Introduction" — copy exactly as it appears).
 - references_heading: the EXACT text of the references section heading (e.g. "References" or "Bibliography" — copy exactly).
 
@@ -247,7 +247,7 @@ DO NOT rewrite text. DO NOT summarize. Copy verbatim from the source.
 `;
 
 async function extractMetadata(rawText: string, cfg: AiGatewayConfig, fallbackTitle: string): Promise<ArticleMetadata> {
-  const truncated = rawText.substring(0, 35000);
+  const truncated = rawText.substring(0, 120000);
 
   const aiResponse = await aiChatCompletion(cfg, {
     messages: [
@@ -329,6 +329,17 @@ async function extractMetadata(rawText: string, cfg: AiGatewayConfig, fallbackTi
   const meta: ArticleMetadata = JSON.parse(toolCall.function.arguments);
   if (!meta.title) meta.title = fallbackTitle;
   if (!meta.suggestions) meta.suggestions = [];
+
+  // Safety net: if the AI returned fewer references than a naive regex scan finds,
+  // fall back to the regex list so we never silently drop refs.
+  try {
+    const regexRefs = splitReferences(rawText);
+    if ((meta.references?.length ?? 0) < regexRefs.length) {
+      console.log(`AI returned ${meta.references?.length ?? 0} refs, regex found ${regexRefs.length} — using regex list`);
+      meta.references = regexRefs;
+    }
+  } catch (_) { /* ignore */ }
+
   return meta;
 }
 
@@ -1102,9 +1113,9 @@ function generateEditorHtml(meta: ArticleMetadata, body: Block[], images: Map<st
     return "";
   }).join("");
 
-  const singleReference = (meta.references || []).slice(0, 1);
-  const refsHtml = singleReference.length
-    ? `<h2>References</h2><ol class="ww-references">${singleReference.map(r => `<li>${esc(r)}</li>`).join("")}</ol>`
+  const allReferences = meta.references || [];
+  const refsHtml = allReferences.length
+    ? `<h2>References</h2><ol class="ww-references">${allReferences.map(r => `<li>${esc(r)}</li>`).join("")}</ol>`
     : "";
 
   const authorsInline = (meta.authors || []).map((a, i) => {

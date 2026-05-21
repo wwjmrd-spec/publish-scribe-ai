@@ -301,24 +301,90 @@ export async function buildPagedFormattedArticleHtml(
   await waitForImages(template.content);
 
   const maxHeightPx = BODY_CONTENT_HEIGHT_MM * MM_TO_PX;
+  // Leave a tiny safety margin so the last visible line never bleeds past the page footer.
+  const fillThresholdPx = maxHeightPx - 6;
   const pages: string[] = [];
   let current = '';
 
+  const measureHeight = (htmlContent: string): number => {
+    measure.innerHTML = htmlContent;
+    return measure.scrollHeight;
+  };
+
+  const isSplittable = (block: string): boolean => {
+    const tpl = document.createElement('template');
+    tpl.innerHTML = block.trim();
+    const el = tpl.content.firstElementChild as HTMLElement | null;
+    if (!el) return false;
+    const tag = el.tagName.toLowerCase();
+    // Paragraphs and headings can be word-split. Lists/tables get their own splitter.
+    // Figures, images, and divs containing media must stay atomic to avoid mid-figure splits.
+    if (tag === 'p' || /^h[1-6]$/.test(tag)) return true;
+    if (tag === 'ul' || tag === 'ol') return true;
+    if (tag === 'table') return true;
+    return false;
+  };
+
   for (const originalBlock of blocks) {
-    measure.innerHTML = originalBlock;
-    const candidateBlocks = measure.scrollHeight > maxHeightPx
+    // First, if a single block is bigger than a page, split it once into smaller chunks.
+    const candidateBlocks = measureHeight(originalBlock) > maxHeightPx
       ? splitOversizedBlock(originalBlock, measure, maxHeightPx)
       : [originalBlock];
 
     for (const block of candidateBlocks) {
-      measure.innerHTML = current + block;
-      if (measure.scrollHeight > maxHeightPx && current.trim()) {
-        pages.push(current);
-        current = block;
-        measure.innerHTML = current;
-      } else {
-        current += block;
+      const combined = current + block;
+      if (measureHeight(combined) <= maxHeightPx) {
+        current = combined;
+        continue;
       }
+
+      // Block doesn't fit on the current page. Try to split it so we fill the
+      // remaining space instead of leaving a big gap at the bottom.
+      if (current.trim() && isSplittable(block)) {
+        const remainingPx = Math.max(0, fillThresholdPx - measureHeight(current));
+        if (remainingPx > 20) {
+          const parts = splitOversizedBlock(block, measure, remainingPx);
+          if (parts.length > 1) {
+            // First piece fills the current page; the rest continue.
+            current = current + parts[0];
+            pages.push(current);
+            current = '';
+            // Re-queue remaining parts at the front of the loop by processing them now.
+            for (let i = 1; i < parts.length; i++) {
+              const part = parts[i];
+              const next = current + part;
+              if (measureHeight(next) <= maxHeightPx) {
+                current = next;
+              } else {
+                if (current.trim()) {
+                  pages.push(current);
+                  current = '';
+                }
+                // If the part itself is still too big, fall back to splitting it
+                // across multiple pages by max-height chunks.
+                if (measureHeight(part) > maxHeightPx) {
+                  const sub = splitOversizedBlock(part, measure, maxHeightPx);
+                  for (const s of sub) {
+                    if (current && measureHeight(current + s) > maxHeightPx) {
+                      pages.push(current);
+                      current = '';
+                    }
+                    current += s;
+                  }
+                } else {
+                  current = part;
+                }
+              }
+            }
+            continue;
+          }
+        }
+      }
+
+      // Couldn't split (figure, table, etc., or no useful split point) — push current
+      // page and start a new one with the block.
+      if (current.trim()) pages.push(current);
+      current = block;
     }
   }
 

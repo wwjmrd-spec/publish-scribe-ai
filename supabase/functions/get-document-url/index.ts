@@ -153,6 +153,70 @@ serve(async (req) => {
     } else if (fileType === "review_report") {
       bucket = "review-reports";
       filePath = article.review_report_url || null;
+
+      // Server-side quota enforcement (authors only; admins bypass)
+      if (!isAdmin) {
+        const FREE_LIMIT = 2;   // lifetime
+        const PRO_LIMIT = 5;    // per month
+
+        const { data: sub } = await supabase
+          .from("user_subscriptions")
+          .select("plan_type, is_active, expires_at")
+          .eq("user_id", userId)
+          .eq("is_active", true)
+          .maybeSingle();
+
+        const isPro =
+          sub?.plan_type === "pro" &&
+          sub.is_active &&
+          (!sub.expires_at || new Date(sub.expires_at) > new Date());
+
+        let used = 0;
+        let limit = FREE_LIMIT;
+
+        if (isPro) {
+          const now = new Date();
+          const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+          limit = PRO_LIMIT;
+          const { data: monthRow } = await supabase
+            .from("plan_usage")
+            .select("review_reports_used")
+            .eq("user_id", userId)
+            .eq("usage_month", month)
+            .maybeSingle();
+          used = monthRow?.review_reports_used ?? 0;
+        } else {
+          const { data: allRows } = await supabase
+            .from("plan_usage")
+            .select("review_reports_used")
+            .eq("user_id", userId);
+          used = (allRows || []).reduce(
+            (s, r: any) => s + (r.review_reports_used || 0),
+            0,
+          );
+        }
+
+        if (used >= limit) {
+          return new Response(
+            JSON.stringify({
+              error: isPro
+                ? `Monthly limit reached (${limit} review reports/month).`
+                : `You've used all ${limit} free review report downloads. Upgrade to Pro for more.`,
+              quotaExceeded: true,
+            }),
+            { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+
+        // Atomically increment usage BEFORE issuing the signed URL so fast
+        // double-clicks can't blow past the limit.
+        const { error: rpcError } = await supabase.rpc("increment_plan_usage", {
+          p_user_id: userId,
+          p_field: "review_reports_used",
+          p_usage_month: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`,
+        });
+        if (rpcError) console.error("increment_plan_usage failed:", rpcError.message);
+      }
     } else if (fileType === "pending_review_report") {
       // Admin-only: preview the not-yet-approved review PDF stored on article_reviews
       if (!isAdmin) {
