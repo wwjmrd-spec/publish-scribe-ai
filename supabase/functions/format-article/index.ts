@@ -1102,9 +1102,9 @@ function generateEditorHtml(meta: ArticleMetadata, body: Block[], images: Map<st
     return "";
   }).join("");
 
-  const singleReference = (meta.references || []).slice(0, 1);
-  const refsHtml = singleReference.length
-    ? `<h2>References</h2><ol class="ww-references">${singleReference.map(r => `<li>${esc(r)}</li>`).join("")}</ol>`
+  const allReferences = meta.references || [];
+  const refsHtml = allReferences.length
+    ? `<h2>References</h2><ol class="ww-references">${allReferences.map(r => `<li>${esc(r)}</li>`).join("")}</ol>`
     : "";
 
   const authorsInline = (meta.authors || []).map((a, i) => {
