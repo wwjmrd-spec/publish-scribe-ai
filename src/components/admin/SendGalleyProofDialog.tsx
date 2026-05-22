@@ -182,35 +182,8 @@ export function SendGalleyProofDialog({ open, onOpenChange, article }: SendGalle
               <p><span className="text-muted-foreground">Deadline:</span> {isFirstPublication ? '2 hours' : '2 days'} from now</p>
             </div>
 
-            {/* Word file */}
-            <div className="space-y-2">
-              <Label>Word Document (.docx)</Label>
-              <div
-                className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${
-                  wordFile ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
-                }`}
-                onClick={() => document.getElementById('galley-word-input')?.click()}
-              >
-                {wordFile ? (
-                  <div className="flex items-center justify-center gap-2 text-sm">
-                    <FileText className="w-4 h-4 text-primary" />
-                    <span className="truncate">{wordFile.name}</span>
-                  </div>
-                ) : (
-                  <div className="text-muted-foreground text-sm">
-                    <Upload className="w-5 h-5 mx-auto mb-1" />
-                    Click to upload Word file
-                  </div>
-                )}
-                <input
-                  id="galley-word-input"
-                  type="file"
-                  accept=".docx,.doc"
-                  className="hidden"
-                  onChange={(e) => setWordFile(e.target.files?.[0] || null)}
-                />
-              </div>
-            </div>
+            {/* Note: Word file is no longer collected. Author will provide a revised Word
+                file as part of their revision response if changes are needed. */}
 
             {/* PDF file */}
             <div className="space-y-2">
