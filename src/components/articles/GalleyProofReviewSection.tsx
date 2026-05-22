@@ -257,16 +257,8 @@ export function GalleyProofReviewSection({ article }: GalleyProofReviewSectionPr
           </div>
         )}
 
-        {/* Download buttons */}
+        {/* Download buttons — PDF only (Word kept only for legacy records) */}
         <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleDownload('galley_proof_word')}
-          >
-            <Download className="w-4 h-4 mr-1" />
-            Word File
-          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -275,6 +267,16 @@ export function GalleyProofReviewSection({ article }: GalleyProofReviewSectionPr
             <Download className="w-4 h-4 mr-1" />
             PDF File
           </Button>
+          {(article as any).galley_proof_word_url && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleDownload('galley_proof_word')}
+            >
+              <Download className="w-4 h-4 mr-1" />
+              Word (legacy)
+            </Button>
+          )}
           {galleyStatus === 'sent' && (
             <Button
               variant="outline"
