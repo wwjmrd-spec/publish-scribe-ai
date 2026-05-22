@@ -15,7 +15,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
-import { Plus, Trash2, CheckCircle, Search, FileText } from 'lucide-react';
+import { Plus, Trash2, CheckCircle, Search, FileText, ClipboardList } from 'lucide-react';
 
 export default function AdminPublishQueue() {
   const qc = useQueryClient();
@@ -200,6 +200,11 @@ export default function AdminPublishQueue() {
                     </p>
                   </div>
                   <div className="flex gap-2 shrink-0">
+                    <Button asChild size="sm" variant="outline" className="gap-1">
+                      <Link to={`/admin/publish-queue/${a.id}/publication-form`}>
+                        <ClipboardList className="w-4 h-4" /> Prepare Publication
+                      </Link>
+                    </Button>
                     <Button
                       size="sm"
                       onClick={() => publishMutation.mutate(a.id)}

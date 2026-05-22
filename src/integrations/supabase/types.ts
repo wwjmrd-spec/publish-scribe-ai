@@ -900,6 +900,63 @@ export type Database = {
           },
         ]
       }
+      publication_form_data: {
+        Row: {
+          abstract: string | null
+          article_id: string
+          article_title: string | null
+          co_authors_names: string | null
+          correspondence_author_name: string | null
+          country: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          doi: string | null
+          final_pdf_url: string | null
+          id: string
+          keywords: string | null
+          publication_year_month: string | null
+          subject: string | null
+          updated_at: string
+        }
+        Insert: {
+          abstract?: string | null
+          article_id: string
+          article_title?: string | null
+          co_authors_names?: string | null
+          correspondence_author_name?: string | null
+          country?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          doi?: string | null
+          final_pdf_url?: string | null
+          id?: string
+          keywords?: string | null
+          publication_year_month?: string | null
+          subject?: string | null
+          updated_at?: string
+        }
+        Update: {
+          abstract?: string | null
+          article_id?: string
+          article_title?: string | null
+          co_authors_names?: string | null
+          correspondence_author_name?: string | null
+          country?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          doi?: string | null
+          final_pdf_url?: string | null
+          id?: string
+          keywords?: string | null
+          publication_year_month?: string | null
+          subject?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       referrals: {
         Row: {
           created_at: string

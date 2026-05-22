@@ -40,6 +40,7 @@ import AdminEmailLog from "./pages/admin/AdminEmailLog";
 import AdminProSubscribers from "./pages/admin/AdminProSubscribers";
 import AdminAISettings from "./pages/admin/AdminAISettings";
 import AdminPublishQueue from "./pages/admin/AdminPublishQueue";
+import AdminPublicationForm from "./pages/admin/AdminPublicationForm";
 import NotFound from "./pages/NotFound";
 import { ReferralPopup } from "./components/referral/ReferralPopup";
 import { CookieConsent } from "./components/CookieConsent";
@@ -308,6 +309,14 @@ const App = () => (
               element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <AdminPublishQueue />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/publish-queue/:articleId/publication-form"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminPublicationForm />
                 </ProtectedRoute>
               }
             />
