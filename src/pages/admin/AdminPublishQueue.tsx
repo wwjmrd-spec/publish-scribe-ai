@@ -15,7 +15,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
-import { Plus, Trash2, CheckCircle, Search, FileText } from 'lucide-react';
+import { Plus, Trash2, CheckCircle, Search, FileText, ClipboardList } from 'lucide-react';
 
 export default function AdminPublishQueue() {
   const qc = useQueryClient();
