@@ -27,7 +27,6 @@ interface SendGalleyProofDialogProps {
 const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
 export function SendGalleyProofDialog({ open, onOpenChange, article }: SendGalleyProofDialogProps) {
-  const [wordFile, setWordFile] = useState<File | null>(null);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [sending, setSending] = useState(false);
   const [activeTab, setActiveTab] = useState('files');
@@ -48,16 +47,12 @@ export function SendGalleyProofDialog({ open, onOpenChange, article }: SendGalle
   const authorProfile = article?.profiles as any;
   const isFirstPublication = article?.publication_type === 'fast_track';
 
-  // Load article content for editing when dialog opens
   useEffect(() => {
     if (open && article && !editorLoaded) {
-      const content = buildEditorContent(article);
-      setEditorContent(content);
+      setEditorContent(buildEditorContent(article));
       setEditorLoaded(true);
     }
-    if (!open) {
-      setEditorLoaded(false);
-    }
+    if (!open) setEditorLoaded(false);
   }, [open, article]);
 
   function buildEditorContent(article: any) {
@@ -66,9 +61,7 @@ export function SendGalleyProofDialog({ open, onOpenChange, article }: SendGalle
     if (article.author_name || authorProfile?.full_name) {
       html += `<p><strong>${article.author_name || authorProfile?.full_name}</strong></p>`;
     }
-    if (article.abstract) {
-      html += `<h2>Abstract</h2><p>${article.abstract}</p>`;
-    }
+    if (article.abstract) html += `<h2>Abstract</h2><p>${article.abstract}</p>`;
     if (article.keywords?.length > 0) {
       html += `<p><strong>Keywords:</strong> ${article.keywords.join(', ')}</p>`;
     }
@@ -76,39 +69,27 @@ export function SendGalleyProofDialog({ open, onOpenChange, article }: SendGalle
   }
 
   const handleSend = async () => {
-    if (!wordFile || !pdfFile) {
-      toast.error('Please upload both Word and PDF files');
+    if (!pdfFile) {
+      toast.error('Please upload the galley proof PDF');
       return;
     }
 
     setSending(true);
     try {
       const articleId = article.id;
-      const wordPath = `galley-proofs/${articleId}/${crypto.randomUUID()}.docx`;
       const pdfPath = `galley-proofs/${articleId}/${crypto.randomUUID()}.pdf`;
 
-      // Upload both files
-      const [wordUpload, pdfUpload] = await Promise.all([
-        supabase.storage.from('formatted-articles').upload(wordPath, wordFile),
-        supabase.storage.from('formatted-articles').upload(pdfPath, pdfFile),
-      ]);
-
-      if (wordUpload.error) throw wordUpload.error;
+      const pdfUpload = await supabase.storage.from('formatted-articles').upload(pdfPath, pdfFile);
       if (pdfUpload.error) throw pdfUpload.error;
 
-      // Calculate deadline: 2 hours for fast_track, 2 days for normal
       const deadline = new Date();
-      if (isFirstPublication) {
-        deadline.setHours(deadline.getHours() + 2);
-      } else {
-        deadline.setDate(deadline.getDate() + 2);
-      }
+      if (isFirstPublication) deadline.setHours(deadline.getHours() + 2);
+      else deadline.setDate(deadline.getDate() + 2);
 
-      // Update article with galley proof info and publication metadata
       const { error: updateError } = await supabase
         .from('articles')
         .update({
-          galley_proof_word_url: wordPath,
+          galley_proof_word_url: null,
           galley_proof_pdf_url: pdfPath,
           galley_proof_deadline: deadline.toISOString(),
           galley_proof_status: 'sent',
@@ -124,13 +105,10 @@ export function SendGalleyProofDialog({ open, onOpenChange, article }: SendGalle
 
       if (updateError) throw updateError;
 
-      // Generate signed URLs for email
-      const [wordUrlRes, pdfUrlRes] = await Promise.all([
-        supabase.storage.from('formatted-articles').createSignedUrl(wordPath, 7 * 24 * 60 * 60),
-        supabase.storage.from('formatted-articles').createSignedUrl(pdfPath, 7 * 24 * 60 * 60),
-      ]);
+      const pdfUrlRes = await supabase.storage
+        .from('formatted-articles')
+        .createSignedUrl(pdfPath, 7 * 24 * 60 * 60);
 
-      // Send email to author
       await supabase.functions.invoke('send-email', {
         body: {
           to: authorProfile?.email,
@@ -143,7 +121,7 @@ export function SendGalleyProofDialog({ open, onOpenChange, article }: SendGalle
               year: 'numeric', month: 'long', day: 'numeric',
               hour: '2-digit', minute: '2-digit',
             }),
-            wordDownloadUrl: wordUrlRes.data?.signedUrl || '',
+            wordDownloadUrl: '',
             pdfDownloadUrl: pdfUrlRes.data?.signedUrl || '',
             isFirstPublication,
             publicationInfo: `${pubYear}; ${pubVolume}(${pubIssue}): ${pubPageRange}`,
@@ -152,7 +130,6 @@ export function SendGalleyProofDialog({ open, onOpenChange, article }: SendGalle
         },
       });
 
-      // Send notification
       await supabase.from('notifications').insert({
         user_id: article.author_id,
         title: 'Galley Proof Ready for Review 📄',
@@ -164,8 +141,8 @@ export function SendGalleyProofDialog({ open, onOpenChange, article }: SendGalle
       toast.success('Galley proof sent to author!');
       queryClient.invalidateQueries({ queryKey: ['admin-article-detail'] });
       queryClient.invalidateQueries({ queryKey: ['admin-articles'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-galley-proofs'] });
       onOpenChange(false);
-      setWordFile(null);
       setPdfFile(null);
     } catch (err: any) {
       console.error('Failed to send galley proof:', err);
