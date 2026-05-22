@@ -150,38 +150,72 @@ function getBodyRoot(template: HTMLTemplateElement, firstPage: HTMLElement | nul
   return root;
 }
 
-function splitWordsIntoElements(el: HTMLElement, measure: HTMLElement, maxHeightPx: number) {
+/**
+ * Split a paragraph/heading into TWO parts: as many words as fit in `firstMaxPx`
+ * (current page's remaining height) and the remainder. Never produces single-word
+ * fragments unless the element literally has one word.
+ */
+function splitParagraphFirstFit(
+  el: HTMLElement,
+  measure: HTMLElement,
+  firstMaxPx: number,
+): { first: string | null; rest: string | null } {
   const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
   const words = text.split(' ').filter(Boolean);
-  if (words.length <= 1) return [el.outerHTML];
+  if (words.length <= 1) return { first: null, rest: el.outerHTML };
 
-  const parts: string[] = [];
-  let start = 0;
-  while (start < words.length) {
-    let low = start + 1;
-    let high = words.length;
-    let best = low;
+  let low = 1;
+  let high = words.length;
+  let best = 0;
 
-    while (low <= high) {
-      const mid = Math.floor((low + high) / 2);
-      const clone = el.cloneNode(false) as HTMLElement;
-      clone.textContent = words.slice(start, mid).join(' ');
-      measure.innerHTML = clone.outerHTML;
-      if (measure.scrollHeight <= maxHeightPx || mid === start + 1) {
-        best = mid;
-        low = mid + 1;
-      } else {
-        high = mid - 1;
-      }
-    }
-
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2);
     const clone = el.cloneNode(false) as HTMLElement;
-    clone.textContent = words.slice(start, best).join(' ');
-    parts.push(clone.outerHTML);
-    start = best;
+    clone.textContent = words.slice(0, mid).join(' ');
+    measure.innerHTML = clone.outerHTML;
+    if (measure.scrollHeight <= firstMaxPx) {
+      best = mid;
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
   }
 
-  return parts;
+  // Avoid orphans: require ~one line of words on the current page, otherwise
+  // push the whole paragraph to the next page.
+  const MIN_WORDS_ON_PAGE = 6;
+  if (best < MIN_WORDS_ON_PAGE) return { first: null, rest: el.outerHTML };
+  if (best >= words.length) return { first: el.outerHTML, rest: null };
+
+  const firstEl = el.cloneNode(false) as HTMLElement;
+  firstEl.textContent = words.slice(0, best).join(' ');
+  const restEl = el.cloneNode(false) as HTMLElement;
+  restEl.textContent = words.slice(best).join(' ');
+  return { first: firstEl.outerHTML, rest: restEl.outerHTML };
+}
+
+// Split a paragraph that is bigger than a full page into N page-sized chunks.
+function splitWordsIntoElements(el: HTMLElement, measure: HTMLElement, maxHeightPx: number) {
+  const parts: string[] = [];
+  let remainder: string | null = el.outerHTML;
+  let guard = 0;
+  while (remainder && guard++ < 50) {
+    const tpl = document.createElement('template');
+    tpl.innerHTML = remainder.trim();
+    const current = tpl.content.firstElementChild as HTMLElement | null;
+    if (!current) break;
+    const { first, rest } = splitParagraphFirstFit(current, measure, maxHeightPx);
+    if (first) {
+      parts.push(first);
+      if (!rest) break;
+      remainder = rest;
+    } else {
+      // Even the minimum chunk doesn't fit — emit the whole remainder as one block.
+      parts.push(remainder);
+      break;
+    }
+  }
+  return parts.length ? parts : [el.outerHTML];
 }
 
 function splitListIntoElements(el: HTMLElement, measure: HTMLElement, maxHeightPx: number) {
