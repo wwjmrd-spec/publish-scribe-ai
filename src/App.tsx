@@ -313,6 +313,14 @@ const App = () => (
               }
             />
             <Route
+              path="/admin/publish-queue/:articleId/publication-form"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminPublicationForm />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/admin/ai-settings"
               element={
                 <ProtectedRoute allowedRoles={['admin']}>
