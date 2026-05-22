@@ -313,7 +313,7 @@ export function SendGalleyProofDialog({ open, onOpenChange, article }: SendGalle
           <Button
             className="gradient-primary"
             onClick={handleSend}
-            disabled={sending || !wordFile || !pdfFile}
+            disabled={sending || !pdfFile}
           >
             {sending ? <GlassSpinner size="sm" /> : <><Send className="w-4 h-4 mr-2" />Send Galley Proof</>}
           </Button>
