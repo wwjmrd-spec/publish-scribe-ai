@@ -200,6 +200,11 @@ export default function AdminPublishQueue() {
                     </p>
                   </div>
                   <div className="flex gap-2 shrink-0">
+                    <Button asChild size="sm" variant="outline" className="gap-1">
+                      <Link to={`/admin/publish-queue/${a.id}/publication-form`}>
+                        <ClipboardList className="w-4 h-4" /> Prepare Publication
+                      </Link>
+                    </Button>
                     <Button
                       size="sm"
                       onClick={() => publishMutation.mutate(a.id)}
