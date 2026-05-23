@@ -134,11 +134,29 @@ function removeDuplicateReferenceSections(root: HTMLElement) {
   }
 }
 
+function materializeReferenceNumbers(root: HTMLElement) {
+  root.querySelectorAll('ol.ww-references').forEach((list) => {
+    const replacement = document.createElement('div');
+    replacement.className = 'ww-references ww-references-materialized';
+
+    Array.from(list.children).forEach((child, index) => {
+      if (child.tagName.toLowerCase() !== 'li') return;
+      const item = document.createElement('p');
+      item.className = 'ww-reference-item';
+      item.innerHTML = `<span class="ww-reference-number">${index + 1}.</span><span class="ww-reference-text">${(child as HTMLElement).innerHTML}</span>`;
+      replacement.appendChild(item);
+    });
+
+    list.replaceWith(replacement);
+  });
+}
+
 function getBodyRoot(template: HTMLTemplateElement, firstPage: HTMLElement | null, flowRoot: HTMLElement | null) {
   if (flowRoot) {
     const root = cloneContentRoot(flowRoot);
     removeDuplicateFrontMatter(root, firstPage);
     removeDuplicateReferenceSections(root);
+    materializeReferenceNumbers(root);
     return root;
   }
 
@@ -147,6 +165,7 @@ function getBodyRoot(template: HTMLTemplateElement, firstPage: HTMLElement | nul
   root.querySelectorAll('[data-a4-page="first"], .ww-first-page, [data-formatted-page="first"]').forEach((node) => node.remove());
   removeDuplicateFrontMatter(root, firstPage);
   removeDuplicateReferenceSections(root);
+  materializeReferenceNumbers(root);
   return root;
 }
 
