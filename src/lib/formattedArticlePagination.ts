@@ -139,7 +139,13 @@ function removeDuplicateReferenceSections(root: HTMLElement) {
 }
 
 function materializeReferenceNumbers(root: HTMLElement) {
-  root.querySelectorAll('ol.ww-references').forEach((list) => {
+  root.querySelectorAll('ol').forEach((list) => {
+    const previousHeading = list.previousElementSibling;
+    const isReferenceList =
+      list.classList.contains('ww-references') ||
+      (!!previousHeading && /^h[1-6]$/i.test(previousHeading.tagName) && ['references', 'bibliography', 'workscited'].includes(norm(previousHeading.textContent || '')));
+    if (!isReferenceList) return;
+
     const replacement = document.createElement('div');
     replacement.className = 'ww-references ww-references-materialized';
 
