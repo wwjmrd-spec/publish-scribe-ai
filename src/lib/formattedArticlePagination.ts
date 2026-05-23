@@ -460,7 +460,7 @@ export async function buildPagedFormattedArticleHtml(
     ? `<section class="formatted-a4-page formatted-cover-page" data-formatted-page="first">
         <div class="formatted-page-content">${firstPage.innerHTML}</div>
         ${showFirstPageNumber
-          ? `<div class="formatted-page-footer">~ ${startPage} / <span class="formatted-total-pages">${totalPages}</span> ~</div>`
+          ? `<div class="formatted-page-footer">~ ${startPage} ~</div>`
           : ''}
       </section>`
     : '';
