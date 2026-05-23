@@ -1183,7 +1183,7 @@ function generateEditorHtml(meta: ArticleMetadata, body: Block[], images: Map<st
           <div style="font-size:8px;font-weight:bold;color:#c4b5fd;letter-spacing:1.2px;margin-bottom:4px;">SUBMITTED VIA</div>
           <img src="/pubportal-logo.png" alt="PubPortal" style="height:28px;width:auto;display:inline-block;margin:2px 0 6px;" />
           <ul style="list-style:none;padding:0;margin:0 0 8px;font-size:9px;color:#e0e7ff;line-height:1.6;text-align:left;"><li>✓ Easy Online Submission</li><li>✓ Real-time Tracking</li><li>✓ Peer Review Management</li><li>✓ Faster Decision</li><li>✓ Wider Visibility</li></ul>
-          <div style="text-align:center;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;font-size:10px;font-weight:bold;padding:7px;border-radius:6px;letter-spacing:0.5px;">Submit Now →</div>
+          <a href="https://wwjmrdai.online/auth" style="display:block;text-decoration:none;text-align:center;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;font-size:10px;font-weight:bold;padding:7px;border-radius:6px;letter-spacing:0.5px;">Submit Now →</a>
           <div style="text-align:center;font-size:8px;color:#c4b5fd;margin-top:5px;font-weight:600;">www.wwjmrdai.online</div>
         </div>
         <div style="border:1px solid #cbd5e1;border-radius:6px;padding:10px 12px;margin-bottom:12px;background:#fff;"><div style="font-size:9px;font-weight:bold;color:#1e3a8a;letter-spacing:1.2px;border-bottom:2px solid #1e3a8a;padding-bottom:4px;margin-bottom:6px;">ABOUT THE JOURNAL</div><p style="font-size:9px;line-height:1.5;color:#334155;margin:0;">WWJMRD is a peer-reviewed, refereed and indexed international multidisciplinary publication platform welcoming research across all disciplines.</p></div>
