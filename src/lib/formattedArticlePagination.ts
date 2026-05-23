@@ -74,7 +74,7 @@ function createBodyPage(content: string, pageNumber: number, totalPlaceholder = 
   return `<section class="formatted-a4-page formatted-body-page" data-formatted-page="body">
     <div class="formatted-running-head">World Wide Journal of Multidisciplinary Research and Development</div>
     <div class="formatted-body-content">${content}</div>
-    <div class="formatted-page-footer">~ ${pageNumber} / <span class="formatted-total-pages">${totalPlaceholder}</span> ~</div>
+    <div class="formatted-page-footer">~ ${pageNumber} ~</div>
   </section>`;
 }
 
