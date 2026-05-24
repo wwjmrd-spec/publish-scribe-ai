@@ -279,19 +279,13 @@ export default function Certificates() {
                           </p>
                         </div>
                       </div>
-                      <Button
-                        variant="outline"
+                      <DownloadButton
                         className="w-full sm:w-auto"
-                        onClick={() => handleDownloadCertificate(article.id)}
-                        disabled={!article.certificate_url || downloadMutation.isPending}
+                        onDownload={() => downloadMutation.mutateAsync(article.id)}
+                        disabled={!article.certificate_url}
                       >
-                        {downloadMutation.isPending ? (
-                          <GlassSpinner size="sm" className="mr-2" />
-                        ) : (
-                          <Download className="w-4 h-4 mr-2" />
-                        )}
                         Download PDF
-                      </Button>
+                      </DownloadButton>
                     </div>
                   </div>
 
