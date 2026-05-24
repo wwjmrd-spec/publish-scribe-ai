@@ -129,14 +129,25 @@ export default function AdminDashboard() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-8"
+        className="mb-6 flex flex-wrap items-start justify-between gap-4"
       >
-        <h1 className="font-display text-3xl font-bold mb-2">
-          Admin Dashboard
-        </h1>
-        <p className="text-muted-foreground">
-          Manage articles, authors, and system settings
-        </p>
+        <div>
+          <h1 className="font-display text-3xl font-bold mb-2">
+            Admin Dashboard
+          </h1>
+          <p className="text-muted-foreground">
+            Manage articles, authors, and system settings
+          </p>
+        </div>
+        <Tabs value={range} onValueChange={(v) => setRange(v as any)}>
+          <TabsList className="flex-wrap h-auto">
+            {RANGES.map(r => (
+              <TabsTrigger key={r.key} value={r.key} className="text-xs">
+                {r.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
       </motion.div>
 
       {/* Stats Grid */}
