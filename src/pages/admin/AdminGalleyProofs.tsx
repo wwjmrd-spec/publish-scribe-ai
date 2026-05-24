@@ -189,35 +189,29 @@ export default function AdminGalleyProofs() {
                           </div>
                           <div className="flex items-center gap-2 flex-wrap">
                             {article.galley_proof_word_url && (
-                              <Button
-                                variant="outline"
+                              <DownloadButton
                                 size="sm"
-                                onClick={() => downloadMutation.mutate({ articleId: article.id, fileType: 'galley_proof_word' })}
-                                disabled={downloadMutation.isPending}
+                                onDownload={() => downloadMutation.mutateAsync({ articleId: article.id, fileType: 'galley_proof_word' } as any)}
                               >
-                                <Download className="w-3 h-3 mr-1" /> Word
-                              </Button>
+                                Word
+                              </DownloadButton>
                             )}
                             {article.galley_proof_pdf_url && (
-                              <Button
-                                variant="outline"
+                              <DownloadButton
                                 size="sm"
-                                onClick={() => downloadMutation.mutate({ articleId: article.id, fileType: 'galley_proof_pdf' })}
-                                disabled={downloadMutation.isPending}
+                                onDownload={() => downloadMutation.mutateAsync({ articleId: article.id, fileType: 'galley_proof_pdf' } as any)}
                               >
-                                <Download className="w-3 h-3 mr-1" /> PDF
-                              </Button>
+                                PDF
+                              </DownloadButton>
                             )}
                             {article.galley_proof_revision_url && (
-                              <Button
-                                variant="outline"
+                              <DownloadButton
                                 size="sm"
                                 className="text-amber-400"
-                                onClick={() => downloadMutation.mutate({ articleId: article.id, fileType: 'galley_proof_revision' })}
-                                disabled={downloadMutation.isPending}
+                                onDownload={() => downloadMutation.mutateAsync({ articleId: article.id, fileType: 'galley_proof_revision' } as any)}
                               >
-                                <Download className="w-3 h-3 mr-1" /> Revised
-                              </Button>
+                                Revised
+                              </DownloadButton>
                             )}
                             <Button
                               variant="outline"
