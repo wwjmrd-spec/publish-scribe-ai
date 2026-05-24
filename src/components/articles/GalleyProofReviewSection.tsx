@@ -259,23 +259,19 @@ export function GalleyProofReviewSection({ article }: GalleyProofReviewSectionPr
 
         {/* Download buttons — PDF only (Word kept only for legacy records) */}
         <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
+          <DownloadButton
             size="sm"
-            onClick={() => handleDownload('galley_proof_pdf')}
+            onDownload={() => handleDownload('galley_proof_pdf')}
           >
-            <Download className="w-4 h-4 mr-1" />
             PDF File
-          </Button>
+          </DownloadButton>
           {(article as any).galley_proof_word_url && (
-            <Button
-              variant="outline"
+            <DownloadButton
               size="sm"
-              onClick={() => handleDownload('galley_proof_word')}
+              onDownload={() => handleDownload('galley_proof_word')}
             >
-              <Download className="w-4 h-4 mr-1" />
               Word (legacy)
-            </Button>
+            </DownloadButton>
           )}
           {galleyStatus === 'sent' && (
             <Button
