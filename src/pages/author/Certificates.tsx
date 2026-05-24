@@ -75,13 +75,19 @@ export default function Certificates() {
 
   const downloadMutation = useMutation({
     mutationFn: async ({ articleId, fileType }: { articleId: string; fileType: string }) => {
-      const response = await supabase.functions.invoke('get-document-url', {
-        body: { articleId, fileType },
-      });
-
-      if (response.error) throw new Error(response.error.message);
-      if (response.data?.error) throw new Error(response.data.error);
-      return response.data;
+      const tid = toast.loading('Preparing certificate…');
+      try {
+        const response = await supabase.functions.invoke('get-document-url', {
+          body: { articleId, fileType },
+        });
+        if (response.error) throw new Error(response.error.message);
+        if (response.data?.error) throw new Error(response.data.error);
+        toast.success('Certificate ready', { id: tid });
+        return response.data;
+      } catch (e) {
+        toast.dismiss(tid);
+        throw e;
+      }
     },
     onSuccess: (data) => {
       if (data.url) {
@@ -95,13 +101,19 @@ export default function Certificates() {
 
   const coAuthorDownloadMutation = useMutation({
     mutationFn: async ({ fileName }: { fileName: string }) => {
-      const { data, error } = await supabase.functions.invoke('get-document-url', {
-        body: { fileName, fileType: 'coauthor_certificate' },
-      });
-
-      if (error) throw new Error(error.message);
-      if (data?.error) throw new Error(data.error);
-      return data;
+      const tid = toast.loading('Preparing co-author certificate…');
+      try {
+        const { data, error } = await supabase.functions.invoke('get-document-url', {
+          body: { fileName, fileType: 'coauthor_certificate' },
+        });
+        if (error) throw new Error(error.message);
+        if (data?.error) throw new Error(data.error);
+        toast.success('Certificate ready', { id: tid });
+        return data;
+      } catch (e) {
+        toast.dismiss(tid);
+        throw e;
+      }
     },
     onSuccess: (data) => {
       if (data.url) {
