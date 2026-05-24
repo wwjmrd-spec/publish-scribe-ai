@@ -936,42 +936,42 @@ export default function AdminArticleDetail() {
               <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Downloads</h3>
               <div className="flex flex-col gap-2">
                 {article.document_url && (
-                  <Button variant="outline" size="sm" onClick={() => downloadMutation.mutate({ fileType: 'document' })} disabled={downloadMutation.isPending}>
-                    <Download className="w-4 h-4 mr-2" /> Document
-                  </Button>
+                  <DownloadButton size="sm" onDownload={() => downloadMutation.mutateAsync({ fileType: 'document' } as any)}>
+                    Document
+                  </DownloadButton>
                 )}
                 {(article as any).copyright_form_url && (
-                  <Button variant="outline" size="sm" onClick={() => downloadMutation.mutate({ fileType: 'copyright_form' })} disabled={downloadMutation.isPending}>
-                    <FileText className="w-4 h-4 mr-2" /> Copyright Form
-                  </Button>
+                  <DownloadButton size="sm" onDownload={() => downloadMutation.mutateAsync({ fileType: 'copyright_form' } as any)}>
+                    Copyright Form
+                  </DownloadButton>
                 )}
                 {!(article as any).copyright_form_url && (
                   <span className="text-xs text-amber-400 px-1">⚠ Copyright form not submitted</span>
                 )}
                 {article.certificate_url && (
-                  <Button variant="outline" size="sm" onClick={() => downloadMutation.mutate({ fileType: 'certificate' })} disabled={downloadMutation.isPending}>
-                    <Award className="w-4 h-4 mr-2" /> Certificate
-                  </Button>
+                  <DownloadButton size="sm" onDownload={() => downloadMutation.mutateAsync({ fileType: 'certificate' } as any)}>
+                    Certificate
+                  </DownloadButton>
                 )}
                 {article.review_report_url && (
-                  <Button variant="outline" size="sm" onClick={() => downloadMutation.mutate({ fileType: 'review_report' })} disabled={downloadMutation.isPending}>
-                    <FileText className="w-4 h-4 mr-2" /> Review Report
-                  </Button>
+                  <DownloadButton size="sm" onDownload={() => downloadMutation.mutateAsync({ fileType: 'review_report' } as any)}>
+                    Review Report
+                  </DownloadButton>
                 )}
                 {(article as any).galley_proof_revision_url && (
-                  <Button variant="outline" size="sm" onClick={() => downloadMutation.mutate({ fileType: 'galley_proof_revision' })} disabled={downloadMutation.isPending}>
-                    <Download className="w-4 h-4 mr-2" /> Revised Galley Proof
-                  </Button>
+                  <DownloadButton size="sm" onDownload={() => downloadMutation.mutateAsync({ fileType: 'galley_proof_revision' } as any)}>
+                    Revised Galley Proof
+                  </DownloadButton>
                 )}
                 {(article as any).galley_proof_word_url && (
-                  <Button variant="outline" size="sm" onClick={() => downloadMutation.mutate({ fileType: 'galley_proof_word' })} disabled={downloadMutation.isPending}>
-                    <Download className="w-4 h-4 mr-2" /> Galley Proof (Word)
-                  </Button>
+                  <DownloadButton size="sm" onDownload={() => downloadMutation.mutateAsync({ fileType: 'galley_proof_word' } as any)}>
+                    Galley Proof (Word)
+                  </DownloadButton>
                 )}
                 {(article as any).galley_proof_pdf_url && (
-                  <Button variant="outline" size="sm" onClick={() => downloadMutation.mutate({ fileType: 'galley_proof_pdf' })} disabled={downloadMutation.isPending}>
-                    <Download className="w-4 h-4 mr-2" /> Galley Proof (PDF)
-                  </Button>
+                  <DownloadButton size="sm" onDownload={() => downloadMutation.mutateAsync({ fileType: 'galley_proof_pdf' } as any)}>
+                    Galley Proof (PDF)
+                  </DownloadButton>
                 )}
                 <Button variant="outline" size="sm" onClick={() => navigate(`/admin/ai-review?articleId=${article.id}`)}>
                   <Brain className="w-4 h-4 mr-2" /> AI Review
