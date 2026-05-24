@@ -58,14 +58,21 @@ export default function AdminGalleyProofs() {
 
   const downloadMutation = useMutation({
     mutationFn: async ({ articleId, fileType }: { articleId: string; fileType: string }) => {
-      const { data, error } = await supabase.functions.invoke('get-document-url', {
-        body: { articleId, fileType },
-      });
-      if (error) throw error;
-      if (data?.url) {
-        window.open(data.url, '_blank');
-      } else {
-        throw new Error('No URL returned');
+      const tid = toast.loading('Preparing file…');
+      try {
+        const { data, error } = await supabase.functions.invoke('get-document-url', {
+          body: { articleId, fileType },
+        });
+        if (error) throw error;
+        if (data?.url) {
+          toast.success('File ready', { id: tid });
+          window.open(data.url, '_blank');
+        } else {
+          throw new Error('No URL returned');
+        }
+      } catch (e) {
+        toast.dismiss(tid);
+        throw e;
       }
     },
     onError: (err: any) => toast.error('Download failed: ' + err.message),
