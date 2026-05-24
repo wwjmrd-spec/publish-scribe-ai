@@ -6,6 +6,7 @@ import { useCart } from '@/contexts/CartContext';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { GlassCard } from '@/components/layout/GlassCard';
 import { Button } from '@/components/ui/button';
+import { DownloadButton } from '@/components/ui/DownloadButton';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -278,19 +279,13 @@ export default function Certificates() {
                           </p>
                         </div>
                       </div>
-                      <Button
-                        variant="outline"
+                      <DownloadButton
                         className="w-full sm:w-auto"
-                        onClick={() => handleDownloadCertificate(article.id)}
-                        disabled={!article.certificate_url || downloadMutation.isPending}
+                        onDownload={() => downloadMutation.mutateAsync({ articleId: article.id, fileType: 'certificate' })}
+                        disabled={!article.certificate_url}
                       >
-                        {downloadMutation.isPending ? (
-                          <GlassSpinner size="sm" className="mr-2" />
-                        ) : (
-                          <Download className="w-4 h-4 mr-2" />
-                        )}
                         Download PDF
-                      </Button>
+                      </DownloadButton>
                     </div>
                   </div>
 
@@ -328,19 +323,12 @@ export default function Certificates() {
                               </div>
 
                               {isPaid ? (
-                                <Button
-                                  variant="outline"
+                                <DownloadButton
                                   size="sm"
-                                  onClick={() => handleDownloadCoAuthorCertificate(certificate)}
-                                  disabled={coAuthorDownloadMutation.isPending}
+                                  onDownload={() => coAuthorDownloadMutation.mutateAsync({ fileName: certificate.certificate_url })}
                                 >
-                                  {coAuthorDownloadMutation.isPending ? (
-                                    <GlassSpinner size="sm" className="mr-1" />
-                                  ) : (
-                                    <Download className="w-4 h-4 mr-1" />
-                                  )}
                                   Download PDF
-                                </Button>
+                                </DownloadButton>
                               ) : isProWithFreeQuota ? (
                                 <Button
                                   size="sm"

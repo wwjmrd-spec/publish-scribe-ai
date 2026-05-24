@@ -21,9 +21,13 @@ import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import { useNavigate } from 'react-router-dom';
 import { TimeRangeReport } from '@/components/admin/TimeRangeReport';
 import { DiscoverySourceReport } from '@/components/admin/DiscoverySourceReport';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useDashboardRange } from '@/hooks/useDashboardRange';
+import { RANGES, getRangeStart, inRange } from '@/lib/timeRange';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
+  const [range, setRange] = useDashboardRange();
 
   const { data: articles, isLoading: articlesLoading } = useQuery({
     queryKey: ['admin-articles-stats'],
@@ -64,26 +68,19 @@ export default function AdminDashboard() {
   });
 
   const stats = React.useMemo(() => {
-    const totalArticles = articles?.length || 0;
-    const pendingReview = articles?.filter(a => a.status === 'submitted').length || 0;
-    const underReview = articles?.filter(a => a.status === 'under_review').length || 0;
-    const published = articles?.filter(a => a.status === 'published').length || 0;
-    const totalAuthors = profiles?.length || 0;
-    
-    const revenueINR = payments?.reduce((sum, p) => {
-      if (p.currency === 'INR') return sum + Number(p.final_amount);
-      return sum;
-    }, 0) || 0;
+    const start = getRangeStart(range);
+    const filteredArticles = (articles || []).filter(a => inRange(a.created_at, start));
+    const filteredProfiles = (profiles || []).filter(p => inRange(p.created_at, start));
+    const filteredPayments = (payments || []).filter(p => inRange(p.created_at, start));
 
-    const revenueUSD = payments?.reduce((sum, p) => {
-      if (p.currency === 'USD') return sum + Number(p.final_amount);
-      return sum;
-    }, 0) || 0;
+    const totalArticles = filteredArticles.length;
+    const pendingReview = filteredArticles.filter(a => a.status === 'submitted').length;
+    const underReview = filteredArticles.filter(a => a.status === 'under_review').length;
+    const published = filteredArticles.filter(a => a.status === 'published').length;
+    const totalAuthors = filteredProfiles.length;
 
-    const revenueUSDT = payments?.reduce((sum, p) => {
-      if (p.currency === 'USDT') return sum + Number(p.final_amount);
-      return sum;
-    }, 0) || 0;
+    const sumBy = (cur: string) =>
+      filteredPayments.filter(p => p.currency === cur).reduce((s, p) => s + Number(p.final_amount), 0);
 
     return {
       totalArticles,
@@ -91,11 +88,11 @@ export default function AdminDashboard() {
       underReview,
       published,
       totalAuthors,
-      revenueINR,
-      revenueUSD,
-      revenueUSDT,
+      revenueINR: sumBy('INR'),
+      revenueUSD: sumBy('USD'),
+      revenueUSDT: sumBy('USDT'),
     };
-  }, [articles, profiles, payments]);
+  }, [articles, profiles, payments, range]);
 
   const recentArticles = articles?.slice(0, 5) || [];
 
@@ -132,14 +129,25 @@ export default function AdminDashboard() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-8"
+        className="mb-6 flex flex-wrap items-start justify-between gap-4"
       >
-        <h1 className="font-display text-3xl font-bold mb-2">
-          Admin Dashboard
-        </h1>
-        <p className="text-muted-foreground">
-          Manage articles, authors, and system settings
-        </p>
+        <div>
+          <h1 className="font-display text-3xl font-bold mb-2">
+            Admin Dashboard
+          </h1>
+          <p className="text-muted-foreground">
+            Manage articles, authors, and system settings
+          </p>
+        </div>
+        <Tabs value={range} onValueChange={(v) => setRange(v as any)}>
+          <TabsList className="flex-wrap h-auto">
+            {RANGES.map(r => (
+              <TabsTrigger key={r.key} value={r.key} className="text-xs">
+                {r.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
       </motion.div>
 
       {/* Stats Grid */}

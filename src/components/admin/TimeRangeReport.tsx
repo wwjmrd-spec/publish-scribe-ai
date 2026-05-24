@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { GlassCard } from '@/components/layout/GlassCard';
 import {
@@ -8,31 +8,9 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
-import { subDays, subMonths, subYears, format } from 'date-fns';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-
-type RangeKey = 'week' | 'month' | '3m' | '6m' | '1y' | 'all';
-
-const RANGES: { key: RangeKey; label: string; days: number | null }[] = [
-  { key: 'week', label: 'Week', days: 7 },
-  { key: 'month', label: 'Month', days: 30 },
-  { key: '3m', label: '3 Months', days: 90 },
-  { key: '6m', label: '6 Months', days: 180 },
-  { key: '1y', label: '1 Year', days: 365 },
-  { key: 'all', label: 'All Time', days: null },
-];
-
-function getRangeStart(range: RangeKey): Date | null {
-  const now = new Date();
-  switch (range) {
-    case 'week': return subDays(now, 7);
-    case 'month': return subMonths(now, 1);
-    case '3m': return subMonths(now, 3);
-    case '6m': return subMonths(now, 6);
-    case '1y': return subYears(now, 1);
-    case 'all': return null;
-  }
-}
+import { format } from 'date-fns';
+import { getRangeStart, inRange } from '@/lib/timeRange';
+import { useDashboardRange } from '@/hooks/useDashboardRange';
 
 interface Metric {
   label: string;
@@ -43,7 +21,7 @@ interface Metric {
 }
 
 export function TimeRangeReport() {
-  const [range, setRange] = useState<RangeKey>('week');
+  const [range] = useDashboardRange();
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-timerange-report'],
@@ -73,12 +51,7 @@ export function TimeRangeReport() {
     const prevStart = start ? new Date(start.getTime() - (now.getTime() - start.getTime())) : null;
     const prevEnd = start;
 
-    const inCurrent = (d: string | null) => {
-      if (!d) return false;
-      if (!start) return true;
-      const dt = new Date(d);
-      return dt >= start && dt <= now;
-    };
+    const inCurrent = (d: string | null) => inRange(d, start, now);
     const inPrevious = (d: string | null) => {
       if (!d || !prevStart || !prevEnd) return false;
       const dt = new Date(d);
@@ -150,25 +123,16 @@ export function TimeRangeReport() {
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}>
       <GlassCard>
-        <div className="flex items-start justify-between mb-4 flex-wrap gap-3">
-          <div className="flex items-center gap-3">
-            <CalendarDays className="w-6 h-6 text-primary" />
-            <div>
-              <h2 className="font-display text-xl font-semibold">Activity Report</h2>
-              <p className="text-xs text-muted-foreground">
-                {rangeStart
-                  ? `${format(rangeStart, 'MMM d, yyyy')} – ${format(new Date(), 'MMM d, yyyy')}`
-                  : 'All time'}
-              </p>
-            </div>
+        <div className="flex items-center gap-3 mb-4">
+          <CalendarDays className="w-6 h-6 text-primary" />
+          <div>
+            <h2 className="font-display text-xl font-semibold">Activity Report</h2>
+            <p className="text-xs text-muted-foreground">
+              {rangeStart
+                ? `${format(rangeStart, 'MMM d, yyyy')} – ${format(new Date(), 'MMM d, yyyy')}`
+                : 'All time'}
+            </p>
           </div>
-          <Tabs value={range} onValueChange={(v) => setRange(v as RangeKey)}>
-            <TabsList className="flex-wrap h-auto">
-              {RANGES.map(r => (
-                <TabsTrigger key={r.key} value={r.key} className="text-xs">{r.label}</TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
         </div>
 
         {isLoading ? (

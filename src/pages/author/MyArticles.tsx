@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { GlassCard } from '@/components/layout/GlassCard';
 import { Button } from '@/components/ui/button';
+import { DownloadButton } from '@/components/ui/DownloadButton';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -420,10 +421,9 @@ export default function MyArticles() {
                     {/* Actions */}
                     <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border/50">
                       {article.review_report_url && (
-                        <Button
-                          variant="outline"
+                        <DownloadButton
                           size="sm"
-                          onClick={() => {
+                          onDownload={async () => {
                             if (!subscription.canDownloadReport) {
                               toast(
                                 <div className="flex flex-col gap-2">
@@ -434,14 +434,13 @@ export default function MyArticles() {
                                   </Button>
                                 </div>
                               );
-                              return;
+                              throw new Error('Quota exhausted');
                             }
-                            handleDownloadReport(article.id);
+                            await handleDownloadReport(article.id);
                           }}
                         >
-                          <Download className="w-4 h-4 mr-1" />
                           Report
-                        </Button>
+                        </DownloadButton>
                       )}
                       {article.certificate_url && (
                         <Button

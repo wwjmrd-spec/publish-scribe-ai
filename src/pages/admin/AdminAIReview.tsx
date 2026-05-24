@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { GlassCard } from '@/components/layout/GlassCard';
 import { Button } from '@/components/ui/button';
+import { DownloadButton } from '@/components/ui/DownloadButton';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -480,14 +481,12 @@ export default function AdminAIReview() {
 
                     {/* Preview pending (unsent) report */}
                     {latestReview && (latestReview as any).report_url && !(latestReview as any).approved && (
-                      <Button
-                        variant="outline"
+                      <DownloadButton
                         size="sm"
-                        onClick={() => handleDownloadReport(article.id, 'pending_review_report')}
+                        onDownload={() => handleDownloadReport(article.id, 'pending_review_report')}
                       >
-                        <Download className="w-4 h-4 mr-2" />
                         Preview Report
-                      </Button>
+                      </DownloadButton>
                     )}
 
                     {/* Approve & send to author */}
@@ -514,14 +513,12 @@ export default function AdminAIReview() {
 
                     {/* Approved report (visible to author) */}
                     {latestReview && article.review_report_url && (latestReview as any).approved && (
-                      <Button
-                        variant="outline"
+                      <DownloadButton
                         size="sm"
-                        onClick={() => handleDownloadReport(article.id, 'review_report')}
+                        onDownload={() => handleDownloadReport(article.id, 'review_report')}
                       >
-                        <Download className="w-4 h-4 mr-2" />
                         Report
-                      </Button>
+                      </DownloadButton>
                     )}
 
                     {latestReview && (

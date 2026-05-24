@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { GlassCard } from '@/components/layout/GlassCard';
 import { Button } from '@/components/ui/button';
+import { DownloadButton } from '@/components/ui/DownloadButton';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -247,25 +248,21 @@ export default function AdminFormatting() {
                     )}
 
                     {formattedContent && (
-                      <Button
-                        variant="outline"
+                      <DownloadButton
                         size="sm"
-                        onClick={() => handleDownloadFormatted(article, 'formatted_document')}
+                        onDownload={() => handleDownloadFormatted(article, 'formatted_document')}
                       >
-                        <Download className="w-4 h-4 mr-2" />
                         Download PDF
-                      </Button>
+                      </DownloadButton>
                     )}
 
                     {formattedContent && (
-                      <Button
-                        variant="outline"
+                      <DownloadButton
                         size="sm"
-                        onClick={() => handleDownloadFormatted(article, 'formatted_word')}
+                        onDownload={() => handleDownloadFormatted(article, 'formatted_word')}
                       >
-                        <Download className="w-4 h-4 mr-2" />
                         Download Word
-                      </Button>
+                      </DownloadButton>
                     )}
 
                     {suggestions.length > 0 && (
