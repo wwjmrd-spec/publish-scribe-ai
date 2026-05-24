@@ -678,12 +678,12 @@ export function ArticleContentEditor({
           <Button variant="outline" onClick={openPaginatedPreview}>
             <Eye className="w-4 h-4 mr-2" /> Preview A4 Pages
           </Button>
-          <Button variant="outline" onClick={handleDownloadPdf}>
+          <DownloadButton onDownload={() => Promise.resolve(handleDownloadPdf())}>
             Download PDF
-          </Button>
-          <Button variant="outline" onClick={handleDownloadDocx}>
+          </DownloadButton>
+          <DownloadButton onDownload={() => Promise.resolve(handleDownloadDocx())}>
             Download Word
-          </Button>
+          </DownloadButton>
           <Button variant="outline" onClick={handleSave} disabled={saving}>
             {saving ? <GlassSpinner size="sm" className="mr-2" /> : <Save className="w-4 h-4 mr-2" />}
             Save Draft
