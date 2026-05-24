@@ -174,16 +174,18 @@ export default function AdminAIReview() {
     articleId: string,
     fileType: 'review_report' | 'pending_review_report' = 'review_report'
   ) => {
+    const tid = toast.loading('Preparing review report…');
     try {
       const response = await supabase.functions.invoke('get-document-url', {
         body: { articleId, fileType },
       });
 
       if (response.error || !response.data?.url) {
-        toast.error('Failed to get report download link');
+        toast.error('Failed to get report download link', { id: tid });
         return;
       }
 
+      toast.success('Report ready', { id: tid });
       const link = document.createElement('a');
       link.href = response.data.url;
       link.target = '_blank';
@@ -193,7 +195,7 @@ export default function AdminAIReview() {
       link.click();
       document.body.removeChild(link);
     } catch (err) {
-      toast.error('Failed to download report');
+      toast.error('Failed to download report', { id: tid });
     }
   };
 
