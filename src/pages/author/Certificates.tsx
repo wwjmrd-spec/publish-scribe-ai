@@ -323,19 +323,12 @@ export default function Certificates() {
                               </div>
 
                               {isPaid ? (
-                                <Button
-                                  variant="outline"
+                                <DownloadButton
                                   size="sm"
-                                  onClick={() => handleDownloadCoAuthorCertificate(certificate)}
-                                  disabled={coAuthorDownloadMutation.isPending}
+                                  onDownload={() => coAuthorDownloadMutation.mutateAsync({ fileName: certificate.certificate_url })}
                                 >
-                                  {coAuthorDownloadMutation.isPending ? (
-                                    <GlassSpinner size="sm" className="mr-1" />
-                                  ) : (
-                                    <Download className="w-4 h-4 mr-1" />
-                                  )}
                                   Download PDF
-                                </Button>
+                                </DownloadButton>
                               ) : isProWithFreeQuota ? (
                                 <Button
                                   size="sm"
