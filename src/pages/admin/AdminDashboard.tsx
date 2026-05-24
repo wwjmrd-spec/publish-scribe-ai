@@ -68,26 +68,19 @@ export default function AdminDashboard() {
   });
 
   const stats = React.useMemo(() => {
-    const totalArticles = articles?.length || 0;
-    const pendingReview = articles?.filter(a => a.status === 'submitted').length || 0;
-    const underReview = articles?.filter(a => a.status === 'under_review').length || 0;
-    const published = articles?.filter(a => a.status === 'published').length || 0;
-    const totalAuthors = profiles?.length || 0;
-    
-    const revenueINR = payments?.reduce((sum, p) => {
-      if (p.currency === 'INR') return sum + Number(p.final_amount);
-      return sum;
-    }, 0) || 0;
+    const start = getRangeStart(range);
+    const filteredArticles = (articles || []).filter(a => inRange(a.created_at, start));
+    const filteredProfiles = (profiles || []).filter(p => inRange(p.created_at, start));
+    const filteredPayments = (payments || []).filter(p => inRange(p.created_at, start));
 
-    const revenueUSD = payments?.reduce((sum, p) => {
-      if (p.currency === 'USD') return sum + Number(p.final_amount);
-      return sum;
-    }, 0) || 0;
+    const totalArticles = filteredArticles.length;
+    const pendingReview = filteredArticles.filter(a => a.status === 'submitted').length;
+    const underReview = filteredArticles.filter(a => a.status === 'under_review').length;
+    const published = filteredArticles.filter(a => a.status === 'published').length;
+    const totalAuthors = filteredProfiles.length;
 
-    const revenueUSDT = payments?.reduce((sum, p) => {
-      if (p.currency === 'USDT') return sum + Number(p.final_amount);
-      return sum;
-    }, 0) || 0;
+    const sumBy = (cur: string) =>
+      filteredPayments.filter(p => p.currency === cur).reduce((s, p) => s + Number(p.final_amount), 0);
 
     return {
       totalArticles,
@@ -95,11 +88,11 @@ export default function AdminDashboard() {
       underReview,
       published,
       totalAuthors,
-      revenueINR,
-      revenueUSD,
-      revenueUSDT,
+      revenueINR: sumBy('INR'),
+      revenueUSD: sumBy('USD'),
+      revenueUSDT: sumBy('USDT'),
     };
-  }, [articles, profiles, payments]);
+  }, [articles, profiles, payments, range]);
 
   const recentArticles = articles?.slice(0, 5) || [];
 
