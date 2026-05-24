@@ -80,7 +80,7 @@ export default function MyArticles() {
           (response.data as any)?.error ||
           (response.error as any)?.message ||
           'Failed to get report download link';
-        toast.error(msg);
+        toast.error(msg, { id: tid });
         // Refresh local quota counters so UI reflects server truth.
         queryClient.invalidateQueries({ queryKey: ['plan-usage'] });
         queryClient.invalidateQueries({ queryKey: ['plan-usage-lifetime'] });
@@ -115,9 +115,10 @@ export default function MyArticles() {
         }
       }
 
+      toast.success('Review report ready', { id: tid });
       downloadFromUrl(response.data.url, `review-report-${articleId}.pdf`);
     } catch (err) {
-      toast.error('Failed to download report');
+      toast.error('Failed to download report', { id: tid });
     }
   };
 
