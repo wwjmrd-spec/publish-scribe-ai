@@ -281,7 +281,7 @@ export default function Certificates() {
                       </div>
                       <DownloadButton
                         className="w-full sm:w-auto"
-                        onDownload={() => downloadMutation.mutateAsync(article.id)}
+                        onDownload={() => downloadMutation.mutateAsync({ articleId: article.id, fileType: 'certificate' })}
                         disabled={!article.certificate_url}
                       >
                         Download PDF
