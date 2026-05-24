@@ -40,17 +40,19 @@ export default function MyArticles() {
   const [updatingManuscript, setUpdatingManuscript] = React.useState<string | null>(null);
 
   const handleDownloadGalleyProof = async (articleId: string) => {
+    const tid = toast.loading('Preparing galley proof…');
     try {
       const response = await supabase.functions.invoke('get-document-url', {
         body: { articleId, fileType: 'formatted_document' },
       });
       if (response.error || !response.data?.url) {
-        toast.error('Failed to get galley proof download link');
+        toast.error('Failed to get galley proof download link', { id: tid });
         return;
       }
+      toast.success('Galley proof ready', { id: tid });
       downloadFromUrl(response.data.url, `galley-proof-${articleId}.pdf`);
     } catch {
-      toast.error('Failed to download galley proof');
+      toast.error('Failed to download galley proof', { id: tid });
     }
   };
 
@@ -66,6 +68,7 @@ export default function MyArticles() {
       return;
     }
 
+    const tid = toast.loading('Preparing review report…');
     try {
       const response = await supabase.functions.invoke('get-document-url', {
         body: { articleId, fileType: 'review_report' },
