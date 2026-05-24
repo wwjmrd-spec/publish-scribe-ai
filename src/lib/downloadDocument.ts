@@ -35,12 +35,14 @@ export async function downloadDocument(opts: DownloadOptions): Promise<{ ok: boo
     return response.data;
   })();
 
+  toast.promise(promise, {
+    loading: `Preparing ${label}…`,
+    success: `${label.charAt(0).toUpperCase()}${label.slice(1)} ready`,
+    error: (e) => e?.message || `Failed to download ${label}`,
+  });
+
   try {
-    const data = await toast.promise(promise, {
-      loading: `Preparing ${label}…`,
-      success: `${label.charAt(0).toUpperCase()}${label.slice(1)} ready`,
-      error: (e) => e?.message || `Failed to download ${label}`,
-    }).unwrap?.() ?? await promise;
+    const data = await promise;
     return { ok: true, data };
   } catch (error) {
     return { ok: false, error };
