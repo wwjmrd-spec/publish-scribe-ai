@@ -19,7 +19,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import { useNavigate } from 'react-router-dom';
-import { WeeklyReport } from '@/components/admin/WeeklyReport';
+import { TimeRangeReport } from '@/components/admin/TimeRangeReport';
 import { DiscoverySourceReport } from '@/components/admin/DiscoverySourceReport';
 
 export default function AdminDashboard() {
@@ -324,9 +324,9 @@ export default function AdminDashboard() {
         </motion.div>
       </div>
 
-      {/* Weekly Report */}
+      {/* Activity Report (selectable time range) */}
       <div className="mb-8">
-        <WeeklyReport />
+        <TimeRangeReport />
       </div>
 
       {/* Discovery Source Report */}

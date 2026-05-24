@@ -147,11 +147,18 @@ export default function AdminAuthors() {
 
   const downloadCertMutation = useMutation({
     mutationFn: async ({ articleId, fileType }: { articleId: string; fileType: string }) => {
-      const response = await supabase.functions.invoke('get-document-url', {
-        body: { articleId, fileType: 'co_author_certificate' },
-      });
-      if (response.error) throw new Error(response.error.message);
-      return response.data;
+      const tid = toast.loading('Preparing certificate…');
+      try {
+        const response = await supabase.functions.invoke('get-document-url', {
+          body: { articleId, fileType: 'co_author_certificate' },
+        });
+        if (response.error) throw new Error(response.error.message);
+        toast.success('Certificate ready', { id: tid });
+        return response.data;
+      } catch (e) {
+        toast.dismiss(tid);
+        throw e;
+      }
     },
     onSuccess: (data) => {
       if (data.url) window.open(data.url, '_blank');
