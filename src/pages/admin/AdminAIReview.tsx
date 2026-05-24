@@ -481,14 +481,12 @@ export default function AdminAIReview() {
 
                     {/* Preview pending (unsent) report */}
                     {latestReview && (latestReview as any).report_url && !(latestReview as any).approved && (
-                      <Button
-                        variant="outline"
+                      <DownloadButton
                         size="sm"
-                        onClick={() => handleDownloadReport(article.id, 'pending_review_report')}
+                        onDownload={() => handleDownloadReport(article.id, 'pending_review_report')}
                       >
-                        <Download className="w-4 h-4 mr-2" />
                         Preview Report
-                      </Button>
+                      </DownloadButton>
                     )}
 
                     {/* Approve & send to author */}
