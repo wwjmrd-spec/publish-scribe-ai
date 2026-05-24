@@ -21,6 +21,9 @@ import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import { useNavigate } from 'react-router-dom';
 import { TimeRangeReport } from '@/components/admin/TimeRangeReport';
 import { DiscoverySourceReport } from '@/components/admin/DiscoverySourceReport';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useDashboardRange } from '@/hooks/useDashboardRange';
+import { RANGES, getRangeStart, inRange } from '@/lib/timeRange';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
