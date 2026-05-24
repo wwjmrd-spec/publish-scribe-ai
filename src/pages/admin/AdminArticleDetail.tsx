@@ -314,11 +314,18 @@ export default function AdminArticleDetail() {
 
   const downloadMutation = useMutation({
     mutationFn: async ({ fileType }: { fileType: string }) => {
-      const response = await supabase.functions.invoke('get-document-url', {
-        body: { articleId, fileType },
-      });
-      if (response.error) throw new Error(response.error.message);
-      return response.data;
+      const tid = toast.loading('Preparing file…');
+      try {
+        const response = await supabase.functions.invoke('get-document-url', {
+          body: { articleId, fileType },
+        });
+        if (response.error) throw new Error(response.error.message);
+        toast.success('File ready', { id: tid });
+        return response.data;
+      } catch (e) {
+        toast.dismiss(tid);
+        throw e;
+      }
     },
     onSuccess: (data) => {
       if (data.url) window.open(data.url, '_blank');
