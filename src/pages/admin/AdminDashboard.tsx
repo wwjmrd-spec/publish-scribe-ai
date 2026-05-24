@@ -27,6 +27,7 @@ import { RANGES, getRangeStart, inRange } from '@/lib/timeRange';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
+  const [range, setRange] = useDashboardRange();
 
   const { data: articles, isLoading: articlesLoading } = useQuery({
     queryKey: ['admin-articles-stats'],
