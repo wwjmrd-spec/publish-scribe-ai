@@ -513,14 +513,12 @@ export default function AdminAIReview() {
 
                     {/* Approved report (visible to author) */}
                     {latestReview && article.review_report_url && (latestReview as any).approved && (
-                      <Button
-                        variant="outline"
+                      <DownloadButton
                         size="sm"
-                        onClick={() => handleDownloadReport(article.id, 'review_report')}
+                        onDownload={() => handleDownloadReport(article.id, 'review_report')}
                       >
-                        <Download className="w-4 h-4 mr-2" />
                         Report
-                      </Button>
+                      </DownloadButton>
                     )}
 
                     {latestReview && (
