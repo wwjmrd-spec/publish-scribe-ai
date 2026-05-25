@@ -69,7 +69,7 @@ export default function AdminNotifications() {
     const windowMs = windowDays * 24 * 60 * 60 * 1000;
 
     if (audience === 'specific') {
-      return specificUserId.trim() ? [specificUserId.trim()] : [];
+      return specificUserIds;
     }
     if (audience === 'all') return profiles.map((p) => p.id);
 
