@@ -221,7 +221,7 @@ const handler = async (req: Request): Promise<Response> => {
           // Log to email_log (best-effort)
           try {
             await adminClient.from("email_log").insert({
-              recipient_email: recipient.email,
+              recipient_email: sendTo,
               recipient_name: recipient.name || null,
               subject: title.trim(),
               template_name: "broadcast",
