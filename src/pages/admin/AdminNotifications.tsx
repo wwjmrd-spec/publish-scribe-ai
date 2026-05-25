@@ -497,7 +497,7 @@ export default function AdminNotifications() {
           )}
         </GlassCard>
 
-        {recentBroadcasts && recentBroadcasts.length > 1 && (
+        {recentBroadcasts && recentBroadcasts.length >= 1 && (
           <GlassCard className="p-6">
             <h2 className="font-semibold mb-4 flex items-center gap-2">
               <AlertCircle className="w-4 h-4 text-muted-foreground" />
