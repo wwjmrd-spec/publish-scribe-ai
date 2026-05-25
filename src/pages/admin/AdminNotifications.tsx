@@ -483,14 +483,14 @@ export default function AdminNotifications() {
               <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/10 text-primary text-sm">
                 <CheckCircle className="w-4 h-4 shrink-0" />
                 <span>
-                  Sent {result.notifications} notification{result.notifications > 1 ? 's' : ''}
-                  {result.emailsSent > 1 && ` and ${result.emailsSent} email${result.emailsSent > 1 ? 's' : ''}`}
+                  Sent {result.notifications} notification{result.notifications === 1 ? '' : 's'}
+                  {result.emailsSent >= 1 && ` and ${result.emailsSent} email${result.emailsSent === 1 ? '' : 's'}`}
                 </span>
               </div>
-              {result.emailsFailed > 1 && (
+              {result.emailsFailed >= 1 && (
                 <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
                   <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span>{result.emailsFailed} email{result.emailsFailed > 1 ? 's' : ''} failed to send</span>
+                  <span>{result.emailsFailed} email{result.emailsFailed === 1 ? '' : 's'} failed to send</span>
                 </div>
               )}
             </motion.div>
