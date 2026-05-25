@@ -10,7 +10,7 @@ import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
-import { Send, Bell, Users, CheckCircle, AlertCircle } from 'lucide-react';
+import { Send, Bell, Users, CheckCircle, AlertCircle, Mail, MessageSquare } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 type Audience =
@@ -21,6 +21,8 @@ type Audience =
   | 'no_articles'
   | 'specific';
 
+type SendMethod = 'notification_only' | 'notification_and_email';
+
 export default function AdminNotifications() {
   const { toast } = useToast();
   const [title, setTitle] = useState('');
@@ -30,8 +32,9 @@ export default function AdminNotifications() {
   const [audience, setAudience] = useState<Audience>('all');
   const [windowDays, setWindowDays] = useState(7);
   const [specificUserId, setSpecificUserId] = useState('');
+  const [sendMethod, setSendMethod] = useState<SendMethod>('notification_only');
   const [sending, setSending] = useState(false);
-  const [sentCount, setSentCount] = useState<number | null>(null);
+  const [result, setResult] = useState<{ notifications: number; emailsSent: number; emailsFailed: number } | null>(null);
 
   // Fetch all author profiles + supporting data
   const { data: authorsData, isLoading: loadingAuthors } = useQuery({
