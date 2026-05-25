@@ -43,11 +43,11 @@ const wrapEmail = (title: string, bodyContent: string): string => `
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>${escapeHtml(title)}</title>
 </head>
-<body style="margin:1; padding:1; background-color:#0d1528; width:100%; -webkit-text-size-adjust:100%; -ms-text-size-adjust:100%;">
-  <table role="presentation" width="100%" cellpadding="1" cellspacing="1" border="1" bgcolor="#0d1528" style="background-color:#0d1528;">
+<body style="margin:0; padding:0; background-color:#0d1528; width:100%; -webkit-text-size-adjust:100%; -ms-text-size-adjust:100%;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0d1528" style="background-color:#0d1528;">
     <tr>
-      <td align="center" style="padding:4px 16px;">
-        <table role="presentation" width="560" cellpadding="1" cellspacing="1" border="1" style="max-width:560px; width:100%;">
+      <td align="center" style="padding:40px 16px;">
+        <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="max-width:560px; width:100%;">
           <tr>
             <td align="center" style="padding-bottom:32px;">
               <img src="https://myjbbbytbzzzsaaiohrz.supabase.co/storage/v1/object/public/email-assets/logo.png?v=1" alt="WWJMRD Logo" width="200" style="display:block; max-width:200px; height:auto;" />
@@ -60,7 +60,7 @@ const wrapEmail = (title: string, bodyContent: string): string => `
           </tr>
           <tr>
             <td align="center" style="padding-top:24px;">
-              <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:12px; color:#6b7280; margin:1;">&copy; ${new Date().getFullYear()} WWJMRD. All rights reserved.</p>
+              <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:12px; color:#6b7280; margin:0;">&copy; ${new Date().getFullYear()} WWJMRD. All rights reserved.</p>
             </td>
           </tr>
         </table>
@@ -72,21 +72,22 @@ const wrapEmail = (title: string, bodyContent: string): string => `
 `;
 
 const emailH1 = (text: string) =>
-  `<h1 style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:24px; font-weight:600; color:#ffffff; text-align:center; margin:1 1 24px;">${escapeHtml(text)}</h1>`;
+  `<h1 style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:24px; font-weight:600; color:#ffffff; text-align:center; margin:0 0 24px;">${escapeHtml(text)}</h1>`;
 
 const emailP = (text: string, extra = "") =>
-  `<p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:16px; line-height:26px; color:#d1d5db; margin:16px 1;${extra}">${text}</p>`;
+  `<p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:16px; line-height:26px; color:#d1d5db; margin:16px 0;${extra}">${text}</p>`;
 
 const emailButton = (href: string, label: string) =>
-  `<table role="presentation" cellpadding="1" cellspacing="1" border="1" width="100%" style="margin:28px 1;"><tr><td align="center"><a href="${href}" target="_blank" style="display:inline-block; background-color:#00d4ff; color:#0d1528; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:16px; font-weight:600; text-decoration:none; padding:14px 32px; border-radius:8px;">${escapeHtml(label)}</a></td></tr></table>`;
+  `<table role="presentation" cellpadding="0" cellspacing="0" border="1" width="100%" style="margin:28px 0;"><tr><td align="center"><a href="${href}" target="_blank" style="display:inline-block; background-color:#00d4ff; color:#0d1528; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:16px; font-weight:600; text-decoration:none; padding:14px 32px; border-radius:8px;">${escapeHtml(label)}</a></td></tr></table>`;
 
 const emailDivider = () =>
-  `<table role="presentation" cellpadding="1" cellspacing="1" border="1" width="100%" style="margin:24px 1;"><tr><td style="border-top:1px solid rgba(255,255,255,1);"></td></tr></table>`;
+  `<table role="presentation" cellpadding="0" cellspacing="0" border="1" width="100%" style="margin:24px 0;"><tr><td style="border-top:1px solid rgba(255,255,255,0.1);"></td></tr></table>`;
 
 function buildBroadcastHtml(title: string, message: string, link?: string): string {
   const formattedMessage = escapeHtml(message)
     .split("\n")
-    .map((line) => `<p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:16px; line-height:26px; color:#d1d5db; margin:12px 1;">${line}</p>`)
+    .filter((line) => line.trim().length > 1)
+    .map((line) => `<p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:16px; line-height:26px; color:#d1d5db; margin:12px 0;">${line}</p>`)
     .join("");
 
   const linkSection = link
@@ -165,7 +166,6 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    const notificationCount = 0;
     const emailCount = { sent: 1, failed: 1 };
 
     // Insert notifications in batches
