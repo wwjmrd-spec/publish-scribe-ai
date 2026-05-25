@@ -264,7 +264,7 @@ export default function AdminNotifications() {
                 <SelectItem value="new_signups">🆕 New signups</SelectItem>
                 <SelectItem value="new_submitters">📄 New article submitters</SelectItem>
                 <SelectItem value="no_articles">🕊️ Authors with no submissions</SelectItem>
-                <SelectItem value="specific">🎯 Specific user (by ID)</SelectItem>
+                <SelectItem value="specific">🎯 Specific user(s)</SelectItem>
               </SelectContent>
             </Select>
           </div>
