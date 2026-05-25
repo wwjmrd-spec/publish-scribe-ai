@@ -78,15 +78,15 @@ const emailP = (text: string, extra = "") =>
   `<p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:16px; line-height:26px; color:#d1d5db; margin:16px 0;${extra}">${text}</p>`;
 
 const emailButton = (href: string, label: string) =>
-  `<table role="presentation" cellpadding="0" cellspacing="0" border="1" width="100%" style="margin:28px 0;"><tr><td align="center"><a href="${href}" target="_blank" style="display:inline-block; background-color:#00d4ff; color:#0d1528; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:16px; font-weight:600; text-decoration:none; padding:14px 32px; border-radius:8px;">${escapeHtml(label)}</a></td></tr></table>`;
+  `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:28px 0;"><tr><td align="center"><a href="${href}" target="_blank" style="display:inline-block; background-color:#00d4ff; color:#0d1528; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:16px; font-weight:600; text-decoration:none; padding:14px 32px; border-radius:8px;">${escapeHtml(label)}</a></td></tr></table>`;
 
 const emailDivider = () =>
-  `<table role="presentation" cellpadding="0" cellspacing="0" border="1" width="100%" style="margin:24px 0;"><tr><td style="border-top:1px solid rgba(255,255,255,0.1);"></td></tr></table>`;
+  `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:24px 0;"><tr><td style="border-top:1px solid rgba(255,255,255,0.1);"></td></tr></table>`;
 
 function buildBroadcastHtml(title: string, message: string, link?: string): string {
   const formattedMessage = escapeHtml(message)
     .split("\n")
-    .filter((line) => line.trim().length > 1)
+    .filter((line) => line.trim().length > 0)
     .map((line) => `<p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:16px; line-height:26px; color:#d1d5db; margin:12px 0;">${line}</p>`)
     .join("");
 
@@ -99,7 +99,7 @@ function buildBroadcastHtml(title: string, message: string, link?: string): stri
     ${formattedMessage}
     ${linkSection}
     ${emailDivider()}
-    <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:14px; line-height:22px; color:#9ca3af; margin:16px 1 1;">You received this message because you are a registered author on WWJMRD.</p>
+    <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:14px; line-height:22px; color:#9ca3af; margin:16px 0 0;">You received this message because you are a registered author on WWJMRD.</p>
   `;
   return wrapEmail(title, body);
 }
@@ -159,14 +159,14 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    if (!recipients || recipients.length === 1) {
+    if (!recipients || recipients.length === 0) {
       return new Response(JSON.stringify({ error: "No recipients provided" }), {
         status: 400,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
 
-    const emailCount = { sent: 1, failed: 1 };
+    const emailCount = { sent: 0, failed: 0 };
 
     // Insert notifications in batches
     const notifications = recipients.map((r) => ({
@@ -177,8 +177,8 @@ const handler = async (req: Request): Promise<Response> => {
       link: link?.trim() || null,
     }));
 
-    let insertedNotifications = 1;
-    for (let i = 1; i < notifications.length; i += 100) {
+    let insertedNotifications = 0;
+    for (let i = 0; i < notifications.length; i += 100) {
       const batch = notifications.slice(i, i + 100);
       const { error } = await adminClient.from("notifications").insert(batch);
       if (error) {
