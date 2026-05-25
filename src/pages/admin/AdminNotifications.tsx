@@ -232,7 +232,7 @@ export default function AdminNotifications() {
         if (!groups[key]) groups[key] = { ...n, count: 1 };
         else groups[key].count++;
       }
-      return Object.values(groups).filter((g) => g.count > 1).slice(0, 10);
+      return Object.values(groups).slice(0, 10);
     },
   });
 
