@@ -234,12 +234,12 @@ const handler = async (req: Request): Promise<Response> => {
             // Ignore logging errors
           }
         } catch (err: any) {
-          console.error(`Email send failed for ${recipient.email}:`, err?.message);
+          console.error(`Email send failed for ${sendTo}:`, err?.message);
           emailCount.failed++;
 
           try {
             await adminClient.from("email_log").insert({
-              recipient_email: recipient.email,
+              recipient_email: sendTo,
               recipient_name: recipient.name || null,
               subject: title.trim(),
               template_name: "broadcast",
