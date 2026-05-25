@@ -31,7 +31,8 @@ export default function AdminNotifications() {
   const [link, setLink] = useState('');
   const [audience, setAudience] = useState<Audience>('all');
   const [windowDays, setWindowDays] = useState(7);
-  const [specificUserId, setSpecificUserId] = useState('');
+  const [specificUserIds, setSpecificUserIds] = useState<string[]>([]);
+  const [userSearch, setUserSearch] = useState('');
   const [sendMethod, setSendMethod] = useState<SendMethod>('notification_only');
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<{ notifications: number; emailsSent: number; emailsFailed: number } | null>(null);
