@@ -106,7 +106,7 @@ export default function AdminNotifications() {
       return profiles.filter((p) => !submitters.has(p.id)).map((p) => p.id);
     }
     return [];
-  }, [authorsData, audience, windowDays, specificUserId]);
+  }, [authorsData, audience, windowDays, specificUserIds]);
 
   const targetRecipients = useMemo(() => {
     if (!authorsData) return [];
