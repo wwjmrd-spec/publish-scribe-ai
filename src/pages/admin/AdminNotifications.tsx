@@ -156,18 +156,12 @@ export default function AdminNotifications() {
         }
       }
 
-      // Only require an email address when we're actually sending emails.
-      const needsEmail = sendMethod === 'notification_and_email';
-      if (needsEmail) {
-        recipients = recipients.filter((r) => !!r.email);
-      }
+      // Email addresses are resolved server-side from auth.users (sign-in email).
+      // Client-side we only need a valid user_id per recipient.
+      recipients = recipients.filter((r) => !!r.user_id);
 
       if (recipients.length === 0) {
-        throw new Error(
-          needsEmail
-            ? 'No valid recipients found (missing email addresses).'
-            : 'No valid recipients found.'
-        );
+        throw new Error('No valid recipients found.');
       }
 
       const response = await fetch(
