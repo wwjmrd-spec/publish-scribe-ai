@@ -10,7 +10,7 @@ import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
-import { Send, Bell, Users, CheckCircle, AlertCircle } from 'lucide-react';
+import { Send, Bell, Users, CheckCircle, AlertCircle, Mail, MessageSquare } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 type Audience =
@@ -21,6 +21,8 @@ type Audience =
   | 'no_articles'
   | 'specific';
 
+type SendMethod = 'notification_only' | 'notification_and_email';
+
 export default function AdminNotifications() {
   const { toast } = useToast();
   const [title, setTitle] = useState('');
@@ -30,8 +32,9 @@ export default function AdminNotifications() {
   const [audience, setAudience] = useState<Audience>('all');
   const [windowDays, setWindowDays] = useState(7);
   const [specificUserId, setSpecificUserId] = useState('');
+  const [sendMethod, setSendMethod] = useState<SendMethod>('notification_only');
   const [sending, setSending] = useState(false);
-  const [sentCount, setSentCount] = useState<number | null>(null);
+  const [result, setResult] = useState<{ notifications: number; emailsSent: number; emailsFailed: number } | null>(null);
 
   // Fetch all author profiles + supporting data
   const { data: authorsData, isLoading: loadingAuthors } = useQuery({
@@ -104,6 +107,18 @@ export default function AdminNotifications() {
     return [];
   }, [authorsData, audience, windowDays, specificUserId]);
 
+  const targetRecipients = useMemo(() => {
+    if (!authorsData) return [];
+    const idSet = new Set(targetIds);
+    return authorsData.profiles
+      .filter((p) => idSet.has(p.id))
+      .map((p) => ({
+        user_id: p.id,
+        email: p.email,
+        name: p.full_name,
+      }));
+  }, [authorsData, targetIds]);
+
   const handleSendNotification = async () => {
     if (!title.trim() || !message.trim()) {
       toast({ title: 'Missing fields', description: 'Please fill in title and message.', variant: 'destructive' });
@@ -115,40 +130,57 @@ export default function AdminNotifications() {
     }
 
     setSending(true);
-    setSentCount(null);
+    setResult(null);
 
     try {
-      const notifications = targetIds.map((uid) => ({
-        user_id: uid,
-        title: title.trim(),
-        message: message.trim(),
-        type,
-        link: link.trim() || null,
-      }));
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) throw new Error('Not authenticated');
 
-      let totalInserted = 0;
-      for (let i = 0; i < notifications.length; i += 100) {
-        const batch = notifications.slice(i, i + 100);
-        const { error } = await supabase.from('notifications').insert(batch);
-        if (error) throw error;
-        totalInserted += batch.length;
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-broadcast`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            title: title.trim(),
+            message: message.trim(),
+            type,
+            link: link.trim() || null,
+            recipients: targetRecipients,
+            send_email: sendMethod === 'notification_and_email',
+          }),
+        }
+      );
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to send broadcast');
       }
 
-      setSentCount(totalInserted);
+      setResult({
+        notifications: data.notifications_sent || 0,
+        emailsSent: data.emails_sent || 0,
+        emailsFailed: data.emails_failed || 0,
+      });
+
       setTitle('');
       setMessage('');
       setLink('');
       setType('info');
 
       toast({
-        title: 'Notifications sent!',
-        description: `Successfully notified ${totalInserted} user${totalInserted > 1 ? 's' : ''}.`,
+        title: 'Broadcast sent!',
+        description: `Sent ${data.notifications_sent} notification${data.notifications_sent > 1 ? 's' : ''}${data.emails_sent > 0 ? ` and ${data.emails_sent} email${data.emails_sent > 1 ? 's' : ''}` : ''}.`,
       });
-    } catch (err) {
-      console.error('Failed to send notifications:', err);
+    } catch (err: any) {
+      console.error('Failed to send broadcast:', err);
       toast({
         title: 'Failed to send',
-        description: 'An error occurred while sending notifications.',
+        description: err?.message || 'An error occurred while sending.',
         variant: 'destructive',
       });
     } finally {
@@ -287,6 +319,36 @@ export default function AdminNotifications() {
             </div>
           </div>
 
+          <div className="space-y-2">
+            <Label>Delivery Method</Label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setSendMethod('notification_only')}
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-md border transition-all text-sm ${
+                  sendMethod === 'notification_only'
+                    ? 'bg-primary/15 border-primary text-primary font-medium'
+                    : 'bg-muted/50 border-border text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                <MessageSquare className="w-4 h-4" />
+                Notification only
+              </button>
+              <button
+                type="button"
+                onClick={() => setSendMethod('notification_and_email')}
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-md border transition-all text-sm ${
+                  sendMethod === 'notification_and_email'
+                    ? 'bg-primary/15 border-primary text-primary font-medium'
+                    : 'bg-muted/50 border-border text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                <Mail className="w-4 h-4" />
+                Notification + Email
+              </button>
+            </div>
+          </div>
+
           <div className="flex items-center justify-between pt-2">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Users className="w-4 h-4" />
@@ -302,26 +364,41 @@ export default function AdminNotifications() {
                 <GlassSpinner size="sm" />
               ) : (
                 <>
-                  <Bell className="w-4 h-4 mr-2" />
-                  Send Notification
+                  {sendMethod === 'notification_and_email' ? (
+                    <Mail className="w-4 h-4 mr-2" />
+                  ) : (
+                    <Bell className="w-4 h-4 mr-2" />
+                  )}
+                  {sendMethod === 'notification_and_email' ? 'Send Notification + Email' : 'Send Notification'}
                 </>
               )}
             </Button>
           </div>
 
-          {sentCount !== null && (
+          {result !== null && (
             <motion.div
               initial={{ opacity: 0, y: 5 }}
               animate={{ opacity: 1, y: 0 }}
-              className="flex items-center gap-2 p-3 rounded-lg bg-primary/10 text-primary text-sm"
+              className="space-y-2"
             >
-              <CheckCircle className="w-4 h-4" />
-              Successfully sent {sentCount} notifications!
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/10 text-primary text-sm">
+                <CheckCircle className="w-4 h-4 shrink-0" />
+                <span>
+                  Sent {result.notifications} notification{result.notifications > 1 ? 's' : ''}
+                  {result.emailsSent > 1 && ` and ${result.emailsSent} email${result.emailsSent > 1 ? 's' : ''}`}
+                </span>
+              </div>
+              {result.emailsFailed > 1 && (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{result.emailsFailed} email{result.emailsFailed > 1 ? 's' : ''} failed to send</span>
+                </div>
+              )}
             </motion.div>
           )}
         </GlassCard>
 
-        {recentBroadcasts && recentBroadcasts.length > 0 && (
+        {recentBroadcasts && recentBroadcasts.length > 1 && (
           <GlassCard className="p-6">
             <h2 className="font-semibold mb-4 flex items-center gap-2">
               <AlertCircle className="w-4 h-4 text-muted-foreground" />
