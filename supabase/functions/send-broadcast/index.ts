@@ -192,11 +192,27 @@ const handler = async (req: Request): Promise<Response> => {
     if (send_email) {
       const emailHtml = buildBroadcastHtml(title.trim(), message.trim(), link);
 
+      // Resolve each recipient's sign-in email from auth.users (source of truth)
       for (const recipient of recipients) {
+        let sendTo = recipient.email;
+        try {
+          const { data: authUser } = await adminClient.auth.admin.getUserById(recipient.user_id);
+          if (authUser?.user?.email) {
+            sendTo = authUser.user.email;
+          }
+        } catch (e) {
+          console.error(`Auth lookup failed for ${recipient.user_id}:`, (e as any)?.message);
+        }
+
+        if (!sendTo) {
+          emailCount.failed++;
+          continue;
+        }
+
         try {
           await resend.emails.send({
             from: "WWJMRD <noreply@wwjmrdai.online>",
-            to: [recipient.email],
+            to: [sendTo],
             subject: title.trim(),
             html: emailHtml,
           });
