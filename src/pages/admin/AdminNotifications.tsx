@@ -10,7 +10,7 @@ import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
-import { Send, Bell, Users, CheckCircle, AlertCircle, Mail, MessageSquare } from 'lucide-react';
+import { Send, Bell, Users, CheckCircle, AlertCircle, Mail, MessageSquare, Search, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 type Audience =
