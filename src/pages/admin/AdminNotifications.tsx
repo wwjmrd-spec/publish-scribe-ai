@@ -137,6 +137,32 @@ export default function AdminNotifications() {
       const token = sessionData?.session?.access_token;
       if (!token) throw new Error('Not authenticated');
 
+      // Ensure we have a recipient (user_id + email) for every targetId.
+      // Fall back to fetching profiles for ids missing from the cached author list
+      // (e.g. "specific user" audience, or non-author users).
+      let recipients = targetRecipients;
+      const haveIds = new Set(recipients.map((r) => r.user_id));
+      const missingIds = targetIds.filter((id) => !haveIds.has(id));
+      if (missingIds.length > 0) {
+        const { data: extra } = await supabase
+          .from('profiles')
+          .select('id, full_name, email')
+          .in('id', missingIds);
+        if (extra && extra.length > 0) {
+          recipients = [
+            ...recipients,
+            ...extra.map((p) => ({ user_id: p.id, email: p.email, name: p.full_name })),
+          ];
+        }
+      }
+
+      // Drop any recipients without an email address
+      recipients = recipients.filter((r) => !!r.email);
+
+      if (recipients.length === 0) {
+        throw new Error('No valid recipients found (missing email addresses).');
+      }
+
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-broadcast`,
         {
@@ -150,11 +176,12 @@ export default function AdminNotifications() {
             message: message.trim(),
             type,
             link: link.trim() || null,
-            recipients: targetRecipients,
+            recipients,
             send_email: sendMethod === 'notification_and_email',
           }),
         }
       );
+
 
       const data = await response.json();
       if (!response.ok) {
