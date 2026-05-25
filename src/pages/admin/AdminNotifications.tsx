@@ -286,14 +286,84 @@ export default function AdminNotifications() {
 
           {audience === 'specific' && (
             <div className="space-y-2">
-              <Label htmlFor="specific-user">User ID</Label>
-              <Input
-                id="specific-user"
-                placeholder="uuid of the user"
-                value={specificUserId}
-                onChange={(e) => setSpecificUserId(e.target.value)}
-                className="bg-muted/50"
-              />
+              <Label htmlFor="user-search">Search users (name, email, or ID)</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  id="user-search"
+                  placeholder="Type to search..."
+                  value={userSearch}
+                  onChange={(e) => setUserSearch(e.target.value)}
+                  className="bg-muted/50 pl-9"
+                />
+              </div>
+
+              {/* Search results */}
+              {userSearch.trim() && authorsData && (
+                <div className="max-h-56 overflow-y-auto rounded-md border border-border bg-muted/30">
+                  {(() => {
+                    const q = userSearch.trim().toLowerCase();
+                    const matches = authorsData.profiles
+                      .filter(
+                        (p) =>
+                          !specificUserIds.includes(p.id) &&
+                          (p.id.toLowerCase().includes(q) ||
+                            (p.email || '').toLowerCase().includes(q) ||
+                            (p.full_name || '').toLowerCase().includes(q))
+                      )
+                      .slice(0, 20);
+                    if (matches.length === 0) {
+                      return (
+                        <div className="p-3 text-xs text-muted-foreground">No users match.</div>
+                      );
+                    }
+                    return matches.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => {
+                          setSpecificUserIds((prev) => [...prev, p.id]);
+                          setUserSearch('');
+                        }}
+                        className="w-full text-left px-3 py-2 hover:bg-muted text-sm border-b border-border/50 last:border-0"
+                      >
+                        <div className="font-medium">{p.full_name || '(no name)'}</div>
+                        <div className="text-xs text-muted-foreground">{p.email}</div>
+                        <div className="text-[10px] text-muted-foreground/70 font-mono">{p.id}</div>
+                      </button>
+                    ));
+                  })()}
+                </div>
+              )}
+
+              {/* Selected chips */}
+              {specificUserIds.length > 0 && (
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {specificUserIds.map((id) => {
+                    const p = authorsData?.profiles.find((x) => x.id === id);
+                    return (
+                      <span
+                        key={id}
+                        className="inline-flex items-center gap-1.5 bg-primary/15 text-primary text-xs px-2 py-1 rounded-full"
+                      >
+                        <span className="truncate max-w-[180px]">
+                          {p?.full_name || p?.email || id}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSpecificUserIds((prev) => prev.filter((x) => x !== id))
+                          }
+                          className="hover:bg-primary/20 rounded-full p-0.5"
+                          aria-label="Remove"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
