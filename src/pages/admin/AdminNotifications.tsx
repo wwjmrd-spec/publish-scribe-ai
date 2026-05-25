@@ -156,11 +156,18 @@ export default function AdminNotifications() {
         }
       }
 
-      // Drop any recipients without an email address
-      recipients = recipients.filter((r) => !!r.email);
+      // Only require an email address when we're actually sending emails.
+      const needsEmail = sendMethod === 'notification_and_email';
+      if (needsEmail) {
+        recipients = recipients.filter((r) => !!r.email);
+      }
 
       if (recipients.length === 0) {
-        throw new Error('No valid recipients found (missing email addresses).');
+        throw new Error(
+          needsEmail
+            ? 'No valid recipients found (missing email addresses).'
+            : 'No valid recipients found.'
+        );
       }
 
       const response = await fetch(
