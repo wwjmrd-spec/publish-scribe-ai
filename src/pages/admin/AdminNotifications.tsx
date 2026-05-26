@@ -108,8 +108,15 @@ export default function AdminNotifications() {
       const submitters = new Set(articles.map((a) => a.author_id));
       return profiles.filter((p) => !submitters.has(p.id)).map((p) => p.id);
     }
+
+    if (audience === 'article_status') {
+      const matching = new Set(
+        articles.filter((a) => a.status === articleStatus).map((a) => a.author_id)
+      );
+      return profiles.filter((p) => matching.has(p.id)).map((p) => p.id);
+    }
     return [];
-  }, [authorsData, audience, windowDays, specificUserIds]);
+  }, [authorsData, audience, windowDays, specificUserIds, articleStatus]);
 
   const targetRecipients = useMemo(() => {
     if (!authorsData) return [];
