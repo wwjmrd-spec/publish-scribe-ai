@@ -300,9 +300,6 @@ export default function AdminNotifications() {
               </p>
             </div>
           )}
-              </SelectContent>
-            </Select>
-          </div>
 
           {showWindow && (
             <div className="space-y-2">
