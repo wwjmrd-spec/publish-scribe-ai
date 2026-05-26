@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { Send, Bell, Users, CheckCircle, AlertCircle, Mail, MessageSquare, Search, X } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { MANUAL_ADMIN_STATUSES } from '@/lib/articleStatus';
 
 type Audience =
   | 'all'
@@ -19,6 +20,7 @@ type Audience =
   | 'new_signups'
   | 'new_submitters'
   | 'no_articles'
+  | 'article_status'
   | 'specific';
 
 type SendMethod = 'notification_only' | 'notification_and_email';
