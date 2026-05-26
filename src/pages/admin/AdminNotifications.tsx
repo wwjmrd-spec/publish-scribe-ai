@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { Send, Bell, Users, CheckCircle, AlertCircle, Mail, MessageSquare, Search, X } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { MANUAL_ADMIN_STATUSES } from '@/lib/articleStatus';
 
 type Audience =
   | 'all'
@@ -19,6 +20,7 @@ type Audience =
   | 'new_signups'
   | 'new_submitters'
   | 'no_articles'
+  | 'article_status'
   | 'specific';
 
 type SendMethod = 'notification_only' | 'notification_and_email';
@@ -33,6 +35,7 @@ export default function AdminNotifications() {
   const [windowDays, setWindowDays] = useState(7);
   const [specificUserIds, setSpecificUserIds] = useState<string[]>([]);
   const [userSearch, setUserSearch] = useState('');
+  const [articleStatus, setArticleStatus] = useState<string>('submitted');
   const [sendMethod, setSendMethod] = useState<SendMethod>('notification_only');
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<{ notifications: number; emailsSent: number; emailsFailed: number } | null>(null);
@@ -55,7 +58,7 @@ export default function AdminNotifications() {
           .select('user_id, plan_type, is_active, expires_at')
           .in('user_id', authorIds)
           .eq('is_active', true),
-        supabase.from('articles').select('author_id, created_at').in('author_id', authorIds),
+        supabase.from('articles').select('author_id, created_at, status').in('author_id', authorIds),
       ]);
 
       return { profiles: profiles || [], subs: subs || [], articles: articles || [] };
@@ -105,8 +108,15 @@ export default function AdminNotifications() {
       const submitters = new Set(articles.map((a) => a.author_id));
       return profiles.filter((p) => !submitters.has(p.id)).map((p) => p.id);
     }
+
+    if (audience === 'article_status') {
+      const matching = new Set(
+        articles.filter((a) => a.status === articleStatus).map((a) => a.author_id)
+      );
+      return profiles.filter((p) => matching.has(p.id)).map((p) => p.id);
+    }
     return [];
-  }, [authorsData, audience, windowDays, specificUserIds]);
+  }, [authorsData, audience, windowDays, specificUserIds, articleStatus]);
 
   const targetRecipients = useMemo(() => {
     if (!authorsData) return [];
@@ -264,10 +274,32 @@ export default function AdminNotifications() {
                 <SelectItem value="new_signups">🆕 New signups</SelectItem>
                 <SelectItem value="new_submitters">📄 New article submitters</SelectItem>
                 <SelectItem value="no_articles">🕊️ Authors with no submissions</SelectItem>
+                <SelectItem value="article_status">📌 Authors by article status</SelectItem>
                 <SelectItem value="specific">🎯 Specific user(s)</SelectItem>
               </SelectContent>
             </Select>
           </div>
+
+          {audience === 'article_status' && (
+            <div className="space-y-2">
+              <Label>Article status</Label>
+              <Select value={articleStatus} onValueChange={setArticleStatus}>
+                <SelectTrigger className="bg-muted/50">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {MANUAL_ADMIN_STATUSES.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>
+                      {s.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Recipients: {targetIds.length} author{targetIds.length === 1 ? '' : 's'} with at least one article in this status.
+              </p>
+            </div>
+          )}
 
           {showWindow && (
             <div className="space-y-2">
