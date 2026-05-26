@@ -58,7 +58,7 @@ export default function AdminNotifications() {
           .select('user_id, plan_type, is_active, expires_at')
           .in('user_id', authorIds)
           .eq('is_active', true),
-        supabase.from('articles').select('author_id, created_at').in('author_id', authorIds),
+        supabase.from('articles').select('author_id, created_at, status').in('author_id', authorIds),
       ]);
 
       return { profiles: profiles || [], subs: subs || [], articles: articles || [] };
