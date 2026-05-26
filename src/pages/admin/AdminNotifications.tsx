@@ -274,7 +274,32 @@ export default function AdminNotifications() {
                 <SelectItem value="new_signups">🆕 New signups</SelectItem>
                 <SelectItem value="new_submitters">📄 New article submitters</SelectItem>
                 <SelectItem value="no_articles">🕊️ Authors with no submissions</SelectItem>
+                <SelectItem value="article_status">📌 Authors by article status</SelectItem>
                 <SelectItem value="specific">🎯 Specific user(s)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {audience === 'article_status' && (
+            <div className="space-y-2">
+              <Label>Article status</Label>
+              <Select value={articleStatus} onValueChange={setArticleStatus}>
+                <SelectTrigger className="bg-muted/50">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {MANUAL_ADMIN_STATUSES.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>
+                      {s.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Recipients: {targetIds.length} author{targetIds.length === 1 ? '' : 's'} with at least one article in this status.
+              </p>
+            </div>
+          )}
               </SelectContent>
             </Select>
           </div>
