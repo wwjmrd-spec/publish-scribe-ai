@@ -125,6 +125,24 @@ export default function SubmitArticle() {
       });
   }, [user?.id]);
 
+  // Pre-fill from AI Article Writer
+  useEffect(() => {
+    const raw = sessionStorage.getItem('ai-article-prefill');
+    if (!raw) return;
+    try {
+      const p = JSON.parse(raw);
+      if (p.title) setTitle(p.title);
+      if (p.abstract) setAbstract(p.abstract);
+      if (p.keywords) setKeywords(p.keywords);
+      if (p.author_name) setAuthorName(p.author_name);
+      sessionStorage.removeItem('ai-article-prefill');
+      toast({
+        title: 'AI-written article loaded ✨',
+        description: 'Title, abstract and keywords were filled in. Upload the DOCX you downloaded from the AI Writer to finish.',
+      });
+    } catch { /* ignore */ }
+  }, []);
+
   // Handle PayPal return for fast track payment
   useEffect(() => {
     const paypalStatus = searchParams.get('paypal');

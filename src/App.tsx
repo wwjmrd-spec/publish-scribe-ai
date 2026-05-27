@@ -14,6 +14,7 @@ import AuthorDashboard from "./pages/author/AuthorDashboard";
 import SubmitArticle from "./pages/author/SubmitArticle";
 import ResubmitArticle from "./pages/author/ResubmitArticle";
 import AICorrectManuscript from "./pages/author/AICorrectManuscript";
+import AIWriteArticle from "./pages/author/AIWriteArticle";
 import MyArticles from "./pages/author/MyArticles";
 import Cart from "./pages/author/Cart";
 import Certificates from "./pages/author/Certificates";
@@ -107,6 +108,14 @@ const App = () => (
               element={
                 <ProtectedRoute allowedRoles={['author']}>
                   <AICorrectManuscript />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/author/ai-write" 
+              element={
+                <ProtectedRoute allowedRoles={['author']}>
+                  <AIWriteArticle />
                 </ProtectedRoute>
               } 
             />

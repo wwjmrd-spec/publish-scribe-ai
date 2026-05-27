@@ -28,6 +28,7 @@ import {
   Bug,
   Send,
   Mail,
+  Wand2,
 } from 'lucide-react';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { GuidedTour } from '@/components/onboarding/GuidedTour';
@@ -49,6 +50,7 @@ interface NavItem {
 const authorNavItems: NavItem[] = [
   { label: 'Dashboard', href: '/author', icon: Home, tourId: 'dashboard' },
   { label: 'Submit Article', href: '/author/submit', icon: Upload, tourId: 'submit-article' },
+  { label: 'AI Article Writer', href: '/author/ai-write', icon: Wand2 },
   { label: 'My Articles', href: '/author/articles', icon: FileText, tourId: 'my-articles' },
   { label: 'Cart', href: '/author/cart', icon: ShoppingCart, tourId: 'cart' },
   { label: 'Certificates', href: '/author/certificates', icon: Award, tourId: 'certificates' },
