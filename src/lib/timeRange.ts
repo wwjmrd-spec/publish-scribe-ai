@@ -14,7 +14,7 @@ export const RANGES: { key: RangeKey; label: string }[] = [
 export function getRangeStart(range: RangeKey): Date | null {
   const now = new Date();
   switch (range) {
-    case 'week': return subDays(now, 7);
+    case 'week': return startOfWeek(now, { weekStartsOn: 0 });
     case 'month': return subMonths(now, 1);
     case '3m': return subMonths(now, 3);
     case '6m': return subMonths(now, 6);
