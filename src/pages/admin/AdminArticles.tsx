@@ -473,6 +473,10 @@ export default function AdminArticles() {
                             ✅ Paid
                           </span>
                         </>
+                      {(article as any).created_via === 'ai_writer' && (
+                        <span className="px-2 py-0.5 rounded-full text-[11px] border whitespace-nowrap bg-gradient-to-r from-glow-cyan/20 via-glow-purple/20 to-glow-pink/20 text-primary border-primary/30">
+                          ✨ AI Writer
+                        </span>
                       )}
                     </div>
                   </div>
