@@ -314,6 +314,100 @@ export default function AIWriteArticle() {
     }
   };
 
+  const handleFigureUpload = async (
+    files: FileList | null,
+    mode: 'as_is' | 'ai_enhanced',
+    kind: 'figure' | 'table',
+  ) => {
+    if (!files || !files.length || !user?.id) return;
+    setUploadingFig(true);
+    try {
+      const uploaded: Figure[] = [];
+      for (const file of Array.from(files)) {
+        if (!file.type.startsWith('image/')) {
+          toast({ title: 'Skipped non-image', description: file.name, variant: 'destructive' });
+          continue;
+        }
+        const ext = file.name.split('.').pop() || 'png';
+        const path = `${user.id}/ai-figures/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const { error } = await supabase.storage.from('documents').upload(path, file, {
+          contentType: file.type,
+        });
+        if (error) throw error;
+        const previewUrl = URL.createObjectURL(file);
+        uploaded.push({
+          storagePath: path,
+          caption: '',
+          insertMode: mode,
+          kind,
+          previewUrl,
+          fileName: file.name,
+        });
+      }
+      setPendingFigures((prev) => [...prev, ...uploaded]);
+      toast({ title: `${uploaded.length} ${kind}(s) attached`, description: 'Add captions and apply your correction.' });
+    } catch (e: any) {
+      toast({ title: 'Upload failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setUploadingFig(false);
+    }
+  };
+
+  const handleApplyCorrection = async () => {
+    if (!article) return;
+    if (!correctionInstructions.trim() && pendingFigures.length === 0) {
+      toast({ title: 'Nothing to apply', description: 'Add instructions or attach figures first.', variant: 'destructive' });
+      return;
+    }
+    setCorrecting(true);
+    setChanges([]);
+    try {
+      const cleanFigures = pendingFigures.map(({ previewUrl, fileName, ...rest }) => rest);
+      const { data, error } = await supabase.functions.invoke('ai-write-article', {
+        body: {
+          mode: 'correct',
+          article,
+          instructions: correctionInstructions,
+          newFigures: cleanFigures,
+        },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Correction failed');
+      // Re-attach preview URLs from existing figures + new pending ones (by storagePath)
+      const previewMap = new Map<string, { previewUrl?: string; fileName?: string }>();
+      [...(article.figures || []), ...pendingFigures].forEach((f) => {
+        previewMap.set(f.storagePath, { previewUrl: f.previewUrl, fileName: f.fileName });
+      });
+      const figs: Figure[] = (data.article.figures || []).map((f: Figure) => ({
+        ...f,
+        ...(previewMap.get(f.storagePath) || {}),
+      }));
+      setArticle({ ...data.article, figures: figs });
+      setChanges(data.changes || []);
+      setPendingFigures([]);
+      setCorrectionInstructions('');
+      toast({ title: 'Correction applied ✅', description: 'Your changes are now in the article.' });
+    } catch (e: any) {
+      toast({ title: 'Correction failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setCorrecting(false);
+    }
+  };
+
+  const removePendingFigure = (i: number) => {
+    setPendingFigures((prev) => {
+      const f = prev[i];
+      if (f?.previewUrl) URL.revokeObjectURL(f.previewUrl);
+      // Best-effort cleanup of uploaded blob
+      if (f?.storagePath) supabase.storage.from('documents').remove([f.storagePath]).catch(() => {});
+      return prev.filter((_, j) => j !== i);
+    });
+  };
+
+  const updatePendingFigure = (i: number, patch: Partial<Figure>) => {
+    setPendingFigures((prev) => prev.map((f, j) => (j === i ? { ...f, ...patch } : f)));
+  };
+
   return (
     <DashboardLayout type="author">
       <div className="relative">
