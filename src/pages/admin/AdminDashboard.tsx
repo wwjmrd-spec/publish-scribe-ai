@@ -109,6 +109,28 @@ export default function AdminDashboard() {
 
   const recentArticles = articles?.slice(0, 5) || [];
 
+  const aiStats = React.useMemo(() => {
+    const start = getRangeStart(range);
+    const rows = (aiUsage || []).filter((u: any) => inRange(u.created_at, start));
+    const byUser = new Map<string, { name: string; email: string; count: number }>();
+    rows.forEach((u: any) => {
+      const k = u.user_id as string;
+      const cur = byUser.get(k) || { name: u.user_name || 'Unknown', email: u.user_email || '', count: 0 };
+      cur.count += 1;
+      byUser.set(k, cur);
+    });
+    const aiArticles = (articles || []).filter((a: any) => a.created_via === 'ai_writer' && inRange(a.created_at, start)).length;
+    return {
+      totalUses: rows.length,
+      generates: rows.filter((u: any) => u.action === 'generate').length,
+      submits: rows.filter((u: any) => u.action === 'submit').length,
+      uniqueUsers: byUser.size,
+      aiArticles,
+      topUsers: Array.from(byUser.values()).sort((a, b) => b.count - a.count).slice(0, 5),
+    };
+  }, [aiUsage, articles, range]);
+
+
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, string> = {
       submitted: 'status-submitted',
