@@ -472,12 +472,13 @@ export default function AdminArticles() {
                           <span className="px-2 py-0.5 rounded-full text-[11px] border whitespace-nowrap bg-green-500/20 text-green-400 border-green-500/30">
                             ✅ Paid
                           </span>
-                        </>
-                      {(article as any).created_via === 'ai_writer' && (
-                        <span className="px-2 py-0.5 rounded-full text-[11px] border whitespace-nowrap bg-gradient-to-r from-glow-cyan/20 via-glow-purple/20 to-glow-pink/20 text-primary border-primary/30">
-                          ✨ AI Writer
-                        </span>
-                      )}
+                         </>
+                       )}
+                       {(article as any).created_via === 'ai_writer' && (
+                         <span className="px-2 py-0.5 rounded-full text-[11px] border whitespace-nowrap bg-gradient-to-r from-glow-cyan/20 via-glow-purple/20 to-glow-pink/20 text-primary border-primary/30">
+                           ✨ AI Writer
+                         </span>
+                       )}
                     </div>
                   </div>
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
