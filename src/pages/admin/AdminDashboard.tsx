@@ -67,6 +67,19 @@ export default function AdminDashboard() {
     },
   });
 
+  const { data: aiUsage } = useQuery({
+    queryKey: ['admin-ai-writer-usage'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('ai_writer_usage')
+        .select('id, user_id, user_email, user_name, action, created_at')
+        .order('created_at', { ascending: false })
+        .limit(500);
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const stats = React.useMemo(() => {
     const start = getRangeStart(range);
     const filteredArticles = (articles || []).filter(a => inRange(a.created_at, start));
