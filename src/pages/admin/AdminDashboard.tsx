@@ -67,6 +67,19 @@ export default function AdminDashboard() {
     },
   });
 
+  const { data: aiUsage } = useQuery({
+    queryKey: ['admin-ai-writer-usage'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('ai_writer_usage')
+        .select('id, user_id, user_email, user_name, action, created_at')
+        .order('created_at', { ascending: false })
+        .limit(500);
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const stats = React.useMemo(() => {
     const start = getRangeStart(range);
     const filteredArticles = (articles || []).filter(a => inRange(a.created_at, start));
@@ -95,6 +108,28 @@ export default function AdminDashboard() {
   }, [articles, profiles, payments, range]);
 
   const recentArticles = articles?.slice(0, 5) || [];
+
+  const aiStats = React.useMemo(() => {
+    const start = getRangeStart(range);
+    const rows = (aiUsage || []).filter((u: any) => inRange(u.created_at, start));
+    const byUser = new Map<string, { name: string; email: string; count: number }>();
+    rows.forEach((u: any) => {
+      const k = u.user_id as string;
+      const cur = byUser.get(k) || { name: u.user_name || 'Unknown', email: u.user_email || '', count: 0 };
+      cur.count += 1;
+      byUser.set(k, cur);
+    });
+    const aiArticles = (articles || []).filter((a: any) => a.created_via === 'ai_writer' && inRange(a.created_at, start)).length;
+    return {
+      totalUses: rows.length,
+      generates: rows.filter((u: any) => u.action === 'generate').length,
+      submits: rows.filter((u: any) => u.action === 'submit').length,
+      uniqueUsers: byUser.size,
+      aiArticles,
+      topUsers: Array.from(byUser.values()).sort((a, b) => b.count - a.count).slice(0, 5),
+    };
+  }, [aiUsage, articles, range]);
+
 
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, string> = {
@@ -331,6 +366,64 @@ export default function AdminDashboard() {
           </GlassCard>
         </motion.div>
       </div>
+
+      {/* AI Article Writer usage */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.38 }}
+        className="mb-8"
+      >
+        <GlassCard>
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-glow-cyan/30 via-glow-purple/30 to-glow-pink/30 border border-[hsl(var(--glass-border))] flex items-center justify-center">
+                <span className="text-base">✨</span>
+              </div>
+              <div>
+                <h2 className="font-display text-xl font-semibold">AI Article Writer Activity</h2>
+                <p className="text-xs text-muted-foreground">Usage for the selected time range</p>
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+            <div className="p-3 rounded-lg bg-[hsl(var(--glass-bg))] text-center">
+              <p className="text-2xl font-bold gradient-text">{aiStats.totalUses}</p>
+              <p className="text-xs text-muted-foreground mt-1">Total uses</p>
+            </div>
+            <div className="p-3 rounded-lg bg-[hsl(var(--glass-bg))] text-center">
+              <p className="text-2xl font-bold">{aiStats.generates}</p>
+              <p className="text-xs text-muted-foreground mt-1">Articles generated</p>
+            </div>
+            <div className="p-3 rounded-lg bg-[hsl(var(--glass-bg))] text-center">
+              <p className="text-2xl font-bold">{aiStats.aiArticles}</p>
+              <p className="text-xs text-muted-foreground mt-1">AI-written submitted</p>
+            </div>
+            <div className="p-3 rounded-lg bg-[hsl(var(--glass-bg))] text-center">
+              <p className="text-2xl font-bold">{aiStats.uniqueUsers}</p>
+              <p className="text-xs text-muted-foreground mt-1">Unique authors</p>
+            </div>
+          </div>
+          {aiStats.topUsers.length > 0 ? (
+            <div>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Top users</p>
+              <div className="space-y-1.5">
+                {aiStats.topUsers.map((u, i) => (
+                  <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-[hsl(var(--glass-bg))]">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{u.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                    </div>
+                    <span className="text-sm font-mono shrink-0 ml-2">{u.count}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No AI Writer activity yet in this period.</p>
+          )}
+        </GlassCard>
+      </motion.div>
 
       {/* Activity Report (selectable time range) */}
       <div className="mb-8">

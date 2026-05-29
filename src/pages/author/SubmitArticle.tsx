@@ -83,6 +83,7 @@ export default function SubmitArticle() {
   const [formLoadTime] = useState(Date.now());
   const [discoverySource, setDiscoverySource] = useState('');
   const [pageCount, setPageCount] = useState<number | null>(null);
+  const [createdVia, setCreatedVia] = useState<string>('manual');
   const [validationWarnings, setValidationWarnings] = useState<{ missing: string[]; samples: Record<string, string> } | null>(null);
   const [duplicateArticle, setDuplicateArticle] = useState<any>(null);
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
@@ -135,6 +136,7 @@ export default function SubmitArticle() {
       if (p.abstract) setAbstract(p.abstract);
       if (p.keywords) setKeywords(p.keywords);
       if (p.author_name) setAuthorName(p.author_name);
+      if (p.createdVia) setCreatedVia(p.createdVia);
       sessionStorage.removeItem('ai-article-prefill');
       toast({
         title: 'AI-written article loaded ✨',
@@ -368,6 +370,7 @@ export default function SubmitArticle() {
         publication_type: articlePublicationType,
         page_count: pageCount,
         discovery_source: discoverySource || null,
+        created_via: createdVia,
       } as any)
       .select()
       .single();

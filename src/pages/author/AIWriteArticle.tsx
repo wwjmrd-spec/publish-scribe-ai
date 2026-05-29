@@ -32,6 +32,9 @@ import {
   Atom,
   Zap,
   ArrowRight,
+  ImageIcon,
+  Edit3,
+  X,
 } from 'lucide-react';
 
 interface Author {
@@ -39,6 +42,15 @@ interface Author {
   affiliation: string;
   email: string;
   isCorresponding?: boolean;
+}
+
+interface Figure {
+  storagePath: string;
+  caption: string;
+  insertMode: 'as_is' | 'ai_enhanced';
+  kind: 'figure' | 'table';
+  previewUrl?: string;
+  fileName?: string;
 }
 
 interface Article {
@@ -52,6 +64,7 @@ interface Article {
   conclusion: string;
   references: string[];
   referenceStyle: string;
+  figures: Figure[];
 }
 
 const REF_STYLES = ['APA', 'IEEE', 'Harvard'];
@@ -181,6 +194,12 @@ export default function AIWriteArticle() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [changes, setChanges] = useState<string[]>([]);
 
+  // Corrections
+  const [correctionInstructions, setCorrectionInstructions] = useState('');
+  const [pendingFigures, setPendingFigures] = useState<Figure[]>([]);
+  const [uploadingFig, setUploadingFig] = useState(false);
+  const [correcting, setCorrecting] = useState(false);
+
   const charCount = material.length;
   const charPct = useMemo(() => Math.min(100, (charCount / 600) * 100), [charCount]);
 
@@ -217,7 +236,7 @@ export default function AIWriteArticle() {
       });
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error || 'Generation failed');
-      setArticle(data.article);
+      setArticle({ ...data.article, figures: data.article.figures || [] });
       setQuestions(data.missingInfo || []);
       toast({ title: 'Article drafted ✨', description: 'Review each section and edit anything that needs your attention.' });
     } catch (e: any) {
@@ -237,7 +256,7 @@ export default function AIWriteArticle() {
       });
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error || 'Polish failed');
-      setArticle(data.article);
+      setArticle({ ...data.article, figures: data.article.figures || article?.figures || [] });
       setChanges(data.changes || []);
       toast({ title: 'Polished ✅', description: 'Grammar, spelling and references have been refined.' });
     } catch (e: any) {
@@ -283,6 +302,7 @@ export default function AIWriteArticle() {
       if (!data?.success) throw new Error(data?.error || 'Upload failed');
       sessionStorage.setItem('ai-article-prefill', JSON.stringify({
         documentPath: data.documentPath,
+        createdVia: 'ai_writer',
         ...data.metadata,
       }));
       toast({ title: 'Ready to submit', description: 'Your AI-written article was prepared. Complete the submission form.' });
@@ -292,6 +312,100 @@ export default function AIWriteArticle() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleFigureUpload = async (
+    files: FileList | null,
+    mode: 'as_is' | 'ai_enhanced',
+    kind: 'figure' | 'table',
+  ) => {
+    if (!files || !files.length || !user?.id) return;
+    setUploadingFig(true);
+    try {
+      const uploaded: Figure[] = [];
+      for (const file of Array.from(files)) {
+        if (!file.type.startsWith('image/')) {
+          toast({ title: 'Skipped non-image', description: file.name, variant: 'destructive' });
+          continue;
+        }
+        const ext = file.name.split('.').pop() || 'png';
+        const path = `${user.id}/ai-figures/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const { error } = await supabase.storage.from('documents').upload(path, file, {
+          contentType: file.type,
+        });
+        if (error) throw error;
+        const previewUrl = URL.createObjectURL(file);
+        uploaded.push({
+          storagePath: path,
+          caption: '',
+          insertMode: mode,
+          kind,
+          previewUrl,
+          fileName: file.name,
+        });
+      }
+      setPendingFigures((prev) => [...prev, ...uploaded]);
+      toast({ title: `${uploaded.length} ${kind}(s) attached`, description: 'Add captions and apply your correction.' });
+    } catch (e: any) {
+      toast({ title: 'Upload failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setUploadingFig(false);
+    }
+  };
+
+  const handleApplyCorrection = async () => {
+    if (!article) return;
+    if (!correctionInstructions.trim() && pendingFigures.length === 0) {
+      toast({ title: 'Nothing to apply', description: 'Add instructions or attach figures first.', variant: 'destructive' });
+      return;
+    }
+    setCorrecting(true);
+    setChanges([]);
+    try {
+      const cleanFigures = pendingFigures.map(({ previewUrl, fileName, ...rest }) => rest);
+      const { data, error } = await supabase.functions.invoke('ai-write-article', {
+        body: {
+          mode: 'correct',
+          article,
+          instructions: correctionInstructions,
+          newFigures: cleanFigures,
+        },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Correction failed');
+      // Re-attach preview URLs from existing figures + new pending ones (by storagePath)
+      const previewMap = new Map<string, { previewUrl?: string; fileName?: string }>();
+      [...(article.figures || []), ...pendingFigures].forEach((f) => {
+        previewMap.set(f.storagePath, { previewUrl: f.previewUrl, fileName: f.fileName });
+      });
+      const figs: Figure[] = (data.article.figures || []).map((f: Figure) => ({
+        ...f,
+        ...(previewMap.get(f.storagePath) || {}),
+      }));
+      setArticle({ ...data.article, figures: figs });
+      setChanges(data.changes || []);
+      setPendingFigures([]);
+      setCorrectionInstructions('');
+      toast({ title: 'Correction applied ✅', description: 'Your changes are now in the article.' });
+    } catch (e: any) {
+      toast({ title: 'Correction failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setCorrecting(false);
+    }
+  };
+
+  const removePendingFigure = (i: number) => {
+    setPendingFigures((prev) => {
+      const f = prev[i];
+      if (f?.previewUrl) URL.revokeObjectURL(f.previewUrl);
+      // Best-effort cleanup of uploaded blob
+      if (f?.storagePath) supabase.storage.from('documents').remove([f.storagePath]).catch(() => {});
+      return prev.filter((_, j) => j !== i);
+    });
+  };
+
+  const updatePendingFigure = (i: number, patch: Partial<Figure>) => {
+    setPendingFigures((prev) => prev.map((f, j) => (j === i ? { ...f, ...patch } : f)));
   };
 
   return (
@@ -579,6 +693,161 @@ export default function AIWriteArticle() {
                       placeholder="One reference per line"
                     />
                   </div>
+                </div>
+              </StepCard>
+            )}
+          </AnimatePresence>
+
+          {/* STEP 3 — Corrections */}
+          <AnimatePresence>
+            {article && (
+              <StepCard step={3} title="Request a correction" icon={Edit3}>
+                <p className="text-sm text-muted-foreground mb-5">
+                  Add more guidance, upload figures or tables, and let the AI either insert them as-is or rewrite the surrounding prose to integrate them intelligently.
+                </p>
+
+                <div className="space-y-5">
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                      Correction instructions (optional)
+                    </Label>
+                    <Textarea
+                      value={correctionInstructions}
+                      onChange={(e) => setCorrectionInstructions(e.target.value)}
+                      placeholder="e.g. Add a paragraph about limitations after the methodology. Replace 'method A' wording with 'Algorithm A'. Reference the attached Figure 1 in Results..."
+                      className="glass-input min-h-[120px]"
+                    />
+                  </div>
+
+                  {/* Pending attachments */}
+                  {pendingFigures.length > 0 && (
+                    <div className="space-y-3">
+                      <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                        Attached ({pendingFigures.length})
+                      </Label>
+                      <div className="grid sm:grid-cols-2 gap-3">
+                        {pendingFigures.map((f, i) => (
+                          <div
+                            key={i}
+                            className="relative rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--glass-bg))] backdrop-blur-md p-3 space-y-2"
+                          >
+                            <button
+                              type="button"
+                              onClick={() => removePendingFigure(i)}
+                              className="absolute top-2 right-2 w-6 h-6 rounded-full bg-background/80 border border-[hsl(var(--glass-border))] flex items-center justify-center hover:bg-destructive/20 transition-colors"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                            {f.previewUrl && (
+                              <img
+                                src={f.previewUrl}
+                                alt={f.fileName || 'figure'}
+                                className="w-full h-28 object-cover rounded-lg"
+                              />
+                            )}
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/30">
+                                {f.kind}
+                              </span>
+                              <Select
+                                value={f.insertMode}
+                                onValueChange={(v) => updatePendingFigure(i, { insertMode: v as 'as_is' | 'ai_enhanced' })}
+                              >
+                                <SelectTrigger className="glass-input h-8 text-xs flex-1">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="as_is">Insert as-is</SelectItem>
+                                  <SelectItem value="ai_enhanced">AI-enhanced (rewrite around it)</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <Input
+                              placeholder="Caption (optional)"
+                              value={f.caption}
+                              onChange={(e) => updatePendingFigure(i, { caption: e.target.value })}
+                              className="glass-input h-8 text-xs"
+                            />
+                            <p className="text-[10px] text-muted-foreground truncate">{f.fileName}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Upload buttons */}
+                  <div className="flex flex-wrap gap-2">
+                    <label className="cursor-pointer">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => {
+                          handleFigureUpload(e.target.files, 'as_is', 'figure');
+                          e.target.value = '';
+                        }}
+                        disabled={uploadingFig}
+                      />
+                      <span className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--glass-bg))] backdrop-blur-md text-sm hover:border-primary/50 transition-colors">
+                        <ImageIcon className="w-4 h-4" /> Add figure(s)
+                      </span>
+                    </label>
+                    <label className="cursor-pointer">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => {
+                          handleFigureUpload(e.target.files, 'as_is', 'table');
+                          e.target.value = '';
+                        }}
+                        disabled={uploadingFig}
+                      />
+                      <span className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--glass-bg))] backdrop-blur-md text-sm hover:border-primary/50 transition-colors">
+                        <ImageIcon className="w-4 h-4" /> Add table image(s)
+                      </span>
+                    </label>
+                    {uploadingFig && <GlassSpinner size="sm" />}
+                  </div>
+
+                  <p className="text-xs text-muted-foreground">
+                    <strong className="text-foreground">Insert as-is:</strong> AI keeps your text and just places the figure with your caption.{' '}
+                    <strong className="text-foreground">AI-enhanced:</strong> AI rewrites the surrounding paragraphs so the figure is properly introduced and discussed.
+                  </p>
+
+                  <Button
+                    onClick={handleApplyCorrection}
+                    disabled={correcting}
+                    className="bg-gradient-to-r from-glow-cyan via-glow-purple to-glow-pink text-primary-foreground shadow-[0_0_20px_hsl(var(--glow-purple)/0.35)]"
+                  >
+                    {correcting ? <GlassSpinner size="sm" /> : <Wand2 className="w-4 h-4 mr-2" />}
+                    Apply correction
+                  </Button>
+
+                  {/* Already-applied figures */}
+                  {(article.figures || []).length > 0 && (
+                    <div className="pt-4 border-t border-[hsl(var(--glass-border))] space-y-2">
+                      <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                        Figures in this article ({article.figures.length})
+                      </Label>
+                      <div className="flex flex-wrap gap-2">
+                        {article.figures.map((f, i) => (
+                          <div
+                            key={i}
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[hsl(var(--glass-bg))] border border-[hsl(var(--glass-border))] text-xs"
+                          >
+                            <ImageIcon className="w-3 h-3 text-primary" />
+                            {f.kind === 'table' ? 'Table' : 'Figure'} {i + 1}
+                            <span className="text-muted-foreground truncate max-w-[160px]">
+                              {f.caption || '(no caption)'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </StepCard>
             )}

@@ -46,6 +46,39 @@ export type Database = {
           },
         ]
       }
+      ai_writer_usage: {
+        Row: {
+          action: string
+          article_title: string | null
+          created_at: string
+          id: string
+          metadata: Json
+          user_email: string | null
+          user_id: string
+          user_name: string | null
+        }
+        Insert: {
+          action: string
+          article_title?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          user_email?: string | null
+          user_id: string
+          user_name?: string | null
+        }
+        Update: {
+          action?: string
+          article_title?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          user_email?: string | null
+          user_id?: string
+          user_name?: string | null
+        }
+        Relationships: []
+      }
       article_reviews: {
         Row: {
           approved: boolean
@@ -131,6 +164,7 @@ export type Database = {
           copyright_form_url: string | null
           country: string | null
           created_at: string | null
+          created_via: string
           discovery_source: string | null
           document_url: string | null
           fee_reminder_email_sent_at: string | null
@@ -181,6 +215,7 @@ export type Database = {
           copyright_form_url?: string | null
           country?: string | null
           created_at?: string | null
+          created_via?: string
           discovery_source?: string | null
           document_url?: string | null
           fee_reminder_email_sent_at?: string | null
@@ -231,6 +266,7 @@ export type Database = {
           copyright_form_url?: string | null
           country?: string | null
           created_at?: string | null
+          created_via?: string
           discovery_source?: string | null
           document_url?: string | null
           fee_reminder_email_sent_at?: string | null
