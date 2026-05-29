@@ -32,6 +32,9 @@ import {
   Atom,
   Zap,
   ArrowRight,
+  ImageIcon,
+  Edit3,
+  X,
 } from 'lucide-react';
 
 interface Author {
@@ -39,6 +42,15 @@ interface Author {
   affiliation: string;
   email: string;
   isCorresponding?: boolean;
+}
+
+interface Figure {
+  storagePath: string;
+  caption: string;
+  insertMode: 'as_is' | 'ai_enhanced';
+  kind: 'figure' | 'table';
+  previewUrl?: string;
+  fileName?: string;
 }
 
 interface Article {
@@ -52,6 +64,7 @@ interface Article {
   conclusion: string;
   references: string[];
   referenceStyle: string;
+  figures: Figure[];
 }
 
 const REF_STYLES = ['APA', 'IEEE', 'Harvard'];
@@ -180,6 +193,12 @@ export default function AIWriteArticle() {
   const [questions, setQuestions] = useState<string[]>([]);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [changes, setChanges] = useState<string[]>([]);
+
+  // Corrections
+  const [correctionInstructions, setCorrectionInstructions] = useState('');
+  const [pendingFigures, setPendingFigures] = useState<Figure[]>([]);
+  const [uploadingFig, setUploadingFig] = useState(false);
+  const [correcting, setCorrecting] = useState(false);
 
   const charCount = material.length;
   const charPct = useMemo(() => Math.min(100, (charCount / 600) * 100), [charCount]);
