@@ -236,7 +236,7 @@ export default function AIWriteArticle() {
       });
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error || 'Generation failed');
-      setArticle(data.article);
+      setArticle({ ...data.article, figures: data.article.figures || [] });
       setQuestions(data.missingInfo || []);
       toast({ title: 'Article drafted ✨', description: 'Review each section and edit anything that needs your attention.' });
     } catch (e: any) {
@@ -256,7 +256,7 @@ export default function AIWriteArticle() {
       });
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error || 'Polish failed');
-      setArticle(data.article);
+      setArticle({ ...data.article, figures: data.article.figures || article?.figures || [] });
       setChanges(data.changes || []);
       toast({ title: 'Polished ✅', description: 'Grammar, spelling and references have been refined.' });
     } catch (e: any) {
@@ -302,6 +302,7 @@ export default function AIWriteArticle() {
       if (!data?.success) throw new Error(data?.error || 'Upload failed');
       sessionStorage.setItem('ai-article-prefill', JSON.stringify({
         documentPath: data.documentPath,
+        createdVia: 'ai_writer',
         ...data.metadata,
       }));
       toast({ title: 'Ready to submit', description: 'Your AI-written article was prepared. Complete the submission form.' });
