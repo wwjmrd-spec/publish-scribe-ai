@@ -312,7 +312,7 @@ export default function AIWriteArticle() {
               <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
             </span>
             <span className="text-[11px] font-mono uppercase tracking-[0.2em] text-muted-foreground">
-              Lovable AI · Academic Writer
+              PubPortal AI · Academic Writer
             </span>
           </div>
 
