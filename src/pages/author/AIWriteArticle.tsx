@@ -697,6 +697,161 @@ export default function AIWriteArticle() {
               </StepCard>
             )}
           </AnimatePresence>
+
+          {/* STEP 3 — Corrections */}
+          <AnimatePresence>
+            {article && (
+              <StepCard step={3} title="Request a correction" icon={Edit3}>
+                <p className="text-sm text-muted-foreground mb-5">
+                  Add more guidance, upload figures or tables, and let the AI either insert them as-is or rewrite the surrounding prose to integrate them intelligently.
+                </p>
+
+                <div className="space-y-5">
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                      Correction instructions (optional)
+                    </Label>
+                    <Textarea
+                      value={correctionInstructions}
+                      onChange={(e) => setCorrectionInstructions(e.target.value)}
+                      placeholder="e.g. Add a paragraph about limitations after the methodology. Replace 'method A' wording with 'Algorithm A'. Reference the attached Figure 1 in Results..."
+                      className="glass-input min-h-[120px]"
+                    />
+                  </div>
+
+                  {/* Pending attachments */}
+                  {pendingFigures.length > 0 && (
+                    <div className="space-y-3">
+                      <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                        Attached ({pendingFigures.length})
+                      </Label>
+                      <div className="grid sm:grid-cols-2 gap-3">
+                        {pendingFigures.map((f, i) => (
+                          <div
+                            key={i}
+                            className="relative rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--glass-bg))] backdrop-blur-md p-3 space-y-2"
+                          >
+                            <button
+                              type="button"
+                              onClick={() => removePendingFigure(i)}
+                              className="absolute top-2 right-2 w-6 h-6 rounded-full bg-background/80 border border-[hsl(var(--glass-border))] flex items-center justify-center hover:bg-destructive/20 transition-colors"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                            {f.previewUrl && (
+                              <img
+                                src={f.previewUrl}
+                                alt={f.fileName || 'figure'}
+                                className="w-full h-28 object-cover rounded-lg"
+                              />
+                            )}
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/30">
+                                {f.kind}
+                              </span>
+                              <Select
+                                value={f.insertMode}
+                                onValueChange={(v) => updatePendingFigure(i, { insertMode: v as 'as_is' | 'ai_enhanced' })}
+                              >
+                                <SelectTrigger className="glass-input h-8 text-xs flex-1">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="as_is">Insert as-is</SelectItem>
+                                  <SelectItem value="ai_enhanced">AI-enhanced (rewrite around it)</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <Input
+                              placeholder="Caption (optional)"
+                              value={f.caption}
+                              onChange={(e) => updatePendingFigure(i, { caption: e.target.value })}
+                              className="glass-input h-8 text-xs"
+                            />
+                            <p className="text-[10px] text-muted-foreground truncate">{f.fileName}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Upload buttons */}
+                  <div className="flex flex-wrap gap-2">
+                    <label className="cursor-pointer">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => {
+                          handleFigureUpload(e.target.files, 'as_is', 'figure');
+                          e.target.value = '';
+                        }}
+                        disabled={uploadingFig}
+                      />
+                      <span className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--glass-bg))] backdrop-blur-md text-sm hover:border-primary/50 transition-colors">
+                        <ImageIcon className="w-4 h-4" /> Add figure(s)
+                      </span>
+                    </label>
+                    <label className="cursor-pointer">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => {
+                          handleFigureUpload(e.target.files, 'as_is', 'table');
+                          e.target.value = '';
+                        }}
+                        disabled={uploadingFig}
+                      />
+                      <span className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--glass-bg))] backdrop-blur-md text-sm hover:border-primary/50 transition-colors">
+                        <ImageIcon className="w-4 h-4" /> Add table image(s)
+                      </span>
+                    </label>
+                    {uploadingFig && <GlassSpinner size="sm" />}
+                  </div>
+
+                  <p className="text-xs text-muted-foreground">
+                    <strong className="text-foreground">Insert as-is:</strong> AI keeps your text and just places the figure with your caption.{' '}
+                    <strong className="text-foreground">AI-enhanced:</strong> AI rewrites the surrounding paragraphs so the figure is properly introduced and discussed.
+                  </p>
+
+                  <Button
+                    onClick={handleApplyCorrection}
+                    disabled={correcting}
+                    className="bg-gradient-to-r from-glow-cyan via-glow-purple to-glow-pink text-primary-foreground shadow-[0_0_20px_hsl(var(--glow-purple)/0.35)]"
+                  >
+                    {correcting ? <GlassSpinner size="sm" /> : <Wand2 className="w-4 h-4 mr-2" />}
+                    Apply correction
+                  </Button>
+
+                  {/* Already-applied figures */}
+                  {(article.figures || []).length > 0 && (
+                    <div className="pt-4 border-t border-[hsl(var(--glass-border))] space-y-2">
+                      <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                        Figures in this article ({article.figures.length})
+                      </Label>
+                      <div className="flex flex-wrap gap-2">
+                        {article.figures.map((f, i) => (
+                          <div
+                            key={i}
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[hsl(var(--glass-bg))] border border-[hsl(var(--glass-border))] text-xs"
+                          >
+                            <ImageIcon className="w-3 h-3 text-primary" />
+                            {f.kind === 'table' ? 'Table' : 'Figure'} {i + 1}
+                            <span className="text-muted-foreground truncate max-w-[160px]">
+                              {f.caption || '(no caption)'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </StepCard>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </DashboardLayout>
