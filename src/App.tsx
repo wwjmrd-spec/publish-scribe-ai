@@ -42,6 +42,7 @@ import AdminProSubscribers from "./pages/admin/AdminProSubscribers";
 import AdminAISettings from "./pages/admin/AdminAISettings";
 import AdminPublishQueue from "./pages/admin/AdminPublishQueue";
 import AdminPublicationForm from "./pages/admin/AdminPublicationForm";
+import AdminSubmitForAuthor from "./pages/admin/AdminSubmitForAuthor";
 import NotFound from "./pages/NotFound";
 import { ReferralPopup } from "./components/referral/ReferralPopup";
 import { CookieConsent } from "./components/CookieConsent";
@@ -334,6 +335,14 @@ const App = () => (
               element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <AdminAISettings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/submit-for-author"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminSubmitForAuthor />
                 </ProtectedRoute>
               }
             />
