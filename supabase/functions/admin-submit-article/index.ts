@@ -12,6 +12,12 @@ const corsHeaders = {
 const json = (b: unknown, s = 200) =>
   new Response(JSON.stringify(b), { status: s, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
+const CoAuthorSchema = z.object({
+  name: z.string().min(1).max(200),
+  email: z.string().email().max(254),
+  affiliation: z.string().max(300).optional().default(""),
+});
+
 const PayloadSchema = z.object({
   author_id: z.string().uuid(),
   title: z.string().min(3).max(500),
@@ -21,6 +27,8 @@ const PayloadSchema = z.object({
   reason_of_research: z.string().max(2000).optional().default(""),
   submission_target: z.string().max(200).optional().default(""),
   publication_type: z.enum(["normal", "fast_track"]).optional().default("normal"),
+  co_authors: z.array(CoAuthorSchema).max(20).optional().default([]),
+  notification_email: z.string().email().max(254).optional().nullable(),
 });
 
 serve(async (req) => {
@@ -56,7 +64,7 @@ serve(async (req) => {
     // Fetch author profile
     const { data: profile, error: profErr } = await sb
       .from("profiles")
-      .select("id, full_name, country")
+      .select("id, full_name, email, country")
       .eq("id", p.author_id)
       .maybeSingle();
     if (profErr || !profile) return json({ error: "Author not found" }, 404);
@@ -92,6 +100,40 @@ serve(async (req) => {
       .select("id, reference_number")
       .single();
     if (insErr) return json({ error: insErr.message }, 500);
+
+    // Insert co-authors
+    if (p.co_authors.length > 0) {
+      await sb.from("co_authors").insert(
+        p.co_authors.map((ca) => ({
+          article_id: article.id,
+          name: ca.name.trim(),
+          email: ca.email.trim(),
+          affiliation: ca.affiliation?.trim() || null,
+        })),
+      );
+    }
+
+    // Send notification emails to the addresses the admin specified
+    const recipients = new Set<string>();
+    if (p.notification_email) recipients.add(p.notification_email);
+    if (profile.email) recipients.add(profile.email);
+
+    const emailData = {
+      articleTitle: p.title,
+      referenceNumber: article.reference_number,
+      authorName: profile.full_name || "Author",
+      authorEmail: profile.email,
+      submissionDate: new Date().toLocaleDateString(),
+      coAuthors: p.co_authors.map((c) => c.name),
+    };
+
+    for (const to of recipients) {
+      sb.functions
+        .invoke("send-email", {
+          body: { to, template: "article-submission", data: emailData, isAdmin: false },
+        })
+        .catch((e) => console.error("send-email failed", to, e));
+    }
 
     return json({ ok: true, article_id: article.id, reference_number: article.reference_number });
   } catch (e) {
