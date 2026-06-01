@@ -207,6 +207,53 @@ export default function AdminAISettings() {
           </Tabs>
         </GlassCard>
 
+        <GlassCard className="p-6 space-y-5">
+          <div>
+            <h2 className="font-semibold">Automation Score Thresholds</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Define how AI review scores map to automatic status changes. Scores at or above the acceptance
+              threshold auto-accept; scores at or above the revision threshold request a revision; anything
+              lower is auto-rejected.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Acceptance threshold (%)</Label>
+              <Input
+                type="number" min={0} max={100}
+                value={acceptThreshold}
+                onChange={(e) => setAcceptThreshold(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">Score ≥ this → Manuscript Accepted</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Revision threshold (%)</Label>
+              <Input
+                type="number" min={0} max={100}
+                value={revisionThreshold}
+                onChange={(e) => setRevisionThreshold(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Score between revision and acceptance → Revision Requested. Below this → Rejected.
+              </p>
+            </div>
+          </div>
+
+          <div className="rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+            Current rule: <span className="text-foreground font-medium">≥ {acceptThreshold || 0}%</span> accept ·{" "}
+            <span className="text-foreground font-medium">{revisionThreshold || 0}%–{(Number(acceptThreshold) || 0) - 1}%</span> revise ·{" "}
+            <span className="text-foreground font-medium">&lt; {revisionThreshold || 0}%</span> reject
+          </div>
+
+          <div className="flex justify-end">
+            <Button onClick={saveThresholds} disabled={savingThresholds}>
+              {savingThresholds && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Save Thresholds
+            </Button>
+          </div>
+        </GlassCard>
+
         <GlassCard className="p-6">
           <h2 className="font-semibold mb-2">How it works</h2>
           <ul className="text-sm text-muted-foreground space-y-1 list-disc pl-5">
@@ -214,6 +261,7 @@ export default function AdminAISettings() {
             <li>Each provider uses its OpenAI-compatible chat completions endpoint.</li>
             <li>Switch providers anytime — no redeploy required.</li>
             <li>Keys are stored in the database with admin-only access.</li>
+            <li>Automation score thresholds apply to the AI review step in auto-status-transition.</li>
           </ul>
         </GlassCard>
       </div>
