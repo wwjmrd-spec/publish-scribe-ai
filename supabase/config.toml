@@ -62,3 +62,8 @@ verify_jwt = false
 
 [functions.cancel-recurring-subscription]
 verify_jwt = false
+
+[functions.retry-article-analysis]
+verify_jwt = false
+
+

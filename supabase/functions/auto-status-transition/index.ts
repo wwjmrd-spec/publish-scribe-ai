@@ -106,10 +106,11 @@ serve(async (req: Request) => {
     }
 
     // ===== STEP 0: Trigger AI review for newly submitted articles missing reviews =====
+    //               Also retry page-count extraction for articles missing page_count.
     {
       const { data: pending, error } = await supabase
         .from("articles")
-        .select("id, document_url, article_reviews(id)")
+        .select("id, document_url, page_count, article_reviews(id)")
         .in("status", ["submitted", "under_review", "revised_submitted"])
         .eq("automation_paused", false)
         .not("document_url", "is", null)
@@ -118,17 +119,23 @@ serve(async (req: Request) => {
       if (error) {
         results.errors.push(`Step0 fetch: ${error.message}`);
       } else if (pending?.length) {
-        const needsReview = pending.filter((a: any) => !a.article_reviews || a.article_reviews.length === 0);
-        for (const art of needsReview) {
-          fetch(`${supabaseUrl}/functions/v1/ai-review`, {
+        for (const art of pending as any[]) {
+          const needsReview = !art.article_reviews || art.article_reviews.length === 0;
+          const needsPageCount = !art.page_count;
+          if (!needsReview && !needsPageCount) continue;
+
+          // Use retry-article-analysis to handle both retries (page count + ai-review trigger)
+          fetch(`${supabaseUrl}/functions/v1/retry-article-analysis`, {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceRoleKey}` },
             body: JSON.stringify({ articleId: art.id }),
-          }).catch((err) => console.error(`ai-review trigger failed for ${art.id}:`, err));
-          results.step0_aiReviewsTriggered++;
+          }).catch((err) => console.error(`retry-article-analysis failed for ${art.id}:`, err));
+
+          if (needsReview) results.step0_aiReviewsTriggered++;
         }
       }
     }
+
 
     // ===== STEP 1: Auto-approve AI reviews older than 6 hours and apply outcome =====
     const sixHoursAgo = new Date(now.getTime() - 6 * 60 * 60 * 1000).toISOString();

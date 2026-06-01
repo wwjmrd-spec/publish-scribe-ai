@@ -458,12 +458,37 @@ export default function AdminArticleDetail() {
 
             {/* Submission Details */}
             <GlassCard>
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
                 <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Submission Details</h3>
-                <Button size="sm" variant="outline" onClick={openEditDetails}>
-                  <Pencil className="w-3.5 h-3.5 mr-1.5" /> Edit Details
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={async () => {
+                      const t = toast.loading('Retrying AI analysis...');
+                      try {
+                        const { data, error } = await supabase.functions.invoke('retry-article-analysis', {
+                          body: { articleId },
+                        });
+                        if (error) throw error;
+                        toast.success(
+                          `Retry queued. Page count: ${data?.page_count_after ?? 'pending'}${data?.ai_review_triggered ? ' · AI review re-triggered' : ''}`,
+                          { id: t }
+                        );
+                        queryClient.invalidateQueries({ queryKey: ['admin-article-detail', articleId] });
+                      } catch (e: any) {
+                        toast.error(e?.message || 'Retry failed', { id: t });
+                      }
+                    }}
+                  >
+                    <RotateCcw className="w-3.5 h-3.5 mr-1.5" /> Retry AI Analysis
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={openEditDetails}>
+                    <Pencil className="w-3.5 h-3.5 mr-1.5" /> Edit Details
+                  </Button>
+                </div>
               </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   {article.author_name && (
                     <div>
