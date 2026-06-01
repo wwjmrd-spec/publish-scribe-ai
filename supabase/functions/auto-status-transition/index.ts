@@ -138,6 +138,16 @@ serve(async (req: Request) => {
       .from("admin_settings").select("setting_value").eq("setting_key", "two_page_free_enabled").maybeSingle();
     const twoPageFreeEnabled = twoPageFreeSetting?.setting_value !== "false";
 
+    // Load admin-configurable automation score thresholds
+    const { data: thresholdRows } = await supabase
+      .from("admin_settings")
+      .select("setting_key, setting_value")
+      .in("setting_key", ["auto_accept_threshold", "auto_revision_threshold"]);
+    const thresholdMap: Record<string, string> = {};
+    (thresholdRows ?? []).forEach((r: any) => (thresholdMap[r.setting_key] = r.setting_value));
+    const acceptThreshold = Number(thresholdMap.auto_accept_threshold ?? "70");
+    const revisionThreshold = Number(thresholdMap.auto_revision_threshold ?? "40");
+
     {
       const { data: reviews, error } = await supabase
         .from("article_reviews")
