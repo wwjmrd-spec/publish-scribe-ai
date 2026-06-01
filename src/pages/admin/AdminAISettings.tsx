@@ -31,21 +31,61 @@ export default function AdminAISettings() {
   const [provider, setProvider] = useState("gemini");
   const [apiKey, setApiKey] = useState("");
   const [model, setModel] = useState("gemini-2.5-flash");
+  const [acceptThreshold, setAcceptThreshold] = useState("70");
+  const [revisionThreshold, setRevisionThreshold] = useState("40");
+  const [savingThresholds, setSavingThresholds] = useState(false);
 
   useEffect(() => {
     (async () => {
       const { data } = await supabase
         .from("admin_settings")
         .select("setting_key, setting_value")
-        .in("setting_key", ["ai_provider", "ai_api_key", "ai_model"]);
+        .in("setting_key", ["ai_provider", "ai_api_key", "ai_model", "auto_accept_threshold", "auto_revision_threshold"]);
       const map: Record<string, string> = {};
       (data ?? []).forEach((r: any) => (map[r.setting_key] = r.setting_value ?? ""));
       if (map.ai_provider) setProvider(map.ai_provider);
       if (map.ai_api_key) setApiKey(map.ai_api_key);
       if (map.ai_model) setModel(map.ai_model);
+      if (map.auto_accept_threshold) setAcceptThreshold(map.auto_accept_threshold);
+      if (map.auto_revision_threshold) setRevisionThreshold(map.auto_revision_threshold);
       setLoading(false);
     })();
   }, []);
+
+  const saveSetting = async (key: string, value: string) => {
+    const { data: existing } = await supabase
+      .from("admin_settings").select("id").eq("setting_key", key).maybeSingle();
+    if (existing) {
+      await supabase.from("admin_settings")
+        .update({ setting_value: value, updated_at: new Date().toISOString() })
+        .eq("id", existing.id);
+    } else {
+      await supabase.from("admin_settings").insert({ setting_key: key, setting_value: value });
+    }
+  };
+
+  const saveThresholds = async () => {
+    const accept = Number(acceptThreshold);
+    const revision = Number(revisionThreshold);
+    if (isNaN(accept) || isNaN(revision) || accept < 0 || accept > 100 || revision < 0 || revision > 100) {
+      toast({ title: "Invalid values", description: "Thresholds must be between 0 and 100.", variant: "destructive" });
+      return;
+    }
+    if (revision >= accept) {
+      toast({ title: "Invalid range", description: "Revision threshold must be lower than acceptance threshold.", variant: "destructive" });
+      return;
+    }
+    setSavingThresholds(true);
+    try {
+      await saveSetting("auto_accept_threshold", String(accept));
+      await saveSetting("auto_revision_threshold", String(revision));
+      toast({ title: "Thresholds saved", description: "Automation will use these new score thresholds." });
+    } catch (e: any) {
+      toast({ title: "Save failed", description: e.message, variant: "destructive" });
+    } finally {
+      setSavingThresholds(false);
+    }
+  };
 
   const handleProviderChange = (val: string) => {
     setProvider(val);
