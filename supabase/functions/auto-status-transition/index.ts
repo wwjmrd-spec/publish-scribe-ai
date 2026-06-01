@@ -208,8 +208,9 @@ serve(async (req: Request) => {
               });
             }
 
-            // (b) Determine outcome based on page count + overall score
-            const meetsAcceptance = pageCount > 2 ? overall >= 80 : overall >= 90;
+            // (b) Determine outcome based on admin-configured score thresholds
+            const meetsAcceptance = overall >= acceptThreshold;
+            const meetsRevision = overall >= revisionThreshold;
 
             if (meetsAcceptance) {
               // Manuscript accepted
@@ -226,7 +227,7 @@ serve(async (req: Request) => {
                 type: "success", link: "/author/articles",
               });
               await notifyAdmins("Manuscript Accepted ✅",
-                `Article "${article.title}" (${article.reference_number}) auto-accepted.`,
+                `Article "${article.title}" (${article.reference_number}) auto-accepted (score ${overall}% ≥ ${acceptThreshold}%).`,
                 `/admin/articles/${article.id}`);
               if (authorEmail) {
                 await sendEmail(authorEmail, "status-update", {
@@ -268,8 +269,8 @@ serve(async (req: Request) => {
                 // Free tier — pause automation now
                 await supabase.from("articles").update({ automation_paused: true }).eq("id", article.id);
               }
-            } else {
-              // Low score — request manuscript revision and pause
+            } else if (meetsRevision) {
+              // Mid score — request manuscript revision and pause
               await supabase.from("articles").update({
                 status: "revision_requested",
                 automation_paused: true,
@@ -283,13 +284,38 @@ serve(async (req: Request) => {
                 type: "warning", link: "/author/articles",
               });
               await notifyAdmins("Revision Requested ✏️",
-                `Article "${article.title}" (${article.reference_number}) auto-flagged for revision (score ${overall}%, ${pageCount} pages). Automation paused.`,
+                `Article "${article.title}" (${article.reference_number}) auto-flagged for revision (score ${overall}%, thresholds ${revisionThreshold}%–${acceptThreshold}%). Automation paused.`,
                 `/admin/articles/${article.id}`);
               if (authorEmail) {
                 await sendEmail(authorEmail, "manuscript-revise", {
                   authorName, articleTitle: article.title,
                   referenceNumber: article.reference_number,
                   pageCount: pageCount || "N/A",
+                });
+              }
+            } else {
+              // Below revision threshold — auto-reject and pause
+              await supabase.from("articles").update({
+                status: "rejected",
+                automation_paused: true,
+              }).eq("id", article.id);
+              (results as any).step2_rejected = ((results as any).step2_rejected || 0) + 1;
+
+              await supabase.from("notifications").insert({
+                user_id: article.author_id,
+                title: "Manuscript Rejected ❌",
+                message: `Your article "${article.title}" did not meet the minimum review score and has been rejected.`,
+                type: "warning", link: "/author/articles",
+              });
+              await notifyAdmins("Manuscript Auto-Rejected ❌",
+                `Article "${article.title}" (${article.reference_number}) auto-rejected (score ${overall}% < ${revisionThreshold}%). Automation paused.`,
+                `/admin/articles/${article.id}`);
+              if (authorEmail) {
+                await sendEmail(authorEmail, "status-update", {
+                  authorName, articleTitle: article.title,
+                  referenceNumber: article.reference_number,
+                  newStatus: "Rejected",
+                  message: `Unfortunately, your manuscript scored ${overall}% in AI review, which is below our minimum threshold of ${revisionThreshold}%. The submission has been rejected.`,
                 });
               }
             }
