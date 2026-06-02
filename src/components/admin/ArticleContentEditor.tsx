@@ -26,7 +26,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Label } from '@/components/ui/label';
 import { buildPagedFormattedArticleHtml } from '@/lib/formattedArticlePagination';
-import { downloadFormattedAsPdf, downloadFormattedAsDocx } from '@/lib/exportFormattedArticle';
+import { downloadFormattedAsPdf, downloadFormattedAsDocx, buildFormattedPdfBlob } from '@/lib/exportFormattedArticle';
 
 interface ArticleContentEditorProps {
   articleId: string;
