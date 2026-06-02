@@ -1129,7 +1129,7 @@ function generateEditorHtml(meta: ArticleMetadata, body: Block[], images: Map<st
 
   const allReferences = meta.references || [];
   const refsHtml = allReferences.length
-    ? `<h2>References</h2><ol class="ww-references">${allReferences.map(r => `<li>${esc(r)}</li>`).join("")}</ol>`
+    ? `<h2 class="ww-references-h">References</h2><ol class="ww-references">${allReferences.map(r => `<li>${esc(r)}</li>`).join("")}</ol>`
     : "";
 
   const authorsInline = (meta.authors || []).map((a, i) => {
