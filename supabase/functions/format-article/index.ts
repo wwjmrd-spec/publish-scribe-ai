@@ -482,8 +482,22 @@ function sliceBodyBlocks(blocks: Block[], meta: ArticleMetadata): Block[] {
 }
 
 function removeReferenceSection(blocks: Block[], meta: ArticleMetadata): Block[] {
-  const refKeys = new Set([normHeading(meta.references_heading || "references"), "references", "bibliography", "works cited"]);
-  const end = blocks.findIndex((b) => b.kind === "heading" && refKeys.has(normHeading(b.text)));
+  const refKeys = new Set([normHeading(meta.references_heading || "references"), "references", "bibliography", "works cited", "worksreferenced"]);
+  // Cut on ANY block (heading OR paragraph) whose normalized text is a ref-section label.
+  // This handles documents where "Bibliography" or "References" is just a bolded paragraph
+  // rather than a real Hx heading — those slipped through previously and duplicated the
+  // reference list rendered separately at the bottom.
+  const isRefLabel = (b: Block) => {
+    if (b.kind === "heading") return refKeys.has(normHeading(b.text));
+    if (b.kind === "paragraph") {
+      const k = normHeading(b.text);
+      if (refKeys.has(k)) return true;
+      // Some manuscripts write "Bibliography:" or "References (cont.)" — match prefix
+      if (/^(references?|bibliography|workscited)/.test(k) && k.length < 30) return true;
+    }
+    return false;
+  };
+  const end = blocks.findIndex(isRefLabel);
   return end >= 0 ? blocks.slice(0, end) : blocks;
 }
 
