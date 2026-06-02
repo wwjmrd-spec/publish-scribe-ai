@@ -124,13 +124,26 @@ function removeDuplicateFrontMatter(root: HTMLElement, firstPage: HTMLElement | 
 }
 
 function removeDuplicateReferenceSections(root: HTMLElement) {
+  const REF_KEYS = new Set(['references', 'bibliography', 'workscited']);
   const children = Array.from(root.children) as HTMLElement[];
+  // A "reference section start" can be a heading OR a bold-only paragraph whose
+  // text is just "References" / "Bibliography" (manuscripts often style it that way).
+  const isRefLabel = (el: HTMLElement) => {
+    const key = norm(el.textContent || '');
+    if (!key || !REF_KEYS.has(key)) return false;
+    if (/^h[1-6]$/i.test(el.tagName)) return true;
+    if (el.tagName.toLowerCase() === 'p' && (el.textContent || '').trim().length < 30) return true;
+    return false;
+  };
   const referenceStarts = children
-    .map((el, index) => ({ el, index, key: norm(el.textContent || '') }))
-    .filter(({ el, key }) => /^h[1-6]$/i.test(el.tagName) && ['references', 'bibliography', 'workscited'].includes(key));
+    .map((el, index) => ({ el, index }))
+    .filter(({ el }) => isRefLabel(el));
 
-  if (referenceStarts.length <= 1) return;
+  if (referenceStarts.length === 0) return;
 
+  // Keep only the LAST reference section (our materialized one). Strip every
+  // earlier orphan section AND all of its trailing list items / paragraphs up
+  // to the next reference start (or the materialized list itself).
   for (let r = 0; r < referenceStarts.length - 1; r++) {
     const start = referenceStarts[r].index;
     const end = referenceStarts[r + 1].index;
