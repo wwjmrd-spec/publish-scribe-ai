@@ -53,12 +53,12 @@ const pageCss = `
     .formatted-body-content li { margin: 2px 0; text-align: justify; }
     .formatted-body-content figure, .formatted-body-content table, .ww-figure, .ww-data-table { break-inside: avoid; page-break-inside: avoid; }
     .formatted-body-content img { max-width: 100%; max-height: 210mm; height: auto; object-fit: contain; }
-    .formatted-body-content table { border-collapse: collapse; width: 100%; margin: 9px 0 12px; table-layout: auto; }
-    .formatted-body-content th, .formatted-body-content td { border: 1px solid #94a3b8; padding: 4px 5px; font-size: 9.2px; vertical-align: top; overflow-wrap: anywhere; }
-    .formatted-body-content th { background: #e2e8f0; font-weight: 700; }
-    .formatted-body-content .ww-references-materialized { font-size: 9.5px; line-height: 1.45; margin: 5px 0 6px; }
-    .formatted-body-content .ww-reference-item { display: block; margin: 2px 0; padding-left: 22px; text-indent: -22px; text-align: justify; }
-    .formatted-body-content .ww-reference-number { display: inline-block; width: 18px; font-weight: 700; text-indent: 0; }
+    .formatted-body-content table { border-collapse: collapse; width: 100%; margin: 9px 0 12px; table-layout: fixed; word-wrap: break-word; }
+    .formatted-body-content th, .formatted-body-content td { border: 1px solid #94a3b8; padding: 5px 6px; font-size: 9.2px; vertical-align: top; overflow-wrap: anywhere; word-break: break-word; text-align: left; }
+    .formatted-body-content th { background: #e2e8f0; font-weight: 700; text-align: center; }
+    .formatted-body-content .ww-references-materialized { font-size: 9.5px; line-height: 1.4; margin: 2px 0 6px; }
+    .formatted-body-content .ww-reference-item { display: block; margin: 1px 0; padding-left: 18px; text-indent: -18px; text-align: justify; }
+    .formatted-body-content .ww-reference-number { display: inline-block; min-width: 16px; font-weight: 700; text-indent: 0; }
     .formatted-body-content .ww-reference-text { text-indent: 0; }
     .formatted-page-footer { height: ${BODY_FOOTER_MM}mm; border-top: 1px solid #cbd5e1; color: #64748b; font-family: Arial, sans-serif; font-size: 9px; line-height: ${BODY_FOOTER_MM}mm; text-align: center; }
     @media print { body, .formatted-a4-document { background: #fff; padding: 0; } .formatted-a4-page { margin: 0; box-shadow: none; } }
