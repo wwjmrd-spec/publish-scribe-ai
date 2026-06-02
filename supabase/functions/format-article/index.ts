@@ -482,8 +482,22 @@ function sliceBodyBlocks(blocks: Block[], meta: ArticleMetadata): Block[] {
 }
 
 function removeReferenceSection(blocks: Block[], meta: ArticleMetadata): Block[] {
-  const refKeys = new Set([normHeading(meta.references_heading || "references"), "references", "bibliography", "works cited"]);
-  const end = blocks.findIndex((b) => b.kind === "heading" && refKeys.has(normHeading(b.text)));
+  const refKeys = new Set([normHeading(meta.references_heading || "references"), "references", "bibliography", "works cited", "worksreferenced"]);
+  // Cut on ANY block (heading OR paragraph) whose normalized text is a ref-section label.
+  // This handles documents where "Bibliography" or "References" is just a bolded paragraph
+  // rather than a real Hx heading — those slipped through previously and duplicated the
+  // reference list rendered separately at the bottom.
+  const isRefLabel = (b: Block) => {
+    if (b.kind === "heading") return refKeys.has(normHeading(b.text));
+    if (b.kind === "paragraph") {
+      const k = normHeading(b.text);
+      if (refKeys.has(k)) return true;
+      // Some manuscripts write "Bibliography:" or "References (cont.)" — match prefix
+      if (/^(references?|bibliography|workscited)/.test(k) && k.length < 30) return true;
+    }
+    return false;
+  };
+  const end = blocks.findIndex(isRefLabel);
   return end >= 0 ? blocks.slice(0, end) : blocks;
 }
 
@@ -1115,7 +1129,7 @@ function generateEditorHtml(meta: ArticleMetadata, body: Block[], images: Map<st
 
   const allReferences = meta.references || [];
   const refsHtml = allReferences.length
-    ? `<h2>References</h2><ol class="ww-references">${allReferences.map(r => `<li>${esc(r)}</li>`).join("")}</ol>`
+    ? `<h2 class="ww-references-h">References</h2><ol class="ww-references">${allReferences.map(r => `<li>${esc(r)}</li>`).join("")}</ol>`
     : "";
 
   const authorsInline = (meta.authors || []).map((a, i) => {
@@ -1151,12 +1165,13 @@ function generateEditorHtml(meta: ArticleMetadata, body: Block[], images: Map<st
   .ww-figure { page-break-inside:avoid; break-inside:avoid; text-align:center; margin:10px 0 12px; }
   .ww-figure img { max-width:100%; height:auto; display:inline-block; }
   .ww-caption { text-align:center !important; font-weight:bold; font-style:italic; font-size:10px; margin:3px 0 0 !important; }
-  .ww-data-table { page-break-inside:avoid; break-inside:avoid; border-collapse:collapse; width:100%; margin:9px 0 12px; table-layout:auto; }
-  .ww-data-table th, .ww-data-table td { border:1px solid #94a3b8; padding:4px 5px; font-size:9.2px; vertical-align:top; overflow-wrap:anywhere; }
-  .ww-data-table th { background:#e2e8f0; font-weight:bold; }
-  .ww-references { font-size:9.5px; line-height:1.45; list-style: decimal outside; padding-left: 22px; margin-left: 0; }
-  .ww-references li { text-align: justify; padding-left: 2px; margin: 2px 0; }
-  .ww-references li::marker { font-weight: bold; }
+  .ww-data-table { page-break-inside:avoid; break-inside:avoid; border-collapse:collapse; width:100%; margin:9px 0 12px; table-layout:fixed; word-wrap:break-word; }
+  .ww-data-table th, .ww-data-table td { border:1px solid #94a3b8; padding:5px 6px; font-size:9.2px; vertical-align:top; overflow-wrap:anywhere; word-break:break-word; text-align:left; }
+  .ww-data-table th { background:#e2e8f0; font-weight:bold; text-align:center; }
+  .ww-references-h { font-size:13px; font-weight:bold; margin:10px 0 4px; page-break-before:auto; break-before:auto; page-break-after:avoid; break-after:avoid; }
+  .ww-references { font-size:9.5px; line-height:1.4; list-style:none; padding-left:0; margin:0; counter-reset:wwref; }
+  .ww-references li { text-align:justify; padding-left:18px; text-indent:-18px; margin:1px 0; counter-increment:wwref; page-break-inside:avoid; break-inside:avoid; }
+  .ww-references li::before { content: counter(wwref) ". "; font-weight:bold; display:inline-block; min-width:16px; }
   @media print { .ww-a4-page, .ww-body-page { page-break-after:always; break-after:page; } }
 </style>
 <div class="wwjmrd-article">

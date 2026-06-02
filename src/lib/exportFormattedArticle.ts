@@ -29,7 +29,7 @@ function makeImagesExportSafe(root: ParentNode) {
  * Render each A4 page separately. Capturing one very tall canvas can hit
  * browser canvas limits and silently export only the first pages.
  */
-export async function downloadFormattedAsPdf(html: string, fileName: string, options: PaginationOptions = {}) {
+export async function buildFormattedPdfBlob(html: string, options: PaginationOptions = {}): Promise<Blob> {
   const container = document.createElement('div');
   container.style.cssText =
     'position:absolute;left:-10000px;top:0;width:210mm;background:#ffffff;z-index:-9999;pointer-events:none;';
@@ -65,10 +65,22 @@ export async function downloadFormattedAsPdf(html: string, fileName: string, opt
       pdf.addImage(dataUrl, 'JPEG', 0, 0, pageW, pageH);
     }
 
-    pdf.save(fileName.endsWith('.pdf') ? fileName : `${fileName}.pdf`);
+    return pdf.output('blob');
   } finally {
     document.body.removeChild(container);
   }
+}
+
+export async function downloadFormattedAsPdf(html: string, fileName: string, options: PaginationOptions = {}) {
+  const blob = await buildFormattedPdfBlob(html, options);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName.endsWith('.pdf') ? fileName : `${fileName}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 /**
