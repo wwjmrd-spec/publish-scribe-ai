@@ -764,6 +764,60 @@ const getArticlePublishedTemplate = (data: EmailRequest["data"], isAdmin: boolea
   return wrapEmail("Your Article is Published! 🎉", body);
 };
 
+const getAdminCreatedCredentialsTemplate = (data: EmailRequest["data"]): string => {
+  const userName = (data as any)?.userName || "there";
+  const email = (data as any)?.authorEmail || "";
+  const tempPassword = (data as any)?.tempPassword || "";
+  const resetUrl = (data as any)?.resetUrl || "";
+  const loginUrl = (data as any)?.loginUrl || "https://wwjmrdai.online/auth";
+  const isTemp = (data as any)?.isGeneratedTemp !== false;
+  const body = `
+    ${emailH1("Your WWJMRD Account is Ready 🎉")}
+    ${emailP(`Hi ${escapeHtml(userName)},`)}
+    ${emailP("An admin at WWJMRD has just created an author account for you. Use the credentials below to sign in.")}
+    ${emailInfoBox("Your sign-in details:", [
+      emailInfoRow("Email", escapeHtml(email)),
+      emailInfoRow(isTemp ? "Temporary password" : "Password", `<code style="font-family:monospace; color:#00d4ff;">${escapeHtml(tempPassword)}</code>`),
+    ].join(""))}
+    ${isTemp ? emailP(`<strong style="color:#f97316;">⚠️ Important:</strong> This is a temporary password. You will be asked to set your own password and verify your email address the first time you sign in.`) : ""}
+    ${resetUrl ? emailButton(escapeHtml(resetUrl), "Set Your Password & Verify Email") : emailButton(escapeHtml(loginUrl), "Sign In")}
+    ${emailP("Or sign in manually:")}
+    <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:14px; word-break:break-all; margin:8px 0;"><a href="${escapeHtml(loginUrl)}" style="color:#00d4ff; text-decoration:underline;">${escapeHtml(loginUrl)}</a></p>
+    ${emailDivider()}
+    ${emailFooterText("If you weren't expecting this email, please ignore it or contact support@wwjmrd.com.")}
+  `;
+  return wrapEmail("Your WWJMRD Account is Ready", body);
+};
+
+const getGalleyProofAuthorCorrectionsTemplate = (data: EmailRequest["data"], isAdmin: boolean): string => {
+  const infoRows = [
+    emailInfoRow("Reference Number", escapeHtml(data?.referenceNumber || "N/A")),
+    emailInfoRow("Title", escapeHtml(data?.articleTitle || "N/A")),
+    emailInfoRow("Author", escapeHtml(data?.authorName || "N/A")),
+    emailInfoRow("Submitted", escapeHtml(data?.submissionDate || new Date().toLocaleDateString())),
+  ].join("");
+
+  const body = isAdmin ? `
+    ${emailH1("Author Sent Galley Corrections 📝")}
+    ${emailP(`Author ${escapeHtml(data?.authorName || "Author")} has reviewed the galley proof and sent corrections directly from the editor. Red-highlighted edits are visible in the editor.`)}
+    ${emailInfoBox("Article:", infoRows)}
+    ${emailButton("https://wwjmrdai.online/admin/formatting", "Open in Formatting")}
+    ${emailDivider()}
+    ${emailFooterText("Review the highlighted corrections, clean up the highlights, and regenerate the PDF.")}
+  ` : `
+    ${emailH1("Corrections Sent to Admin ✅")}
+    ${emailP(`Hi ${escapeHtml(data?.authorName || "Author")},`)}
+    ${emailP("Your corrections have been received. Our editorial team will review the highlighted changes and follow up shortly.")}
+    ${emailInfoBox("Submission:", infoRows)}
+    ${emailButton("https://wwjmrdai.online/author/articles", "View My Articles")}
+    ${emailDivider()}
+    ${emailFooterText("Thank you for your careful review.")}
+  `;
+  return wrapEmail(isAdmin ? "Author Sent Galley Corrections" : "Corrections Sent to Admin", body);
+};
+
+
+
 function getEmailContent(
   template: EmailTemplate,
   data?: EmailRequest["data"],
