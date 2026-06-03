@@ -801,9 +801,43 @@ export function ArticleContentEditor({
 
               <div className="w-px h-5 bg-[#d1d5db] mx-1" />
 
+              {/* Text colour dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button type="button" variant="ghost" size="sm" className="h-7 px-1.5 gap-1 text-black/70 hover:text-black hover:bg-black/5" title="Text colour">
+                    <Palette className="w-3.5 h-3.5" />
+                    <span className="text-[10px]">Colour</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-44">
+                  <DropdownMenuLabel className="text-xs">Text colour</DropdownMenuLabel>
+                  {[
+                    { c: '#dc2626', label: 'Red (for corrections)' },
+                    { c: '#000000', label: 'Black' },
+                    { c: '#1d4ed8', label: 'Blue' },
+                    { c: '#15803d', label: 'Green' },
+                    { c: '#ea580c', label: 'Orange' },
+                    { c: '#7c3aed', label: 'Purple' },
+                    { c: '#6b7280', label: 'Grey' },
+                  ].map((opt) => (
+                    <DropdownMenuItem key={opt.c} onClick={() => applyColor(opt.c)}>
+                      <span style={{ background: opt.c }} className="inline-block w-3 h-3 rounded-sm mr-2 border border-black/10" />
+                      {opt.label}
+                    </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={clearRedHighlights}>
+                    <Eraser className="w-4 h-4 mr-2" /> Clear red highlights
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <div className="w-px h-5 bg-[#d1d5db] mx-1" />
+
               <ToolbarBtn cmd="undo" icon={Undo} title="Undo" />
               <ToolbarBtn cmd="redo" icon={Redo} title="Redo" />
             </div>
+
 
             {/* Content area */}
             <div style={{ padding: '15mm' }}>
@@ -817,6 +851,12 @@ export function ArticleContentEditor({
           </div>
         </div>
 
+        {mode === 'author' && (
+          <div className="mt-3 p-3 rounded-md border border-red-500/40 bg-red-500/10 text-sm text-red-700 dark:text-red-300">
+            <strong>📝 Make changes as needed.</strong> Please <span className="font-semibold">highlight every edit using the <span style={{ color: '#dc2626' }}>red text colour</span></span> (use the “Colour” button in the toolbar) so the admin can spot your corrections quickly. When you’re done, click <em>Send Corrections to Admin</em>.
+          </div>
+        )}
+
         <div className="flex items-center justify-end gap-3 mt-4 flex-wrap">
           <Button variant="outline" onClick={openPaginatedPreview}>
             <Eye className="w-4 h-4 mr-2" /> Preview A4 Pages
@@ -827,14 +867,24 @@ export function ArticleContentEditor({
           <DownloadButton onDownload={() => Promise.resolve(handleDownloadDocx())}>
             Download Word
           </DownloadButton>
-          <Button variant="outline" onClick={handleSave} disabled={saving}>
-            {saving ? <GlassSpinner size="sm" className="mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-            Save Draft
-          </Button>
-          <Button onClick={handleApproveAndSendGalleyProof} disabled={approving}>
-            {approving ? <GlassSpinner size="sm" className="mr-2" /> : <CheckCircle className="w-4 h-4 mr-2" />}
-            Approve & Send Galley Proof
-          </Button>
+          {mode === 'admin' && (
+            <>
+              <Button variant="outline" onClick={handleSave} disabled={saving}>
+                {saving ? <GlassSpinner size="sm" className="mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                Save Draft
+              </Button>
+              <Button onClick={handleApproveAndSendGalleyProof} disabled={approving}>
+                {approving ? <GlassSpinner size="sm" className="mr-2" /> : <CheckCircle className="w-4 h-4 mr-2" />}
+                Approve & Send Galley Proof
+              </Button>
+            </>
+          )}
+          {mode === 'author' && (
+            <Button onClick={handleSendAuthorCorrections} disabled={approving} className="gradient-primary">
+              {approving ? <GlassSpinner size="sm" className="mr-2" /> : <Send className="w-4 h-4 mr-2" />}
+              Send Corrections to Admin
+            </Button>
+          )}
         </div>
       </GlassCard>
 
