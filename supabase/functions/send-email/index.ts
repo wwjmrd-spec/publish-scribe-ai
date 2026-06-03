@@ -1179,7 +1179,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    const { to, template, data, subject, html, from, isAdmin } = body;
+    const { to, template, data, subject, html, from, isAdmin, providerOverride, fromOverride } = body as any;
 
     // Validate required fields
     if (!to) {
@@ -1217,21 +1217,25 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Missing required field: template");
     }
 
-    console.log(`Sending ${template} email to: ${to}, subject: ${emailSubject}, isAdmin: ${isAdmin}`);
+    console.log(`Sending ${template} email to: ${to}, subject: ${emailSubject}, isAdmin: ${isAdmin}, providerOverride: ${providerOverride || "(default)"}`);
 
     let emailResponse: any = null;
     let sendError: any = null;
+    let providerUsed = "resend";
     try {
-      emailResponse = await resend.emails.send({
-        from: from || "WWJMRD <noreply@wwjmrdai.online>",
-        to: [to],
+      const out = await sendViaActiveProvider({
+        from: fromOverride || from || "",
+        to,
         subject: emailSubject,
         html: emailHtml,
+        providerOverride,
       });
-      console.log("Email sent successfully:", JSON.stringify(emailResponse));
+      providerUsed = out.provider;
+      emailResponse = out.result;
+      console.log(`Email sent successfully via ${providerUsed}:`, JSON.stringify(emailResponse));
     } catch (err: any) {
       sendError = err;
-      console.error("Resend send failed:", err?.message || err);
+      console.error(`Email send failed via ${providerOverride || "active provider"}:`, err?.message || err);
     }
 
     // Log every send attempt to email_log (best-effort, non-blocking failure)
