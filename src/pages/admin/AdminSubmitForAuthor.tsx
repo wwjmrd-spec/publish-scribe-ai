@@ -591,8 +591,8 @@ export default function AdminSubmitForAuthor() {
                   <Input type="email" value={cEmail} onChange={(e) => setCEmail(e.target.value)} className="glass-input mt-1" />
                 </div>
                 <div>
-                  <Label>Temporary Password *</Label>
-                  <Input type="text" value={cPassword} onChange={(e) => setCPassword(e.target.value)} className="glass-input mt-1" placeholder="Min 8 chars" />
+                  <Label>Temporary Password (optional)</Label>
+                  <Input type="text" value={cPassword} onChange={(e) => setCPassword(e.target.value)} className="glass-input mt-1" placeholder="Leave blank to auto-generate" />
                 </div>
                 <div>
                   <Label>Country</Label>
@@ -616,8 +616,16 @@ export default function AdminSubmitForAuthor() {
               </div>
 
               <p className="text-xs text-muted-foreground">
-                The account is created with the email pre-confirmed. Share the temporary password with the author so they can sign in and change it.
+                If you leave the password blank, a one-time temporary password is generated, emailed to the author, and shown here. The author will be forced to set a new password and verify their email on first sign-in.
               </p>
+
+              {generatedTemp && (
+                <div className="p-3 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-sm space-y-1">
+                  <p className="font-semibold text-emerald-400">Temporary credentials (also emailed to the author)</p>
+                  <p><span className="text-muted-foreground">Email:</span> <code className="font-mono">{generatedTemp.email}</code></p>
+                  <p><span className="text-muted-foreground">Temp password:</span> <code className="font-mono text-primary">{generatedTemp.password}</code></p>
+                </div>
+              )}
 
               <Button onClick={handleCreateAuthor} disabled={creating} className="gradient-primary">
                 {creating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <UserPlus className="w-4 h-4 mr-2" />}
