@@ -159,6 +159,8 @@ export type Database = {
           allow_withdrawal: boolean
           author_id: string
           author_name: string | null
+          author_revision_html: string | null
+          author_revision_submitted_at: string | null
           automation_paused: boolean
           certificate_url: string | null
           copyright_form_url: string | null
@@ -210,6 +212,8 @@ export type Database = {
           allow_withdrawal?: boolean
           author_id: string
           author_name?: string | null
+          author_revision_html?: string | null
+          author_revision_submitted_at?: string | null
           automation_paused?: boolean
           certificate_url?: string | null
           copyright_form_url?: string | null
@@ -261,6 +265,8 @@ export type Database = {
           allow_withdrawal?: boolean
           author_id?: string
           author_name?: string | null
+          author_revision_html?: string | null
+          author_revision_submitted_at?: string | null
           automation_paused?: boolean
           certificate_url?: string | null
           copyright_form_url?: string | null
