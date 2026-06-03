@@ -319,6 +319,85 @@ export function ArticleContentEditor({
     }
   }, []);
 
+  /** Apply a foreground colour to current selection (foreColor execCommand). */
+  const applyColor = useCallback((color: string) => {
+    iframeRef.current?.contentWindow?.focus();
+    iframeRef.current?.contentDocument?.execCommand('foreColor', false, color);
+  }, []);
+
+  /** Strip every red-coloured run added by the author. Looks for span/font
+   *  elements with red-ish foreground (style="color:red", color="red",
+   *  rgb(255,0,0), or hex #ff0000/#f00) and unwraps them. Admin uses this to
+   *  clean up the editor after reviewing author corrections. */
+  const clearRedHighlights = useCallback(() => {
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc) return;
+    const isRed = (val?: string | null) => {
+      if (!val) return false;
+      const v = val.trim().toLowerCase().replace(/\s+/g, '');
+      return /^(red|#ff0000|#f00|rgb\(255,0,0\)|rgba\(255,0,0,[\d.]+\))$/.test(v);
+    };
+    let stripped = 0;
+    doc.body.querySelectorAll<HTMLElement>('span,font').forEach((el) => {
+      const styleColor = el.style?.color || '';
+      const attrColor = el.getAttribute('color') || '';
+      if (isRed(styleColor) || isRed(attrColor)) {
+        if (el.tagName === 'FONT' || (el.tagName === 'SPAN' && el.attributes.length <= 1)) {
+          // Unwrap completely
+          const parent = el.parentNode;
+          while (el.firstChild) parent?.insertBefore(el.firstChild, el);
+          el.remove();
+        } else {
+          el.style.color = '';
+          el.removeAttribute('color');
+        }
+        stripped++;
+      }
+    });
+    toast.success(stripped ? `Cleared ${stripped} red highlight${stripped === 1 ? '' : 's'}` : 'No red highlights found');
+  }, []);
+
+  const handleSendAuthorCorrections = useCallback(async () => {
+    setApproving(true);
+    const tid = toast.loading('Sending corrections to admin…');
+    try {
+      const content = getContent();
+      const { error } = await supabase
+        .from('articles')
+        .update({
+          author_revision_html: content,
+          author_revision_submitted_at: new Date().toISOString(),
+          galley_proof_status: 'revision_submitted',
+        } as any)
+        .eq('id', articleId);
+      if (error) throw error;
+
+      const emailData = {
+        articleTitle,
+        referenceNumber,
+        authorName: articleMeta?.authorName || 'Author',
+        submissionDate: new Date().toLocaleDateString(),
+      };
+      // Admin email
+      supabase.functions.invoke('send-email', {
+        body: { to: 'shubhmeena23@gmail.com', template: 'galley-proof-author-corrections', data: emailData, isAdmin: true },
+      }).catch(console.error);
+      // Author confirmation
+      if (articleMeta?.authorEmail) {
+        supabase.functions.invoke('send-email', {
+          body: { to: articleMeta.authorEmail, template: 'galley-proof-author-corrections', data: emailData, isAdmin: false },
+        }).catch(console.error);
+      }
+      toast.success('Corrections sent to admin', { id: tid });
+      queryClient.invalidateQueries({ queryKey: ['my-articles'] });
+      onClose();
+    } catch (err: any) {
+      toast.error('Failed: ' + (err?.message || 'Unknown error'), { id: tid });
+    } finally {
+      setApproving(false);
+    }
+  }, [getContent, articleId, articleTitle, referenceNumber, articleMeta, queryClient, onClose]);
+
   const handleSave = async () => {
     setSaving(true);
     try {
