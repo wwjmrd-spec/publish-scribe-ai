@@ -9,7 +9,7 @@ import {
   List, ListOrdered, Undo, Redo, Strikethrough,
   Table2, Columns2, Columns3, LayoutGrid, Minus, Plus,
   Trash2, PaintBucket, Grid3X3, SeparatorHorizontal, Hash,
-  ImageIcon, Crop, MoveVertical,
+  ImageIcon, Crop, MoveVertical, Palette, Eraser, Send,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -34,6 +34,11 @@ interface ArticleContentEditorProps {
   articleTitle: string;
   referenceNumber: string;
   onClose: () => void;
+  /** Default 'admin'. In 'author' mode the editor shows a red-highlight banner
+   *  and replaces the admin Approve flow with a "Send Corrections to Admin" button. */
+  mode?: 'admin' | 'author';
+  /** Used to populate notification emails when the author sends corrections. */
+  articleMeta?: { authorName?: string; authorEmail?: string };
 }
 
 // A4 content area inside the editor: 210mm wide, page break visualised every 297mm.
@@ -123,6 +128,7 @@ const CONTENT_HEIGHT_MM = A4_HEIGHT_MM - (MARGIN_MM * 2) - FOOTER_HEIGHT_MM;
 
 export function ArticleContentEditor({
   articleId, initialContent, articleTitle, referenceNumber, onClose,
+  mode = 'admin', articleMeta,
 }: ArticleContentEditorProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [saving, setSaving] = useState(false);
