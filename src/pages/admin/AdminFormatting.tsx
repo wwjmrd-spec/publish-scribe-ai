@@ -179,7 +179,10 @@ export default function AdminFormatting() {
           const suggestions: Suggestion[] = ((article as any).formatting_suggestions as Suggestion[]) || [];
           const formattedUrl = (article as any).formatted_document_url;
           const formattedDocxUrl = (article as any).formatted_docx_url;
-          const formattedContent = (article as any).formatted_content as string | null;
+          // Prefer author corrections (red-highlighted) when present so the
+          // admin can review them in the same editor.
+          const authorRevision = (article as any).author_revision_html as string | null;
+          const formattedContent = (authorRevision || (article as any).formatted_content) as string | null;
 
           return (
             <motion.div

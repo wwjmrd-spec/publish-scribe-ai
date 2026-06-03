@@ -8,15 +8,16 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import {
-  Download,
   Upload,
   CheckCircle,
   Clock,
   FileText,
   AlertTriangle,
   Edit3,
+  X,
 } from 'lucide-react';
-import { RichTextEditor } from '@/components/ui/RichTextEditor';
+import { ArticleContentEditor } from '@/components/admin/ArticleContentEditor';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 
 interface GalleyProofReviewSectionProps {
   article: any;
@@ -29,7 +30,6 @@ export function GalleyProofReviewSection({ article }: GalleyProofReviewSectionPr
   const [uploading, setUploading] = useState(false);
   const [approving, setApproving] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
-  const [editorContent, setEditorContent] = useState('');
 
   const galleyStatus = (article as any).galley_proof_status;
   const deadline = (article as any).galley_proof_deadline;
@@ -89,14 +89,12 @@ export function GalleyProofReviewSection({ article }: GalleyProofReviewSectionPr
 
       if (updateError) throw updateError;
 
-      // Get profile for emails
       const { data: profile } = await supabase
         .from('profiles')
         .select('full_name, email')
         .eq('id', user.id)
         .single();
 
-      // Get admin email from settings
       const { data: adminSettings } = await supabase
         .from('admin_settings')
         .select('setting_value')
@@ -112,18 +110,13 @@ export function GalleyProofReviewSection({ article }: GalleyProofReviewSectionPr
         submissionDate: new Date().toLocaleDateString(),
       };
 
-      // Send email to author (confirmation)
       supabase.functions.invoke('send-email', {
         body: { to: profile?.email || user.email, template: 'galley-proof-revision', data: emailData, isAdmin: false },
       }).catch((err) => console.error('Failed to send author galley proof revision email:', err));
 
-      // Send email to admin
       supabase.functions.invoke('send-email', {
         body: { to: adminEmail, template: 'galley-proof-revision', data: emailData, isAdmin: true },
       }).catch((err) => console.error('Failed to send admin galley proof revision email:', err));
-
-      // Admin in-app notifications are created automatically by the
-      // notify_admins_on_article_revision DB trigger.
 
       toast.success('Revised galley proof uploaded successfully!');
       queryClient.invalidateQueries({ queryKey: ['my-articles'] });
@@ -148,7 +141,6 @@ export function GalleyProofReviewSection({ article }: GalleyProofReviewSectionPr
 
       if (error) throw error;
 
-      // Notify admins
       const { data: admins } = await supabase
         .from('user_roles')
         .select('user_id')
@@ -174,26 +166,16 @@ export function GalleyProofReviewSection({ article }: GalleyProofReviewSectionPr
     }
   };
 
-  const handleOpenEditor = () => {
-    // Use formatted_content from the article if available (admin-edited content)
-    const formattedContent = (article as any).formatted_content;
-    if (formattedContent) {
-      setEditorContent(formattedContent);
-    } else {
-      // Fallback: build from article data
-      let html = `<h1>${article.title || 'Untitled'}</h1>`;
-      if (article.author_name) {
-        html += `<p><strong>${article.author_name}</strong></p>`;
-      }
-      if (article.abstract) {
-        html += `<h2>Abstract</h2><p>${article.abstract}</p>`;
-      }
-      if (article.keywords?.length > 0) {
-        html += `<p><strong>Keywords:</strong> ${article.keywords.join(', ')}</p>`;
-      }
-      setEditorContent(html);
-    }
-    setShowEditor(true);
+  /** Use the admin-edited formatted content as the seed for the author editor.
+   *  Falls back to a minimal rebuild from article fields when missing. */
+  const buildEditorSeed = () => {
+    const formatted = (article as any).author_revision_html || (article as any).formatted_content;
+    if (formatted) return formatted as string;
+    let html = `<h1>${article.title || 'Untitled'}</h1>`;
+    if (article.author_name) html += `<p><strong>${article.author_name}</strong></p>`;
+    if (article.abstract) html += `<h2>Abstract</h2><p>${article.abstract}</p>`;
+    if (article.keywords?.length > 0) html += `<p><strong>Keywords:</strong> ${article.keywords.join(', ')}</p>`;
+    return html;
   };
 
   return (
@@ -219,7 +201,6 @@ export function GalleyProofReviewSection({ article }: GalleyProofReviewSectionPr
           )}
         </div>
 
-        {/* Sent date */}
         {(article as any).galley_proof_sent_at && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <CheckCircle className="w-4 h-4 text-primary" />
@@ -232,7 +213,6 @@ export function GalleyProofReviewSection({ article }: GalleyProofReviewSectionPr
           </div>
         )}
 
-        {/* Deadline */}
         {deadline && (
           <div className={`flex items-center gap-2 text-sm ${isExpired ? 'text-red-400' : 'text-muted-foreground'}`}>
             {isExpired ? <AlertTriangle className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
@@ -246,68 +226,37 @@ export function GalleyProofReviewSection({ article }: GalleyProofReviewSectionPr
           </div>
         )}
 
-        {/* Instructions */}
         {galleyStatus === 'sent' && (
           <div className="p-3 rounded-lg bg-muted/30 text-sm space-y-1">
-            <p className="font-medium mb-2">Instructions:</p>
-            <p>• Review the galley proof files carefully</p>
-            <p>• Corrections are highlighted in <span className="text-red-400 font-semibold">RED</span> — please review</p>
-            <p>• Missing information is highlighted in <span className="text-yellow-400 font-semibold">YELLOW</span> — please fill in the correct details</p>
-            <p>• If corrections needed: upload the revised Word file below or use the editor</p>
-            <p>• If everything looks good: click "Approve Galley Proof"</p>
+            <p className="font-medium mb-2">How to respond:</p>
+            <p>• Open the article in the editor and use the <span className="text-red-400 font-semibold">RED text colour</span> to highlight every change you need</p>
+            <p>• When done, click <em>Send Corrections to Admin</em></p>
+            <p>• Or, if everything looks perfect, click <em>Approve Galley Proof</em> below</p>
+            <p>• Alternative: upload a revised Word file</p>
           </div>
         )}
 
-        {/* Download buttons — PDF only (Word kept only for legacy records) */}
         <div className="flex flex-wrap gap-2">
-          <DownloadButton
-            size="sm"
-            onDownload={() => handleDownload('galley_proof_pdf')}
-          >
+          <DownloadButton size="sm" onDownload={() => handleDownload('galley_proof_pdf')}>
             PDF File
           </DownloadButton>
           {(article as any).galley_proof_word_url && (
-            <DownloadButton
-              size="sm"
-              onDownload={() => handleDownload('galley_proof_word')}
-            >
+            <DownloadButton size="sm" onDownload={() => handleDownload('galley_proof_word')}>
               Word (legacy)
             </DownloadButton>
           )}
-          {galleyStatus === 'sent' && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleOpenEditor}
-              className="text-primary"
-            >
+          {(galleyStatus === 'sent' || galleyStatus === 'revision_submitted') && (
+            <Button variant="outline" size="sm" onClick={() => setShowEditor(true)} className="text-primary">
               <Edit3 className="w-4 h-4 mr-1" />
-              Edit Article
+              {galleyStatus === 'revision_submitted' ? 'Re-open Editor' : 'Open Article Editor'}
             </Button>
           )}
         </div>
 
-        {/* Rich Text Editor */}
-        {showEditor && galleyStatus === 'sent' && (
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-foreground">Edit Article Content:</p>
-            <RichTextEditor
-              content={editorContent}
-              onChange={setEditorContent}
-              className="min-h-[250px]"
-            />
-            <p className="text-xs text-muted-foreground">
-              Edit your article content here. Changes will be visible for your reference. Upload the final revised Word file below to submit.
-            </p>
-          </div>
-        )}
-
-        {/* Actions (only if not yet responded) */}
         {galleyStatus === 'sent' && (
           <>
-            {/* Upload revision */}
             <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">Upload revised galley proof (Word):</p>
+              <p className="text-sm text-muted-foreground">Or upload revised galley proof (Word):</p>
               <div
                 className={`border-2 border-dashed rounded-lg p-3 text-center cursor-pointer transition-colors ${
                   file ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
@@ -334,34 +283,53 @@ export function GalleyProofReviewSection({ article }: GalleyProofReviewSectionPr
                 />
               </div>
               {file && (
-                <Button
-                  size="sm"
-                  onClick={handleUploadRevision}
-                  disabled={uploading}
-                  className="w-full"
-                >
+                <Button size="sm" onClick={handleUploadRevision} disabled={uploading} className="w-full">
                   {uploading ? <GlassSpinner size="sm" /> : <><Upload className="w-4 h-4 mr-1" />Submit Revision</>}
                 </Button>
               )}
             </div>
 
-            {/* Or approve */}
             <div className="relative flex items-center gap-3">
               <div className="flex-1 border-t border-border/50" />
               <span className="text-xs text-muted-foreground">OR</span>
               <div className="flex-1 border-t border-border/50" />
             </div>
 
-            <Button
-              className="w-full gradient-primary"
-              onClick={handleApprove}
-              disabled={approving}
-            >
+            <Button className="w-full gradient-primary" onClick={handleApprove} disabled={approving}>
               {approving ? <GlassSpinner size="sm" /> : <><CheckCircle className="w-4 h-4 mr-2" />Approve Galley Proof</>}
             </Button>
           </>
         )}
       </div>
+
+      {/* Full-screen author editor */}
+      <Dialog open={showEditor} onOpenChange={setShowEditor}>
+        <DialogContent className="max-w-[98vw] w-[98vw] max-h-[97vh] p-0 overflow-auto">
+          <div className="flex items-center justify-between p-3 border-b border-border sticky top-0 bg-background z-10">
+            <div>
+              <h3 className="font-semibold">Author Editor — {article.reference_number}</h3>
+              <p className="text-xs text-muted-foreground">Highlight your changes in red and click Send Corrections to Admin</p>
+            </div>
+            <Button variant="ghost" size="icon" onClick={() => setShowEditor(false)}>
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+          <div className="p-3">
+            <ArticleContentEditor
+              articleId={article.id}
+              initialContent={buildEditorSeed()}
+              articleTitle={article.title}
+              referenceNumber={article.reference_number}
+              onClose={() => setShowEditor(false)}
+              mode="author"
+              articleMeta={{
+                authorName: article.author_name || undefined,
+                authorEmail: user?.email || undefined,
+              }}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </GlassCard>
   );
 }
