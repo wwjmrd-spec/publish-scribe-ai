@@ -40,6 +40,7 @@ import AdminPaymentActivity from "./pages/admin/AdminPaymentActivity";
 import AdminEmailLog from "./pages/admin/AdminEmailLog";
 import AdminProSubscribers from "./pages/admin/AdminProSubscribers";
 import AdminAISettings from "./pages/admin/AdminAISettings";
+import AdminSettings from "./pages/admin/AdminSettings";
 import AdminPublishQueue from "./pages/admin/AdminPublishQueue";
 import AdminPublicationForm from "./pages/admin/AdminPublicationForm";
 import AdminSubmitForAuthor from "./pages/admin/AdminSubmitForAuthor";
@@ -335,6 +336,14 @@ const App = () => (
               element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <AdminAISettings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/settings"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminSettings />
                 </ProtectedRoute>
               }
             />

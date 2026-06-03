@@ -63,7 +63,7 @@ const adminNavItems: NavItem[] = [
   { label: 'Dashboard', href: '/admin', icon: BarChart3 },
   { label: 'Articles', href: '/admin/articles', icon: FileText },
   { label: 'AI Review', href: '/admin/ai-review', icon: Brain },
-  { label: 'AI Settings', href: '/admin/ai-settings', icon: Settings },
+  { label: 'Settings', href: '/admin/settings', icon: Settings },
   { label: 'Formatting', href: '/admin/formatting', icon: FileText },
   { label: 'Galley Proofs', href: '/admin/galley-proofs', icon: Send },
   { label: 'Publishing Queue', href: '/admin/publish-queue', icon: Upload },

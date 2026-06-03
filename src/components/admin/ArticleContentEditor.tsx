@@ -9,7 +9,7 @@ import {
   List, ListOrdered, Undo, Redo, Strikethrough,
   Table2, Columns2, Columns3, LayoutGrid, Minus, Plus,
   Trash2, PaintBucket, Grid3X3, SeparatorHorizontal, Hash,
-  ImageIcon, Crop, MoveVertical,
+  ImageIcon, Crop, MoveVertical, Palette, Eraser, Send,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -34,6 +34,11 @@ interface ArticleContentEditorProps {
   articleTitle: string;
   referenceNumber: string;
   onClose: () => void;
+  /** Default 'admin'. In 'author' mode the editor shows a red-highlight banner
+   *  and replaces the admin Approve flow with a "Send Corrections to Admin" button. */
+  mode?: 'admin' | 'author';
+  /** Used to populate notification emails when the author sends corrections. */
+  articleMeta?: { authorName?: string; authorEmail?: string };
 }
 
 // A4 content area inside the editor: 210mm wide, page break visualised every 297mm.
@@ -123,6 +128,7 @@ const CONTENT_HEIGHT_MM = A4_HEIGHT_MM - (MARGIN_MM * 2) - FOOTER_HEIGHT_MM;
 
 export function ArticleContentEditor({
   articleId, initialContent, articleTitle, referenceNumber, onClose,
+  mode = 'admin', articleMeta,
 }: ArticleContentEditorProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [saving, setSaving] = useState(false);
@@ -312,6 +318,85 @@ export function ArticleContentEditor({
       table.className = style;
     }
   }, []);
+
+  /** Apply a foreground colour to current selection (foreColor execCommand). */
+  const applyColor = useCallback((color: string) => {
+    iframeRef.current?.contentWindow?.focus();
+    iframeRef.current?.contentDocument?.execCommand('foreColor', false, color);
+  }, []);
+
+  /** Strip every red-coloured run added by the author. Looks for span/font
+   *  elements with red-ish foreground (style="color:red", color="red",
+   *  rgb(255,0,0), or hex #ff0000/#f00) and unwraps them. Admin uses this to
+   *  clean up the editor after reviewing author corrections. */
+  const clearRedHighlights = useCallback(() => {
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc) return;
+    const isRed = (val?: string | null) => {
+      if (!val) return false;
+      const v = val.trim().toLowerCase().replace(/\s+/g, '');
+      return /^(red|#ff0000|#f00|rgb\(255,0,0\)|rgba\(255,0,0,[\d.]+\))$/.test(v);
+    };
+    let stripped = 0;
+    doc.body.querySelectorAll<HTMLElement>('span,font').forEach((el) => {
+      const styleColor = el.style?.color || '';
+      const attrColor = el.getAttribute('color') || '';
+      if (isRed(styleColor) || isRed(attrColor)) {
+        if (el.tagName === 'FONT' || (el.tagName === 'SPAN' && el.attributes.length <= 1)) {
+          // Unwrap completely
+          const parent = el.parentNode;
+          while (el.firstChild) parent?.insertBefore(el.firstChild, el);
+          el.remove();
+        } else {
+          el.style.color = '';
+          el.removeAttribute('color');
+        }
+        stripped++;
+      }
+    });
+    toast.success(stripped ? `Cleared ${stripped} red highlight${stripped === 1 ? '' : 's'}` : 'No red highlights found');
+  }, []);
+
+  const handleSendAuthorCorrections = useCallback(async () => {
+    setApproving(true);
+    const tid = toast.loading('Sending corrections to admin…');
+    try {
+      const content = getContent();
+      const { error } = await supabase
+        .from('articles')
+        .update({
+          author_revision_html: content,
+          author_revision_submitted_at: new Date().toISOString(),
+          galley_proof_status: 'revision_submitted',
+        } as any)
+        .eq('id', articleId);
+      if (error) throw error;
+
+      const emailData = {
+        articleTitle,
+        referenceNumber,
+        authorName: articleMeta?.authorName || 'Author',
+        submissionDate: new Date().toLocaleDateString(),
+      };
+      // Admin email
+      supabase.functions.invoke('send-email', {
+        body: { to: 'shubhmeena23@gmail.com', template: 'galley-proof-author-corrections', data: emailData, isAdmin: true },
+      }).catch(console.error);
+      // Author confirmation
+      if (articleMeta?.authorEmail) {
+        supabase.functions.invoke('send-email', {
+          body: { to: articleMeta.authorEmail, template: 'galley-proof-author-corrections', data: emailData, isAdmin: false },
+        }).catch(console.error);
+      }
+      toast.success('Corrections sent to admin', { id: tid });
+      queryClient.invalidateQueries({ queryKey: ['my-articles'] });
+      onClose();
+    } catch (err: any) {
+      toast.error('Failed: ' + (err?.message || 'Unknown error'), { id: tid });
+    } finally {
+      setApproving(false);
+    }
+  }, [getContent, articleId, articleTitle, referenceNumber, articleMeta, queryClient, onClose]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -716,9 +801,43 @@ export function ArticleContentEditor({
 
               <div className="w-px h-5 bg-[#d1d5db] mx-1" />
 
+              {/* Text colour dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button type="button" variant="ghost" size="sm" className="h-7 px-1.5 gap-1 text-black/70 hover:text-black hover:bg-black/5" title="Text colour">
+                    <Palette className="w-3.5 h-3.5" />
+                    <span className="text-[10px]">Colour</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-44">
+                  <DropdownMenuLabel className="text-xs">Text colour</DropdownMenuLabel>
+                  {[
+                    { c: '#dc2626', label: 'Red (for corrections)' },
+                    { c: '#000000', label: 'Black' },
+                    { c: '#1d4ed8', label: 'Blue' },
+                    { c: '#15803d', label: 'Green' },
+                    { c: '#ea580c', label: 'Orange' },
+                    { c: '#7c3aed', label: 'Purple' },
+                    { c: '#6b7280', label: 'Grey' },
+                  ].map((opt) => (
+                    <DropdownMenuItem key={opt.c} onClick={() => applyColor(opt.c)}>
+                      <span style={{ background: opt.c }} className="inline-block w-3 h-3 rounded-sm mr-2 border border-black/10" />
+                      {opt.label}
+                    </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={clearRedHighlights}>
+                    <Eraser className="w-4 h-4 mr-2" /> Clear red highlights
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <div className="w-px h-5 bg-[#d1d5db] mx-1" />
+
               <ToolbarBtn cmd="undo" icon={Undo} title="Undo" />
               <ToolbarBtn cmd="redo" icon={Redo} title="Redo" />
             </div>
+
 
             {/* Content area */}
             <div style={{ padding: '15mm' }}>
@@ -732,6 +851,12 @@ export function ArticleContentEditor({
           </div>
         </div>
 
+        {mode === 'author' && (
+          <div className="mt-3 p-3 rounded-md border border-red-500/40 bg-red-500/10 text-sm text-red-700 dark:text-red-300">
+            <strong>📝 Make changes as needed.</strong> Please <span className="font-semibold">highlight every edit using the <span style={{ color: '#dc2626' }}>red text colour</span></span> (use the “Colour” button in the toolbar) so the admin can spot your corrections quickly. When you’re done, click <em>Send Corrections to Admin</em>.
+          </div>
+        )}
+
         <div className="flex items-center justify-end gap-3 mt-4 flex-wrap">
           <Button variant="outline" onClick={openPaginatedPreview}>
             <Eye className="w-4 h-4 mr-2" /> Preview A4 Pages
@@ -742,14 +867,24 @@ export function ArticleContentEditor({
           <DownloadButton onDownload={() => Promise.resolve(handleDownloadDocx())}>
             Download Word
           </DownloadButton>
-          <Button variant="outline" onClick={handleSave} disabled={saving}>
-            {saving ? <GlassSpinner size="sm" className="mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-            Save Draft
-          </Button>
-          <Button onClick={handleApproveAndSendGalleyProof} disabled={approving}>
-            {approving ? <GlassSpinner size="sm" className="mr-2" /> : <CheckCircle className="w-4 h-4 mr-2" />}
-            Approve & Send Galley Proof
-          </Button>
+          {mode === 'admin' && (
+            <>
+              <Button variant="outline" onClick={handleSave} disabled={saving}>
+                {saving ? <GlassSpinner size="sm" className="mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                Save Draft
+              </Button>
+              <Button onClick={handleApproveAndSendGalleyProof} disabled={approving}>
+                {approving ? <GlassSpinner size="sm" className="mr-2" /> : <CheckCircle className="w-4 h-4 mr-2" />}
+                Approve & Send Galley Proof
+              </Button>
+            </>
+          )}
+          {mode === 'author' && (
+            <Button onClick={handleSendAuthorCorrections} disabled={approving} className="gradient-primary">
+              {approving ? <GlassSpinner size="sm" className="mr-2" /> : <Send className="w-4 h-4 mr-2" />}
+              Send Corrections to Admin
+            </Button>
+          )}
         </div>
       </GlassCard>
 

@@ -87,17 +87,22 @@ export default function AdminSubmitForAuthor() {
     return a.full_name?.toLowerCase().includes(q) || a.email?.toLowerCase().includes(q);
   }).slice(0, 50);
 
+  const [generatedTemp, setGeneratedTemp] = useState<{ email: string; password: string } | null>(null);
+
   const handleCreateAuthor = async () => {
-    if (!cEmail || !cPassword || !cFullName) {
-      toast.error('Email, password, and full name are required');
+    if (!cEmail || !cFullName) {
+      toast.error('Email and full name are required');
       return;
     }
     setCreating(true);
+    setGeneratedTemp(null);
     try {
       const { data, error } = await supabase.functions.invoke('admin-create-author', {
         body: {
           email: cEmail.trim(),
-          password: cPassword,
+          // Leave blank to let the function generate a temporary password and
+          // force the author to reset + verify on first login.
+          ...(cPassword ? { password: cPassword } : {}),
           full_name: cFullName.trim(),
           country: cCountry.trim() || 'Unknown',
           affiliation: cAffiliation.trim(),
@@ -106,7 +111,13 @@ export default function AdminSubmitForAuthor() {
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
-      toast.success('Author account created');
+      const tempPwd = (data as any)?.temp_password as string | null;
+      if (tempPwd) {
+        setGeneratedTemp({ email: cEmail.trim(), password: tempPwd });
+        toast.success('Author account created. Temporary password emailed and shown below.');
+      } else {
+        toast.success('Author account created');
+      }
       setCEmail(''); setCPassword(''); setCFullName(''); setCCountry(''); setCAffiliation(''); setCIsIndian('auto');
       queryClient.invalidateQueries({ queryKey: ['admin-all-authors-min'] });
       queryClient.invalidateQueries({ queryKey: ['admin-authors'] });
@@ -580,8 +591,8 @@ export default function AdminSubmitForAuthor() {
                   <Input type="email" value={cEmail} onChange={(e) => setCEmail(e.target.value)} className="glass-input mt-1" />
                 </div>
                 <div>
-                  <Label>Temporary Password *</Label>
-                  <Input type="text" value={cPassword} onChange={(e) => setCPassword(e.target.value)} className="glass-input mt-1" placeholder="Min 8 chars" />
+                  <Label>Temporary Password (optional)</Label>
+                  <Input type="text" value={cPassword} onChange={(e) => setCPassword(e.target.value)} className="glass-input mt-1" placeholder="Leave blank to auto-generate" />
                 </div>
                 <div>
                   <Label>Country</Label>
@@ -605,8 +616,16 @@ export default function AdminSubmitForAuthor() {
               </div>
 
               <p className="text-xs text-muted-foreground">
-                The account is created with the email pre-confirmed. Share the temporary password with the author so they can sign in and change it.
+                If you leave the password blank, a one-time temporary password is generated, emailed to the author, and shown here. The author will be forced to set a new password and verify their email on first sign-in.
               </p>
+
+              {generatedTemp && (
+                <div className="p-3 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-sm space-y-1">
+                  <p className="font-semibold text-emerald-400">Temporary credentials (also emailed to the author)</p>
+                  <p><span className="text-muted-foreground">Email:</span> <code className="font-mono">{generatedTemp.email}</code></p>
+                  <p><span className="text-muted-foreground">Temp password:</span> <code className="font-mono text-primary">{generatedTemp.password}</code></p>
+                </div>
+              )}
 
               <Button onClick={handleCreateAuthor} disabled={creating} className="gradient-primary">
                 {creating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <UserPlus className="w-4 h-4 mr-2" />}

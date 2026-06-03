@@ -53,7 +53,12 @@ export default function ResetPassword() {
       return;
     }
     setLoading(true);
-    const { error } = await supabase.auth.updateUser({ password });
+    // Clear the admin-set temporary-password flag at the same time so the
+    // user is no longer bounced back to /reset-password on every sign-in.
+    const { error } = await supabase.auth.updateUser({
+      password,
+      data: { must_reset_password: false },
+    });
     setLoading(false);
     if (error) {
       toast({ title: 'Failed to reset password', description: error.message, variant: 'destructive' });

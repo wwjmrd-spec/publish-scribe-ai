@@ -509,6 +509,53 @@ export default function AdminAuthorDetail() {
               </div>
             </GlassCard>
 
+            {/* Combined Downloads & Quota Snapshot */}
+            <GlassCard>
+              <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider">
+                Downloads &amp; Submission Quota
+              </h3>
+              {(() => {
+                const totalTracked = lifetimeReports + lifetimeCerts;
+                const isPro = plan === 'pro';
+                const freeLimit = 2;
+                const proLimit = 5;
+                const reviewLimit = isPro ? proLimit : freeLimit;
+                const reviewUsed = isPro ? monthReports : lifetimeReports;
+                const reviewExhausted = reviewUsed >= reviewLimit;
+                const submissionExhausted = !isPro && reviewExhausted;
+                return (
+                  <div className="space-y-3 text-sm">
+                    <div className="flex items-center justify-between p-2 rounded-md bg-[hsl(var(--glass-bg))]">
+                      <span className="text-muted-foreground">Total tracked downloads</span>
+                      <span className="font-semibold">{totalTracked}</span>
+                    </div>
+                    <div className="flex items-center justify-between p-2 rounded-md bg-[hsl(var(--glass-bg))]">
+                      <span className="text-muted-foreground">Review reports ({isPro ? 'this month' : 'lifetime'})</span>
+                      <span className="font-semibold">{reviewUsed} / {reviewLimit}</span>
+                    </div>
+                    <div className="flex items-center justify-between p-2 rounded-md bg-[hsl(var(--glass-bg))]">
+                      <span className="text-muted-foreground">Co-author certs</span>
+                      <span className="font-semibold">{isPro ? monthCerts : lifetimeCerts}</span>
+                    </div>
+                    <div className="pt-2 border-t border-[hsl(var(--glass-border))] space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Review report quota</span>
+                        <span className={`px-2 py-0.5 rounded-full text-xs ${reviewExhausted ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
+                          {reviewExhausted ? 'Exhausted' : 'Available'}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Submission quota</span>
+                        <span className={`px-2 py-0.5 rounded-full text-xs ${submissionExhausted ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
+                          {submissionExhausted ? 'Ended (Free plan limit reached)' : isPro ? 'Active (Pro)' : 'Active'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </GlassCard>
+
             <GlassCard>
 
               <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Info</h3>
