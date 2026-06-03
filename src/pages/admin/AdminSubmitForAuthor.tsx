@@ -87,17 +87,22 @@ export default function AdminSubmitForAuthor() {
     return a.full_name?.toLowerCase().includes(q) || a.email?.toLowerCase().includes(q);
   }).slice(0, 50);
 
+  const [generatedTemp, setGeneratedTemp] = useState<{ email: string; password: string } | null>(null);
+
   const handleCreateAuthor = async () => {
-    if (!cEmail || !cPassword || !cFullName) {
-      toast.error('Email, password, and full name are required');
+    if (!cEmail || !cFullName) {
+      toast.error('Email and full name are required');
       return;
     }
     setCreating(true);
+    setGeneratedTemp(null);
     try {
       const { data, error } = await supabase.functions.invoke('admin-create-author', {
         body: {
           email: cEmail.trim(),
-          password: cPassword,
+          // Leave blank to let the function generate a temporary password and
+          // force the author to reset + verify on first login.
+          ...(cPassword ? { password: cPassword } : {}),
           full_name: cFullName.trim(),
           country: cCountry.trim() || 'Unknown',
           affiliation: cAffiliation.trim(),
@@ -106,7 +111,13 @@ export default function AdminSubmitForAuthor() {
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
-      toast.success('Author account created');
+      const tempPwd = (data as any)?.temp_password as string | null;
+      if (tempPwd) {
+        setGeneratedTemp({ email: cEmail.trim(), password: tempPwd });
+        toast.success('Author account created. Temporary password emailed and shown below.');
+      } else {
+        toast.success('Author account created');
+      }
       setCEmail(''); setCPassword(''); setCFullName(''); setCCountry(''); setCAffiliation(''); setCIsIndian('auto');
       queryClient.invalidateQueries({ queryKey: ['admin-all-authors-min'] });
       queryClient.invalidateQueries({ queryKey: ['admin-authors'] });
