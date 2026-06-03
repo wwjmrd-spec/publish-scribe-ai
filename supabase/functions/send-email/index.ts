@@ -923,10 +923,184 @@ function getEmailContent(
           : `🎉 Your Article is Published! ${data?.referenceNumber ? `(${data.referenceNumber})` : ""} - WWJMRD`,
         html: getArticlePublishedTemplate(data, isAdmin),
       };
+    case "admin-created-credentials":
+      return {
+        subject: "Your WWJMRD account is ready 🎉",
+        html: getAdminCreatedCredentialsTemplate(data),
+      };
+    case "galley-proof-author-corrections":
+      return {
+        subject: isAdmin
+          ? `Author Corrections Received: ${data?.articleTitle || "Untitled"}`
+          : "Your galley-proof corrections have been received - WWJMRD",
+        html: getGalleyProofAuthorCorrectionsTemplate(data, isAdmin),
+      };
     default:
       throw new Error(`Unknown email template: ${template}`);
   }
 }
+
+// ============================================================================
+// Multi-provider email sending
+// ============================================================================
+type SendArgs = { from: string; to: string; subject: string; html: string };
+
+async function sendViaResend(args: SendArgs) {
+  const key = Deno.env.get("RESEND_API_KEY");
+  if (!key) throw new Error("RESEND_API_KEY not configured");
+  const r = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+    body: JSON.stringify({ from: args.from, to: [args.to], subject: args.subject, html: args.html }),
+  });
+  if (!r.ok) throw new Error(`Resend ${r.status}: ${await r.text()}`);
+  return await r.json();
+}
+
+async function sendViaSendgrid(args: SendArgs) {
+  const key = Deno.env.get("SENDGRID_API_KEY");
+  if (!key) throw new Error("SENDGRID_API_KEY not configured");
+  // Parse "Name <email>" form
+  const m = args.from.match(/^\s*(.*?)\s*<([^>]+)>\s*$/);
+  const fromEmail = m ? m[2] : args.from;
+  const fromName = m ? m[1] : undefined;
+  const r = await fetch("https://api.sendgrid.com/v3/mail/send", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+    body: JSON.stringify({
+      personalizations: [{ to: [{ email: args.to }] }],
+      from: fromName ? { email: fromEmail, name: fromName } : { email: fromEmail },
+      subject: args.subject,
+      content: [{ type: "text/html", value: args.html }],
+    }),
+  });
+  if (!r.ok) throw new Error(`SendGrid ${r.status}: ${await r.text()}`);
+  return { provider: "sendgrid", status: r.status };
+}
+
+async function sendViaMailgun(args: SendArgs) {
+  const key = Deno.env.get("MAILGUN_API_KEY");
+  if (!key) throw new Error("MAILGUN_API_KEY not configured");
+  // Domain is read from admin_settings.mailgun_domain (passed via env fallback)
+  const domain = Deno.env.get("MAILGUN_DOMAIN") || "";
+  if (!domain) throw new Error("MAILGUN_DOMAIN not configured");
+  const form = new URLSearchParams();
+  form.set("from", args.from);
+  form.set("to", args.to);
+  form.set("subject", args.subject);
+  form.set("html", args.html);
+  const r = await fetch(`https://api.mailgun.net/v3/${domain}/messages`, {
+    method: "POST",
+    headers: {
+      Authorization: "Basic " + btoa(`api:${key}`),
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: form.toString(),
+  });
+  if (!r.ok) throw new Error(`Mailgun ${r.status}: ${await r.text()}`);
+  return await r.json();
+}
+
+// Minimal SigV4-signed AWS SES SendEmail call (no SDK to keep cold start small)
+async function sendViaSes(args: SendArgs) {
+  const accessKey = Deno.env.get("AWS_ACCESS_KEY_ID");
+  const secretKey = Deno.env.get("AWS_SECRET_ACCESS_KEY");
+  const region = Deno.env.get("AWS_SES_REGION") || "us-east-1";
+  if (!accessKey || !secretKey) throw new Error("AWS credentials (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY) not configured");
+
+  const service = "ses";
+  const host = `email.${region}.amazonaws.com`;
+  const endpoint = `https://${host}/`;
+
+  // SES Classic API via POST form (Action=SendEmail)
+  const params = new URLSearchParams();
+  params.set("Action", "SendEmail");
+  params.set("Source", args.from);
+  params.set("Destination.ToAddresses.member.1", args.to);
+  params.set("Message.Subject.Data", args.subject);
+  params.set("Message.Body.Html.Data", args.html);
+  const payload = params.toString();
+
+  const enc = new TextEncoder();
+  const sha256 = async (data: Uint8Array | string) => {
+    const buf = typeof data === "string" ? enc.encode(data) : data;
+    const hash = await crypto.subtle.digest("SHA-256", buf);
+    return Array.from(new Uint8Array(hash)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  };
+  const hmac = async (key: ArrayBuffer | Uint8Array, msg: string) => {
+    const k = await crypto.subtle.importKey("raw", key as any, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+    return new Uint8Array(await crypto.subtle.sign("HMAC", k, enc.encode(msg)));
+  };
+
+  const now = new Date();
+  const amzDate = now.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  const dateStamp = amzDate.slice(0, 8);
+  const payloadHash = await sha256(payload);
+  const canonicalHeaders = `content-type:application/x-www-form-urlencoded\nhost:${host}\nx-amz-date:${amzDate}\n`;
+  const signedHeaders = "content-type;host;x-amz-date";
+  const canonicalRequest = `POST\n/\n\n${canonicalHeaders}\n${signedHeaders}\n${payloadHash}`;
+  const algorithm = "AWS4-HMAC-SHA256";
+  const credentialScope = `${dateStamp}/${region}/${service}/aws4_request`;
+  const stringToSign = `${algorithm}\n${amzDate}\n${credentialScope}\n${await sha256(canonicalRequest)}`;
+  const kDate = await hmac(enc.encode("AWS4" + secretKey), dateStamp);
+  const kRegion = await hmac(kDate, region);
+  const kService = await hmac(kRegion, service);
+  const kSigning = await hmac(kService, "aws4_request");
+  const sigBytes = await hmac(kSigning, stringToSign);
+  const signature = Array.from(sigBytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+  const authHeader = `${algorithm} Credential=${accessKey}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
+
+  const r = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "X-Amz-Date": amzDate,
+      "Authorization": authHeader,
+      "Host": host,
+    },
+    body: payload,
+  });
+  if (!r.ok) throw new Error(`SES ${r.status}: ${await r.text()}`);
+  return { provider: "aws-ses", status: r.status };
+}
+
+async function resolveActiveProvider(override?: string): Promise<{ provider: string; from: string; mailgunDomain?: string }> {
+  if (override) {
+    // Honour override but still read from address from settings if not provided
+  }
+  const sb = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+  );
+  const { data } = await sb
+    .from("admin_settings")
+    .select("setting_key, setting_value")
+    .in("setting_key", ["email_provider", "email_from_address", "mailgun_domain"]);
+  const map: Record<string, string> = {};
+  (data ?? []).forEach((r: any) => (map[r.setting_key] = r.setting_value ?? ""));
+  return {
+    provider: override || map.email_provider || "resend",
+    from: map.email_from_address || "WWJMRD <noreply@wwjmrdai.online>",
+    mailgunDomain: map.mailgun_domain || undefined,
+  };
+}
+
+async function sendViaActiveProvider(args: SendArgs & { providerOverride?: string }) {
+  const cfg = await resolveActiveProvider(args.providerOverride);
+  const finalArgs: SendArgs = { ...args, from: args.from || cfg.from };
+  // Expose mailgun domain to sendViaMailgun via env (process-scoped is ok per-invocation)
+  if (cfg.mailgunDomain) {
+    try { (Deno.env as any).set?.("MAILGUN_DOMAIN", cfg.mailgunDomain); } catch (_) { /* ignore */ }
+  }
+  switch (cfg.provider) {
+    case "sendgrid": return { provider: "sendgrid", result: await sendViaSendgrid(finalArgs) };
+    case "mailgun": return { provider: "mailgun", result: await sendViaMailgun(finalArgs) };
+    case "aws-ses": return { provider: "aws-ses", result: await sendViaSes(finalArgs) };
+    case "resend":
+    default: return { provider: "resend", result: await sendViaResend(finalArgs) };
+  }
+}
+
 
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
