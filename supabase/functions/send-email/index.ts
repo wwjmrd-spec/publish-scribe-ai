@@ -37,7 +37,9 @@ type EmailTemplate =
   | "manuscript-revise"
   | "manuscript-update"
   | "galley-proof-revision"
+  | "galley-proof-author-corrections"
   | "article-published"
+  | "admin-created-credentials"
   | "custom";
 
 interface EmailRequest {
@@ -80,6 +82,12 @@ interface EmailRequest {
   subject?: string;
   html?: string;
   from?: string;
+  // Admin-created-credentials extras
+  tempPassword?: string;
+  isGeneratedTemp?: boolean;
+  // Per-call provider override (used by Settings → Test email)
+  providerOverride?: string;
+  fromOverride?: string;
 }
 
 // Email-safe wrapper using table-based layout with bgcolor for universal client support
