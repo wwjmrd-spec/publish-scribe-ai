@@ -37,6 +37,7 @@ type EmailTemplate =
   | "manuscript-revise"
   | "manuscript-update"
   | "galley-proof-revision"
+  | "galley-proof-approved"
   | "galley-proof-author-corrections"
   | "article-published"
   | "admin-created-credentials"
@@ -559,19 +560,15 @@ const getGalleyProofReviewTemplate = (data: EmailRequest["data"]): string => {
     <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#1a2340" style="background-color:#1a2340; border-radius:8px; margin:20px 0;">
       <tr><td style="padding:20px;">
         <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:16px; font-weight:600; color:#ffffff; margin:0 0 12px;">What you need to do:</p>
-        ${emailFeatureItem('1️⃣ Download and review both files below')}
-        ${emailFeatureItem('2️⃣ Corrections are highlighted in <strong style="color:#ef4444;">RED</strong> — please review carefully')}
-        ${emailFeatureItem('3️⃣ Missing information is highlighted in <strong style="color:#eab308;">YELLOW</strong> — replace with correct details')}
-        ${emailFeatureItem('4️⃣ If corrections needed: upload the revised Word file in your dashboard')}
-        ${emailFeatureItem('5️⃣ If everything looks good: click "Approve Galley Proof" in your dashboard')}
+        ${emailFeatureItem('1️⃣ Download and review the PDF below')}
+        ${emailFeatureItem('2️⃣ Open your dashboard to edit the same formatted article if corrections are needed')}
+        ${emailFeatureItem('3️⃣ Highlight every correction in <strong style="color:#ef4444;">RED</strong> in the editor and send it back to admin')}
+        ${emailFeatureItem('4️⃣ If everything looks good: click "Approve Galley Proof" in your dashboard for final processing')}
       </td></tr>
     </table>
     
     <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:24px 0;">
       <tr>
-        <td align="center" style="padding:0 4px;">
-          <a href="${escapeHtml(wordUrl)}" target="_blank" style="display:inline-block; background-color:#2563eb; color:#ffffff; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:14px; font-weight:600; text-decoration:none; padding:12px 24px; border-radius:8px;">📥 Download Word File</a>
-        </td>
         <td align="center" style="padding:0 4px;">
           <a href="${escapeHtml(pdfUrl)}" target="_blank" style="display:inline-block; background-color:#dc2626; color:#ffffff; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:14px; font-weight:600; text-decoration:none; padding:12px 24px; border-radius:8px;">📥 Download PDF File</a>
         </td>
@@ -701,6 +698,25 @@ const getGalleyProofRevisionTemplate = (data: EmailRequest["data"], isAdmin: boo
     ${emailFooterText("If you have any questions, contact us at support@wwjmrd.com")}
   `;
   return wrapEmail(isAdmin ? "Galley Proof Revision Submitted" : "Galley Proof Revision Submitted Successfully", body);
+};
+
+const getGalleyProofApprovedTemplate = (data: EmailRequest["data"], isAdmin: boolean = false): string => {
+  const infoRows = [
+    emailInfoRow("Reference Number", escapeHtml(data?.referenceNumber || "N/A")),
+    emailInfoRow("Title", escapeHtml(data?.articleTitle || "N/A")),
+    emailInfoRow("Author", escapeHtml(data?.authorName || "N/A")),
+    emailInfoRow("Approved On", escapeHtml(data?.submissionDate || new Date().toLocaleDateString())),
+  ].join("");
+  const body = `
+    ${emailH1(isAdmin ? "Galley Proof Approved ✅" : "Galley Proof Approval Received ✅")}
+    ${emailP(isAdmin ? `Author ${escapeHtml(data?.authorName || "Author")} has approved the galley proof. The article is ready for final processing.` : `Hi ${escapeHtml(data?.authorName || "Author")},`)}
+    ${isAdmin ? "" : emailP("Thank you. Your approval has been received and the article has moved to final processing.")}
+    ${emailInfoBox("Approval Details:", infoRows)}
+    ${isAdmin ? emailButton("https://wwjmrdai.online/admin/publish-queue", "Open Publish Queue") : emailButton("https://wwjmrdai.online/author/articles", "Track Your Article")}
+    ${emailDivider()}
+    ${emailFooterText("If you have any questions, contact us at support@wwjmrd.com")}
+  `;
+  return wrapEmail(isAdmin ? "Galley Proof Approved" : "Galley Proof Approval Received", body);
 };
 const getArticlePublishedTemplate = (data: EmailRequest["data"], isAdmin: boolean = false): string => {
   const volume = (data as any)?.volume || "N/A";
@@ -915,6 +931,13 @@ function getEmailContent(
           ? `Galley Proof Revision: ${data?.articleTitle || "Untitled"}`
           : "Galley Proof Revision Submitted - WWJMRD",
         html: getGalleyProofRevisionTemplate(data, isAdmin),
+      };
+    case "galley-proof-approved":
+      return {
+        subject: isAdmin
+          ? `Galley Proof Approved: ${data?.articleTitle || "Untitled"}`
+          : "Galley Proof Approval Received - WWJMRD",
+        html: getGalleyProofApprovedTemplate(data, isAdmin),
       };
     case "article-published":
       return {
