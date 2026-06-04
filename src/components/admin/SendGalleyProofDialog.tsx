@@ -86,7 +86,7 @@ export function SendGalleyProofDialog({ open, onOpenChange, article }: SendGalle
 
       const pdfUpload = await supabase.storage
         .from('formatted-articles')
-        .uploadToSignedUrl(pdfPath, (prepared.data as any).token, pdfFile);
+        .uploadToSignedUrl(pdfPath, (prepared.data as any).token, pdfFile, { contentType: 'application/pdf' });
       if (pdfUpload.error) throw pdfUpload.error;
 
       const response = await supabase.functions.invoke('send-galley-proof', {
