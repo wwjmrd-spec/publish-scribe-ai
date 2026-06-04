@@ -62,6 +62,12 @@ const pageCss = `
     .formatted-body-content .ww-reference-text { text-indent: 0; }
     .formatted-page-footer { height: ${BODY_FOOTER_MM}mm; border-top: 1px solid #cbd5e1; color: #64748b; font-family: Arial, sans-serif; font-size: 9px; line-height: ${BODY_FOOTER_MM}mm; text-align: center; }
     @media print { body, .formatted-a4-document { background: #fff; padding: 0; } .formatted-a4-page { margin: 0; box-shadow: none; } }
+    @media (max-width: 900px) {
+      .formatted-a4-document { padding: 6px 0; }
+      .formatted-a4-page { transform: scale(0.46); transform-origin: top center; margin: 0 auto -160mm; }
+    }
+    @media (max-width: 640px) { .formatted-a4-page { transform: scale(0.42); margin-bottom: -170mm; } }
+    @media (max-width: 420px) { .formatted-a4-page { transform: scale(0.34); margin-bottom: -195mm; } }
   </style>`;
 
 const esc = (value = '') =>
