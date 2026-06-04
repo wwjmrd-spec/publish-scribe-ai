@@ -681,9 +681,17 @@ export function ArticleContentEditor({
         </div>
 
         {/* A4 page with embedded toolbar */}
+        <style>{`
+          @media (max-width: 900px) {
+            .ww-a4-scroll { padding: 8px !important; }
+            .ww-a4-shell { transform: scale(var(--ww-scale, 0.46)); transform-origin: top left; width: 210mm !important; max-width: none !important; margin-left: 0 !important; }
+          }
+          @media (max-width: 640px) { .ww-a4-shell { --ww-scale: 0.42; } }
+          @media (max-width: 420px) { .ww-a4-shell { --ww-scale: 0.34; } }
+        `}</style>
         <div className="overflow-auto rounded-lg" style={{ maxHeight: '78vh', background: '#e5e7eb', padding: '24px' }}>
           <div
-            className="mx-auto shadow-lg rounded"
+            className="mx-auto shadow-lg rounded ww-a4-shell"
             style={{
               width: '210mm',
               maxWidth: '100%',

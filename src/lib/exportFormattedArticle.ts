@@ -2,15 +2,18 @@ import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { buildPagedFormattedArticleHtml, type PaginationOptions } from './formattedArticlePagination';
 
-async function waitForImages(root: ParentNode) {
+async function waitForImages(root: ParentNode, timeoutMs = 4000) {
   const imgs = Array.from(root.querySelectorAll('img')) as HTMLImageElement[];
   await Promise.all(
     imgs.map(
       (img) =>
         new Promise<void>((resolve) => {
-          if (img.complete) return resolve();
-          img.addEventListener('load', () => resolve(), { once: true });
-          img.addEventListener('error', () => resolve(), { once: true });
+          if (img.complete && img.naturalWidth > 0) return resolve();
+          const done = () => resolve();
+          const t = window.setTimeout(done, timeoutMs);
+          const finish = () => { window.clearTimeout(t); done(); };
+          img.addEventListener('load', finish, { once: true });
+          img.addEventListener('error', finish, { once: true });
         }),
     ),
   );
