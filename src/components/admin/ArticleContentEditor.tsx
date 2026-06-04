@@ -362,32 +362,11 @@ export function ArticleContentEditor({
     const tid = toast.loading('Sending corrections to admin…');
     try {
       const content = getContent();
-      const { error } = await supabase
-        .from('articles')
-        .update({
-          author_revision_html: content,
-          author_revision_submitted_at: new Date().toISOString(),
-          galley_proof_status: 'revision_submitted',
-        } as any)
-        .eq('id', articleId);
-      if (error) throw error;
-
-      const emailData = {
-        articleTitle,
-        referenceNumber,
-        authorName: articleMeta?.authorName || 'Author',
-        submissionDate: new Date().toLocaleDateString(),
-      };
-      // Admin email
-      supabase.functions.invoke('send-email', {
-        body: { to: 'shubhmeena23@gmail.com', template: 'galley-proof-author-corrections', data: emailData, isAdmin: true },
-      }).catch(console.error);
-      // Author confirmation
-      if (articleMeta?.authorEmail) {
-        supabase.functions.invoke('send-email', {
-          body: { to: articleMeta.authorEmail, template: 'galley-proof-author-corrections', data: emailData, isAdmin: false },
-        }).catch(console.error);
-      }
+      const response = await supabase.functions.invoke('submit-galley-response', {
+        body: { articleId, action: 'corrections', content },
+      });
+      if (response.error) throw new Error(response.error.message);
+      if ((response.data as any)?.error) throw new Error((response.data as any).error);
       toast.success('Corrections sent to admin', { id: tid });
       queryClient.invalidateQueries({ queryKey: ['my-articles'] });
       onClose();
@@ -396,7 +375,7 @@ export function ArticleContentEditor({
     } finally {
       setApproving(false);
     }
-  }, [getContent, articleId, articleTitle, referenceNumber, articleMeta, queryClient, onClose]);
+  }, [getContent, articleId, queryClient, onClose]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -436,11 +415,16 @@ export function ArticleContentEditor({
       // 2. Generate PDF from the same paginated A4 pipeline used in preview/download
       const pdfBlob = await buildFormattedPdfBlob(content, { startPage: 1, showFirstPageNumber: true });
 
-      // 3. Upload PDF to formatted-articles bucket
-      const pdfPath = `galley-proofs/${articleId}/${crypto.randomUUID()}.pdf`;
+      // 3. Ask the backend for a secure one-time upload target, then upload PDF.
+      const prepared = await supabase.functions.invoke('send-galley-proof', {
+        body: { action: 'prepare-upload', articleId },
+      });
+      if (prepared.error) throw new Error(prepared.error.message);
+      if ((prepared.data as any)?.error) throw new Error((prepared.data as any).error);
+      const pdfPath = (prepared.data as any).path as string;
       const upload = await supabase.storage
         .from('formatted-articles')
-        .upload(pdfPath, pdfBlob, { contentType: 'application/pdf', upsert: true });
+        .uploadToSignedUrl(pdfPath, (prepared.data as any).token, pdfBlob, { contentType: 'application/pdf' });
       if (upload.error) throw upload.error;
 
       // 4. Fetch article (for type, author, ref) and decide deadline
@@ -451,66 +435,20 @@ export function ArticleContentEditor({
         .single();
       if (!article) throw new Error('Article not found after save');
 
-      const isFirstPublication = (article as any).publication_type === 'fast_track';
-      const deadline = new Date();
-      if (isFirstPublication) deadline.setHours(deadline.getHours() + 2);
-      else deadline.setDate(deadline.getDate() + 2);
-
-      // 5. Persist galley proof state on the article
-      const { error: updateError } = await supabase
-        .from('articles')
-        .update({
-          galley_proof_pdf_url: pdfPath,
-          galley_proof_word_url: null,
-          galley_proof_deadline: deadline.toISOString(),
-          galley_proof_status: 'sent',
-          galley_proof_sent_at: new Date().toISOString(),
-          galley_proof_consent: false,
-          galley_proof_revision_url: null,
-        } as any)
-        .eq('id', articleId);
-      if (updateError) throw updateError;
-
-      // 6. Create a short-lived signed URL the email can point to
-      const signed = await supabase.storage
-        .from('formatted-articles')
-        .createSignedUrl(pdfPath, 7 * 24 * 60 * 60);
-
-      const authorProfile = (article as any).profiles as any;
-      const notificationEmail = (article as any).notification_email || authorProfile?.email;
-
-      // 7. Send the proper galley-proof-review template email (with deadline + review link)
-      if (notificationEmail) {
-        await supabase.functions.invoke('send-email', {
-          body: {
-            to: notificationEmail,
-            template: 'galley-proof-review',
-            data: {
-              authorName: authorProfile?.full_name || (article as any).author_name || 'Author',
-              articleTitle: (article as any).title,
-              referenceNumber: (article as any).reference_number,
-              deadline: deadline.toLocaleString('en-US', {
-                year: 'numeric', month: 'long', day: 'numeric',
-                hour: '2-digit', minute: '2-digit',
-              }),
-              wordDownloadUrl: '',
-              pdfDownloadUrl: signed.data?.signedUrl || '',
-              isFirstPublication,
-              publicationInfo: `${(article as any).publication_year || ''}; ${(article as any).volume || ''}(${(article as any).issue || ''}): ${(article as any).page_number || ''}`,
-              publicationMonth: '',
-            },
-          },
-        });
-      }
-
-      // 8. In-app notification for the author
-      await supabase.from('notifications').insert({
-        user_id: (article as any).author_id,
-        title: 'Galley Proof Ready for Review 📄',
-        message: `Your galley proof for "${(article as any).title}" is ready. Please review and respond by ${deadline.toLocaleDateString()}.`,
-        type: 'info',
-        link: '/author/articles',
+      // 5. Persist galley proof state, create notification, and send email server-side.
+      const sendResponse = await supabase.functions.invoke('send-galley-proof', {
+        body: {
+          action: 'send',
+          articleId,
+          pdfPath,
+          publicationYear: (article as any).publication_year || '',
+          pubVolume: (article as any).volume || '',
+          pubIssue: (article as any).issue || '',
+          pubPageRange: (article as any).page_number || '',
+        },
       });
+      if (sendResponse.error) throw new Error(sendResponse.error.message);
+      if ((sendResponse.data as any)?.error) throw new Error((sendResponse.data as any).error);
 
       toast.success('Galley proof generated, uploaded & sent to author!', { id: tid });
       queryClient.invalidateQueries({ queryKey: ['admin-formatting-articles'] });

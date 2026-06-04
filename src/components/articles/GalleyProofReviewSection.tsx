@@ -131,33 +131,13 @@ export function GalleyProofReviewSection({ article }: GalleyProofReviewSectionPr
   const handleApprove = async () => {
     setApproving(true);
     try {
-      const { error } = await supabase
-        .from('articles')
-        .update({
-          galley_proof_consent: true,
-          galley_proof_status: 'approved',
-        } as any)
-        .eq('id', article.id);
+      const response = await supabase.functions.invoke('submit-galley-response', {
+        body: { articleId: article.id, action: 'approve' },
+      });
+      if (response.error) throw new Error(response.error.message);
+      if ((response.data as any)?.error) throw new Error((response.data as any).error);
 
-      if (error) throw error;
-
-      const { data: admins } = await supabase
-        .from('user_roles')
-        .select('user_id')
-        .eq('role', 'admin');
-
-      if (admins) {
-        const notifications = admins.map((a) => ({
-          user_id: a.user_id,
-          title: 'Galley Proof Approved ✅',
-          message: `Author has approved the galley proof for "${article.title}" (${article.reference_number}).`,
-          type: 'success',
-          link: `/admin/articles/${article.id}`,
-        }));
-        await supabase.from('notifications').insert(notifications);
-      }
-
-      toast.success('Galley proof approved!');
+      toast.success('Galley proof approved and sent for final processing!');
       queryClient.invalidateQueries({ queryKey: ['my-articles'] });
     } catch (err: any) {
       toast.error('Failed to approve: ' + (err.message || 'Unknown error'));

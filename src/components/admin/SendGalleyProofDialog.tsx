@@ -77,66 +77,31 @@ export function SendGalleyProofDialog({ open, onOpenChange, article }: SendGalle
     setSending(true);
     try {
       const articleId = article.id;
-      const pdfPath = `galley-proofs/${articleId}/${crypto.randomUUID()}.pdf`;
+      const prepared = await supabase.functions.invoke('send-galley-proof', {
+        body: { action: 'prepare-upload', articleId },
+      });
+      if (prepared.error) throw new Error(prepared.error.message);
+      if ((prepared.data as any)?.error) throw new Error((prepared.data as any).error);
+      const pdfPath = (prepared.data as any).path as string;
 
-      const pdfUpload = await supabase.storage.from('formatted-articles').upload(pdfPath, pdfFile);
+      const pdfUpload = await supabase.storage
+        .from('formatted-articles')
+        .uploadToSignedUrl(pdfPath, (prepared.data as any).token, pdfFile);
       if (pdfUpload.error) throw pdfUpload.error;
 
-      const deadline = new Date();
-      if (isFirstPublication) deadline.setHours(deadline.getHours() + 2);
-      else deadline.setDate(deadline.getDate() + 2);
-
-      const { error: updateError } = await supabase
-        .from('articles')
-        .update({
-          galley_proof_word_url: null,
-          galley_proof_pdf_url: pdfPath,
-          galley_proof_deadline: deadline.toISOString(),
-          galley_proof_status: 'sent',
-          galley_proof_sent_at: new Date().toISOString(),
-          galley_proof_consent: false,
-          galley_proof_revision_url: null,
-          volume: pubVolume,
-          issue: pubIssue,
-          page_number: pubPageRange,
-          publication_year: `${pubMonth}-${pubYear}`,
-        } as any)
-        .eq('id', articleId);
-
-      if (updateError) throw updateError;
-
-      const pdfUrlRes = await supabase.storage
-        .from('formatted-articles')
-        .createSignedUrl(pdfPath, 7 * 24 * 60 * 60);
-
-      await supabase.functions.invoke('send-email', {
+      const response = await supabase.functions.invoke('send-galley-proof', {
         body: {
-          to: authorProfile?.email,
-          template: 'galley-proof-review',
-          data: {
-            authorName: authorProfile?.full_name || article.author_name || 'Author',
-            articleTitle: article.title,
-            referenceNumber: article.reference_number,
-            deadline: deadline.toLocaleString('en-US', {
-              year: 'numeric', month: 'long', day: 'numeric',
-              hour: '2-digit', minute: '2-digit',
-            }),
-            wordDownloadUrl: '',
-            pdfDownloadUrl: pdfUrlRes.data?.signedUrl || '',
-            isFirstPublication,
-            publicationInfo: `${pubYear}; ${pubVolume}(${pubIssue}): ${pubPageRange}`,
-            publicationMonth: `(${pubMonth}-${pubYear})`,
-          },
+          action: 'send',
+          articleId,
+          pdfPath,
+          pubVolume,
+          pubIssue,
+          pubPageRange,
+          publicationYear: `${pubMonth}-${pubYear}`,
         },
       });
-
-      await supabase.from('notifications').insert({
-        user_id: article.author_id,
-        title: 'Galley Proof Ready for Review 📄',
-        message: `Your galley proof for "${article.title}" is ready. Please review and respond by ${deadline.toLocaleDateString()}.`,
-        type: 'info',
-        link: '/author/articles',
-      });
+      if (response.error) throw new Error(response.error.message);
+      if ((response.data as any)?.error) throw new Error((response.data as any).error);
 
       toast.success('Galley proof sent to author!');
       queryClient.invalidateQueries({ queryKey: ['admin-article-detail'] });
