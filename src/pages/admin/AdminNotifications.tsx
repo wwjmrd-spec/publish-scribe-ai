@@ -485,6 +485,29 @@ export default function AdminNotifications() {
             </div>
           </div>
 
+          {sendMethod === 'notification_and_email' && (
+            <div className="space-y-2">
+              <Label>Send via email server</Label>
+              <Select value={emailProviderOverride} onValueChange={setEmailProviderOverride}>
+                <SelectTrigger className="bg-muted/50">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="default">Default (configured in Settings, with fallback)</SelectItem>
+                  <SelectItem value="resend">Resend</SelectItem>
+                  <SelectItem value="aws-ses">AWS SES</SelectItem>
+                  <SelectItem value="sendgrid">SendGrid</SelectItem>
+                  <SelectItem value="mailgun">Mailgun</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Override the server used for this broadcast. Default uses the primary provider plus configured backups.
+              </p>
+            </div>
+          )}
+
+
+
           <div className="flex items-center justify-between pt-2">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Users className="w-4 h-4" />
