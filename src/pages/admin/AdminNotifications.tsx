@@ -191,6 +191,10 @@ export default function AdminNotifications() {
             link: link.trim() || null,
             recipients,
             send_email: sendMethod === 'notification_and_email',
+            email_provider_override:
+              sendMethod === 'notification_and_email' && emailProviderOverride !== 'default'
+                ? emailProviderOverride
+                : undefined,
           }),
         }
       );
