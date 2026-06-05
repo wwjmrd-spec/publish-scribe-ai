@@ -37,6 +37,7 @@ export default function AdminNotifications() {
   const [userSearch, setUserSearch] = useState('');
   const [articleStatus, setArticleStatus] = useState<string>('submitted');
   const [sendMethod, setSendMethod] = useState<SendMethod>('notification_only');
+  const [emailProviderOverride, setEmailProviderOverride] = useState<string>('default');
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<{ notifications: number; emailsSent: number; emailsFailed: number } | null>(null);
 
@@ -190,6 +191,10 @@ export default function AdminNotifications() {
             link: link.trim() || null,
             recipients,
             send_email: sendMethod === 'notification_and_email',
+            email_provider_override:
+              sendMethod === 'notification_and_email' && emailProviderOverride !== 'default'
+                ? emailProviderOverride
+                : undefined,
           }),
         }
       );
@@ -479,6 +484,29 @@ export default function AdminNotifications() {
               </button>
             </div>
           </div>
+
+          {sendMethod === 'notification_and_email' && (
+            <div className="space-y-2">
+              <Label>Send via email server</Label>
+              <Select value={emailProviderOverride} onValueChange={setEmailProviderOverride}>
+                <SelectTrigger className="bg-muted/50">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="default">Default (configured in Settings, with fallback)</SelectItem>
+                  <SelectItem value="resend">Resend</SelectItem>
+                  <SelectItem value="aws-ses">AWS SES</SelectItem>
+                  <SelectItem value="sendgrid">SendGrid</SelectItem>
+                  <SelectItem value="mailgun">Mailgun</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Override the server used for this broadcast. Default uses the primary provider plus configured backups.
+              </p>
+            </div>
+          )}
+
+
 
           <div className="flex items-center justify-between pt-2">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">

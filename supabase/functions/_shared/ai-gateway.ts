@@ -1,8 +1,7 @@
-// Shared AI gateway helper.
-// Reads provider config from admin_settings (admin-editable) with env fallbacks.
-// All three supported providers (Gemini, OpenAI, Groq) expose OpenAI-compatible
-// chat completion endpoints, so call sites can keep their existing request shape;
-// only the URL, key, and model name change.
+// Shared AI gateway helper with backup-provider fallback chain.
+// Admin can configure a primary provider in `admin_settings` plus a JSON list
+// of backups in `ai_backup_chain`. If the primary returns 429/402/5xx, we
+// transparently retry through each backup before surfacing the error.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -40,35 +39,64 @@ function normalizeProvider(value: string | undefined): AiProvider {
   return "gemini";
 }
 
-export async function getAiGatewayConfig(): Promise<AiGatewayConfig> {
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const sb = createClient(supabaseUrl, serviceKey);
+function buildCfg(provider: string, apiKey: string, model?: string): AiGatewayConfig | null {
+  const p = normalizeProvider(provider);
+  const key = (apiKey && apiKey.trim()) || Deno.env.get(ENV_KEYS[p]) || "";
+  if (!key) return null;
+  return {
+    provider: p,
+    url: PROVIDER_URLS[p],
+    apiKey: key,
+    model: (model && model.trim()) || DEFAULT_MODELS[p],
+  };
+}
 
+let cachedChain: AiGatewayConfig[] | null = null;
+let cachedAt = 0;
+
+async function loadChain(): Promise<AiGatewayConfig[]> {
+  const now = Date.now();
+  if (cachedChain && now - cachedAt < 30_000) return cachedChain;
+
+  const sb = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
   const { data } = await sb
     .from("admin_settings")
     .select("setting_key, setting_value")
-    .in("setting_key", ["ai_provider", "ai_api_key", "ai_model"]);
+    .in("setting_key", ["ai_provider", "ai_api_key", "ai_model", "ai_backup_chain"]);
 
   const map: Record<string, string> = {};
-  for (const row of data ?? []) {
-    map[row.setting_key as string] = (row.setting_value as string) ?? "";
+  for (const row of data ?? []) map[row.setting_key as string] = (row.setting_value as string) ?? "";
+
+  const chain: AiGatewayConfig[] = [];
+  const primary = buildCfg(map.ai_provider || "gemini", map.ai_api_key || "", map.ai_model);
+  if (primary) chain.push(primary);
+
+  if (map.ai_backup_chain) {
+    try {
+      const arr = JSON.parse(map.ai_backup_chain);
+      if (Array.isArray(arr)) {
+        for (const item of arr) {
+          const cfg = buildCfg(item?.provider, item?.api_key, item?.model);
+          if (cfg) chain.push(cfg);
+        }
+      }
+    } catch (_) { /* ignore malformed */ }
   }
 
-  const provider = normalizeProvider(map.ai_provider);
-  const apiKey =
-    (map.ai_api_key && map.ai_api_key.trim()) ||
-    Deno.env.get(ENV_KEYS[provider]) ||
-    "";
-  const model = (map.ai_model && map.ai_model.trim()) || DEFAULT_MODELS[provider];
+  cachedChain = chain;
+  cachedAt = now;
+  return chain;
+}
 
-  if (!apiKey) {
-    throw new Error(
-      `AI is not configured. Set provider/API key in Admin > AI Settings, or set ${ENV_KEYS[provider]}.`,
-    );
+export async function getAiGatewayConfig(): Promise<AiGatewayConfig> {
+  const chain = await loadChain();
+  if (chain.length === 0) {
+    throw new Error("AI is not configured. Add a provider/API key in Admin → Settings → AI.");
   }
-
-  return { provider, url: PROVIDER_URLS[provider], apiKey, model };
+  return chain[0];
 }
 
 function buildHeaders(cfg: AiGatewayConfig): Record<string, string> {
@@ -78,21 +106,59 @@ function buildHeaders(cfg: AiGatewayConfig): Record<string, string> {
   };
 }
 
+async function callOnce(cfg: AiGatewayConfig, payload: Record<string, unknown>): Promise<Response> {
+  return await fetch(cfg.url, {
+    method: "POST",
+    headers: buildHeaders(cfg),
+    body: JSON.stringify({ ...payload, model: cfg.model }),
+  });
+}
+
+const RETRYABLE = (status: number) => status === 429 || status === 402 || status >= 500;
+
 /**
- * Convenience wrapper that POSTs an OpenAI-compatible chat completion payload
- * to the configured provider. Caller can pass any fields (messages, tools, etc.)
- * The `model` field is always overridden with the configured model.
+ * POSTs an OpenAI-compatible chat completion payload. If the given primary cfg
+ * returns a retryable status (rate limit, payment required, 5xx), we walk the
+ * admin-configured backup chain and return the first OK response. If none
+ * succeed, the last response is returned (so callers can inspect the status).
  */
 export async function aiChatCompletion(
   cfg: AiGatewayConfig,
   payload: Record<string, unknown>,
 ): Promise<Response> {
-  const body = JSON.stringify({ ...payload, model: cfg.model });
-  const response = await fetch(cfg.url, {
-    method: "POST",
-    headers: buildHeaders(cfg),
-    body,
-  });
+  let lastResp: Response | null = null;
+  let lastErr: unknown = null;
 
-  return response;
+  // Try the supplied cfg first.
+  try {
+    const r = await callOnce(cfg, payload);
+    if (r.ok || !RETRYABLE(r.status)) return r;
+    lastResp = r;
+  } catch (e) {
+    lastErr = e;
+  }
+
+  // Then walk the chain, skipping any entry that matches the cfg we already tried.
+  let chain: AiGatewayConfig[] = [];
+  try { chain = await loadChain(); } catch (_) { /* ignore */ }
+
+  for (const backup of chain) {
+    if (backup.provider === cfg.provider && backup.apiKey === cfg.apiKey && backup.model === cfg.model) {
+      continue;
+    }
+    try {
+      const r = await callOnce(backup, payload);
+      if (r.ok) {
+        console.log(`AI fallback: switched from ${cfg.provider}/${cfg.model} to ${backup.provider}/${backup.model}`);
+        return r;
+      }
+      if (!RETRYABLE(r.status)) return r;
+      lastResp = r;
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+
+  if (lastResp) return lastResp;
+  throw lastErr ?? new Error("AI gateway: all providers failed");
 }

@@ -23,6 +23,7 @@ interface BroadcastRequest {
   link?: string;
   recipients: Recipient[];
   send_email: boolean;
+  email_provider_override?: string;
 }
 
 function escapeHtml(unsafe: string): string {
@@ -150,7 +151,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const body: BroadcastRequest = await req.json();
-    const { title, message, type = "info", link, recipients, send_email } = body;
+    const { title, message, type = "info", link, recipients, send_email, email_provider_override } = body;
 
     if (!title?.trim() || !message?.trim()) {
       return new Response(JSON.stringify({ error: "Missing title or message" }), {
@@ -210,12 +211,17 @@ const handler = async (req: Request): Promise<Response> => {
         }
 
         try {
-          await resend.emails.send({
-            from: "WWJMRD <noreply@wwjmrdai.online>",
-            to: [sendTo],
-            subject: title.trim(),
-            html: emailHtml,
+          // Route through send-email so the configured provider chain + override apply
+          const { data: sendData, error: sendErr } = await adminClient.functions.invoke("send-email", {
+            body: {
+              to: sendTo,
+              template: "custom",
+              subject: title.trim(),
+              html: emailHtml,
+              providerOverride: email_provider_override || undefined,
+            },
           });
+          if (sendErr || (sendData as any)?.error) throw new Error(sendErr?.message || (sendData as any)?.error || "send-email failed");
           emailCount.sent++;
 
           // Log to email_log (best-effort)
