@@ -23,6 +23,7 @@ interface BroadcastRequest {
   link?: string;
   recipients: Recipient[];
   send_email: boolean;
+  email_provider_override?: string;
 }
 
 function escapeHtml(unsafe: string): string {
