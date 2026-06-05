@@ -37,6 +37,7 @@ export default function AdminNotifications() {
   const [userSearch, setUserSearch] = useState('');
   const [articleStatus, setArticleStatus] = useState<string>('submitted');
   const [sendMethod, setSendMethod] = useState<SendMethod>('notification_only');
+  const [emailProviderOverride, setEmailProviderOverride] = useState<string>('default');
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<{ notifications: number; emailsSent: number; emailsFailed: number } | null>(null);
 
