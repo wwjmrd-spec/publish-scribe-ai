@@ -1024,18 +1024,32 @@ async function sendViaMailgun(args: SendArgs) {
   return await r.json();
 }
 
-// Minimal SigV4-signed AWS SES SendEmail call (no SDK to keep cold start small)
+// SES creds may come from admin_settings (preferred) or env fallback.
+let cachedSesCreds: { accessKey: string; secretKey: string; region: string } | null = null;
+async function getSesCreds() {
+  if (cachedSesCreds) return cachedSesCreds;
+  const sb = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
+  const { data } = await sb.from("admin_settings").select("setting_key, setting_value")
+    .in("setting_key", ["aws_access_key_id", "aws_secret_access_key", "aws_ses_region"]);
+  const map: Record<string, string> = {};
+  (data ?? []).forEach((r: any) => (map[r.setting_key] = r.setting_value ?? ""));
+  cachedSesCreds = {
+    accessKey: (map.aws_access_key_id || Deno.env.get("AWS_ACCESS_KEY_ID") || "").trim(),
+    secretKey: (map.aws_secret_access_key || Deno.env.get("AWS_SECRET_ACCESS_KEY") || "").trim(),
+    region: (map.aws_ses_region || Deno.env.get("AWS_SES_REGION") || "us-east-1").trim(),
+  };
+  return cachedSesCreds;
+}
+
+// Minimal SigV4-signed AWS SES SendEmail call
 async function sendViaSes(args: SendArgs) {
-  const accessKey = Deno.env.get("AWS_ACCESS_KEY_ID");
-  const secretKey = Deno.env.get("AWS_SECRET_ACCESS_KEY");
-  const region = Deno.env.get("AWS_SES_REGION") || "us-east-1";
-  if (!accessKey || !secretKey) throw new Error("AWS credentials (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY) not configured");
+  const { accessKey, secretKey, region } = await getSesCreds();
+  if (!accessKey || !secretKey) throw new Error("AWS SES credentials not configured");
 
   const service = "ses";
   const host = `email.${region}.amazonaws.com`;
   const endpoint = `https://${host}/`;
 
-  // SES Classic API via POST form (Action=SendEmail)
   const params = new URLSearchParams();
   params.set("Action", "SendEmail");
   params.set("Source", args.from);
@@ -1087,41 +1101,79 @@ async function sendViaSes(args: SendArgs) {
   return { provider: "aws-ses", status: r.status };
 }
 
-async function resolveActiveProvider(override?: string): Promise<{ provider: string; from: string; mailgunDomain?: string }> {
-  if (override) {
-    // Honour override but still read from address from settings if not provided
-  }
-  const sb = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-  );
-  const { data } = await sb
-    .from("admin_settings")
-    .select("setting_key, setting_value")
-    .in("setting_key", ["email_provider", "email_from_address", "mailgun_domain"]);
+interface ProviderEntry {
+  provider: string;
+  from: string;
+  mailgunDomain?: string;
+}
+
+async function loadProviderChain(): Promise<{ primary: ProviderEntry; chain: ProviderEntry[]; defaultFrom: string }> {
+  const sb = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
+  const { data } = await sb.from("admin_settings").select("setting_key, setting_value")
+    .in("setting_key", ["email_provider", "email_from_address", "mailgun_domain", "email_backup_chain"]);
   const map: Record<string, string> = {};
   (data ?? []).forEach((r: any) => (map[r.setting_key] = r.setting_value ?? ""));
-  return {
-    provider: override || map.email_provider || "resend",
-    from: map.email_from_address || "WWJMRD <noreply@wwjmrdai.online>",
+  const defaultFrom = map.email_from_address || "WWJMRD <noreply@wwjmrdai.online>";
+  const primary: ProviderEntry = {
+    provider: map.email_provider || "resend",
+    from: defaultFrom,
     mailgunDomain: map.mailgun_domain || undefined,
   };
+  const chain: ProviderEntry[] = [];
+  if (map.email_backup_chain) {
+    try {
+      const arr = JSON.parse(map.email_backup_chain);
+      if (Array.isArray(arr)) {
+        for (const item of arr) {
+          if (item?.provider) {
+            chain.push({
+              provider: String(item.provider),
+              from: item.from || defaultFrom,
+              mailgunDomain: item.mailgun_domain || undefined,
+            });
+          }
+        }
+      }
+    } catch (_) { /* ignore */ }
+  }
+  return { primary, chain, defaultFrom };
+}
+
+async function sendViaOne(entry: ProviderEntry, args: SendArgs) {
+  if (entry.mailgunDomain) {
+    try { (Deno.env as any).set?.("MAILGUN_DOMAIN", entry.mailgunDomain); } catch (_) { /* ignore */ }
+  }
+  const finalArgs: SendArgs = { ...args, from: args.from || entry.from };
+  switch (entry.provider) {
+    case "sendgrid": return await sendViaSendgrid(finalArgs);
+    case "mailgun": return await sendViaMailgun(finalArgs);
+    case "aws-ses": return await sendViaSes(finalArgs);
+    case "resend":
+    default: return await sendViaResend(finalArgs);
+  }
 }
 
 async function sendViaActiveProvider(args: SendArgs & { providerOverride?: string }) {
-  const cfg = await resolveActiveProvider(args.providerOverride);
-  const finalArgs: SendArgs = { ...args, from: args.from || cfg.from };
-  // Expose mailgun domain to sendViaMailgun via env (process-scoped is ok per-invocation)
-  if (cfg.mailgunDomain) {
-    try { (Deno.env as any).set?.("MAILGUN_DOMAIN", cfg.mailgunDomain); } catch (_) { /* ignore */ }
+  const { primary, chain, defaultFrom } = await loadProviderChain();
+  // If override explicit, use ONLY that provider (no fallback).
+  if (args.providerOverride) {
+    const entry: ProviderEntry = { provider: args.providerOverride, from: args.from || defaultFrom };
+    const result = await sendViaOne(entry, args);
+    return { provider: entry.provider, result };
   }
-  switch (cfg.provider) {
-    case "sendgrid": return { provider: "sendgrid", result: await sendViaSendgrid(finalArgs) };
-    case "mailgun": return { provider: "mailgun", result: await sendViaMailgun(finalArgs) };
-    case "aws-ses": return { provider: "aws-ses", result: await sendViaSes(finalArgs) };
-    case "resend":
-    default: return { provider: "resend", result: await sendViaResend(finalArgs) };
+  const tryOrder: ProviderEntry[] = [primary, ...chain];
+  let lastErr: any = null;
+  for (const entry of tryOrder) {
+    try {
+      const result = await sendViaOne(entry, args);
+      if (entry !== primary) console.log(`Email fallback: sent via ${entry.provider} after primary failed`);
+      return { provider: entry.provider, result };
+    } catch (e: any) {
+      lastErr = e;
+      console.error(`Email provider ${entry.provider} failed:`, e?.message || e);
+    }
   }
+  throw lastErr ?? new Error("All email providers failed");
 }
 
 
