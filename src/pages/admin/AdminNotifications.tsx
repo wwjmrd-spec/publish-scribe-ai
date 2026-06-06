@@ -36,11 +36,14 @@ export default function AdminNotifications() {
   const [specificUserIds, setSpecificUserIds] = useState<string[]>([]);
   const [userSearch, setUserSearch] = useState('');
   const [articleStatus, setArticleStatus] = useState<string>('submitted');
+  const [currencyFilter, setCurrencyFilter] = useState<'all' | 'INR' | 'USD'>('all');
   const [sendMethod, setSendMethod] = useState<SendMethod>('notification_only');
   const [emailProviderOverride, setEmailProviderOverride] = useState<string>('default');
   const [fromEmail, setFromEmail] = useState<string>('');
+  const [scheduleEnabled, setScheduleEnabled] = useState(false);
+  const [scheduleAt, setScheduleAt] = useState<string>(''); // datetime-local value
   const [sending, setSending] = useState(false);
-  const [result, setResult] = useState<{ notifications: number; emailsSent: number; emailsFailed: number } | null>(null);
+  const [result, setResult] = useState<{ notifications: number; emailsSent: number; emailsFailed: number; scheduled?: boolean; scheduledFor?: string } | null>(null);
 
   // Fetch all author profiles + supporting data
   const { data: authorsData, isLoading: loadingAuthors } = useQuery({
@@ -54,7 +57,7 @@ export default function AdminNotifications() {
       if (authorIds.length === 0) return { profiles: [], subs: [], articles: [] };
 
       const [{ data: profiles }, { data: subs }, { data: articles }] = await Promise.all([
-        supabase.from('profiles').select('id, full_name, email, created_at').in('id', authorIds),
+        supabase.from('profiles').select('id, full_name, email, created_at, is_indian, country').in('id', authorIds),
         supabase
           .from('user_subscriptions')
           .select('user_id, plan_type, is_active, expires_at')
@@ -73,52 +76,59 @@ export default function AdminNotifications() {
     const now = Date.now();
     const windowMs = windowDays * 24 * 60 * 60 * 1000;
 
-    if (audience === 'specific') {
-      return specificUserIds;
-    }
-    if (audience === 'all') return profiles.map((p) => p.id);
+    // Currency filter (top-level): keep only authors whose billing currency matches.
+    const passesCurrency = (p: any) => {
+      if (currencyFilter === 'all') return true;
+      const cur = p.is_indian ? 'INR' : 'USD';
+      return cur === currencyFilter;
+    };
 
-    if (audience === 'pro') {
+    let ids: string[] = [];
+
+    if (audience === 'specific') {
+      ids = specificUserIds;
+    } else if (audience === 'all') {
+      ids = profiles.filter(passesCurrency).map((p) => p.id);
+    } else if (audience === 'pro') {
       const proIds = new Set(
         subs
-          .filter(
-            (s) =>
-              s.plan_type !== 'free' &&
-              (!s.expires_at || new Date(s.expires_at).getTime() > now)
-          )
+          .filter((s) => s.plan_type !== 'free' && (!s.expires_at || new Date(s.expires_at).getTime() > now))
           .map((s) => s.user_id)
       );
-      return profiles.filter((p) => proIds.has(p.id)).map((p) => p.id);
-    }
-
-    if (audience === 'new_signups') {
-      return profiles
-        .filter((p) => p.created_at && now - new Date(p.created_at).getTime() <= windowMs)
+      ids = profiles.filter((p) => proIds.has(p.id) && passesCurrency(p)).map((p) => p.id);
+    } else if (audience === 'new_signups') {
+      ids = profiles
+        .filter((p) => p.created_at && now - new Date(p.created_at).getTime() <= windowMs && passesCurrency(p))
         .map((p) => p.id);
-    }
-
-    if (audience === 'new_submitters') {
+    } else if (audience === 'new_submitters') {
       const recent = new Set(
         articles
           .filter((a) => a.created_at && now - new Date(a.created_at).getTime() <= windowMs)
           .map((a) => a.author_id)
       );
-      return profiles.filter((p) => recent.has(p.id)).map((p) => p.id);
-    }
-
-    if (audience === 'no_articles') {
+      ids = profiles.filter((p) => recent.has(p.id) && passesCurrency(p)).map((p) => p.id);
+    } else if (audience === 'no_articles') {
       const submitters = new Set(articles.map((a) => a.author_id));
-      return profiles.filter((p) => !submitters.has(p.id)).map((p) => p.id);
-    }
-
-    if (audience === 'article_status') {
+      ids = profiles.filter((p) => !submitters.has(p.id) && passesCurrency(p)).map((p) => p.id);
+    } else if (audience === 'article_status') {
       const matching = new Set(
         articles.filter((a) => a.status === articleStatus).map((a) => a.author_id)
       );
-      return profiles.filter((p) => matching.has(p.id)).map((p) => p.id);
+      ids = profiles.filter((p) => matching.has(p.id) && passesCurrency(p)).map((p) => p.id);
     }
-    return [];
-  }, [authorsData, audience, windowDays, specificUserIds, articleStatus]);
+
+    // For "specific", apply currency filter against profile lookup.
+    if (audience === 'specific' && currencyFilter !== 'all') {
+      const map = new Map(profiles.map((p) => [p.id, p]));
+      ids = ids.filter((id) => {
+        const p: any = map.get(id);
+        return p ? passesCurrency(p) : true;
+      });
+    }
+
+    return ids;
+  }, [authorsData, audience, windowDays, specificUserIds, articleStatus, currencyFilter]);
+
 
   const targetRecipients = useMemo(() => {
     if (!authorsData) return [];
@@ -177,6 +187,54 @@ export default function AdminNotifications() {
         throw new Error('No valid recipients found.');
       }
 
+      // Scheduled send path: store the job; the cron worker will dispatch it later.
+      if (scheduleEnabled) {
+        if (!scheduleAt) throw new Error('Please choose a date and time.');
+        const scheduledForIso = new Date(scheduleAt).toISOString();
+        if (new Date(scheduledForIso).getTime() <= Date.now()) {
+          throw new Error('Scheduled time must be in the future.');
+        }
+        const { data: sess } = await supabase.auth.getUser();
+        const adminId = sess?.user?.id;
+        if (!adminId) throw new Error('Not authenticated');
+
+        const { error: insErr } = await supabase.from('scheduled_broadcasts').insert({
+          title: title.trim(),
+          message: message.trim(),
+          notification_type: type,
+          link: link.trim() || null,
+          recipients,
+          send_email: sendMethod === 'notification_and_email',
+          email_provider_override:
+            sendMethod === 'notification_and_email' && emailProviderOverride !== 'default'
+              ? emailProviderOverride
+              : null,
+          email_from:
+            sendMethod === 'notification_and_email' && fromEmail.trim() ? fromEmail.trim() : null,
+          scheduled_for: scheduledForIso,
+          created_by: adminId,
+        });
+        if (insErr) throw insErr;
+
+        setResult({
+          notifications: recipients.length,
+          emailsSent: 0,
+          emailsFailed: 0,
+          scheduled: true,
+          scheduledFor: scheduledForIso,
+        });
+        toast({
+          title: 'Broadcast scheduled',
+          description: `Will deliver to ${recipients.length} recipient${recipients.length === 1 ? '' : 's'} at ${new Date(scheduledForIso).toLocaleString()}.`,
+        });
+
+        setTitle('');
+        setMessage('');
+        setLink('');
+        setType('info');
+        return;
+      }
+
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-broadcast`,
         {
@@ -191,6 +249,7 @@ export default function AdminNotifications() {
             type,
             link: link.trim() || null,
             recipients,
+            article_status_context: audience === 'article_status' ? articleStatus : undefined,
             send_email: sendMethod === 'notification_and_email',
             email_provider_override:
               sendMethod === 'notification_and_email' && emailProviderOverride !== 'default'
@@ -203,7 +262,6 @@ export default function AdminNotifications() {
           }),
         }
       );
-
 
       const data = await response.json();
       if (!response.ok) {
@@ -225,6 +283,7 @@ export default function AdminNotifications() {
         title: 'Broadcast sent!',
         description: `Sent ${data.notifications_sent} notification${data.notifications_sent > 1 ? 's' : ''}${data.emails_sent > 0 ? ` and ${data.emails_sent} email${data.emails_sent > 1 ? 's' : ''}` : ''}.`,
       });
+
     } catch (err: any) {
       console.error('Failed to send broadcast:', err);
       toast({
@@ -289,6 +348,25 @@ export default function AdminNotifications() {
               </SelectContent>
             </Select>
           </div>
+
+          <div className="space-y-2">
+            <Label>Currency / region filter</Label>
+            <Select value={currencyFilter} onValueChange={(v) => setCurrencyFilter(v as 'all' | 'INR' | 'USD')}>
+              <SelectTrigger className="bg-muted/50">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">🌍 All currencies</SelectItem>
+                <SelectItem value="INR">🇮🇳 INR (Indian authors)</SelectItem>
+                <SelectItem value="USD">🌐 USD (International authors)</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Filters recipients by their billing currency. Useful for fee-related broadcasts (e.g. pending fee in INR vs USD).
+            </p>
+          </div>
+
+
 
           {audience === 'article_status' && (
             <div className="space-y-2">
@@ -430,7 +508,34 @@ export default function AdminNotifications() {
               rows={4}
               className="bg-muted/50"
             />
+            <div className="space-y-1.5">
+              <p className="text-xs text-muted-foreground">
+                Insert personalization tokens (replaced per recipient when sent):
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  '{{author_name}}',
+                  '{{author_email}}',
+                  '{{author_country}}',
+                  '{{currency}}',
+                  '{{article_title}}',
+                  '{{article_reference}}',
+                  '{{article_status}}',
+                  '{{page_count}}',
+                ].map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => setMessage((prev) => `${prev}${prev && !prev.endsWith(' ') ? ' ' : ''}${tag}`)}
+                    className="text-[11px] px-2 py-0.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 font-mono"
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
+
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -525,6 +630,36 @@ export default function AdminNotifications() {
           )}
 
 
+          <div className="space-y-2 pt-2 border-t border-border/40">
+            <div className="flex items-center justify-between">
+              <Label>Schedule for later</Label>
+              <button
+                type="button"
+                onClick={() => setScheduleEnabled((v) => !v)}
+                className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                  scheduleEnabled
+                    ? 'bg-primary/15 border-primary text-primary'
+                    : 'bg-muted/50 border-border text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                {scheduleEnabled ? 'Scheduled' : 'Send immediately'}
+              </button>
+            </div>
+            {scheduleEnabled && (
+              <>
+                <Input
+                  type="datetime-local"
+                  value={scheduleAt}
+                  onChange={(e) => setScheduleAt(e.target.value)}
+                  className="bg-muted/50"
+                  min={new Date(Date.now() + 60_000).toISOString().slice(0, 16)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Stored in your local timezone and delivered to all recipients at that exact moment. The scheduler runs every 5 minutes.
+                </p>
+              </>
+            )}
+          </div>
 
           <div className="flex items-center justify-between pt-2">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -546,11 +681,16 @@ export default function AdminNotifications() {
                   ) : (
                     <Bell className="w-4 h-4 mr-2" />
                   )}
-                  {sendMethod === 'notification_and_email' ? 'Send Notification + Email' : 'Send Notification'}
+                  {scheduleEnabled
+                    ? 'Schedule Broadcast'
+                    : sendMethod === 'notification_and_email'
+                      ? 'Send Notification + Email'
+                      : 'Send Notification'}
                 </>
               )}
             </Button>
           </div>
+
 
           {result !== null && (
             <motion.div
@@ -561,10 +701,12 @@ export default function AdminNotifications() {
               <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/10 text-primary text-sm">
                 <CheckCircle className="w-4 h-4 shrink-0" />
                 <span>
-                  Sent {result.notifications} notification{result.notifications === 1 ? '' : 's'}
-                  {result.emailsSent >= 1 && ` and ${result.emailsSent} email${result.emailsSent === 1 ? '' : 's'}`}
+                  {result.scheduled
+                    ? `Scheduled ${result.notifications} broadcast${result.notifications === 1 ? '' : 's'} for ${result.scheduledFor ? new Date(result.scheduledFor).toLocaleString() : 'later'}.`
+                    : `Sent ${result.notifications} notification${result.notifications === 1 ? '' : 's'}${result.emailsSent >= 1 ? ` and ${result.emailsSent} email${result.emailsSent === 1 ? '' : 's'}` : ''}`}
                 </span>
               </div>
+
               {result.emailsFailed >= 1 && (
                 <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
                   <AlertCircle className="w-4 h-4 shrink-0" />

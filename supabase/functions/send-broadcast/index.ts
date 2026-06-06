@@ -23,8 +23,28 @@ interface BroadcastRequest {
   link?: string;
   recipients: Recipient[];
   send_email: boolean;
+  article_status_context?: string;
   email_provider_override?: string;
   email_from?: string;
+}
+
+// ---- merge tag helpers ----
+const MERGE_TAG_RE = /\{\{\s*([a-zA-Z0-9_.]+)\s*\}\}/g;
+
+function fmtCurrency(amount: number | null | undefined, currency: string | null | undefined): string {
+  if (amount == null) return "";
+  const cur = (currency || "").toUpperCase();
+  if (cur === "INR") return `₹${Number(amount).toLocaleString("en-IN")}`;
+  if (cur === "USD") return `$${Number(amount).toLocaleString("en-US")}`;
+  return `${amount}${cur ? " " + cur : ""}`;
+}
+
+function renderMergeTags(input: string, ctx: Record<string, string>): string {
+  if (!input) return input;
+  return input.replace(MERGE_TAG_RE, (_m, key) => {
+    const v = ctx[key as string];
+    return v == null ? "" : String(v);
+  });
 }
 
 function escapeHtml(unsafe: string): string {
@@ -35,6 +55,7 @@ function escapeHtml(unsafe: string): string {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 }
+
 
 const wrapEmail = (title: string, bodyContent: string): string => `
 <!DOCTYPE html>
@@ -112,47 +133,50 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    // Auth check - must be admin
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
-    }
-
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const authClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: userData } = await authClient.auth.getUser();
-    if (!userData?.user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
-    }
-
-    // Check admin role
     const adminClient = createClient(supabaseUrl, serviceKey);
-    const { data: roleData } = await adminClient
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userData.user.id)
-      .eq("role", "admin")
-      .maybeSingle();
 
-    if (!roleData) {
-      return new Response(JSON.stringify({ error: "Forbidden: admin only" }), {
-        status: 403,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
+    // Allow scheduled/internal calls using the service role key directly.
+    const internalHeader = req.headers.get("x-internal-secret");
+    const isInternal = !!internalHeader && internalHeader === serviceKey;
+
+    if (!isInternal) {
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
+      const authClient = createClient(supabaseUrl, anonKey, {
+        global: { headers: { Authorization: authHeader } },
       });
+      const { data: userData } = await authClient.auth.getUser();
+      if (!userData?.user) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
+      const { data: roleData } = await adminClient
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userData.user.id)
+        .eq("role", "admin")
+        .maybeSingle();
+      if (!roleData) {
+        return new Response(JSON.stringify({ error: "Forbidden: admin only" }), {
+          status: 403,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
     }
+
 
     const body: BroadcastRequest = await req.json();
-    const { title, message, type = "info", link, recipients, send_email, email_provider_override, email_from } = body;
+    const { title, message, type = "info", link, recipients, send_email, email_provider_override, email_from, article_status_context } = body;
 
     if (!title?.trim() || !message?.trim()) {
       return new Response(JSON.stringify({ error: "Missing title or message" }), {
@@ -168,16 +192,67 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
+    const titleRaw = title.trim();
+    const messageRaw = message.trim();
+    const linkRaw = link?.trim() || null;
+    const hasMergeTags = MERGE_TAG_RE.test(titleRaw) || MERGE_TAG_RE.test(messageRaw) || (linkRaw ? MERGE_TAG_RE.test(linkRaw) : false);
+    MERGE_TAG_RE.lastIndex = 0;
+
+    // Build per-recipient merge context (profile + a "context article")
+    const ctxByUser = new Map<string, Record<string, string>>();
+    if (hasMergeTags) {
+      const userIds = recipients.map((r) => r.user_id);
+      const [{ data: profilesData }, { data: articlesData }] = await Promise.all([
+        adminClient.from("profiles").select("id, full_name, email, country, is_indian").in("id", userIds),
+        adminClient
+          .from("articles")
+          .select("id, author_id, title, reference_number, status, page_count, created_at")
+          .in("author_id", userIds)
+          .order("created_at", { ascending: false }),
+      ]);
+
+      const profileMap = new Map((profilesData || []).map((p: any) => [p.id, p]));
+      const articleByAuthor = new Map<string, any>();
+      for (const a of articlesData || []) {
+        // Prefer the article matching article_status_context, otherwise most-recent.
+        const existing = articleByAuthor.get(a.author_id);
+        if (!existing) {
+          articleByAuthor.set(a.author_id, a);
+        } else if (article_status_context && a.status === article_status_context && existing.status !== article_status_context) {
+          articleByAuthor.set(a.author_id, a);
+        }
+      }
+
+      for (const r of recipients) {
+        const p: any = profileMap.get(r.user_id) || {};
+        const a: any = articleByAuthor.get(r.user_id) || {};
+        ctxByUser.set(r.user_id, {
+          author_name: p.full_name || r.name || "Author",
+          author_email: p.email || r.email || "",
+          author_country: p.country || "",
+          author_currency: p.is_indian ? "INR" : "USD",
+          article_title: a.title || "",
+          article_reference: a.reference_number || "",
+          article_status: a.status ? String(a.status).replace(/_/g, " ") : "",
+          page_count: a.page_count != null ? String(a.page_count) : "",
+          currency: p.is_indian ? "INR" : "USD",
+        });
+      }
+    }
+
     const emailCount = { sent: 0, failed: 0 };
 
-    // Insert notifications in batches
-    const notifications = recipients.map((r) => ({
-      user_id: r.user_id,
-      title: title.trim(),
-      message: message.trim(),
-      type,
-      link: link?.trim() || null,
-    }));
+    // Insert notifications in batches (per-recipient rendered)
+    const notifications = recipients.map((r) => {
+      const ctx = ctxByUser.get(r.user_id) || {};
+      return {
+        user_id: r.user_id,
+        title: hasMergeTags ? renderMergeTags(titleRaw, ctx) : titleRaw,
+        message: hasMergeTags ? renderMergeTags(messageRaw, ctx) : messageRaw,
+        type,
+        link: linkRaw ? (hasMergeTags ? renderMergeTags(linkRaw, ctx) : linkRaw) : null,
+      };
+    });
 
     let insertedNotifications = 0;
     for (let i = 0; i < notifications.length; i += 100) {
@@ -192,9 +267,6 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Send emails if requested
     if (send_email) {
-      const emailHtml = buildBroadcastHtml(title.trim(), message.trim(), link);
-
-      // Resolve each recipient's sign-in email from auth.users (source of truth)
       for (const recipient of recipients) {
         let sendTo = recipient.email;
         try {
@@ -211,13 +283,18 @@ const handler = async (req: Request): Promise<Response> => {
           continue;
         }
 
+        const ctx = ctxByUser.get(recipient.user_id) || {};
+        const renderedTitle = hasMergeTags ? renderMergeTags(titleRaw, ctx) : titleRaw;
+        const renderedMessage = hasMergeTags ? renderMergeTags(messageRaw, ctx) : messageRaw;
+        const renderedLink = linkRaw ? (hasMergeTags ? renderMergeTags(linkRaw, ctx) : linkRaw) : undefined;
+        const emailHtml = buildBroadcastHtml(renderedTitle, renderedMessage, renderedLink);
+
         try {
-          // Route through send-email so the configured provider chain + override apply
           const { data: sendData, error: sendErr } = await adminClient.functions.invoke("send-email", {
             body: {
               to: sendTo,
               template: "custom",
-              subject: title.trim(),
+              subject: renderedTitle,
               html: emailHtml,
               providerOverride: email_provider_override || undefined,
               from: email_from || undefined,
@@ -226,43 +303,38 @@ const handler = async (req: Request): Promise<Response> => {
           if (sendErr || (sendData as any)?.error) throw new Error(sendErr?.message || (sendData as any)?.error || "send-email failed");
           emailCount.sent++;
 
-          // Log to email_log (best-effort)
           try {
             await adminClient.from("email_log").insert({
               recipient_email: sendTo,
               recipient_name: recipient.name || null,
-              subject: title.trim(),
+              subject: renderedTitle,
               template_name: "broadcast",
               email_type: "broadcast",
               status: "sent",
               related_user_id: recipient.user_id,
-              metadata: { message: message.trim(), link: link || null },
+              metadata: { message: renderedMessage, link: renderedLink || null },
             });
-          } catch (_) {
-            // Ignore logging errors
-          }
+          } catch (_) { /* ignore */ }
         } catch (err: any) {
           console.error(`Email send failed for ${sendTo}:`, err?.message);
           emailCount.failed++;
-
           try {
             await adminClient.from("email_log").insert({
               recipient_email: sendTo,
               recipient_name: recipient.name || null,
-              subject: title.trim(),
+              subject: renderedTitle,
               template_name: "broadcast",
               email_type: "broadcast",
               status: "failed",
               error_message: err?.message || "Unknown error",
               related_user_id: recipient.user_id,
-              metadata: { message: message.trim(), link: link || null },
+              metadata: { message: renderedMessage, link: renderedLink || null },
             });
-          } catch (_) {
-            // Ignore logging errors
-          }
+          } catch (_) { /* ignore */ }
         }
       }
     }
+
 
     return new Response(
       JSON.stringify({
