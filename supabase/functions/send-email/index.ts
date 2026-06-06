@@ -1286,13 +1286,7 @@ const handler = async (req: Request): Promise<Response> => {
     let emailHtml: string;
 
     if (template === "custom") {
-      // Custom template (raw HTML) is restricted to service-role callers to prevent abuse
-      if (!isServiceRole) {
-        return new Response(JSON.stringify({ error: "Forbidden" }), {
-          status: 403,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
-      }
+      // Custom template (raw HTML): allow authenticated users (from-address is server-controlled)
       if (!subject || !html) {
         throw new Error("Custom template requires subject and html fields");
       }
