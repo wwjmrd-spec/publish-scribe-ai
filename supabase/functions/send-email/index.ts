@@ -1349,7 +1349,13 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     if (sendError) {
-      return new Response(JSON.stringify({ error: "Failed to send email. Please try again." }), {
+      // Surface provider error to admin callers so misconfig (e.g. SES unverified sender) is debuggable
+      const detail = (sendError as any)?.message || String(sendError);
+      return new Response(JSON.stringify({
+        error: "Failed to send email.",
+        provider: providerOverride || undefined,
+        detail: callerIsAdmin || isServiceRole ? detail : undefined,
+      }), {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
