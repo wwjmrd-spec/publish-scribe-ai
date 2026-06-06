@@ -630,6 +630,36 @@ export default function AdminNotifications() {
           )}
 
 
+          <div className="space-y-2 pt-2 border-t border-border/40">
+            <div className="flex items-center justify-between">
+              <Label>Schedule for later</Label>
+              <button
+                type="button"
+                onClick={() => setScheduleEnabled((v) => !v)}
+                className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                  scheduleEnabled
+                    ? 'bg-primary/15 border-primary text-primary'
+                    : 'bg-muted/50 border-border text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                {scheduleEnabled ? 'Scheduled' : 'Send immediately'}
+              </button>
+            </div>
+            {scheduleEnabled && (
+              <>
+                <Input
+                  type="datetime-local"
+                  value={scheduleAt}
+                  onChange={(e) => setScheduleAt(e.target.value)}
+                  className="bg-muted/50"
+                  min={new Date(Date.now() + 60_000).toISOString().slice(0, 16)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Stored in your local timezone and delivered to all recipients at that exact moment. The scheduler runs every 5 minutes.
+                </p>
+              </>
+            )}
+          </div>
 
           <div className="flex items-center justify-between pt-2">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -651,11 +681,16 @@ export default function AdminNotifications() {
                   ) : (
                     <Bell className="w-4 h-4 mr-2" />
                   )}
-                  {sendMethod === 'notification_and_email' ? 'Send Notification + Email' : 'Send Notification'}
+                  {scheduleEnabled
+                    ? 'Schedule Broadcast'
+                    : sendMethod === 'notification_and_email'
+                      ? 'Send Notification + Email'
+                      : 'Send Notification'}
                 </>
               )}
             </Button>
           </div>
+
 
           {result !== null && (
             <motion.div
