@@ -1079,6 +1079,72 @@ export type Database = {
           },
         ]
       }
+      scheduled_broadcasts: {
+        Row: {
+          created_at: string
+          created_by: string
+          email_from: string | null
+          email_provider_override: string | null
+          emails_failed: number | null
+          emails_sent: number | null
+          error_message: string | null
+          id: string
+          link: string | null
+          message: string
+          notification_type: string
+          notifications_sent: number | null
+          processed_at: string | null
+          recipients: Json
+          scheduled_for: string
+          send_email: boolean
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          email_from?: string | null
+          email_provider_override?: string | null
+          emails_failed?: number | null
+          emails_sent?: number | null
+          error_message?: string | null
+          id?: string
+          link?: string | null
+          message: string
+          notification_type?: string
+          notifications_sent?: number | null
+          processed_at?: string | null
+          recipients: Json
+          scheduled_for: string
+          send_email?: boolean
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          email_from?: string | null
+          email_provider_override?: string | null
+          emails_failed?: number | null
+          emails_sent?: number | null
+          error_message?: string | null
+          id?: string
+          link?: string | null
+          message?: string
+          notification_type?: string
+          notifications_sent?: number | null
+          processed_at?: string | null
+          recipients?: Json
+          scheduled_for?: string
+          send_email?: boolean
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
