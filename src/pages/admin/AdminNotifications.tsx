@@ -508,6 +508,19 @@ export default function AdminNotifications() {
               <p className="text-xs text-muted-foreground">
                 Override the server used for this broadcast. Default uses the primary provider plus configured backups.
               </p>
+
+              <div className="space-y-2 pt-2">
+                <Label>From email address (optional)</Label>
+                <Input
+                  placeholder='e.g. "WWJMRD <noreply@wwjmrd.com>" or noreply@wwjmrd.com'
+                  value={fromEmail}
+                  onChange={(e) => setFromEmail(e.target.value)}
+                  className="bg-muted/50"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Leave blank to use the provider's default sender. Address must be verified with the selected server (AWS SES requires verification in your region).
+                </p>
+              </div>
             </div>
           )}
 
