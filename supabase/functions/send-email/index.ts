@@ -1359,14 +1359,18 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     if (sendError) {
-      // Surface provider error to admin callers so misconfig (e.g. SES unverified sender) is debuggable
+      // Return 200 with success:false so admin tests can show provider misconfiguration
+      // without surfacing as an unhandled Edge Function runtime error in the app.
       const detail = (sendError as any)?.message || String(sendError);
+      const provider = providerOverride || providerUsed || undefined;
       return new Response(JSON.stringify({
+        success: false,
         error: "Failed to send email.",
-        provider: providerOverride || undefined,
+        provider,
         detail: callerIsAdmin || isServiceRole ? detail : undefined,
+        guidance: callerIsAdmin || isServiceRole ? getEmailErrorGuidance(detail, provider) : undefined,
       }), {
-        status: 500,
+        status: 200,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
