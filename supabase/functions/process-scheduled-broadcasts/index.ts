@@ -35,8 +35,15 @@ serve(async (req) => {
         .eq("status", "pending");
 
       try {
-        const { data: sendData, error: sendErr } = await admin.functions.invoke("send-broadcast-internal", {
-          body: {
+        const resp = await fetch(`${supabaseUrl}/functions/v1/send-broadcast`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-internal-secret": serviceKey,
+            apikey: serviceKey,
+            Authorization: `Bearer ${serviceKey}`,
+          },
+          body: JSON.stringify({
             title: job.title,
             message: job.message,
             type: job.notification_type,
@@ -45,13 +52,13 @@ serve(async (req) => {
             send_email: job.send_email,
             email_provider_override: job.email_provider_override || undefined,
             email_from: job.email_from || undefined,
-            article_status_context: job.article_status_context || undefined,
-            __internal_admin_id: job.created_by,
-          },
+          }),
         });
-        if (sendErr || (sendData as any)?.error) {
-          throw new Error(sendErr?.message || (sendData as any)?.error || "send failed");
+        const sendData = await resp.json();
+        if (!resp.ok || (sendData as any)?.error) {
+          throw new Error((sendData as any)?.error || `send failed (${resp.status})`);
         }
+
         await admin
           .from("scheduled_broadcasts")
           .update({
