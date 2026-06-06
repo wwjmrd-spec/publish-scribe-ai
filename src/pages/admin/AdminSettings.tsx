@@ -196,7 +196,12 @@ export default function AdminSettings() {
         },
       });
       if (error) throw error;
-      if ((data as any)?.error) throw new Error((data as any).error);
+      if ((data as any)?.success === false || (data as any)?.error) {
+        const payload = data as any;
+        const parts = [payload.error, payload.provider && `Provider: ${payload.provider}`, payload.guidance, payload.detail]
+          .filter(Boolean);
+        throw new Error(parts.join(" — "));
+      }
       setTestResult({ ok: true, message: `Email sent via ${override || "active provider chain"} to ${testTo}.` });
     } catch (e: any) {
       setTestResult({ ok: false, message: e.message || "Test failed" });

@@ -10,6 +10,16 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+function getEmailErrorGuidance(message: string, provider?: string) {
+  if (provider === "aws-ses" && /MessageRejected|Email address is not verified/i.test(message)) {
+    return "AWS SES rejected the sender. Verify the From address/domain in the same SES region, or use a verified sender address.";
+  }
+  if (/not configured/i.test(message)) {
+    return "This email provider is missing required credentials or settings.";
+  }
+  return undefined;
+}
+
 // HTML escape function to prevent XSS in email templates
 function escapeHtml(unsafe: string): string {
   return unsafe
@@ -1349,14 +1359,18 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     if (sendError) {
-      // Surface provider error to admin callers so misconfig (e.g. SES unverified sender) is debuggable
+      // Return 200 with success:false so admin tests can show provider misconfiguration
+      // without surfacing as an unhandled Edge Function runtime error in the app.
       const detail = (sendError as any)?.message || String(sendError);
+      const provider = providerOverride || providerUsed || undefined;
       return new Response(JSON.stringify({
+        success: false,
         error: "Failed to send email.",
-        provider: providerOverride || undefined,
+        provider,
         detail: callerIsAdmin || isServiceRole ? detail : undefined,
+        guidance: callerIsAdmin || isServiceRole ? getEmailErrorGuidance(detail, provider) : undefined,
       }), {
-        status: 500,
+        status: 200,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
