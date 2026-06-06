@@ -1200,6 +1200,9 @@ const handler = async (req: Request): Promise<Response> => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const isServiceRole = !!serviceRoleKey && token === serviceRoleKey;
 
+    let callerUserId: string | null = null;
+    let callerIsAdmin = false;
+
     if (!isServiceRole) {
       // Validate as user JWT using getUser
       const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -1215,14 +1218,26 @@ const handler = async (req: Request): Promise<Response> => {
           headers: { "Content-Type": "application/json", ...corsHeaders },
         });
       }
-      console.log("Email request authenticated for user:", userData.user.id);
+      callerUserId = userData.user.id;
+      // Check admin role via service-role client to bypass RLS
+      try {
+        const admin = createClient(supabaseUrl, serviceRoleKey!);
+        const { data: roleRow } = await admin
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", callerUserId)
+          .eq("role", "admin")
+          .maybeSingle();
+        callerIsAdmin = !!roleRow;
+      } catch (_) { /* ignore */ }
+      console.log("Email request authenticated for user:", callerUserId, "admin:", callerIsAdmin);
     } else {
       console.log("Email request authenticated via service role");
     }
 
-    // Test mode is restricted to service-role callers only
+    // Test mode is restricted to admins or service-role callers
     if (body.test === true) {
-      if (!isServiceRole) {
+      if (!isServiceRole && !callerIsAdmin) {
         return new Response(JSON.stringify({ error: "Forbidden" }), {
           status: 403,
           headers: { "Content-Type": "application/json", ...corsHeaders },
