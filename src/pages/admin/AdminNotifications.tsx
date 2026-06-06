@@ -508,7 +508,34 @@ export default function AdminNotifications() {
               rows={4}
               className="bg-muted/50"
             />
+            <div className="space-y-1.5">
+              <p className="text-xs text-muted-foreground">
+                Insert personalization tokens (replaced per recipient when sent):
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  '{{author_name}}',
+                  '{{author_email}}',
+                  '{{author_country}}',
+                  '{{currency}}',
+                  '{{article_title}}',
+                  '{{article_reference}}',
+                  '{{article_status}}',
+                  '{{page_count}}',
+                ].map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => setMessage((prev) => `${prev}${prev && !prev.endsWith(' ') ? ' ' : ''}${tag}`)}
+                    className="text-[11px] px-2 py-0.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 font-mono"
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
+
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
