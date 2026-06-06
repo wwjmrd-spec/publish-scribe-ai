@@ -220,6 +220,7 @@ const handler = async (req: Request): Promise<Response> => {
               subject: title.trim(),
               html: emailHtml,
               providerOverride: email_provider_override || undefined,
+              from: email_from || undefined,
             },
           });
           if (sendErr || (sendData as any)?.error) throw new Error(sendErr?.message || (sendData as any)?.error || "send-email failed");
