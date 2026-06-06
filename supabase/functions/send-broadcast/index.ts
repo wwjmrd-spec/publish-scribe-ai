@@ -232,9 +232,7 @@ const handler = async (req: Request): Promise<Response> => {
           article_reference: a.reference_number || "",
           article_status: a.status ? String(a.status).replace(/_/g, " ") : "",
           page_count: a.page_count != null ? String(a.page_count) : "",
-          fee_amount: a.total_fee != null ? String(a.total_fee) : "",
-          fee_currency: a.fee_currency || (p.is_indian ? "INR" : "USD"),
-          fee_formatted: a.total_fee != null ? fmtCurrency(Number(a.total_fee), a.fee_currency || (p.is_indian ? "INR" : "USD")) : "",
+          currency: p.is_indian ? "INR" : "USD",
         });
       }
     }
