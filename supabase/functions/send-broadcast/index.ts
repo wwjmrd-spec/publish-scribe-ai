@@ -152,7 +152,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const body: BroadcastRequest = await req.json();
-    const { title, message, type = "info", link, recipients, send_email, email_provider_override } = body;
+    const { title, message, type = "info", link, recipients, send_email, email_provider_override, email_from } = body;
 
     if (!title?.trim() || !message?.trim()) {
       return new Response(JSON.stringify({ error: "Missing title or message" }), {
