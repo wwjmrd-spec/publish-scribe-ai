@@ -76,52 +76,59 @@ export default function AdminNotifications() {
     const now = Date.now();
     const windowMs = windowDays * 24 * 60 * 60 * 1000;
 
-    if (audience === 'specific') {
-      return specificUserIds;
-    }
-    if (audience === 'all') return profiles.map((p) => p.id);
+    // Currency filter (top-level): keep only authors whose billing currency matches.
+    const passesCurrency = (p: any) => {
+      if (currencyFilter === 'all') return true;
+      const cur = p.is_indian ? 'INR' : 'USD';
+      return cur === currencyFilter;
+    };
 
-    if (audience === 'pro') {
+    let ids: string[] = [];
+
+    if (audience === 'specific') {
+      ids = specificUserIds;
+    } else if (audience === 'all') {
+      ids = profiles.filter(passesCurrency).map((p) => p.id);
+    } else if (audience === 'pro') {
       const proIds = new Set(
         subs
-          .filter(
-            (s) =>
-              s.plan_type !== 'free' &&
-              (!s.expires_at || new Date(s.expires_at).getTime() > now)
-          )
+          .filter((s) => s.plan_type !== 'free' && (!s.expires_at || new Date(s.expires_at).getTime() > now))
           .map((s) => s.user_id)
       );
-      return profiles.filter((p) => proIds.has(p.id)).map((p) => p.id);
-    }
-
-    if (audience === 'new_signups') {
-      return profiles
-        .filter((p) => p.created_at && now - new Date(p.created_at).getTime() <= windowMs)
+      ids = profiles.filter((p) => proIds.has(p.id) && passesCurrency(p)).map((p) => p.id);
+    } else if (audience === 'new_signups') {
+      ids = profiles
+        .filter((p) => p.created_at && now - new Date(p.created_at).getTime() <= windowMs && passesCurrency(p))
         .map((p) => p.id);
-    }
-
-    if (audience === 'new_submitters') {
+    } else if (audience === 'new_submitters') {
       const recent = new Set(
         articles
           .filter((a) => a.created_at && now - new Date(a.created_at).getTime() <= windowMs)
           .map((a) => a.author_id)
       );
-      return profiles.filter((p) => recent.has(p.id)).map((p) => p.id);
-    }
-
-    if (audience === 'no_articles') {
+      ids = profiles.filter((p) => recent.has(p.id) && passesCurrency(p)).map((p) => p.id);
+    } else if (audience === 'no_articles') {
       const submitters = new Set(articles.map((a) => a.author_id));
-      return profiles.filter((p) => !submitters.has(p.id)).map((p) => p.id);
-    }
-
-    if (audience === 'article_status') {
+      ids = profiles.filter((p) => !submitters.has(p.id) && passesCurrency(p)).map((p) => p.id);
+    } else if (audience === 'article_status') {
       const matching = new Set(
         articles.filter((a) => a.status === articleStatus).map((a) => a.author_id)
       );
-      return profiles.filter((p) => matching.has(p.id)).map((p) => p.id);
+      ids = profiles.filter((p) => matching.has(p.id) && passesCurrency(p)).map((p) => p.id);
     }
-    return [];
-  }, [authorsData, audience, windowDays, specificUserIds, articleStatus]);
+
+    // For "specific", apply currency filter against profile lookup.
+    if (audience === 'specific' && currencyFilter !== 'all') {
+      const map = new Map(profiles.map((p) => [p.id, p]));
+      ids = ids.filter((id) => {
+        const p: any = map.get(id);
+        return p ? passesCurrency(p) : true;
+      });
+    }
+
+    return ids;
+  }, [authorsData, audience, windowDays, specificUserIds, articleStatus, currencyFilter]);
+
 
   const targetRecipients = useMemo(() => {
     if (!authorsData) return [];
