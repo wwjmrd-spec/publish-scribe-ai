@@ -187,6 +187,54 @@ export default function AdminNotifications() {
         throw new Error('No valid recipients found.');
       }
 
+      // Scheduled send path: store the job; the cron worker will dispatch it later.
+      if (scheduleEnabled) {
+        if (!scheduleAt) throw new Error('Please choose a date and time.');
+        const scheduledForIso = new Date(scheduleAt).toISOString();
+        if (new Date(scheduledForIso).getTime() <= Date.now()) {
+          throw new Error('Scheduled time must be in the future.');
+        }
+        const { data: sess } = await supabase.auth.getUser();
+        const adminId = sess?.user?.id;
+        if (!adminId) throw new Error('Not authenticated');
+
+        const { error: insErr } = await supabase.from('scheduled_broadcasts').insert({
+          title: title.trim(),
+          message: message.trim(),
+          notification_type: type,
+          link: link.trim() || null,
+          recipients,
+          send_email: sendMethod === 'notification_and_email',
+          email_provider_override:
+            sendMethod === 'notification_and_email' && emailProviderOverride !== 'default'
+              ? emailProviderOverride
+              : null,
+          email_from:
+            sendMethod === 'notification_and_email' && fromEmail.trim() ? fromEmail.trim() : null,
+          scheduled_for: scheduledForIso,
+          created_by: adminId,
+        });
+        if (insErr) throw insErr;
+
+        setResult({
+          notifications: recipients.length,
+          emailsSent: 0,
+          emailsFailed: 0,
+          scheduled: true,
+          scheduledFor: scheduledForIso,
+        });
+        toast({
+          title: 'Broadcast scheduled',
+          description: `Will deliver to ${recipients.length} recipient${recipients.length === 1 ? '' : 's'} at ${new Date(scheduledForIso).toLocaleString()}.`,
+        });
+
+        setTitle('');
+        setMessage('');
+        setLink('');
+        setType('info');
+        return;
+      }
+
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-broadcast`,
         {
@@ -201,6 +249,7 @@ export default function AdminNotifications() {
             type,
             link: link.trim() || null,
             recipients,
+            article_status_context: audience === 'article_status' ? articleStatus : undefined,
             send_email: sendMethod === 'notification_and_email',
             email_provider_override:
               sendMethod === 'notification_and_email' && emailProviderOverride !== 'default'
@@ -213,7 +262,6 @@ export default function AdminNotifications() {
           }),
         }
       );
-
 
       const data = await response.json();
       if (!response.ok) {
@@ -235,6 +283,7 @@ export default function AdminNotifications() {
         title: 'Broadcast sent!',
         description: `Sent ${data.notifications_sent} notification${data.notifications_sent > 1 ? 's' : ''}${data.emails_sent > 0 ? ` and ${data.emails_sent} email${data.emails_sent > 1 ? 's' : ''}` : ''}.`,
       });
+
     } catch (err: any) {
       console.error('Failed to send broadcast:', err);
       toast({
