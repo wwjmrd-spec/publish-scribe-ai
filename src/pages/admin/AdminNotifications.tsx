@@ -36,11 +36,14 @@ export default function AdminNotifications() {
   const [specificUserIds, setSpecificUserIds] = useState<string[]>([]);
   const [userSearch, setUserSearch] = useState('');
   const [articleStatus, setArticleStatus] = useState<string>('submitted');
+  const [currencyFilter, setCurrencyFilter] = useState<'all' | 'INR' | 'USD'>('all');
   const [sendMethod, setSendMethod] = useState<SendMethod>('notification_only');
   const [emailProviderOverride, setEmailProviderOverride] = useState<string>('default');
   const [fromEmail, setFromEmail] = useState<string>('');
+  const [scheduleEnabled, setScheduleEnabled] = useState(false);
+  const [scheduleAt, setScheduleAt] = useState<string>(''); // datetime-local value
   const [sending, setSending] = useState(false);
-  const [result, setResult] = useState<{ notifications: number; emailsSent: number; emailsFailed: number } | null>(null);
+  const [result, setResult] = useState<{ notifications: number; emailsSent: number; emailsFailed: number; scheduled?: boolean; scheduledFor?: string } | null>(null);
 
   // Fetch all author profiles + supporting data
   const { data: authorsData, isLoading: loadingAuthors } = useQuery({
