@@ -349,6 +349,25 @@ export default function AdminNotifications() {
             </Select>
           </div>
 
+          <div className="space-y-2">
+            <Label>Currency / region filter</Label>
+            <Select value={currencyFilter} onValueChange={(v) => setCurrencyFilter(v as 'all' | 'INR' | 'USD')}>
+              <SelectTrigger className="bg-muted/50">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">🌍 All currencies</SelectItem>
+                <SelectItem value="INR">🇮🇳 INR (Indian authors)</SelectItem>
+                <SelectItem value="USD">🌐 USD (International authors)</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Filters recipients by their billing currency. Useful for fee-related broadcasts (e.g. pending fee in INR vs USD).
+            </p>
+          </div>
+
+
+
           {audience === 'article_status' && (
             <div className="space-y-2">
               <Label>Article status</Label>
