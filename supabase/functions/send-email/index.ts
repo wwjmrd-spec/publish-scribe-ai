@@ -1153,7 +1153,12 @@ async function sendViaOne(entry: ProviderEntry, args: SendArgs) {
   if (entry.mailgunDomain) {
     try { (Deno.env as any).set?.("MAILGUN_DOMAIN", entry.mailgunDomain); } catch (_) { /* ignore */ }
   }
-  const finalArgs: SendArgs = { ...args, from: args.from || entry.from };
+  // AWS SES requires a verified sender identity. Force the verified noreply@wwjmrd.com address.
+  const SES_VERIFIED_FROM = "WWJMRD <noreply@wwjmrd.com>";
+  const finalArgs: SendArgs = {
+    ...args,
+    from: entry.provider === "aws-ses" ? SES_VERIFIED_FROM : (args.from || entry.from),
+  };
   switch (entry.provider) {
     case "sendgrid": return await sendViaSendgrid(finalArgs);
     case "mailgun": return await sendViaMailgun(finalArgs);
