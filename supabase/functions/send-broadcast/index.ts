@@ -28,6 +28,25 @@ interface BroadcastRequest {
   email_from?: string;
 }
 
+// ---- merge tag helpers ----
+const MERGE_TAG_RE = /\{\{\s*([a-zA-Z0-9_.]+)\s*\}\}/g;
+
+function fmtCurrency(amount: number | null | undefined, currency: string | null | undefined): string {
+  if (amount == null) return "";
+  const cur = (currency || "").toUpperCase();
+  if (cur === "INR") return `₹${Number(amount).toLocaleString("en-IN")}`;
+  if (cur === "USD") return `$${Number(amount).toLocaleString("en-US")}`;
+  return `${amount}${cur ? " " + cur : ""}`;
+}
+
+function renderMergeTags(input: string, ctx: Record<string, string>): string {
+  if (!input) return input;
+  return input.replace(MERGE_TAG_RE, (_m, key) => {
+    const v = ctx[key as string];
+    return v == null ? "" : String(v);
+  });
+}
+
 function escapeHtml(unsafe: string): string {
   return unsafe
     .replace(/&/g, "&amp;")
@@ -36,6 +55,7 @@ function escapeHtml(unsafe: string): string {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 }
+
 
 const wrapEmail = (title: string, bodyContent: string): string => `
 <!DOCTYPE html>
