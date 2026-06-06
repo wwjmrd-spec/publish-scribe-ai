@@ -57,7 +57,7 @@ export default function AdminNotifications() {
       if (authorIds.length === 0) return { profiles: [], subs: [], articles: [] };
 
       const [{ data: profiles }, { data: subs }, { data: articles }] = await Promise.all([
-        supabase.from('profiles').select('id, full_name, email, created_at').in('id', authorIds),
+        supabase.from('profiles').select('id, full_name, email, created_at, is_indian, country').in('id', authorIds),
         supabase
           .from('user_subscriptions')
           .select('user_id, plan_type, is_active, expires_at')
