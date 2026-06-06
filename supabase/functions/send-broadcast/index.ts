@@ -24,6 +24,7 @@ interface BroadcastRequest {
   recipients: Recipient[];
   send_email: boolean;
   email_provider_override?: string;
+  email_from?: string;
 }
 
 function escapeHtml(unsafe: string): string {
@@ -151,7 +152,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const body: BroadcastRequest = await req.json();
-    const { title, message, type = "info", link, recipients, send_email, email_provider_override } = body;
+    const { title, message, type = "info", link, recipients, send_email, email_provider_override, email_from } = body;
 
     if (!title?.trim() || !message?.trim()) {
       return new Response(JSON.stringify({ error: "Missing title or message" }), {
@@ -219,6 +220,7 @@ const handler = async (req: Request): Promise<Response> => {
               subject: title.trim(),
               html: emailHtml,
               providerOverride: email_provider_override || undefined,
+              from: email_from || undefined,
             },
           });
           if (sendErr || (sendData as any)?.error) throw new Error(sendErr?.message || (sendData as any)?.error || "send-email failed");

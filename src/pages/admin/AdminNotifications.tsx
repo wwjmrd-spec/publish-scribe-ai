@@ -38,6 +38,7 @@ export default function AdminNotifications() {
   const [articleStatus, setArticleStatus] = useState<string>('submitted');
   const [sendMethod, setSendMethod] = useState<SendMethod>('notification_only');
   const [emailProviderOverride, setEmailProviderOverride] = useState<string>('default');
+  const [fromEmail, setFromEmail] = useState<string>('');
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<{ notifications: number; emailsSent: number; emailsFailed: number } | null>(null);
 
@@ -194,6 +195,10 @@ export default function AdminNotifications() {
             email_provider_override:
               sendMethod === 'notification_and_email' && emailProviderOverride !== 'default'
                 ? emailProviderOverride
+                : undefined,
+            email_from:
+              sendMethod === 'notification_and_email' && fromEmail.trim()
+                ? fromEmail.trim()
                 : undefined,
           }),
         }
@@ -503,6 +508,19 @@ export default function AdminNotifications() {
               <p className="text-xs text-muted-foreground">
                 Override the server used for this broadcast. Default uses the primary provider plus configured backups.
               </p>
+
+              <div className="space-y-2 pt-2">
+                <Label>From email address (optional)</Label>
+                <Input
+                  placeholder='e.g. "WWJMRD <noreply@wwjmrd.com>" or noreply@wwjmrd.com'
+                  value={fromEmail}
+                  onChange={(e) => setFromEmail(e.target.value)}
+                  className="bg-muted/50"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Leave blank to use the provider's default sender. Address must be verified with the selected server (AWS SES requires verification in your region).
+                </p>
+              </div>
             </div>
           )}
 

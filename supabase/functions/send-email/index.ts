@@ -1157,7 +1157,7 @@ async function sendViaOne(entry: ProviderEntry, args: SendArgs) {
   const SES_VERIFIED_FROM = "WWJMRD <noreply@wwjmrd.com>";
   const finalArgs: SendArgs = {
     ...args,
-    from: entry.provider === "aws-ses" ? SES_VERIFIED_FROM : (args.from || entry.from),
+    from: args.from || (entry.provider === "aws-ses" ? SES_VERIFIED_FROM : entry.from),
   };
   switch (entry.provider) {
     case "sendgrid": return await sendViaSendgrid(finalArgs);
