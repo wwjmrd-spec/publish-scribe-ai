@@ -203,7 +203,7 @@ const handler = async (req: Request): Promise<Response> => {
         adminClient.from("profiles").select("id, full_name, email, country, is_indian").in("id", userIds),
         adminClient
           .from("articles")
-          .select("id, author_id, title, reference_number, status, page_count, total_fee, fee_currency, created_at")
+          .select("id, author_id, title, reference_number, status, page_count, created_at")
           .in("author_id", userIds)
           .order("created_at", { ascending: false }),
       ]);
