@@ -23,6 +23,7 @@ interface BroadcastRequest {
   link?: string;
   recipients: Recipient[];
   send_email: boolean;
+  article_status_context?: string;
   email_provider_override?: string;
   email_from?: string;
 }
