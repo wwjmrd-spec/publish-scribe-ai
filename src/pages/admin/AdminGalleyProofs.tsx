@@ -81,6 +81,30 @@ export default function AdminGalleyProofs() {
     onError: (err: any) => toast.error('Download failed: ' + err.message),
   });
 
+  const removeFromGalleyMutation = useMutation({
+    mutationFn: async (articleId: string) => {
+      const { error } = await supabase
+        .from('articles')
+        .update({
+          galley_proof_status: null,
+          galley_proof_sent_at: null,
+          galley_proof_deadline: null,
+          galley_proof_word_url: null,
+          galley_proof_pdf_url: null,
+          galley_proof_revision_url: null,
+          galley_proof_consent: false,
+        } as any)
+        .eq('id', articleId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Removed from galley proofs list');
+      queryClient.invalidateQueries({ queryKey: ['admin-galley-proofs'] });
+    },
+    onError: (err: any) => toast.error('Remove failed: ' + err.message),
+
+  });
+
   const filtered = articles?.filter((a: any) => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
