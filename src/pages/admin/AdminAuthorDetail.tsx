@@ -442,10 +442,13 @@ export default function AdminAuthorDetail() {
               </div>
             </GlassCard>
 
-            {/* Free Plan Downloads */}
+            {/* Free Plan Downloads (this period, anchored to signup date) */}
             <GlassCard>
               <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider">
-                Free Plan Downloads <span className="text-xs normal-case tracking-normal">(lifetime)</span>
+                Free Plan Downloads{' '}
+                <span className="text-xs normal-case tracking-normal">
+                  (this period{freePeriodKey ? `: since ${freePeriodKey}` : ''})
+                </span>
               </h3>
               <div className="space-y-4 text-sm">
                 <div>
@@ -454,7 +457,7 @@ export default function AdminAuthorDetail() {
                       <FileText className="w-3.5 h-3.5" /> Review Reports
                     </span>
                     <span className="font-medium">
-                      <span className="text-primary">{lifetimeReports}</span> / 2
+                      <span className="text-primary">{freePeriodReports}</span> / 2
                     </span>
                   </div>
                   <Button
@@ -462,21 +465,24 @@ export default function AdminAuthorDetail() {
                     variant="outline"
                     className="h-7 text-xs w-full"
                     onClick={() => {
-                      if (confirm('Reset Free plan lifetime review report usage to 0?')) {
-                        resetUsageMutation.mutate('lifetime-reports');
+                      if (confirm('Reset Free plan review report usage for this period to 0?')) {
+                        resetUsageMutation.mutate('free-period-reports');
                       }
                     }}
-                    disabled={resetUsageMutation.isPending || lifetimeReports === 0}
+                    disabled={resetUsageMutation.isPending || freePeriodReports === 0 || !freePeriodKey}
                   >
                     <RotateCcw className="w-3 h-3 mr-1" /> Reset Free Review Reports
                   </Button>
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    Lifetime total: {lifetimeReports}
+                  </p>
                 </div>
 
                 <div className="pt-3 border-t border-[hsl(var(--glass-border))]">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-muted-foreground">Co-author Certs</span>
                     <span className="font-medium">
-                      <span className="text-primary">{lifetimeCerts}</span>
+                      <span className="text-primary">{freePeriodCerts}</span>
                     </span>
                   </div>
                   <Button
@@ -484,17 +490,21 @@ export default function AdminAuthorDetail() {
                     variant="outline"
                     className="h-7 text-xs w-full"
                     onClick={() => {
-                      if (confirm('Reset Free plan lifetime co-author cert usage to 0?')) {
-                        resetUsageMutation.mutate('lifetime-certs');
+                      if (confirm('Reset Free plan co-author cert usage for this period to 0?')) {
+                        resetUsageMutation.mutate('free-period-certs');
                       }
                     }}
-                    disabled={resetUsageMutation.isPending || lifetimeCerts === 0}
+                    disabled={resetUsageMutation.isPending || freePeriodCerts === 0 || !freePeriodKey}
                   >
                     <RotateCcw className="w-3 h-3 mr-1" /> Reset Free Co-author Certs
                   </Button>
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    Lifetime total: {lifetimeCerts}
+                  </p>
                 </div>
               </div>
             </GlassCard>
+
 
             {/* Pro Plan Downloads */}
             <GlassCard>
