@@ -63,9 +63,10 @@ export default function MyArticles() {
     if (!subscription.canDownloadReport) {
       toast.error(
         subscription.plan === 'free'
-          ? `You've used all ${subscription.reviewReportsLimit} free review report downloads. Upgrade to Pro for more.`
+          ? `You've used all ${subscription.reviewReportsLimit} free review report downloads for this period. Upgrade to Pro or wait for your next monthly reset.`
           : `Monthly limit reached (${subscription.reviewReportsLimit} review reports/month).`
       );
+
       return;
     }
 
