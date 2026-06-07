@@ -63,9 +63,10 @@ export default function MyArticles() {
     if (!subscription.canDownloadReport) {
       toast.error(
         subscription.plan === 'free'
-          ? `You've used all ${subscription.reviewReportsLimit} free review report downloads. Upgrade to Pro for more.`
+          ? `You've used all ${subscription.reviewReportsLimit} free review report downloads for this period. Upgrade to Pro or wait for your next monthly reset.`
           : `Monthly limit reached (${subscription.reviewReportsLimit} review reports/month).`
       );
+
       return;
     }
 
@@ -308,9 +309,10 @@ export default function MyArticles() {
             <FileText className="w-4 h-4" />
             <span>
               Review reports: {subscription.reviewReportsUsed}/{subscription.reviewReportsLimit} used
-              {subscription.plan === 'free' && ' (Free plan — lifetime limit)'}
+              {subscription.plan === 'free' && ' this period (Free plan — resets monthly from your signup date)'}
               {subscription.plan === 'pro' && ' this month (Pro plan)'}
             </span>
+
           </div>
           {subscription.plan === 'free' && (
             <Button

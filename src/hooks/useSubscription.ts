@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { getFreePeriodKey } from '@/lib/planPeriod';
 
 export interface SubscriptionInfo {
   plan: 'free' | 'pro';
@@ -12,11 +13,13 @@ export interface SubscriptionInfo {
   coauthorCertsLimit: number;
   canDownloadReport: boolean;
   canCreateCoauthorCert: boolean;
+  /** Period key currently in effect for the free plan (anchored to signup date). */
+  freePeriodKey: string | null;
 }
 
-const FREE_REVIEW_LIMIT = 2; // lifetime, not monthly
-const PRO_REVIEW_LIMIT = 5; // per month
-const PRO_COAUTHOR_LIMIT = 4; // per month
+const FREE_REVIEW_LIMIT = 2; // per monthly period, anchored to signup date
+const PRO_REVIEW_LIMIT = 5; // per calendar month
+const PRO_COAUTHOR_LIMIT = 4; // per calendar month
 
 function getCurrentMonth() {
   const now = new Date();
@@ -26,6 +29,24 @@ function getCurrentMonth() {
 export function useSubscription() {
   const { user } = useAuth();
   const currentMonth = getCurrentMonth();
+
+  const { data: profile } = useQuery({
+    queryKey: ['user-profile-created', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('created_at')
+        .eq('id', user!.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  const freePeriodKey = profile?.created_at
+    ? getFreePeriodKey(profile.created_at)
+    : null;
 
   const { data: subscription, isLoading: subLoading } = useQuery({
     queryKey: ['user-subscription', user?.id],
@@ -39,11 +60,9 @@ export function useSubscription() {
 
       if (error) throw error;
 
-      // Check if pro subscription has expired
       if (data && data.plan_type === 'pro' && data.expires_at) {
         const expiresAt = new Date(data.expires_at);
         if (expiresAt < new Date()) {
-          // Mark as inactive
           await supabase
             .from('user_subscriptions')
             .update({ is_active: false })
@@ -57,7 +76,7 @@ export function useSubscription() {
     enabled: !!user?.id,
   });
 
-  // Current month usage (for Pro plan monthly limits)
+  // Pro plan: current calendar month
   const { data: usage, isLoading: usageLoading } = useQuery({
     queryKey: ['plan-usage', user?.id, currentMonth],
     queryFn: async () => {
@@ -67,41 +86,37 @@ export function useSubscription() {
         .eq('user_id', user!.id)
         .eq('usage_month', currentMonth)
         .maybeSingle();
-
       if (error) throw error;
       return data;
     },
     enabled: !!user?.id,
   });
 
-  // Lifetime usage (for Free plan total limits)
-  const { data: lifetimeUsage, isLoading: lifetimeLoading } = useQuery({
-    queryKey: ['plan-usage-lifetime', user?.id],
+  // Free plan: current period (signup-anchored month)
+  const { data: freeUsage, isLoading: freeUsageLoading } = useQuery({
+    queryKey: ['plan-usage-free-period', user?.id, freePeriodKey],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('plan_usage')
         .select('review_reports_used, coauthor_certs_used')
-        .eq('user_id', user!.id);
-
+        .eq('user_id', user!.id)
+        .eq('usage_month', freePeriodKey!)
+        .maybeSingle();
       if (error) throw error;
-      return {
-        review_reports_used: (data || []).reduce((sum, row) => sum + (row.review_reports_used || 0), 0),
-        coauthor_certs_used: (data || []).reduce((sum, row) => sum + (row.coauthor_certs_used || 0), 0),
-      };
+      return data;
     },
-    enabled: !!user?.id,
+    enabled: !!user?.id && !!freePeriodKey,
   });
 
   const isPro = subscription?.plan_type === 'pro';
-  const plan = isPro ? 'pro' : 'free';
+  const plan: 'free' | 'pro' = isPro ? 'pro' : 'free';
 
-  // For Pro: use current month usage; For Free: use lifetime usage
   const reviewReportsUsed = isPro
     ? (usage?.review_reports_used ?? 0)
-    : (lifetimeUsage?.review_reports_used ?? 0);
+    : (freeUsage?.review_reports_used ?? 0);
   const coauthorCertsUsed = isPro
     ? (usage?.coauthor_certs_used ?? 0)
-    : (lifetimeUsage?.coauthor_certs_used ?? 0);
+    : (freeUsage?.coauthor_certs_used ?? 0);
 
   const reviewReportsLimit = isPro ? PRO_REVIEW_LIMIT : FREE_REVIEW_LIMIT;
   const coauthorCertsLimit = isPro ? PRO_COAUTHOR_LIMIT : 0;
@@ -116,25 +131,28 @@ export function useSubscription() {
     coauthorCertsLimit,
     canDownloadReport: reviewReportsUsed < reviewReportsLimit,
     canCreateCoauthorCert: isPro && coauthorCertsUsed < coauthorCertsLimit,
+    freePeriodKey,
   };
 
   return {
     subscription: info,
-    isLoading: subLoading || usageLoading || lifetimeLoading,
+    isLoading: subLoading || usageLoading || freeUsageLoading,
     currentMonth,
+    freePeriodKey,
   };
 }
 
 export async function incrementUsage(
   userId: string,
-  field: 'review_reports_used' | 'coauthor_certs_used'
+  field: 'review_reports_used' | 'coauthor_certs_used',
+  periodKey?: string,
 ) {
-  const currentMonth = getCurrentMonth();
+  const key = periodKey || getCurrentMonth();
 
   const { error } = await supabase.rpc('increment_plan_usage' as any, {
     p_user_id: userId,
     p_field: field,
-    p_usage_month: currentMonth,
+    p_usage_month: key,
   });
 
   if (error) {

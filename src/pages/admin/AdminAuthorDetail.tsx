@@ -112,8 +112,34 @@ export default function AdminAuthorDetail() {
   const monthReports = currentMonthRow?.review_reports_used || 0;
   const monthCerts = currentMonthRow?.coauthor_certs_used || 0;
 
+  // Free plan period (anchored to author signup day-of-month)
+  const freePeriodKey = React.useMemo(() => {
+    if (!author?.created_at) return null;
+    const signup = new Date(author.created_at);
+    const anchorDay = Math.min(Math.max(signup.getUTCDate(), 1), 28);
+    const now = new Date();
+    let start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), anchorDay));
+    if (start.getTime() > now.getTime()) {
+      start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, anchorDay));
+    }
+    return `${start.getUTCFullYear()}-${String(start.getUTCMonth() + 1).padStart(2, '0')}-${String(start.getUTCDate()).padStart(2, '0')}`;
+  }, [author?.created_at]);
+
+  const freePeriodRow = (usageRows || []).find(r => r.usage_month === freePeriodKey);
+  const freePeriodReports = freePeriodRow?.review_reports_used || 0;
+  const freePeriodCerts = freePeriodRow?.coauthor_certs_used || 0;
+
+
   const resetUsageMutation = useMutation({
-    mutationFn: async (scope: 'lifetime-reports' | 'month-reports' | 'lifetime-certs' | 'month-certs') => {
+    mutationFn: async (
+      scope:
+        | 'lifetime-reports'
+        | 'month-reports'
+        | 'lifetime-certs'
+        | 'month-certs'
+        | 'free-period-reports'
+        | 'free-period-certs',
+    ) => {
       if (scope === 'lifetime-reports') {
         const { error } = await supabase
           .from('plan_usage')
@@ -140,8 +166,23 @@ export default function AdminAuthorDetail() {
           .eq('user_id', authorId!)
           .eq('usage_month', currentMonth);
         if (error) throw error;
+      } else if (scope === 'free-period-reports' && freePeriodKey) {
+        const { error } = await supabase
+          .from('plan_usage')
+          .update({ review_reports_used: 0 })
+          .eq('user_id', authorId!)
+          .eq('usage_month', freePeriodKey);
+        if (error) throw error;
+      } else if (scope === 'free-period-certs' && freePeriodKey) {
+        const { error } = await supabase
+          .from('plan_usage')
+          .update({ coauthor_certs_used: 0 })
+          .eq('user_id', authorId!)
+          .eq('usage_month', freePeriodKey);
+        if (error) throw error;
       }
     },
+
     onSuccess: () => {
       refetchUsage();
       queryClient.invalidateQueries({ queryKey: ['plan-usage'] });
@@ -401,10 +442,13 @@ export default function AdminAuthorDetail() {
               </div>
             </GlassCard>
 
-            {/* Free Plan Downloads */}
+            {/* Free Plan Downloads (this period, anchored to signup date) */}
             <GlassCard>
               <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider">
-                Free Plan Downloads <span className="text-xs normal-case tracking-normal">(lifetime)</span>
+                Free Plan Downloads{' '}
+                <span className="text-xs normal-case tracking-normal">
+                  (this period{freePeriodKey ? `: since ${freePeriodKey}` : ''})
+                </span>
               </h3>
               <div className="space-y-4 text-sm">
                 <div>
@@ -413,7 +457,7 @@ export default function AdminAuthorDetail() {
                       <FileText className="w-3.5 h-3.5" /> Review Reports
                     </span>
                     <span className="font-medium">
-                      <span className="text-primary">{lifetimeReports}</span> / 2
+                      <span className="text-primary">{freePeriodReports}</span> / 2
                     </span>
                   </div>
                   <Button
@@ -421,21 +465,24 @@ export default function AdminAuthorDetail() {
                     variant="outline"
                     className="h-7 text-xs w-full"
                     onClick={() => {
-                      if (confirm('Reset Free plan lifetime review report usage to 0?')) {
-                        resetUsageMutation.mutate('lifetime-reports');
+                      if (confirm('Reset Free plan review report usage for this period to 0?')) {
+                        resetUsageMutation.mutate('free-period-reports');
                       }
                     }}
-                    disabled={resetUsageMutation.isPending || lifetimeReports === 0}
+                    disabled={resetUsageMutation.isPending || freePeriodReports === 0 || !freePeriodKey}
                   >
                     <RotateCcw className="w-3 h-3 mr-1" /> Reset Free Review Reports
                   </Button>
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    Lifetime total: {lifetimeReports}
+                  </p>
                 </div>
 
                 <div className="pt-3 border-t border-[hsl(var(--glass-border))]">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-muted-foreground">Co-author Certs</span>
                     <span className="font-medium">
-                      <span className="text-primary">{lifetimeCerts}</span>
+                      <span className="text-primary">{freePeriodCerts}</span>
                     </span>
                   </div>
                   <Button
@@ -443,17 +490,21 @@ export default function AdminAuthorDetail() {
                     variant="outline"
                     className="h-7 text-xs w-full"
                     onClick={() => {
-                      if (confirm('Reset Free plan lifetime co-author cert usage to 0?')) {
-                        resetUsageMutation.mutate('lifetime-certs');
+                      if (confirm('Reset Free plan co-author cert usage for this period to 0?')) {
+                        resetUsageMutation.mutate('free-period-certs');
                       }
                     }}
-                    disabled={resetUsageMutation.isPending || lifetimeCerts === 0}
+                    disabled={resetUsageMutation.isPending || freePeriodCerts === 0 || !freePeriodKey}
                   >
                     <RotateCcw className="w-3 h-3 mr-1" /> Reset Free Co-author Certs
                   </Button>
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    Lifetime total: {lifetimeCerts}
+                  </p>
                 </div>
               </div>
             </GlassCard>
+
 
             {/* Pro Plan Downloads */}
             <GlassCard>
@@ -520,7 +571,7 @@ export default function AdminAuthorDetail() {
                 const freeLimit = 2;
                 const proLimit = 5;
                 const reviewLimit = isPro ? proLimit : freeLimit;
-                const reviewUsed = isPro ? monthReports : lifetimeReports;
+                const reviewUsed = isPro ? monthReports : freePeriodReports;
                 const reviewExhausted = reviewUsed >= reviewLimit;
                 const submissionExhausted = !isPro && reviewExhausted;
                 return (
@@ -530,12 +581,13 @@ export default function AdminAuthorDetail() {
                       <span className="font-semibold">{totalTracked}</span>
                     </div>
                     <div className="flex items-center justify-between p-2 rounded-md bg-[hsl(var(--glass-bg))]">
-                      <span className="text-muted-foreground">Review reports ({isPro ? 'this month' : 'lifetime'})</span>
+                      <span className="text-muted-foreground">Review reports ({isPro ? 'this month' : 'this period'})</span>
                       <span className="font-semibold">{reviewUsed} / {reviewLimit}</span>
                     </div>
                     <div className="flex items-center justify-between p-2 rounded-md bg-[hsl(var(--glass-bg))]">
                       <span className="text-muted-foreground">Co-author certs</span>
-                      <span className="font-semibold">{isPro ? monthCerts : lifetimeCerts}</span>
+                      <span className="font-semibold">{isPro ? monthCerts : freePeriodCerts}</span>
+
                     </div>
                     <div className="pt-2 border-t border-[hsl(var(--glass-border))] space-y-2">
                       <div className="flex items-center justify-between">

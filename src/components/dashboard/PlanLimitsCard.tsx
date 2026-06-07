@@ -51,7 +51,8 @@ export function PlanLimitsCard() {
             </div>
             <span className="font-medium">
               {subscription.reviewReportsUsed}/{subscription.reviewReportsLimit}
-              {subscription.plan === 'free' ? ' (total)' : ' (monthly)'}
+              {subscription.plan === 'free' ? ' (this period)' : ' (monthly)'}
+
             </span>
           </div>
           <Progress value={reportPercent} className="h-2" />

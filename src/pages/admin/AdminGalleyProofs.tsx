@@ -15,6 +15,8 @@ import {
   Send,
   CheckCircle,
   Clock,
+  Trash2,
+
   RotateCcw,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -77,6 +79,30 @@ export default function AdminGalleyProofs() {
       }
     },
     onError: (err: any) => toast.error('Download failed: ' + err.message),
+  });
+
+  const removeFromGalleyMutation = useMutation({
+    mutationFn: async (articleId: string) => {
+      const { error } = await supabase
+        .from('articles')
+        .update({
+          galley_proof_status: null,
+          galley_proof_sent_at: null,
+          galley_proof_deadline: null,
+          galley_proof_word_url: null,
+          galley_proof_pdf_url: null,
+          galley_proof_revision_url: null,
+          galley_proof_consent: false,
+        } as any)
+        .eq('id', articleId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Removed from galley proofs list');
+      queryClient.invalidateQueries({ queryKey: ['admin-galley-proofs'] });
+    },
+    onError: (err: any) => toast.error('Remove failed: ' + err.message),
+
   });
 
   const filtered = articles?.filter((a: any) => {
@@ -231,6 +257,24 @@ export default function AdminGalleyProofs() {
                             >
                               <Eye className="w-3 h-3 mr-1" /> View
                             </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-destructive hover:text-destructive border-destructive/30"
+                              disabled={removeFromGalleyMutation.isPending}
+                              onClick={() => {
+                                if (
+                                  confirm(
+                                    `Remove "${article.title}" from the galley proofs list? This clears the galley proof state on the article but keeps the article itself.`,
+                                  )
+                                ) {
+                                  removeFromGalleyMutation.mutate(article.id);
+                                }
+                              }}
+                            >
+                              <Trash2 className="w-3 h-3 mr-1" /> Remove
+                            </Button>
+
                           </div>
                         </div>
                       </div>
