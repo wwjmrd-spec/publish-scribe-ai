@@ -156,8 +156,8 @@ serve(async (req) => {
 
       // Server-side quota enforcement (authors only; admins bypass)
       if (!isAdmin) {
-        const FREE_LIMIT = 2;   // lifetime
-        const PRO_LIMIT = 5;    // per month
+        const FREE_LIMIT = 2;   // per signup-anchored monthly period
+        const PRO_LIMIT = 5;    // per calendar month
 
         const { data: sub } = await supabase
           .from("user_subscriptions")
@@ -173,35 +173,43 @@ serve(async (req) => {
 
         let used = 0;
         let limit = FREE_LIMIT;
+        let periodKey: string;
 
         if (isPro) {
           const now = new Date();
-          const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+          periodKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
           limit = PRO_LIMIT;
-          const { data: monthRow } = await supabase
-            .from("plan_usage")
-            .select("review_reports_used")
-            .eq("user_id", userId)
-            .eq("usage_month", month)
-            .maybeSingle();
-          used = monthRow?.review_reports_used ?? 0;
         } else {
-          const { data: allRows } = await supabase
-            .from("plan_usage")
-            .select("review_reports_used")
-            .eq("user_id", userId);
-          used = (allRows || []).reduce(
-            (s, r: any) => s + (r.review_reports_used || 0),
-            0,
-          );
+          // Anchor to author signup date (profiles.created_at)
+          const { data: prof } = await supabase
+            .from("profiles")
+            .select("created_at")
+            .eq("id", userId)
+            .maybeSingle();
+          const signup = prof?.created_at ? new Date(prof.created_at) : new Date();
+          const anchorDay = Math.min(Math.max(signup.getUTCDate(), 1), 28);
+          const now = new Date();
+          let start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), anchorDay));
+          if (start.getTime() > now.getTime()) {
+            start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, anchorDay));
+          }
+          periodKey = `${start.getUTCFullYear()}-${String(start.getUTCMonth() + 1).padStart(2, "0")}-${String(start.getUTCDate()).padStart(2, "0")}`;
         }
+
+        const { data: periodRow } = await supabase
+          .from("plan_usage")
+          .select("review_reports_used")
+          .eq("user_id", userId)
+          .eq("usage_month", periodKey)
+          .maybeSingle();
+        used = periodRow?.review_reports_used ?? 0;
 
         if (used >= limit) {
           return new Response(
             JSON.stringify({
               error: isPro
                 ? `Monthly limit reached (${limit} review reports/month).`
-                : `You've used all ${limit} free review report downloads. Upgrade to Pro for more.`,
+                : `You've used all ${limit} free review report downloads for this period. Upgrade to Pro for more.`,
               quotaExceeded: true,
             }),
             { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -213,10 +221,11 @@ serve(async (req) => {
         const { error: rpcError } = await supabase.rpc("increment_plan_usage", {
           p_user_id: userId,
           p_field: "review_reports_used",
-          p_usage_month: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`,
+          p_usage_month: periodKey,
         });
         if (rpcError) console.error("increment_plan_usage failed:", rpcError.message);
       }
+
     } else if (fileType === "pending_review_report") {
       // Admin-only: preview the not-yet-approved review PDF stored on article_reviews
       if (!isAdmin) {
