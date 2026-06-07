@@ -571,7 +571,7 @@ export default function AdminAuthorDetail() {
                 const freeLimit = 2;
                 const proLimit = 5;
                 const reviewLimit = isPro ? proLimit : freeLimit;
-                const reviewUsed = isPro ? monthReports : lifetimeReports;
+                const reviewUsed = isPro ? monthReports : freePeriodReports;
                 const reviewExhausted = reviewUsed >= reviewLimit;
                 const submissionExhausted = !isPro && reviewExhausted;
                 return (
@@ -581,12 +581,13 @@ export default function AdminAuthorDetail() {
                       <span className="font-semibold">{totalTracked}</span>
                     </div>
                     <div className="flex items-center justify-between p-2 rounded-md bg-[hsl(var(--glass-bg))]">
-                      <span className="text-muted-foreground">Review reports ({isPro ? 'this month' : 'lifetime'})</span>
+                      <span className="text-muted-foreground">Review reports ({isPro ? 'this month' : 'this period'})</span>
                       <span className="font-semibold">{reviewUsed} / {reviewLimit}</span>
                     </div>
                     <div className="flex items-center justify-between p-2 rounded-md bg-[hsl(var(--glass-bg))]">
                       <span className="text-muted-foreground">Co-author certs</span>
-                      <span className="font-semibold">{isPro ? monthCerts : lifetimeCerts}</span>
+                      <span className="font-semibold">{isPro ? monthCerts : freePeriodCerts}</span>
+
                     </div>
                     <div className="pt-2 border-t border-[hsl(var(--glass-border))] space-y-2">
                       <div className="flex items-center justify-between">
