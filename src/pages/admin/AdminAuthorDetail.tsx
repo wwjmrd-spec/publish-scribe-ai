@@ -131,7 +131,15 @@ export default function AdminAuthorDetail() {
 
 
   const resetUsageMutation = useMutation({
-    mutationFn: async (scope: 'lifetime-reports' | 'month-reports' | 'lifetime-certs' | 'month-certs') => {
+    mutationFn: async (
+      scope:
+        | 'lifetime-reports'
+        | 'month-reports'
+        | 'lifetime-certs'
+        | 'month-certs'
+        | 'free-period-reports'
+        | 'free-period-certs',
+    ) => {
       if (scope === 'lifetime-reports') {
         const { error } = await supabase
           .from('plan_usage')
@@ -158,8 +166,23 @@ export default function AdminAuthorDetail() {
           .eq('user_id', authorId!)
           .eq('usage_month', currentMonth);
         if (error) throw error;
+      } else if (scope === 'free-period-reports' && freePeriodKey) {
+        const { error } = await supabase
+          .from('plan_usage')
+          .update({ review_reports_used: 0 })
+          .eq('user_id', authorId!)
+          .eq('usage_month', freePeriodKey);
+        if (error) throw error;
+      } else if (scope === 'free-period-certs' && freePeriodKey) {
+        const { error } = await supabase
+          .from('plan_usage')
+          .update({ coauthor_certs_used: 0 })
+          .eq('user_id', authorId!)
+          .eq('usage_month', freePeriodKey);
+        if (error) throw error;
       }
     },
+
     onSuccess: () => {
       refetchUsage();
       queryClient.invalidateQueries({ queryKey: ['plan-usage'] });
