@@ -257,6 +257,24 @@ export default function AdminGalleyProofs() {
                             >
                               <Eye className="w-3 h-3 mr-1" /> View
                             </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-destructive hover:text-destructive border-destructive/30"
+                              disabled={removeFromGalleyMutation.isPending}
+                              onClick={() => {
+                                if (
+                                  confirm(
+                                    `Remove "${article.title}" from the galley proofs list? This clears the galley proof state on the article but keeps the article itself.`,
+                                  )
+                                ) {
+                                  removeFromGalleyMutation.mutate(article.id);
+                                }
+                              }}
+                            >
+                              <Trash2 className="w-3 h-3 mr-1" /> Remove
+                            </Button>
+
                           </div>
                         </div>
                       </div>
