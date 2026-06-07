@@ -112,6 +112,24 @@ export default function AdminAuthorDetail() {
   const monthReports = currentMonthRow?.review_reports_used || 0;
   const monthCerts = currentMonthRow?.coauthor_certs_used || 0;
 
+  // Free plan period (anchored to author signup day-of-month)
+  const freePeriodKey = React.useMemo(() => {
+    if (!author?.created_at) return null;
+    const signup = new Date(author.created_at);
+    const anchorDay = Math.min(Math.max(signup.getUTCDate(), 1), 28);
+    const now = new Date();
+    let start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), anchorDay));
+    if (start.getTime() > now.getTime()) {
+      start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, anchorDay));
+    }
+    return `${start.getUTCFullYear()}-${String(start.getUTCMonth() + 1).padStart(2, '0')}-${String(start.getUTCDate()).padStart(2, '0')}`;
+  }, [author?.created_at]);
+
+  const freePeriodRow = (usageRows || []).find(r => r.usage_month === freePeriodKey);
+  const freePeriodReports = freePeriodRow?.review_reports_used || 0;
+  const freePeriodCerts = freePeriodRow?.coauthor_certs_used || 0;
+
+
   const resetUsageMutation = useMutation({
     mutationFn: async (scope: 'lifetime-reports' | 'month-reports' | 'lifetime-certs' | 'month-certs') => {
       if (scope === 'lifetime-reports') {
