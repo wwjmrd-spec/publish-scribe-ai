@@ -55,17 +55,20 @@ export async function buildFormattedPdfBlob(html: string, options: PaginationOpt
       if (index > 0) pdf.addPage();
 
       const canvas = await html2canvas(page, {
-        scale: 2,
+        scale: 3,
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
         logging: false,
+        letterRendering: true as any,
+        imageTimeout: 0,
         windowWidth: page.scrollWidth,
         windowHeight: page.scrollHeight,
       });
 
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.94);
-      pdf.addImage(dataUrl, 'JPEG', 0, 0, pageW, pageH);
+      // JPEG with high quality but balanced size; scale 3 gives crisp text on retina
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      pdf.addImage(dataUrl, 'JPEG', 0, 0, pageW, pageH, undefined, 'FAST');
     }
 
     return pdf.output('blob');
