@@ -194,6 +194,7 @@ export type Database = {
           publication_year: string | null
           publish_queue_added_at: string | null
           published_link: string | null
+          published_tier: string | null
           reason_of_research: string | null
           reference_number: string
           review_report_url: string | null
@@ -247,6 +248,7 @@ export type Database = {
           publication_year?: string | null
           publish_queue_added_at?: string | null
           published_link?: string | null
+          published_tier?: string | null
           reason_of_research?: string | null
           reference_number: string
           review_report_url?: string | null
@@ -300,6 +302,7 @@ export type Database = {
           publication_year?: string | null
           publish_queue_added_at?: string | null
           published_link?: string | null
+          published_tier?: string | null
           reason_of_research?: string | null
           reference_number?: string
           review_report_url?: string | null
