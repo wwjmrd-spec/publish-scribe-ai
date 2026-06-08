@@ -435,15 +435,23 @@ export default function AdminArticleDetail() {
           <div className="lg:col-span-2 space-y-6">
             {/* Author Details */}
             <GlassCard>
-              <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Author Details</h3>
+              <div className="flex items-center justify-between mb-3 gap-2">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Author Details</h3>
+                <ChangeAuthorButton
+                  articleId={article.id}
+                  currentAuthorId={article.author_id}
+                  currentLabel={(article.profiles as any)?.full_name || (article.profiles as any)?.email || ''}
+                />
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs text-muted-foreground">Full Name</label>
+                  <label className="text-xs text-muted-foreground">Submitted by (account)</label>
                   <p className="font-medium">{(article.profiles as any)?.full_name || 'N/A'}</p>
+                  <p className="text-xs text-muted-foreground">{(article.profiles as any)?.email || ''}</p>
                 </div>
                 <div>
-                  <label className="text-xs text-muted-foreground">Email</label>
-                  <p className="text-sm">{(article.profiles as any)?.email || 'N/A'}</p>
+                  <label className="text-xs text-muted-foreground">Display Name on Article</label>
+                  <p className="text-sm">{article.author_name || 'N/A'}</p>
                 </div>
                 <div>
                   <label className="text-xs text-muted-foreground">Country</label>
@@ -454,6 +462,31 @@ export default function AdminArticleDetail() {
                   <p className="text-sm">{(article.profiles as any)?.affiliation || 'N/A'}</p>
                 </div>
               </div>
+              {article.status === 'published' && (
+                <div className="mt-4 pt-4 border-t border-[hsl(var(--glass-border))]">
+                  <label className="text-xs text-muted-foreground block mb-1">Publication Tier (shown on public site)</label>
+                  <Select
+                    value={(article as any).published_tier || ''}
+                    onValueChange={async (val) => {
+                      const { error } = await supabase
+                        .from('articles')
+                        .update({ published_tier: val } as any)
+                        .eq('id', article.id);
+                      if (error) toast.error(error.message);
+                      else {
+                        toast.success(`Marked as ${val.toUpperCase()}`);
+                        queryClient.invalidateQueries({ queryKey: ['admin-article-detail', articleId] });
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-48"><SelectValue placeholder="Choose tier…" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="free">Free</SelectItem>
+                      <SelectItem value="paid">Paid</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </GlassCard>
 
             {/* Submission Details */}
