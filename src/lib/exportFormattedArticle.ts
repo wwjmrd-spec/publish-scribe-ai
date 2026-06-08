@@ -60,7 +60,6 @@ export async function buildFormattedPdfBlob(html: string, options: PaginationOpt
         allowTaint: true,
         backgroundColor: '#ffffff',
         logging: false,
-        letterRendering: true as any,
         imageTimeout: 0,
         windowWidth: page.scrollWidth,
         windowHeight: page.scrollHeight,
