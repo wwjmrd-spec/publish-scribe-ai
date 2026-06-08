@@ -1257,7 +1257,7 @@ serve(async (req) => {
 
     const { data: article, error: articleError } = await supabase
       .from("articles")
-      .select("*, profiles:author_id (full_name, email)")
+      .select("*, profiles:author_id (full_name, country, affiliation)")
       .eq("id", articleId)
       .single();
     if (articleError || !article) return jsonResponse({ error: "Article not found" }, 404);
@@ -1265,6 +1265,12 @@ serve(async (req) => {
       await supabase.from("articles").update({ formatting_status: "failed" }).eq("id", articleId);
       return jsonResponse({ error: "Article has no source DOCX" }, 400);
     }
+
+    // Fetch co-authors (we exclude email per privacy policy)
+    const { data: coAuthorsRows } = await supabase
+      .from("co_authors")
+      .select("name, affiliation")
+      .eq("article_id", articleId);
 
     // 1. Extract DOCX
     let extracted: { html: string; rawText: string; images: ExtractedImage[] };
@@ -1296,6 +1302,20 @@ serve(async (req) => {
         article.author_name || article.profiles?.full_name,
       );
     }
+
+    // OVERRIDE author info from Article Detail (excluding email) so the formatted
+    // PDF/DOCX always matches what the admin sees in the article record.
+    const profile: any = article.profiles || {};
+    const primaryName = (article.author_name || profile.full_name || meta.authors?.[0]?.name || "Author").trim();
+    const primaryDesignation = [profile.affiliation, article.country || profile.country]
+      .filter(Boolean).join(", ");
+    const overrideAuthors = [{ name: primaryName, designation: primaryDesignation }];
+    for (const c of coAuthorsRows ?? []) {
+      if (!c?.name) continue;
+      overrideAuthors.push({ name: c.name, designation: c.affiliation || "" });
+    }
+    meta.authors = overrideAuthors;
+    meta.correspondence = { name: primaryName, designation: primaryDesignation };
 
     // 4. Slice body
     const body = removeReferenceSection(sliceBodyBlocks(allBlocks, meta), meta);

@@ -7,13 +7,13 @@ export interface ReferralInfo {
   isIndian: boolean;
   totalReferred: number;
   totalRewarded: number;
-  currentTierDiscount: number;
-  nextTierDiscount: number | null;
-  referralsToNextTier: number;
+  referrerPct: number; // 15
+  refereePct: number;  // 10
   currencySymbol: string;
   discountCodes: Array<{
     code: string;
     discount_value: number;
+    discount_type: string;
     currency: string;
     is_active: boolean;
     used_count: number;
@@ -26,16 +26,6 @@ export interface ReferralInfo {
     created_at: string;
     rewarded_at: string | null;
   }>;
-}
-
-function getTierInfo(totalRewarded: number, isIndian: boolean) {
-  const tiers = isIndian
-    ? { t1: 500, t2: 1000, t3: 1500 }
-    : { t1: 10, t2: 30, t3: 50 };
-  if (totalRewarded >= 3) return { current: tiers.t3, next: null, remaining: 0 };
-  if (totalRewarded === 2) return { current: tiers.t2, next: tiers.t3, remaining: 1 };
-  if (totalRewarded === 1) return { current: tiers.t1, next: tiers.t2, remaining: 1 };
-  return { current: 0, next: tiers.t1, remaining: 1 };
 }
 
 export function useReferral() {
@@ -74,9 +64,9 @@ export function useReferral() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('discount_codes')
-        .select('code, discount_value, currency, is_active, used_count')
+        .select('code, discount_value, discount_type, currency, is_active, used_count')
         .eq('created_by', user!.id)
-        .like('code', 'REF-%')
+        .or('code.like.REF-%,code.like.WELCOME-%')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data ?? [];
@@ -87,7 +77,6 @@ export function useReferral() {
   const isIndian = profile?.is_indian ?? false;
   const totalReferred = referrals.length;
   const totalRewarded = referrals.filter((r: any) => r.reward_granted).length;
-  const tier = getTierInfo(totalRewarded, isIndian);
   const currencySymbol = isIndian ? '₹' : '$';
 
   const info: ReferralInfo = {
@@ -95,9 +84,8 @@ export function useReferral() {
     isIndian,
     totalReferred,
     totalRewarded,
-    currentTierDiscount: tier.current,
-    nextTierDiscount: tier.next,
-    referralsToNextTier: tier.remaining,
+    referrerPct: 15,
+    refereePct: 10,
     currencySymbol,
     discountCodes: discountCodes as any,
     referrals: referrals.map((r: any) => ({

@@ -1,79 +1,52 @@
-# Implementation Plan
+# Plan: Publications, Editor, Referral Overhaul
 
-This is a large multi-part request. I'll split it into 4 workstreams and ship in order.
+## 1. Recent Publications (home/public page)
+- New section listing published articles with a **Free** / **Paid** badge.
+- Each card links to the article abstract page (`/articles/:reference` or existing public route — confirm path during implementation).
+- DB: add `published_tier text` to `articles` (values: `free` | `paid`), default derived from existing logic (page_count <= 2 → free, else paid). Admin can override in Article Detail.
+- Admin UI: dropdown in `AdminArticleDetail.tsx` to set Free / Paid tag.
 
-## 1. Fix A4 / PDF pagination bug (one-word-per-line)
+## 2. PDF Export — fix blur & reduce file size
+- Current issue: `html2canvas` → JPEG @ scale 2 produces large, blurry pages.
+- Fix in `src/lib/exportFormattedArticle.ts`:
+  - Render text directly via jsPDF `html` API (or use vector text where possible) instead of rasterising each page.
+  - If rasterising must stay, drop scale to 1.5 and use JPEG quality 0.85 with sharper font rendering (set `letterRendering: true`, explicit `width`/`height` in mm).
+- Target: clearer text + ~40–60% smaller files.
 
-**Root cause**: In `formattedArticlePagination.ts`, when a paragraph doesn't fit on a page, the splitter falls back to splitting by individual words and wraps each word in its own `<p>` element. That's why the preview shows "implications / follow / directly. / If / burnout…" stacked vertically.
+## 3. Article Format pulls author info from Article Detail
+- In format-article flow, replace the manual author block with values read from `articles` row (`author_name`, `affiliation`, `country`, co-authors) — **exclude email**.
+- File: `supabase/functions/format-article/index.ts` and any client preview in `AdminFormatting.tsx`.
 
-**Fix**: Rewrite the overflow splitter to:
-- Measure how many words fit using a hidden measurement node with the same font/width as the page content area.
-- Emit at most 2 fragments per paragraph: the words that fit on the current page (joined as one `<p>`) and the remainder (one `<p>`) pushed to the next page.
-- Never wrap single words in their own block. Keep figures and tables atomic (already done).
-- Apply the same logic to headings (push whole heading to next page if it doesn't fit; never split).
+## 4. Editor fixes & additions (`src/components/ui/RichTextEditor.tsx`)
+- **Fix Clear Red Highlight** button — currently no-op. Implement removal of `<span style="background:...red...">` / `mark` wrappers in the current selection (or whole doc).
+- **Table tools**: add buttons to (a) insert row above/below, (b) insert column left/right, (c) delete row/column ("eraser"), (d) toggle header row.
 
-Also remove the lingering inline `background` highlight that's coming from the editor's selection styles leaking into the printed HTML (`ww-highlight` class) so PDF/preview are clean.
+## 5. Admin: reassign article author
+- In `AdminArticleDetail.tsx`, show the submitting author account (already partly visible) and add a **Change Author** action.
+- Backend: new edge function `admin-reassign-article` (admin only) that updates `articles.author_id`, `author_name`, `author_email` from selected profile, logs in `payment_activity`/audit.
 
-## 2. Galley Proof: PDF only
+## 6. Referral program — % based
+- New rules:
+  - Referrer earns **15% of friend's publication fee** as a discount code.
+  - Referred friend earns **10% off** their publication fee when applying the referrer's code at checkout.
+  - Applies to INR and USD equally; computed in the friend's own currency.
+  - Codes apply automatically to the article's publication fee at checkout (not just stored in wallet).
+- DB / logic changes:
+  - Change `check_referral_reward()` trigger: instead of fixed tiers (₹500/$10 etc.), compute `discount_value = round(fee_amount * 0.15)` from the friend's paid invoice in `payments` and create a percent or fixed code for the referrer.
+  - Referred friend's `WELCOME-` code becomes a **10% percent code** valid on their next publication fee.
+- UI:
+  - `Rewards.tsx`: replace tier ladder with: "Earn 15% back for every friend you refer. Friends get 10% off their publication fee."
+  - Show earned-amount history (₹/$) per referral.
+  - Remove "tier" copy from `useReferral.ts`.
+- Checkout: ensure `lookup_discount_code` + cart applies percent discount on publication fee row (already supports `percent` type — verify).
 
-- `SendGalleyProofDialog`: remove the Word upload field; only PDF upload allowed.
-- `AdminGalleyProofs` list: keep "Word" download button only when `galley_proof_word_url` already exists from legacy records; new sends won't populate it.
-- Author side (`GalleyProofReviewSection`): hide the "Download Word" button; "Upload Revised File" continues to accept `.docx`/`.pdf` (Word allowed only for revisions).
+## Technical notes
+- Migration adds: `articles.published_tier text`, updates `check_referral_reward` function, adds `discount_codes.discount_type='percent'` rows.
+- Edge function deploy: `format-article`, `admin-reassign-article` (new).
+- No new buckets/secrets needed.
 
-## 3. Galley Proof annotation workflow
+## Out of scope / confirm
+- "Recent Publications" placement: home page hero section vs. a dedicated `/publications` route? **Default: add to home page, plus full list at `/publications`.**
+- PDF target page size limit (e.g. < 2 MB for 10 pages)? **Default: aim for ~150 KB/page.**
 
-New flow:
-1. Author opens galley proof → sees inline PDF viewer with a **"Edit / Annotate Galley Proof"** button.
-2. Annotation UI: PDF rendered with `react-pdf`; author drags to select a region on a page; a comment panel slides in on the right where they type the requested change; multiple annotations supported; "Send to Admin" submits.
-3. Annotations are stored in a new `galley_proof_annotations` table:
-   ```
-   id, article_id, author_id, page_number, x, y, width, height,
-   selected_text, comment, status ('pending'|'applied'|'rejected'),
-   admin_note, created_at, resolved_at
-   ```
-4. Admin sees a new tab on `AdminGalleyProofs` → "Annotations" → list of pending annotations per article with thumbnail crop of the highlighted region + comment. Buttons: **Apply** (opens the formatted-article editor pre-scrolled to that text), **Reject** (with note), **Mark Applied**.
-5. When admin uploads the final corrected PDF + clicks **"Mark as Ready to Publish"**, annotations are auto-resolved and the article moves to the publication form step.
-
-Status column added to `articles`: `galley_proof_status` gains `revision_requested` (annotations pending) and `ready_to_publish`.
-
-## 4. Publication form in Publish Queue
-
-New page: `src/pages/admin/AdminPublicationForm.tsx` reachable from `AdminPublishQueue` via "Prepare Publication" button on each ready-to-publish article.
-
-Form fields (auto-filled from article + editable):
-- Article Title
-- Correspondence Author Name
-- Co-Authors (comma-separated)
-- Country
-- Subject
-- Description (short pitch)
-- Keywords
-- Year & Month
-- DOI
-- Abstract
-
-Plus the final publish-ready PDF download button. "Copy All as JSON" and "Copy field-by-field" buttons so admin can paste into the WWJMRD WordPress form. Saved to new `publication_form_data` table for record.
-
-## Files to add / edit
-
-**New**
-- `src/components/articles/GalleyProofAnnotator.tsx` (PDF + drag-to-highlight + comment panel)
-- `src/components/admin/GalleyProofAnnotationsPanel.tsx`
-- `src/pages/admin/AdminPublicationForm.tsx`
-- Migration: `galley_proof_annotations` table + `publication_form_data` table + extra status values
-
-**Edit**
-- `src/lib/formattedArticlePagination.ts` — fix overflow splitter
-- `src/components/admin/SendGalleyProofDialog.tsx` — remove Word
-- `src/components/articles/GalleyProofReviewSection.tsx` — hide Word download, open annotator
-- `src/pages/admin/AdminGalleyProofs.tsx` — annotations tab, hide Word for new
-- `src/pages/admin/AdminPublishQueue.tsx` — "Prepare Publication" button → route to form
-- `src/App.tsx` — new route
-
-## Ordering
-
-1. Land pagination fix + PDF-only galley change first (small, immediate win, both visible to user now).
-2. Land publication form page (independent, no PDF tooling).
-3. Land annotation workflow last (needs `react-pdf` + new tables + new admin UI; biggest piece).
-
-Approve and I'll execute steps 1 + 2 + 4 (migration) in this turn, then step 3 (annotation UI) in the follow-up so we can verify each piece. Or reply "all at once" to ship everything in a single pass.
+Reply "go" to build, or tell me what to adjust.

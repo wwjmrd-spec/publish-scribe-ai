@@ -45,6 +45,8 @@ import AdminPublishQueue from "./pages/admin/AdminPublishQueue";
 import AdminPublicationForm from "./pages/admin/AdminPublicationForm";
 import AdminSubmitForAuthor from "./pages/admin/AdminSubmitForAuthor";
 import NotFound from "./pages/NotFound";
+import PublicPublications from "./pages/PublicPublications";
+import PublicArticleAbstract from "./pages/PublicArticleAbstract";
 import { ReferralPopup } from "./components/referral/ReferralPopup";
 import { CookieConsent } from "./components/CookieConsent";
 import { CountryCollectionModal } from "./components/auth/CountryCollectionModal";
@@ -69,6 +71,8 @@ const App = () => (
         <MauticTrackingProvider>
           <Routes>
             <Route path="/" element={<Index />} />
+            <Route path="/publications" element={<PublicPublications />} />
+            <Route path="/articles/:reference" element={<PublicArticleAbstract />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             

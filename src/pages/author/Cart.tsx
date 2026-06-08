@@ -108,6 +108,36 @@ export default function Cart() {
     }).then(() => {});
   }, [user?.id]);
 
+  // Auto-apply latest unused referral/welcome discount code
+  useEffect(() => {
+    if (!user?.id || appliedDiscount) return;
+    (async () => {
+      const { data } = await supabase
+        .from('discount_codes')
+        .select('code, discount_type, discount_value, currency, is_active, used_count, end_date')
+        .eq('created_by', user.id)
+        .or('code.like.REF-%,code.like.WELCOME-%')
+        .eq('is_active', true)
+        .gt('end_date', new Date().toISOString())
+        .order('created_at', { ascending: false });
+      const fresh = (data ?? []).find((d: any) => (d.used_count ?? 0) === 0);
+      if (fresh) {
+        setDiscountCode(fresh.code);
+        setAppliedDiscount({
+          code: fresh.code,
+          value: Number(fresh.discount_value),
+          type: fresh.discount_type as 'percentage' | 'fixed',
+        });
+        toast({
+          title: 'Referral discount applied 🎁',
+          description: fresh.discount_type === 'percentage'
+            ? `${fresh.discount_value}% off — code ${fresh.code}`
+            : `${fresh.discount_value} off — code ${fresh.code}`,
+        });
+      }
+    })();
+  }, [user?.id]);
+
   // Handle PayPal return
   useEffect(() => {
     const paypalStatus = searchParams.get('paypal');

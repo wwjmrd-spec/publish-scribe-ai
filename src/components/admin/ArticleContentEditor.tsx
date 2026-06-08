@@ -313,6 +313,17 @@ export function ArticleContentEditor({
       if (table.querySelector('tr')?.children.length === 0) table.remove();
     } else if (action === 'delete-table') {
       table.remove();
+    } else if (action === 'toggle-header-row') {
+      const firstRow = table.querySelector('tr');
+      if (!firstRow) return;
+      const allTh = Array.from(firstRow.children).every((c) => c.tagName === 'TH');
+      Array.from(firstRow.children).forEach((cell) => {
+        const newTag = allTh ? 'td' : 'th';
+        const replacement = doc.createElement(newTag);
+        replacement.innerHTML = cell.innerHTML;
+        for (const attr of Array.from(cell.attributes)) replacement.setAttribute(attr.name, attr.value);
+        cell.replaceWith(replacement);
+      });
     } else if (action.startsWith('style-')) {
       const style = action.replace('style-', '');
       table.className = style;
@@ -335,15 +346,15 @@ export function ArticleContentEditor({
     const isRed = (val?: string | null) => {
       if (!val) return false;
       const v = val.trim().toLowerCase().replace(/\s+/g, '');
-      return /^(red|#ff0000|#f00|rgb\(255,0,0\)|rgba\(255,0,0,[\d.]+\))$/.test(v);
+      return /^(red|#dc2626|#ff0000|#f00|rgb\(255,0,0\)|rgba\(255,0,0,[\d.]+\)|rgb\(220,38,38\))$/.test(v);
     };
     let stripped = 0;
+    // 1) <span>/<font> with red FOREGROUND
     doc.body.querySelectorAll<HTMLElement>('span,font').forEach((el) => {
       const styleColor = el.style?.color || '';
       const attrColor = el.getAttribute('color') || '';
       if (isRed(styleColor) || isRed(attrColor)) {
         if (el.tagName === 'FONT' || (el.tagName === 'SPAN' && el.attributes.length <= 1)) {
-          // Unwrap completely
           const parent = el.parentNode;
           while (el.firstChild) parent?.insertBefore(el.firstChild, el);
           el.remove();
@@ -351,6 +362,25 @@ export function ArticleContentEditor({
           el.style.color = '';
           el.removeAttribute('color');
         }
+        stripped++;
+      }
+    });
+    // 2) Any element with red BACKGROUND (highlight)
+    doc.body.querySelectorAll<HTMLElement>('[style*="background"]').forEach((el) => {
+      const bg = el.style.backgroundColor || el.style.background || '';
+      if (isRed(bg)) {
+        el.style.backgroundColor = '';
+        el.style.background = '';
+        stripped++;
+      }
+    });
+    // 3) <mark> tags (tiptap highlight)
+    doc.body.querySelectorAll<HTMLElement>('mark').forEach((el) => {
+      const bg = el.style.backgroundColor || el.getAttribute('data-color') || '';
+      if (isRed(bg)) {
+        const parent = el.parentNode;
+        while (el.firstChild) parent?.insertBefore(el.firstChild, el);
+        el.remove();
         stripped++;
       }
     });
@@ -698,6 +728,8 @@ export function ArticleContentEditor({
                   <DropdownMenuItem onClick={() => tableAction('add-row-below')}><Plus className="w-4 h-4 mr-2" /> Add Row Below</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => tableAction('add-col-left')}><Plus className="w-4 h-4 mr-2" /> Add Column Left</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => tableAction('add-col-right')}><Plus className="w-4 h-4 mr-2" /> Add Column Right</DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => tableAction('toggle-header-row')}><PaintBucket className="w-4 h-4 mr-2" /> Toggle Header Row</DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => tableAction('delete-row')} className="text-red-600"><Minus className="w-4 h-4 mr-2" /> Delete Row</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => tableAction('delete-col')} className="text-red-600"><Minus className="w-4 h-4 mr-2" /> Delete Column</DropdownMenuItem>
