@@ -40,6 +40,7 @@ import {
 import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
 import { SendGalleyProofDialog } from '@/components/admin/SendGalleyProofDialog';
+import { ChangeAuthorButton } from '@/components/admin/ChangeAuthorButton';
 import { formatArticleStatus, getArticleStatusBadgeClass, MANUAL_ADMIN_STATUSES } from '@/lib/articleStatus';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
