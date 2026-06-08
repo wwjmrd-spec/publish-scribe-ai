@@ -16,6 +16,7 @@ import {
   Globe } from
 'lucide-react';
 import { useEffect } from 'react';
+import { RecentPublicationsSection } from './PublicPublications';
 
 const features = [
 {
@@ -190,6 +191,9 @@ export default function Index() {
           </div>
         </div>
       </section>
+
+      {/* Recent Publications */}
+      <RecentPublicationsSection />
 
       {/* How It Works */}
       <section className="py-20 px-4">
