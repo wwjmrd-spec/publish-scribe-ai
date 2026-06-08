@@ -729,6 +729,8 @@ export function ArticleContentEditor({
                   <DropdownMenuItem onClick={() => tableAction('add-col-left')}><Plus className="w-4 h-4 mr-2" /> Add Column Left</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => tableAction('add-col-right')}><Plus className="w-4 h-4 mr-2" /> Add Column Right</DropdownMenuItem>
                   <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => tableAction('toggle-header-row')}><PaintBucket className="w-4 h-4 mr-2" /> Toggle Header Row</DropdownMenuItem>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => tableAction('delete-row')} className="text-red-600"><Minus className="w-4 h-4 mr-2" /> Delete Row</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => tableAction('delete-col')} className="text-red-600"><Minus className="w-4 h-4 mr-2" /> Delete Column</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => tableAction('delete-table')} className="text-red-600"><Trash2 className="w-4 h-4 mr-2" /> Delete Table</DropdownMenuItem>
