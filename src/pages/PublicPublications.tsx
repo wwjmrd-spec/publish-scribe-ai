@@ -75,9 +75,53 @@ export default function PublicPublications() {
   );
 }
 
-export function RecentPublicationsSection() {
-  const { data: items = [], isLoading } = useRecentPublications(6);
+interface RecentPublicationsSectionProps {
+  variant?: 'page' | 'embedded';
+  limit?: number;
+}
+
+export function RecentPublicationsSection({ variant = 'page', limit = 6 }: RecentPublicationsSectionProps = {}) {
+  const { data: items = [], isLoading } = useRecentPublications(limit);
   if (isLoading || items.length === 0) return null;
+
+  const grid = (
+    <>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        {items.map((a) => (
+          <Link key={a.id} to={`/articles/${encodeURIComponent(a.reference_number)}`}>
+            <GlassCard hover className="h-full flex flex-col">
+              <div className="flex items-center justify-between mb-2">
+                <Badge variant={a.published_tier === 'free' ? 'secondary' : 'default'}>
+                  {a.published_tier === 'free' ? 'Free' : 'Paid'}
+                </Badge>
+                <span className="text-xs text-muted-foreground font-mono">{a.reference_number}</span>
+              </div>
+              <h3 className="font-display text-base font-semibold line-clamp-3 mb-2">{a.title}</h3>
+              {a.abstract && <p className="text-xs text-muted-foreground line-clamp-3">{a.abstract}</p>}
+              <div className="mt-auto pt-3 text-xs text-muted-foreground truncate">{a.author_name || ''}</div>
+            </GlassCard>
+          </Link>
+        ))}
+      </div>
+      <div className="text-center mt-6">
+        <Link to="/publications">
+          <Button variant="outline">View All Publications</Button>
+        </Link>
+      </div>
+    </>
+  );
+
+  if (variant === 'embedded') {
+    return (
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-display text-xl font-semibold">Recent Publications</h2>
+        </div>
+        {grid}
+      </div>
+    );
+  }
+
   return (
     <section className="py-20 px-4">
       <div className="container mx-auto">
@@ -87,28 +131,7 @@ export function RecentPublicationsSection() {
           </h2>
           <p className="text-muted-foreground">Browse the latest research published in WWJMRD</p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {items.map((a) => (
-            <Link key={a.id} to={`/articles/${encodeURIComponent(a.reference_number)}`}>
-              <GlassCard hover className="h-full flex flex-col">
-                <div className="flex items-center justify-between mb-2">
-                  <Badge variant={a.published_tier === 'free' ? 'secondary' : 'default'}>
-                    {a.published_tier === 'free' ? 'Free' : 'Paid'}
-                  </Badge>
-                  <span className="text-xs text-muted-foreground font-mono">{a.reference_number}</span>
-                </div>
-                <h3 className="font-display text-base font-semibold line-clamp-3 mb-2">{a.title}</h3>
-                {a.abstract && <p className="text-xs text-muted-foreground line-clamp-3">{a.abstract}</p>}
-                <div className="mt-auto pt-3 text-xs text-muted-foreground truncate">{a.author_name || ''}</div>
-              </GlassCard>
-            </Link>
-          ))}
-        </div>
-        <div className="text-center mt-8">
-          <Link to="/publications">
-            <Button variant="outline">View All Publications</Button>
-          </Link>
-        </div>
+        {grid}
       </div>
     </section>
   );
