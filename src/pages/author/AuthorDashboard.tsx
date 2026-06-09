@@ -187,6 +187,18 @@ export default function AuthorDashboard() {
         </motion.div>
       </div>
 
+      {/* Recent Publications */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.27 }}
+        className="mb-8"
+      >
+        <GlassCard>
+          <RecentPublicationsSection variant="embedded" />
+        </GlassCard>
+      </motion.div>
+
       {/* Plan Limits */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
