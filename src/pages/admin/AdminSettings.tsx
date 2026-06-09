@@ -54,6 +54,8 @@ export default function AdminSettings() {
   const [model, setModel] = useState("gemini-2.5-flash");
   const [aiBackups, setAiBackups] = useState<AiBackup[]>([]);
   const [savingAi, setSavingAi] = useState(false);
+  const [aiStatus, setAiStatus] = useState<ProviderStatusPayload | null>(null);
+  const [loadingStatus, setLoadingStatus] = useState(false);
 
   // Thresholds
   const [acceptThreshold, setAcceptThreshold] = useState("70");
