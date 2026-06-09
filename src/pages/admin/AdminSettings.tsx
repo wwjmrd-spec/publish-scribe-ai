@@ -8,7 +8,24 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Brain, Mail, SendHorizonal, AlertTriangle, CheckCircle2, Plus, Trash2 } from "lucide-react";
+import { Loader2, Brain, Mail, SendHorizonal, AlertTriangle, CheckCircle2, Plus, Trash2, RefreshCw, Activity } from "lucide-react";
+
+type ProviderStatusEntry = {
+  index: number;
+  label: string;
+  provider: string;
+  model: string;
+  status: "ok" | "rate_limited" | "quota_exhausted" | "error" | "unknown";
+  http_status?: number;
+  message?: string;
+  last_attempt_at?: string;
+  last_success_at?: string;
+};
+type ProviderStatusPayload = {
+  active_index: number | null;
+  updated_at: string;
+  providers: ProviderStatusEntry[];
+};
 
 const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash", "gemini-2.0-flash-lite"];
 
