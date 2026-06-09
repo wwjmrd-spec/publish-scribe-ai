@@ -114,6 +114,30 @@ export default function AdminSettings() {
     })();
   }, []);
 
+  const loadAiStatus = async () => {
+    setLoadingStatus(true);
+    try {
+      const { data } = await supabase
+        .from("admin_settings")
+        .select("setting_value")
+        .eq("setting_key", "ai_provider_status")
+        .maybeSingle();
+      if (data?.setting_value) {
+        try { setAiStatus(JSON.parse(data.setting_value)); } catch (_) { setAiStatus(null); }
+      } else {
+        setAiStatus(null);
+      }
+    } finally {
+      setLoadingStatus(false);
+    }
+  };
+
+  useEffect(() => {
+    loadAiStatus();
+    const t = setInterval(loadAiStatus, 15000);
+    return () => clearInterval(t);
+  }, []);
+
   const saveSetting = async (key: string, value: string) => {
     const { data: existing } = await supabase
       .from("admin_settings").select("id").eq("setting_key", key).maybeSingle();
