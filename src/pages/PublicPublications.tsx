@@ -14,11 +14,11 @@ export function useRecentPublications(limit = 12) {
   return useQuery({
     queryKey: ['public-publications', limit],
     queryFn: async () => {
-      const { data, error } = await supabase
+        const { data, error } = await supabase
         .from('articles')
         .select('id, reference_number, title, abstract, author_name, country, published_tier, publication_year, volume, issue, updated_at')
         .eq('status', 'published')
-        .order('updated_at', { ascending: false })
+        .order('created_at', { ascending: false })
         .limit(limit);
       if (error) throw error;
       return data ?? [];
