@@ -1,7 +1,10 @@
 // Shared AI gateway helper with backup-provider fallback chain.
-// Admin can configure a primary provider in `admin_settings` plus a JSON list
-// of backups in `ai_backup_chain`. If the primary returns 429/402/5xx, we
-// transparently retry through each backup before surfacing the error.
+// Admin configures a primary provider plus a JSON list of backups in
+// `admin_settings`. On every call we try the primary, then walk each
+// backup if the previous one returns a retryable status (429/402/5xx)
+// or throws. After each attempt we persist provider health to
+// `admin_settings.ai_provider_status` so the admin UI can show which
+// provider is active and which are rate-limited.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -12,6 +15,9 @@ export interface AiGatewayConfig {
   url: string;
   apiKey: string;
   model: string;
+  // Stable label / index for status reporting (set by loadChain).
+  _label?: string;
+  _index?: number;
 }
 
 const DEFAULT_MODELS: Record<AiProvider, string> = {
@@ -53,15 +59,20 @@ function buildCfg(provider: string, apiKey: string, model?: string): AiGatewayCo
 
 let cachedChain: AiGatewayConfig[] | null = null;
 let cachedAt = 0;
+const CACHE_TTL_MS = 10_000;
 
-async function loadChain(): Promise<AiGatewayConfig[]> {
-  const now = Date.now();
-  if (cachedChain && now - cachedAt < 30_000) return cachedChain;
-
-  const sb = createClient(
+function getServiceClient() {
+  return createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
+}
+
+async function loadChain(): Promise<AiGatewayConfig[]> {
+  const now = Date.now();
+  if (cachedChain && now - cachedAt < CACHE_TTL_MS) return cachedChain;
+
+  const sb = getServiceClient();
   const { data } = await sb
     .from("admin_settings")
     .select("setting_key, setting_value")
@@ -72,7 +83,11 @@ async function loadChain(): Promise<AiGatewayConfig[]> {
 
   const chain: AiGatewayConfig[] = [];
   const primary = buildCfg(map.ai_provider || "gemini", map.ai_api_key || "", map.ai_model);
-  if (primary) chain.push(primary);
+  if (primary) {
+    primary._label = `Primary (${primary.provider}/${primary.model})`;
+    primary._index = 0;
+    chain.push(primary);
+  }
 
   if (map.ai_backup_chain) {
     try {
@@ -80,7 +95,11 @@ async function loadChain(): Promise<AiGatewayConfig[]> {
       if (Array.isArray(arr)) {
         for (const item of arr) {
           const cfg = buildCfg(item?.provider, item?.api_key, item?.model);
-          if (cfg) chain.push(cfg);
+          if (cfg) {
+            cfg._index = chain.length;
+            cfg._label = `Backup #${chain.length} (${cfg.provider}/${cfg.model})`;
+            chain.push(cfg);
+          }
         }
       }
     } catch (_) { /* ignore malformed */ }
@@ -89,6 +108,11 @@ async function loadChain(): Promise<AiGatewayConfig[]> {
   cachedChain = chain;
   cachedAt = now;
   return chain;
+}
+
+export function invalidateAiChainCache() {
+  cachedChain = null;
+  cachedAt = 0;
 }
 
 export async function getAiGatewayConfig(): Promise<AiGatewayConfig> {
@@ -116,29 +140,145 @@ async function callOnce(cfg: AiGatewayConfig, payload: Record<string, unknown>):
 
 const RETRYABLE = (status: number) => status === 429 || status === 402 || status >= 500;
 
+// ----- Provider status reporting --------------------------------------------
+
+type ProviderStatusEntry = {
+  index: number;
+  label: string;
+  provider: string;
+  model: string;
+  status: "ok" | "rate_limited" | "quota_exhausted" | "error" | "unknown";
+  http_status?: number;
+  message?: string;
+  last_attempt_at?: string;
+  last_success_at?: string;
+};
+
+let pendingStatuses = new Map<number, ProviderStatusEntry>();
+let activeIndex: number | null = null;
+let flushTimer: number | null = null;
+
+function classify(httpStatus?: number, errMsg?: string): ProviderStatusEntry["status"] {
+  if (errMsg && !httpStatus) return "error";
+  if (!httpStatus) return "unknown";
+  if (httpStatus === 429) return "rate_limited";
+  if (httpStatus === 402) return "quota_exhausted";
+  if (httpStatus >= 200 && httpStatus < 300) return "ok";
+  return "error";
+}
+
+function recordStatus(
+  cfg: AiGatewayConfig,
+  ok: boolean,
+  httpStatus?: number,
+  errMsg?: string,
+) {
+  const idx = cfg._index ?? 0;
+  const entry: ProviderStatusEntry = {
+    index: idx,
+    label: cfg._label ?? `${cfg.provider}/${cfg.model}`,
+    provider: cfg.provider,
+    model: cfg.model,
+    status: classify(httpStatus, errMsg),
+    http_status: httpStatus,
+    message: errMsg?.slice(0, 200),
+    last_attempt_at: new Date().toISOString(),
+    last_success_at: ok ? new Date().toISOString() : pendingStatuses.get(idx)?.last_success_at,
+  };
+  pendingStatuses.set(idx, entry);
+  if (ok) activeIndex = idx;
+  scheduleFlush();
+}
+
+function scheduleFlush() {
+  if (flushTimer !== null) return;
+  flushTimer = setTimeout(flushStatuses, 500) as unknown as number;
+}
+
+async function flushStatuses() {
+  flushTimer = null;
+  if (pendingStatuses.size === 0) return;
+  try {
+    const sb = getServiceClient();
+    // merge with existing
+    const { data: existing } = await sb
+      .from("admin_settings")
+      .select("setting_value")
+      .eq("setting_key", "ai_provider_status")
+      .maybeSingle();
+
+    let merged: Record<string, ProviderStatusEntry> = {};
+    if (existing?.setting_value) {
+      try {
+        const parsed = JSON.parse(existing.setting_value);
+        if (parsed && Array.isArray(parsed.providers)) {
+          for (const p of parsed.providers) merged[String(p.index)] = p;
+        }
+      } catch (_) { /* ignore */ }
+    }
+    for (const [idx, entry] of pendingStatuses) merged[String(idx)] = entry;
+    pendingStatuses.clear();
+
+    const providers = Object.values(merged).sort((a, b) => a.index - b.index);
+    const payload = {
+      active_index: activeIndex,
+      updated_at: new Date().toISOString(),
+      providers,
+    };
+    const value = JSON.stringify(payload);
+
+    const { data: existsRow } = await sb
+      .from("admin_settings").select("id").eq("setting_key", "ai_provider_status").maybeSingle();
+    if (existsRow) {
+      await sb.from("admin_settings")
+        .update({ setting_value: value, updated_at: new Date().toISOString() })
+        .eq("id", existsRow.id);
+    } else {
+      await sb.from("admin_settings").insert({ setting_key: "ai_provider_status", setting_value: value });
+    }
+  } catch (e) {
+    console.error("flushStatuses failed", e);
+  }
+}
+
+// ----- Public API -----------------------------------------------------------
+
 /**
- * POSTs an OpenAI-compatible chat completion payload. If the given primary cfg
- * returns a retryable status (rate limit, payment required, 5xx), we walk the
- * admin-configured backup chain and return the first OK response. If none
- * succeed, the last response is returned (so callers can inspect the status).
+ * POSTs an OpenAI-compatible chat completion payload. If the supplied cfg
+ * returns a retryable status (rate limit, payment required, 5xx) or throws,
+ * we walk every other entry in the admin-configured chain before returning
+ * the last response. Provider status is persisted to admin_settings so the
+ * admin UI can show which provider is active vs rate-limited.
  */
 export async function aiChatCompletion(
   cfg: AiGatewayConfig,
   payload: Record<string, unknown>,
 ): Promise<Response> {
+  // Ensure the cfg has chain metadata (callers from getAiGatewayConfig already do).
+  if (cfg._index === undefined) {
+    const chain = await loadChain();
+    const match = chain.find(
+      (c) => c.provider === cfg.provider && c.apiKey === cfg.apiKey && c.model === cfg.model,
+    );
+    if (match) { cfg._index = match._index; cfg._label = match._label; }
+    else { cfg._index = 0; cfg._label = `${cfg.provider}/${cfg.model}`; }
+  }
+
   let lastResp: Response | null = null;
   let lastErr: unknown = null;
 
   // Try the supplied cfg first.
   try {
     const r = await callOnce(cfg, payload);
+    recordStatus(cfg, r.ok, r.status);
     if (r.ok || !RETRYABLE(r.status)) return r;
     lastResp = r;
   } catch (e) {
     lastErr = e;
+    recordStatus(cfg, false, undefined, e instanceof Error ? e.message : String(e));
   }
 
-  // Then walk the chain, skipping any entry that matches the cfg we already tried.
+  // Walk chain, skipping the one we already tried.
   let chain: AiGatewayConfig[] = [];
   try { chain = await loadChain(); } catch (_) { /* ignore */ }
 
@@ -148,14 +288,16 @@ export async function aiChatCompletion(
     }
     try {
       const r = await callOnce(backup, payload);
+      recordStatus(backup, r.ok, r.status);
       if (r.ok) {
-        console.log(`AI fallback: switched from ${cfg.provider}/${cfg.model} to ${backup.provider}/${backup.model}`);
+        console.log(`AI fallback: ${cfg._label} → ${backup._label}`);
         return r;
       }
       if (!RETRYABLE(r.status)) return r;
       lastResp = r;
     } catch (e) {
       lastErr = e;
+      recordStatus(backup, false, undefined, e instanceof Error ? e.message : String(e));
     }
   }
 
