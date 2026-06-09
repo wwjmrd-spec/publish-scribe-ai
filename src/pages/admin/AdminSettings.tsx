@@ -364,6 +364,66 @@ export default function AdminSettings() {
               ))}
             </GlassCard>
 
+            <GlassCard className="p-6 space-y-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="font-semibold flex items-center gap-2">
+                    <Activity className="w-4 h-4" /> Live Provider Status
+                  </h2>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Shows which AI provider was used last and which are rate-limited or unavailable.
+                    The system automatically rotates through the chain on failures.
+                  </p>
+                </div>
+                <Button type="button" variant="outline" size="sm" onClick={loadAiStatus} disabled={loadingStatus}>
+                  <RefreshCw className={`w-4 h-4 mr-1 ${loadingStatus ? "animate-spin" : ""}`} /> Refresh
+                </Button>
+              </div>
+
+              {!aiStatus || aiStatus.providers.length === 0 ? (
+                <p className="text-xs text-muted-foreground italic">
+                  No status recorded yet. Run any AI feature (review, format, subject generation) to populate status.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {aiStatus.providers.map((p) => {
+                    const isActive = aiStatus.active_index === p.index;
+                    const color =
+                      p.status === "ok" ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30" :
+                      p.status === "rate_limited" ? "bg-amber-500/15 text-amber-300 border-amber-500/30" :
+                      p.status === "quota_exhausted" ? "bg-rose-500/15 text-rose-300 border-rose-500/30" :
+                      p.status === "error" ? "bg-red-500/15 text-red-300 border-red-500/30" :
+                      "bg-muted/20 text-muted-foreground border-border";
+                    const label =
+                      p.status === "ok" ? "Working" :
+                      p.status === "rate_limited" ? "Rate-limited (429)" :
+                      p.status === "quota_exhausted" ? "Quota exhausted (402)" :
+                      p.status === "error" ? `Error${p.http_status ? ` (${p.http_status})` : ""}` :
+                      "Unknown";
+                    return (
+                      <div key={p.index} className={`rounded-md border p-3 flex items-center justify-between gap-3 ${color}`}>
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium truncate">
+                            {p.label}{isActive && <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-200 border border-emerald-500/40">ACTIVE</span>}
+                          </div>
+                          {p.message && <div className="text-xs opacity-80 truncate mt-0.5">{p.message}</div>}
+                          <div className="text-[10px] opacity-70 mt-0.5">
+                            Last attempt: {p.last_attempt_at ? new Date(p.last_attempt_at).toLocaleString() : "—"}
+                            {p.last_success_at && ` · Last success: ${new Date(p.last_success_at).toLocaleString()}`}
+                          </div>
+                        </div>
+                        <span className="text-xs font-semibold whitespace-nowrap">{label}</span>
+                      </div>
+                    );
+                  })}
+                  <div className="text-[10px] text-muted-foreground">
+                    Updated {aiStatus.updated_at ? new Date(aiStatus.updated_at).toLocaleString() : "—"} · auto-refresh every 15s
+                  </div>
+                </div>
+              )}
+            </GlassCard>
+
+
             <div className="flex justify-end">
               <Button onClick={saveAi} disabled={savingAi}>
                 {savingAi && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
