@@ -19,6 +19,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import { PlanLimitsCard } from '@/components/dashboard/PlanLimitsCard';
+import { RecentPublicationsSection } from '@/pages/PublicPublications';
 
 export default function AuthorDashboard() {
   const { user, isIndian } = useAuth();
@@ -185,6 +186,18 @@ export default function AuthorDashboard() {
           </GlassCard>
         </motion.div>
       </div>
+
+      {/* Recent Publications */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.27 }}
+        className="mb-8"
+      >
+        <GlassCard>
+          <RecentPublicationsSection variant="embedded" />
+        </GlassCard>
+      </motion.div>
 
       {/* Plan Limits */}
       <motion.div
