@@ -313,6 +313,14 @@ const App = () => (
               } 
             />
             <Route 
+              path="/admin/email-templates" 
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminEmailTemplates />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
               path="/admin/pro-subscribers" 
               element={
                 <ProtectedRoute allowedRoles={['admin']}>
