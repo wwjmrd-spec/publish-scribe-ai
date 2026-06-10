@@ -38,6 +38,7 @@ import AdminBugReports from "./pages/admin/AdminBugReports";
 import AdminRevenue from "./pages/admin/AdminRevenue";
 import AdminPaymentActivity from "./pages/admin/AdminPaymentActivity";
 import AdminEmailLog from "./pages/admin/AdminEmailLog";
+import AdminEmailTemplates from "./pages/admin/AdminEmailTemplates";
 import AdminProSubscribers from "./pages/admin/AdminProSubscribers";
 import AdminAISettings from "./pages/admin/AdminAISettings";
 import AdminSettings from "./pages/admin/AdminSettings";
@@ -308,6 +309,14 @@ const App = () => (
               element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <AdminEmailLog />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/email-templates" 
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminEmailTemplates />
                 </ProtectedRoute>
               } 
             />

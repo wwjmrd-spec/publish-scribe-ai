@@ -21,10 +21,9 @@ serve(async (req: Request) => {
     const token = authHeader?.replace("Bearer ", "");
 
     if (!token) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -32,33 +31,24 @@ serve(async (req: Request) => {
     const isAnon = token === anonKey;
     let isAdminUser = false;
 
-    // If not service role and not anon (cron), verify the user is an admin
     if (!isServiceRole && !isAnon) {
       const authClient = createClient(supabaseUrl, supabaseKey, {
-        global: { headers: { Authorization: authHeader! } }
+        global: { headers: { Authorization: authHeader! } },
       });
       const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(token);
       if (claimsError || !claimsData?.claims) {
-        return new Response(
-          JSON.stringify({ error: "Unauthorized" }),
-          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
-
       const userId = claimsData.claims.sub as string;
       const adminCheck = createClient(supabaseUrl, serviceRoleKey);
       const { data: roleData } = await adminCheck
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", userId)
-        .eq("role", "admin")
-        .single();
-
+        .from("user_roles").select("role").eq("user_id", userId).eq("role", "admin").single();
       if (!roleData) {
-        return new Response(
-          JSON.stringify({ error: "Unauthorized" }),
-          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
       isAdminUser = true;
     }
@@ -68,94 +58,70 @@ serve(async (req: Request) => {
     const body = await req.json().catch(() => ({}));
     const { articleId, all, force } = body as { articleId?: string; all?: boolean; force?: boolean };
 
-    // Fetch reminder settings
     const { data: settingsRow } = await supabase
       .from("reminder_settings")
-      .select("frequency_hours, max_days")
-      .limit(1)
-      .single();
+      .select("frequency_hours, max_days, min_article_age_days, max_article_age_days, email_provider_override, email_from_override")
+      .limit(1).single();
 
     const frequencyHours = settingsRow?.frequency_hours ?? 24;
-    const maxDays = settingsRow?.max_days ?? 2;
+    const legacyMaxDays = settingsRow?.max_days ?? 2;
+    const minAge = settingsRow?.min_article_age_days ?? 0;
+    const maxAge = settingsRow?.max_article_age_days ?? Math.max(legacyMaxDays, 30);
+    const providerOverride = settingsRow?.email_provider_override || undefined;
+    const fromOverride = settingsRow?.email_from_override || undefined;
 
-    // Admin manual calls bypass cutoff & frequency throttling by default
     const bypassWindow = isAdminUser || force === true;
+    const now = new Date();
 
     let articles: any[] = [];
 
     if (articleId) {
-      // Manual trigger: send reminder for a specific article
       const { data, error } = await supabase
         .from("articles")
         .select("id, title, reference_number, author_id, status, updated_at, page_count, profiles:author_id (full_name, email)")
         .eq("id", articleId)
         .in("status", ["pending_fee", "manuscript_accepted"])
         .single();
-
       if (error || !data) {
-        return new Response(
-          JSON.stringify({ error: "Article not found or not in pending_fee/manuscript_accepted status" }),
-          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-        );
+        return new Response(JSON.stringify({ error: "Article not found or not in pending_fee/manuscript_accepted status" }),
+          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } });
       }
-
-      if (!bypassWindow) {
-        const statusChangedAt = new Date(data.updated_at);
-        const cutoffDate = new Date(statusChangedAt.getTime() + maxDays * 24 * 60 * 60 * 1000);
-        if (new Date() > cutoffDate) {
-          return new Response(
-            JSON.stringify({ error: `Reminder window expired (max ${maxDays} days after pending_fee)` }),
-            { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-          );
-        }
-      }
-
       articles = [data];
     } else {
-      // Bulk / auto trigger: all articles in pending_fee or manuscript_accepted.
-      // Admin "all=true" bulk action ignores page_count filter & cutoff window.
       let query = supabase
         .from("articles")
         .select("id, title, reference_number, author_id, status, updated_at, page_count, profiles:author_id (full_name, email)")
         .in("status", ["pending_fee", "manuscript_accepted"]);
 
-      // Cron path keeps page_count > 2 filter; admin bulk-all sends to everyone
       if (!(isAdminUser && all)) {
         query = query.gt("page_count", 2);
       }
 
       const { data, error } = await query;
-      if (error) {
-        console.error("Error fetching articles:", error);
-        throw error;
-      }
+      if (error) throw error;
 
-      const now = new Date();
       const frequencyMs = frequencyHours * 60 * 60 * 1000;
       const frequencyAgo = new Date(now.getTime() - frequencyMs).toISOString();
 
-      const filteredArticles = [];
+      const filtered: any[] = [];
       for (const art of (data || [])) {
         if (!bypassWindow) {
           const statusChangedAt = new Date(art.updated_at);
-          const cutoffDate = new Date(statusChangedAt.getTime() + maxDays * 24 * 60 * 60 * 1000);
-          if (now > cutoffDate) continue;
+          const ageDays = (now.getTime() - statusChangedAt.getTime()) / 86400000;
+          if (ageDays < minAge) continue;
+          if (ageDays > maxAge) continue;
 
           const { data: recentReminder } = await supabase
             .from("payment_reminders")
-            .select("id")
-            .eq("article_id", art.id)
-            .gte("sent_at", frequencyAgo)
-            .limit(1);
-
+            .select("id").eq("article_id", art.id).gte("sent_at", frequencyAgo).limit(1);
           if (recentReminder && recentReminder.length > 0) continue;
         }
-        filteredArticles.push(art);
+        filtered.push(art);
       }
-      articles = filteredArticles;
+      articles = filtered;
     }
 
-    console.log(`Found ${articles.length} article(s) to send payment reminders for (frequency: ${frequencyHours}h, max: ${maxDays} days)`);
+    console.log(`Sending payment reminders for ${articles.length} article(s). freq=${frequencyHours}h, minAge=${minAge}d, maxAge=${maxAge}d, provider=${providerOverride || 'default'}`);
 
     let sentCount = 0;
     const errors: string[] = [];
@@ -166,16 +132,17 @@ serve(async (req: Request) => {
         errors.push(`No email for article ${article.reference_number}`);
         continue;
       }
-
       try {
         const pageCount = (article as any).page_count || 0;
-        const pageMessage = pageCount > 2 
+        const pageMessage = pageCount > 2
           ? ` Your article has ${pageCount} pages, which exceeds the 2-page free publication limit.`
           : '';
         const { error: emailError } = await supabase.functions.invoke("send-email", {
           body: {
             to: profile.email,
             template: "payment-reminder",
+            providerOverride,
+            fromOverride,
             data: {
               authorName: profile.full_name || "Author",
               articleTitle: article.title,
@@ -184,7 +151,6 @@ serve(async (req: Request) => {
             },
           },
         });
-
         if (emailError) {
           errors.push(`Failed to send to ${profile.email}: ${emailError.message}`);
         } else {
@@ -193,27 +159,22 @@ serve(async (req: Request) => {
             article_id: article.id,
             reminder_type: articleId ? "manual" : "auto",
           });
-          console.log(`Payment reminder sent to ${profile.email} for article ${article.reference_number}`);
         }
       } catch (err: any) {
         errors.push(`Error sending to ${profile.email}: ${err.message}`);
       }
     }
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        totalArticles: articles.length,
-        remindersSent: sentCount,
-        errors: errors.length > 0 ? errors : undefined,
-      }),
-      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
-    );
+    return new Response(JSON.stringify({
+      success: true,
+      totalArticles: articles.length,
+      remindersSent: sentCount,
+      providerUsed: providerOverride || 'default',
+      errors: errors.length > 0 ? errors : undefined,
+    }), { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } });
   } catch (error: any) {
     console.error("Error in send-payment-reminder:", error);
-    return new Response(
-      JSON.stringify({ error: error.message || "Internal server error" }),
-      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
-    );
+    return new Response(JSON.stringify({ error: error.message || "Internal server error" }),
+      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
   }
 });
