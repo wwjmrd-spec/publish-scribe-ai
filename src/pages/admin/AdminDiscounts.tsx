@@ -627,3 +627,58 @@ export default function AdminDiscounts() {
     </DashboardLayout>
   );
 }
+
+function AutoApplyPanel({ discounts }: { discounts: any[] }) {
+  const queryClient = useQueryClient();
+  const { data: setting } = useQuery({
+    queryKey: ['auto-apply-discount'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('admin_settings').select('setting_value').eq('setting_key', 'auto_apply_discount_code').maybeSingle();
+      return (data?.setting_value as string) || '';
+    },
+  });
+  const [code, setCode] = useState<string>('none');
+  React.useEffect(() => { setCode(setting || 'none'); }, [setting]);
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const value = code === 'none' ? '' : code;
+      const { error } = await supabase.from('admin_settings').upsert({
+        setting_key: 'auto_apply_discount_code', setting_value: value, updated_at: new Date().toISOString(),
+      } as any, { onConflict: 'setting_key' });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Auto-apply discount updated');
+      queryClient.invalidateQueries({ queryKey: ['auto-apply-discount'] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const activeCodes = (discounts || []).filter((d: any) => d.is_active);
+
+  return (
+    <GlassCard className="mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+        <div className="flex-1">
+          <Label className="mb-2 block">Auto-apply discount on article fees</Label>
+          <Select value={code} onValueChange={setCode}>
+            <SelectTrigger><SelectValue placeholder="Select a code" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">None — do not auto-apply</SelectItem>
+              {activeCodes.map((d: any) => (
+                <SelectItem key={d.id} value={d.code}>
+                  {d.code} — {d.discount_type === 'percentage' ? `${d.discount_value}%` : d.discount_value} off ({d.currency})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground mt-1">This code will be applied automatically in author carts when they pay publication fees.</p>
+        </div>
+        <Button onClick={() => save.mutate()} disabled={save.isPending}>Save</Button>
+      </div>
+    </GlassCard>
+  );
+}
+
