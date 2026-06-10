@@ -77,6 +77,7 @@ const adminNavItems: NavItem[] = [
   { label: 'Reminders', href: '/admin/reminders', icon: Bell },
   { label: 'Notifications', href: '/admin/notifications', icon: Megaphone },
   { label: 'Sent Emails', href: '/admin/email-log', icon: Mail },
+  { label: 'Email Templates', href: '/admin/email-templates', icon: Mail },
   { label: 'Payment Activity', href: '/admin/payment-activity', icon: ShoppingCart },
   { label: 'Bug Reports', href: '/admin/bug-reports', icon: Bug },
   { label: 'Profile', href: '/admin/profile', icon: UserCircle },
