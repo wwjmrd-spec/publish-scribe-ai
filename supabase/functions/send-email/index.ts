@@ -1301,17 +1301,40 @@ const handler = async (req: Request): Promise<Response> => {
     let emailHtml: string;
 
     if (template === "custom") {
-      // Custom template (raw HTML): allow authenticated users (from-address is server-controlled)
       if (!subject || !html) {
         throw new Error("Custom template requires subject and html fields");
       }
       emailSubject = subject;
       emailHtml = html;
     } else if (template) {
-      // Use predefined template
-      const content = getEmailContent(template, data, isAdmin);
-      emailSubject = content.subject;
-      emailHtml = content.html;
+      // Check for admin-managed template override in DB
+      let override: { subject: string; html: string } | null = null;
+      try {
+        const sbAdmin = createClient(
+          Deno.env.get("SUPABASE_URL") ?? "",
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+        );
+        const { data: tplRow } = await sbAdmin
+          .from("email_templates")
+          .select("subject, html")
+          .eq("template_key", template)
+          .maybeSingle();
+        if (tplRow?.subject && tplRow?.html) override = tplRow as any;
+      } catch (_) { /* ignore */ }
+
+      if (override) {
+        const ctx = { ...(data || {}), isAdmin };
+        const render = (s: string) => s.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_, k) => {
+          const v = (ctx as any)[k];
+          return v === undefined || v === null ? "" : String(v);
+        });
+        emailSubject = render(override.subject);
+        emailHtml = render(override.html);
+      } else {
+        const content = getEmailContent(template, data, isAdmin);
+        emailSubject = content.subject;
+        emailHtml = content.html;
+      }
     } else {
       throw new Error("Missing required field: template");
     }
