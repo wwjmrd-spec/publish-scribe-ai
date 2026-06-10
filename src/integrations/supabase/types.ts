@@ -614,6 +614,30 @@ export type Database = {
         }
         Relationships: []
       }
+      email_templates: {
+        Row: {
+          html: string
+          subject: string
+          template_key: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          html: string
+          subject: string
+          template_key: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          html?: string
+          subject?: string
+          template_key?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string
@@ -1052,23 +1076,35 @@ export type Database = {
       }
       reminder_settings: {
         Row: {
+          email_from_override: string | null
+          email_provider_override: string | null
           frequency_hours: number
           id: string
+          max_article_age_days: number
           max_days: number
+          min_article_age_days: number
           updated_at: string
           updated_by: string | null
         }
         Insert: {
+          email_from_override?: string | null
+          email_provider_override?: string | null
           frequency_hours?: number
           id?: string
+          max_article_age_days?: number
           max_days?: number
+          min_article_age_days?: number
           updated_at?: string
           updated_by?: string | null
         }
         Update: {
+          email_from_override?: string | null
+          email_provider_override?: string | null
           frequency_hours?: number
           id?: string
+          max_article_age_days?: number
           max_days?: number
+          min_article_age_days?: number
           updated_at?: string
           updated_by?: string | null
         }
