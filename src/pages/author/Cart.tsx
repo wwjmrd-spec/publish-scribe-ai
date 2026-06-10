@@ -108,10 +108,11 @@ export default function Cart() {
     }).then(() => {});
   }, [user?.id]);
 
-  // Auto-apply latest unused referral/welcome discount code
+  // Auto-apply latest unused referral/welcome discount code, OR admin-configured default code
   useEffect(() => {
     if (!user?.id || appliedDiscount) return;
     (async () => {
+      // 1) Prefer personal referral/welcome code
       const { data } = await supabase
         .from('discount_codes')
         .select('code, discount_type, discount_value, currency, is_active, used_count, end_date')
@@ -134,9 +135,29 @@ export default function Cart() {
             ? `${fresh.discount_value}% off — code ${fresh.code}`
             : `${fresh.discount_value} off — code ${fresh.code}`,
         });
+        return;
       }
+      // 2) Fall back to admin-configured auto-apply code
+      const { data: cfg } = await supabase
+        .from('admin_settings').select('setting_value').eq('setting_key', 'auto_apply_discount_code').maybeSingle();
+      const adminCode = (cfg?.setting_value as string | undefined)?.trim();
+      if (!adminCode) return;
+      const { data: lookup } = await supabase.rpc('lookup_discount_code' as any, { p_code: adminCode });
+      const promo: any = Array.isArray(lookup) ? lookup[0] : lookup;
+      if (!promo || !promo.is_active) return;
+      setDiscountCode(promo.code);
+      setAppliedDiscount({
+        code: promo.code,
+        value: Number(promo.discount_value),
+        type: promo.discount_type as 'percentage' | 'fixed',
+      });
+      toast({
+        title: 'Discount applied 🎁',
+        description: `${promo.discount_type === 'percentage' ? promo.discount_value + '%' : promo.discount_value} off — code ${promo.code}`,
+      });
     })();
   }, [user?.id]);
+
 
   // Handle PayPal return
   useEffect(() => {
