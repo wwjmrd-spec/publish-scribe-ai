@@ -218,6 +218,9 @@ export default function AdminDiscounts() {
         </Button>
       </motion.div>
 
+      <AutoApplyPanel discounts={discounts || []} />
+
+
       <GlassCard>
         {!discounts?.length ? (
           <div className="text-center py-12">
