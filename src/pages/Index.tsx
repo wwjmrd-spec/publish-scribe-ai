@@ -153,6 +153,9 @@ export default function Index() {
         </div>
       </section>
 
+      {/* Recent Publications - front and center on the home page */}
+      <RecentPublicationsSection />
+
       {/* Features Section */}
       <section className="py-20 px-4">
         <div className="container mx-auto">
@@ -195,8 +198,6 @@ export default function Index() {
         </div>
       </section>
 
-      {/* Recent Publications */}
-      <RecentPublicationsSection />
 
       {/* How It Works */}
       <section className="py-20 px-4">
