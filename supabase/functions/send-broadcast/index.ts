@@ -26,6 +26,8 @@ interface BroadcastRequest {
   article_status_context?: string;
   email_provider_override?: string;
   email_from?: string;
+  include_coauthors?: boolean;
+  extra_emails?: string[];
 }
 
 // ---- merge tag helpers ----
@@ -176,7 +178,7 @@ const handler = async (req: Request): Promise<Response> => {
 
 
     const body: BroadcastRequest = await req.json();
-    const { title, message, type = "info", link, recipients, send_email, email_provider_override, email_from, article_status_context } = body;
+    const { title, message, type = "info", link, recipients, send_email, email_provider_override, email_from, article_status_context, include_coauthors, extra_emails } = body;
 
     if (!title?.trim() || !message?.trim()) {
       return new Response(JSON.stringify({ error: "Missing title or message" }), {
