@@ -16,12 +16,18 @@ export function useRecentPublications(limit = 12) {
     queryFn: async () => {
         const { data, error } = await supabase
         .from('articles')
-        .select('id, reference_number, title, abstract, author_name, country, published_tier, publication_year, volume, issue, updated_at')
+        .select('id, reference_number, title, abstract, author_name, country, published_tier, publication_year, volume, issue, updated_at, publish_queue_added_at, created_at')
         .eq('status', 'published')
-        .order('created_at', { ascending: false })
-        .limit(limit);
+        .limit(limit * 3);
       if (error) throw error;
-      return data ?? [];
+      // Most recent first: prefer publish_queue_added_at, then created_at, then reference_number (sequence).
+      const list = (data ?? []).slice().sort((a: any, b: any) => {
+        const ta = new Date(a.publish_queue_added_at || a.created_at || 0).getTime();
+        const tb = new Date(b.publish_queue_added_at || b.created_at || 0).getTime();
+        if (tb !== ta) return tb - ta;
+        return String(b.reference_number || '').localeCompare(String(a.reference_number || ''));
+      });
+      return list.slice(0, limit);
     },
   });
 }
