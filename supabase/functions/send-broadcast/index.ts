@@ -333,8 +333,69 @@ const handler = async (req: Request): Promise<Response> => {
               metadata: { message: renderedMessage, link: renderedLink || null },
             });
           } catch (_) { /* ignore */ }
+      }
+
+      // Email-only sends (no notification row): co-authors of recipient authors + admin-provided extras.
+      const extraTargets = new Set<string>();
+      if (include_coauthors) {
+        const authorIds = recipients.map((r) => r.user_id).filter(Boolean);
+        if (authorIds.length > 0) {
+          const { data: authorArticles } = await adminClient
+            .from("articles").select("id").in("author_id", authorIds);
+          const articleIds = (authorArticles || []).map((a: any) => a.id);
+          if (articleIds.length > 0) {
+            const { data: cas } = await adminClient
+              .from("co_authors").select("email").in("article_id", articleIds);
+            for (const ca of cas || []) {
+              const e = (ca as any).email?.trim();
+              if (e && /.+@.+\..+/.test(e)) extraTargets.add(e.toLowerCase());
+            }
+          }
         }
       }
+      for (const e of extra_emails || []) {
+        const v = (e || "").trim().toLowerCase();
+        if (v && /.+@.+\..+/.test(v)) extraTargets.add(v);
+      }
+      // Don't double-send to addresses already emailed above.
+      const alreadyEmailed = new Set(recipients.map((r) => (r.email || "").trim().toLowerCase()).filter(Boolean));
+      for (const addr of alreadyEmailed) extraTargets.delete(addr);
+
+      for (const addr of extraTargets) {
+        const renderedTitle = titleRaw;
+        const renderedMessage = messageRaw;
+        const renderedLink = linkRaw || undefined;
+        const emailHtml = buildBroadcastHtml(renderedTitle, renderedMessage, renderedLink);
+        try {
+          const { data: sendData, error: sendErr } = await adminClient.functions.invoke("send-email", {
+            body: {
+              to: addr,
+              template: "custom",
+              subject: renderedTitle,
+              html: emailHtml,
+              providerOverride: email_provider_override || undefined,
+              from: email_from || undefined,
+            },
+          });
+          if (sendErr || (sendData as any)?.error) throw new Error(sendErr?.message || (sendData as any)?.error || "send-email failed");
+          emailCount.sent++;
+          try {
+            await adminClient.from("email_log").insert({
+              recipient_email: addr,
+              subject: renderedTitle,
+              template_name: "broadcast",
+              email_type: "broadcast_extra",
+              status: "sent",
+              metadata: { message: renderedMessage, link: renderedLink || null, source: "broadcast_extra" },
+            });
+          } catch (_) { /* ignore */ }
+        } catch (err: any) {
+          console.error(`Email send failed for ${addr}:`, err?.message);
+          emailCount.failed++;
+        }
+      }
+    }
+
     }
 
 
