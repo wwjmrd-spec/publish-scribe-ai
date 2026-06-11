@@ -81,6 +81,9 @@ export default function Index() {
           </Link>
 
           <div className="flex items-center gap-2 sm:gap-4">
+            <Link to="/publications" className="hidden sm:inline text-sm text-muted-foreground hover:text-foreground">Publications</Link>
+            <Link to="/guidelines" className="hidden sm:inline text-sm text-muted-foreground hover:text-foreground">Guidelines</Link>
+            <Link to="/contact" className="hidden sm:inline text-sm text-muted-foreground hover:text-foreground">Contact</Link>
             <Link to="/auth">
               <Button variant="glass" size="sm" className="sm:size-default">
                 Sign In
@@ -150,6 +153,9 @@ export default function Index() {
         </div>
       </section>
 
+      {/* Recent Publications - front and center on the home page */}
+      <RecentPublicationsSection />
+
       {/* Features Section */}
       <section className="py-20 px-4">
         <div className="container mx-auto">
@@ -192,8 +198,6 @@ export default function Index() {
         </div>
       </section>
 
-      {/* Recent Publications */}
-      <RecentPublicationsSection />
 
       {/* How It Works */}
       <section className="py-20 px-4">

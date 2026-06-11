@@ -48,6 +48,8 @@ import AdminSubmitForAuthor from "./pages/admin/AdminSubmitForAuthor";
 import NotFound from "./pages/NotFound";
 import PublicPublications from "./pages/PublicPublications";
 import PublicArticleAbstract from "./pages/PublicArticleAbstract";
+import Guidelines from "./pages/Guidelines";
+import Contact from "./pages/Contact";
 import { ReferralPopup } from "./components/referral/ReferralPopup";
 import { CookieConsent } from "./components/CookieConsent";
 import { CountryCollectionModal } from "./components/auth/CountryCollectionModal";
@@ -74,6 +76,8 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/publications" element={<PublicPublications />} />
             <Route path="/articles/:reference" element={<PublicArticleAbstract />} />
+            <Route path="/guidelines" element={<Guidelines />} />
+            <Route path="/contact" element={<Contact />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             

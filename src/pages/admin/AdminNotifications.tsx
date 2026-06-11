@@ -40,6 +40,8 @@ export default function AdminNotifications() {
   const [sendMethod, setSendMethod] = useState<SendMethod>('notification_only');
   const [emailProviderOverride, setEmailProviderOverride] = useState<string>('default');
   const [fromEmail, setFromEmail] = useState<string>('');
+  const [includeCoAuthors, setIncludeCoAuthors] = useState(false);
+  const [extraEmails, setExtraEmails] = useState<string>('');
   const [scheduleEnabled, setScheduleEnabled] = useState(false);
   const [scheduleAt, setScheduleAt] = useState<string>(''); // datetime-local value
   const [sending, setSending] = useState(false);
@@ -259,6 +261,10 @@ export default function AdminNotifications() {
               sendMethod === 'notification_and_email' && fromEmail.trim()
                 ? fromEmail.trim()
                 : undefined,
+            include_coauthors: sendMethod === 'notification_and_email' && includeCoAuthors,
+            extra_emails: sendMethod === 'notification_and_email'
+              ? extraEmails.split(/[\s,;]+/).map((s) => s.trim()).filter((s) => /.+@.+\..+/.test(s))
+              : [],
           }),
         }
       );
@@ -624,6 +630,37 @@ export default function AdminNotifications() {
                 />
                 <p className="text-xs text-muted-foreground">
                   Leave blank to use the provider's default sender. Address must be verified with the selected server (AWS SES requires verification in your region).
+                </p>
+              </div>
+
+              <div className="space-y-2 pt-2">
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={includeCoAuthors}
+                    onChange={(e) => setIncludeCoAuthors(e.target.checked)}
+                    className="mt-1"
+                  />
+                  <div>
+                    <p className="text-sm font-medium">Also email co-authors</p>
+                    <p className="text-xs text-muted-foreground">
+                      Sends the email to every co-author listed on the recipients' articles (email only — no notification row).
+                    </p>
+                  </div>
+                </label>
+              </div>
+
+              <div className="space-y-2 pt-2">
+                <Label>Additional email addresses (optional)</Label>
+                <Textarea
+                  rows={2}
+                  placeholder="comma or newline separated, e.g. editor@journal.com, board@journal.com"
+                  value={extraEmails}
+                  onChange={(e) => setExtraEmails(e.target.value)}
+                  className="bg-muted/50"
+                />
+                <p className="text-xs text-muted-foreground">
+                  These addresses also receive the email. Useful for previously-provided contacts or external collaborators.
                 </p>
               </div>
             </div>

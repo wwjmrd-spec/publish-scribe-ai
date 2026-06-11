@@ -37,6 +37,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 
 export default function AdminAuthors() {
@@ -301,151 +302,197 @@ export default function AdminAuthors() {
         </GlassCard>
       </div>
 
-      {/* Authors Grid */}
-      {!filteredAuthors?.length ? (
-        <GlassCard>
-          <div className="text-center py-12">
-            <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">No authors found</p>
-          </div>
-        </GlassCard>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredAuthors.map((author, index) => {
-            const plan = getAuthorPlan(author.id);
-            return (
-              <motion.div
-                key={author.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-              >
-                <div className="h-full glass-card p-6 cursor-pointer hover:border-primary/30 transition-colors" onClick={() => navigate(`/admin/authors/${author.id}`)}>
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-full gradient-primary flex items-center justify-center text-lg font-bold text-primary-foreground">
-                      {author.full_name.charAt(0).toUpperCase()}
+      <Tabs defaultValue="authors" className="w-full">
+        <TabsList className="mb-4">
+          <TabsTrigger value="authors">Authors ({authors?.length || 0})</TabsTrigger>
+          <TabsTrigger value="coauthors">
+            Co-Authors ({Object.values(coAuthorsMap || {}).reduce((sum, arr) => sum + arr.length, 0)})
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="authors">
+          {/* Authors Grid */}
+          {!filteredAuthors?.length ? (
+            <GlassCard>
+              <div className="text-center py-12">
+                <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">No authors found</p>
+              </div>
+            </GlassCard>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredAuthors.map((author, index) => {
+                const plan = getAuthorPlan(author.id);
+                return (
+                  <motion.div
+                    key={author.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                  >
+                    <div className="h-full glass-card p-6 cursor-pointer hover:border-primary/30 transition-colors" onClick={() => navigate(`/admin/authors/${author.id}`)}>
+                      <div className="flex items-start gap-4">
+                        <div className="w-12 h-12 rounded-full gradient-primary flex items-center justify-center text-lg font-bold text-primary-foreground">
+                          {author.full_name.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold truncate">{author.full_name}</h3>
+                          <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
+                            <Mail className="w-3 h-3" />
+                            <span className="truncate">{author.email}</span>
+                          </div>
+                          {author.affiliation && (
+                            <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
+                              <Building className="w-3 h-3" />
+                              <span className="truncate">{author.affiliation}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center justify-between mt-3">
+                            <div className="flex items-center gap-2">
+                              <span className={`px-2 py-0.5 rounded-full text-xs ${
+                                author.is_indian
+                                  ? 'bg-orange-500/20 text-orange-400'
+                                  : 'bg-green-500/20 text-green-400'
+                              }`}>
+                                {author.is_indian ? 'India' : author.country || 'International'}
+                              </span>
+                              <span className={`px-2 py-0.5 rounded-full text-xs flex items-center gap-1 ${
+                                plan === 'pro'
+                                  ? 'bg-primary/20 text-primary'
+                                  : 'bg-muted text-muted-foreground'
+                              }`}>
+                                {plan === 'pro' && <Crown className="w-3 h-3" />}
+                                {plan === 'pro' ? 'Pro' : 'Free'}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                              <FileText className="w-3 h-3" />
+                              {articleCounts?.[author.id] || 0}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
+                            <span className="text-xs text-muted-foreground">Currency:</span>
+                            <Select
+                              value={author.is_indian ? 'INR' : 'USD'}
+                              onValueChange={(val) => changeCurrencyMutation.mutate({ authorId: author.id, isIndian: val === 'INR' })}
+                            >
+                              <SelectTrigger className="h-7 text-xs w-20 glass-input">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="INR">₹ INR</SelectItem>
+                                <SelectItem value="USD">$ USD</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="flex gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="flex-1 text-xs"
+                              onClick={() => {
+                                setSelectedAuthor(author);
+                                setIsPlanDialogOpen(true);
+                              }}
+                            >
+                              <ArrowUpDown className="w-3 h-3 mr-1" />
+                              Plan
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="flex-1 text-xs"
+                              onClick={() => setExpandedAuthor(expandedAuthor === author.id ? null : author.id)}
+                            >
+                              <UserCheck className="w-3 h-3 mr-1" />
+                              Co-Authors
+                            </Button>
+                          </div>
+
+                          {expandedAuthor === author.id && (
+                            <div className="mt-3 pt-3 border-t border-[hsl(var(--glass-border))] space-y-2" onClick={(e) => e.stopPropagation()}>
+                              <p className="text-xs font-semibold text-muted-foreground uppercase">Co-Authors</p>
+                              {(() => {
+                                const articles = authorArticlesMap?.[author.id] || [];
+                                const allCoAuthors = articles.flatMap((a: any) => {
+                                  const cas = coAuthorsMap?.[a.id] || [];
+                                  return cas.map((ca: any) => ({ ...ca, articleTitle: a.title, articleRef: a.reference_number }));
+                                });
+                                if (!allCoAuthors.length) return <p className="text-xs text-muted-foreground">No co-authors</p>;
+                                return allCoAuthors.map((ca: any) => (
+                                  <div key={ca.id} className="p-2 rounded-lg bg-[hsl(var(--glass-bg))] text-xs space-y-1">
+                                    <p className="font-medium">{ca.name}</p>
+                                    <p className="text-muted-foreground">{ca.email}</p>
+                                    {ca.affiliation && <p className="text-muted-foreground">{ca.affiliation}</p>}
+                                    <p className="text-muted-foreground text-[10px]">Article: {ca.articleRef}</p>
+                                  </div>
+                                ));
+                              })()}
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold truncate">{author.full_name}</h3>
-                      <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
-                        <Mail className="w-3 h-3" />
-                        <span className="truncate">{author.email}</span>
-                      </div>
-                      {author.affiliation && (
-                        <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
-                          <Building className="w-3 h-3" />
-                          <span className="truncate">{author.affiliation}</span>
-                        </div>
-                      )}
-                      <div className="flex items-center justify-between mt-3">
-                        <div className="flex items-center gap-2">
-                          <span className={`px-2 py-0.5 rounded-full text-xs ${
-                            author.is_indian 
-                              ? 'bg-orange-500/20 text-orange-400' 
-                              : 'bg-green-500/20 text-green-400'
-                          }`}>
-                            {author.is_indian ? 'India' : author.country || 'International'}
-                          </span>
-                          <span className={`px-2 py-0.5 rounded-full text-xs flex items-center gap-1 ${
-                            plan === 'pro'
-                              ? 'bg-primary/20 text-primary'
-                              : 'bg-muted text-muted-foreground'
-                          }`}>
-                            {plan === 'pro' && <Crown className="w-3 h-3" />}
-                            {plan === 'pro' ? 'Pro' : 'Free'}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                          <FileText className="w-3 h-3" />
-                          {articleCounts?.[author.id] || 0}
-                        </div>
-                      </div>
-                      {/* Currency Toggle */}
-                      <div className="flex items-center gap-2 mt-2">
-                        <span className="text-xs text-muted-foreground">Currency:</span>
-                        <Select
-                          value={author.is_indian ? 'INR' : 'USD'}
-                          onValueChange={(val) => changeCurrencyMutation.mutate({ authorId: author.id, isIndian: val === 'INR' })}
-                        >
-                          <SelectTrigger className="h-7 text-xs w-20 glass-input">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="INR">₹ INR</SelectItem>
-                            <SelectItem value="USD">$ USD</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
+        </TabsContent>
 
-                      <div className="flex gap-2 mt-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="flex-1 text-xs"
-                          onClick={() => {
-                            setSelectedAuthor(author);
-                            setIsPlanDialogOpen(true);
-                          }}
-                        >
-                          <ArrowUpDown className="w-3 h-3 mr-1" />
-                          Plan
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="flex-1 text-xs"
-                          onClick={() => setExpandedAuthor(expandedAuthor === author.id ? null : author.id)}
-                        >
-                          <UserCheck className="w-3 h-3 mr-1" />
-                          Co-Authors
-                        </Button>
+        <TabsContent value="coauthors">
+          {(() => {
+            const allCoAuthors = Object.entries(coAuthorsMap || {}).flatMap(([articleId, cas]) => {
+              const article = Object.values(authorArticlesMap || {}).flat().find((a: any) => a.id === articleId);
+              return cas.map((ca: any) => ({ ...ca, article }));
+            }).filter((ca: any) =>
+              !searchQuery ||
+              ca.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              ca.email?.toLowerCase().includes(searchQuery.toLowerCase())
+            );
+            if (allCoAuthors.length === 0) {
+              return (
+                <GlassCard>
+                  <div className="text-center py-12">
+                    <UserCheck className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                    <p className="text-muted-foreground">No co-authors found</p>
+                  </div>
+                </GlassCard>
+              );
+            }
+            return (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {allCoAuthors.map((ca: any) => (
+                  <div key={ca.id} className="glass-card p-5">
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-full bg-secondary/30 flex items-center justify-center text-secondary font-semibold">
+                        {(ca.name || '?').charAt(0).toUpperCase()}
                       </div>
-
-                      {/* Expanded Co-Authors */}
-                      {expandedAuthor === author.id && (
-                        <div className="mt-3 pt-3 border-t border-[hsl(var(--glass-border))] space-y-2">
-                          <p className="text-xs font-semibold text-muted-foreground uppercase">Co-Authors</p>
-                          {(() => {
-                            const articles = authorArticlesMap?.[author.id] || [];
-                            const allCoAuthors = articles.flatMap((a: any) => {
-                              const cas = coAuthorsMap?.[a.id] || [];
-                              return cas.map((ca: any) => ({ ...ca, articleTitle: a.title, articleRef: a.reference_number }));
-                            });
-                            if (!allCoAuthors.length) return <p className="text-xs text-muted-foreground">No co-authors</p>;
-                            return allCoAuthors.map((ca: any) => (
-                              <div key={ca.id} className="p-2 rounded-lg bg-[hsl(var(--glass-bg))] text-xs space-y-1">
-                                <p className="font-medium">{ca.name}</p>
-                                <p className="text-muted-foreground">{ca.email}</p>
-                                {ca.affiliation && <p className="text-muted-foreground">{ca.affiliation}</p>}
-                                <p className="text-muted-foreground text-[10px]">Article: {ca.articleRef}</p>
-                                {ca.co_author_certificates?.map((cert: any) => (
-                                  cert.certificate_url && (
-                                    <Button
-                                      key={cert.id}
-                                      variant="outline"
-                                      size="sm"
-                                      className="h-6 text-[10px] mt-1"
-                                      onClick={() => {
-                                        if (cert.certificate_url) window.open(cert.certificate_url, '_blank');
-                                      }}
-                                    >
-                                      Download Cert
-                                    </Button>
-                                  )
-                                ))}
-                              </div>
-                            ));
-                          })()}
-                        </div>
-                      )}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold truncate">{ca.name || '(unnamed)'}</h3>
+                        <a href={`mailto:${ca.email}`} className="flex items-center gap-1 text-sm text-primary hover:underline truncate">
+                          <Mail className="w-3 h-3" /> <span className="truncate">{ca.email}</span>
+                        </a>
+                        {ca.affiliation && (
+                          <p className="flex items-center gap-1 text-xs text-muted-foreground mt-1 truncate">
+                            <Building className="w-3 h-3" /> {ca.affiliation}
+                          </p>
+                        )}
+                        {ca.article && (
+                          <p className="text-[11px] text-muted-foreground mt-2 truncate">
+                            On article: <span className="font-mono">{ca.article.reference_number}</span> — {ca.article.title}
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              </motion.div>
+                ))}
+              </div>
             );
-          })}
-        </div>
-      )}
+          })()}
+        </TabsContent>
+      </Tabs>
 
       {/* Plan Change Dialog */}
       <Dialog open={isPlanDialogOpen} onOpenChange={setIsPlanDialogOpen}>
