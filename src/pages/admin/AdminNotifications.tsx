@@ -632,6 +632,37 @@ export default function AdminNotifications() {
                   Leave blank to use the provider's default sender. Address must be verified with the selected server (AWS SES requires verification in your region).
                 </p>
               </div>
+
+              <div className="space-y-2 pt-2">
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={includeCoAuthors}
+                    onChange={(e) => setIncludeCoAuthors(e.target.checked)}
+                    className="mt-1"
+                  />
+                  <div>
+                    <p className="text-sm font-medium">Also email co-authors</p>
+                    <p className="text-xs text-muted-foreground">
+                      Sends the email to every co-author listed on the recipients' articles (email only — no notification row).
+                    </p>
+                  </div>
+                </label>
+              </div>
+
+              <div className="space-y-2 pt-2">
+                <Label>Additional email addresses (optional)</Label>
+                <Textarea
+                  rows={2}
+                  placeholder="comma or newline separated, e.g. editor@journal.com, board@journal.com"
+                  value={extraEmails}
+                  onChange={(e) => setExtraEmails(e.target.value)}
+                  className="bg-muted/50"
+                />
+                <p className="text-xs text-muted-foreground">
+                  These addresses also receive the email. Useful for previously-provided contacts or external collaborators.
+                </p>
+              </div>
             </div>
           )}
 
