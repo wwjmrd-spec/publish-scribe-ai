@@ -78,9 +78,6 @@ export default function ResubmitArticle() {
         document_url: filePath,
         status: 'under_review',
         review_report_url: null,
-        ai_review_status: null,
-        ai_review_completed_at: null,
-        ai_review_report: null,
       };
       if (newPageCount) updates.page_count = newPageCount;
       const { error: updateError } = await supabase
