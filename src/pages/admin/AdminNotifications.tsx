@@ -40,6 +40,8 @@ export default function AdminNotifications() {
   const [sendMethod, setSendMethod] = useState<SendMethod>('notification_only');
   const [emailProviderOverride, setEmailProviderOverride] = useState<string>('default');
   const [fromEmail, setFromEmail] = useState<string>('');
+  const [includeCoAuthors, setIncludeCoAuthors] = useState(false);
+  const [extraEmails, setExtraEmails] = useState<string>('');
   const [scheduleEnabled, setScheduleEnabled] = useState(false);
   const [scheduleAt, setScheduleAt] = useState<string>(''); // datetime-local value
   const [sending, setSending] = useState(false);
