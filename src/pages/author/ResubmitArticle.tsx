@@ -73,11 +73,14 @@ export default function ResubmitArticle() {
         .upload(filePath, file);
       if (uploadError) throw uploadError;
 
-      // Update the existing article with the revised file and mark it ready for re-review
+      // Restart the full automation pipeline: under review + AI re-analyze + approval flow.
       const updates: any = {
         document_url: filePath,
-        status: 'revised_submitted',
+        status: 'under_review',
         review_report_url: null,
+        ai_review_status: null,
+        ai_review_completed_at: null,
+        ai_review_report: null,
       };
       if (newPageCount) updates.page_count = newPageCount;
       const { error: updateError } = await supabase
@@ -86,6 +89,11 @@ export default function ResubmitArticle() {
         .eq('id', article.id);
 
       if (updateError) throw updateError;
+
+      // Re-run AI analysis automatically (fire & forget; toast on failure)
+      supabase.functions
+        .invoke('retry-article-analysis', { body: { articleId: article.id } })
+        .catch((err) => console.error('Failed to restart AI analysis:', err));
 
       if (exceedsFreeLimit) {
         await supabase.from('notifications').insert({
