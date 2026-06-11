@@ -261,6 +261,10 @@ export default function AdminNotifications() {
               sendMethod === 'notification_and_email' && fromEmail.trim()
                 ? fromEmail.trim()
                 : undefined,
+            include_coauthors: sendMethod === 'notification_and_email' && includeCoAuthors,
+            extra_emails: sendMethod === 'notification_and_email'
+              ? extraEmails.split(/[\s,;]+/).map((s) => s.trim()).filter((s) => /.+@.+\..+/.test(s))
+              : [],
           }),
         }
       );
