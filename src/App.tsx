@@ -45,6 +45,8 @@ import AdminSettings from "./pages/admin/AdminSettings";
 import AdminPublishQueue from "./pages/admin/AdminPublishQueue";
 import AdminPublicationForm from "./pages/admin/AdminPublicationForm";
 import AdminSubmitForAuthor from "./pages/admin/AdminSubmitForAuthor";
+import AdminQuestions from "./pages/admin/AdminQuestions";
+import AdminPublicationOrder from "./pages/admin/AdminPublicationOrder";
 import NotFound from "./pages/NotFound";
 import PublicPublications from "./pages/PublicPublications";
 import PublicArticleAbstract from "./pages/PublicArticleAbstract";
@@ -372,6 +374,23 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/admin/questions"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminQuestions />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/publication-order"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminPublicationOrder />
+                </ProtectedRoute>
+              }
+            />
+
 
             {/* Catch-all */}
             <Route path="*" element={<NotFound />} />
