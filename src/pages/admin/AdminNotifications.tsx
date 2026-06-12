@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { GlassCard } from '@/components/layout/GlassCard';
 import { Button } from '@/components/ui/button';
@@ -27,6 +28,8 @@ type SendMethod = 'notification_only' | 'notification_and_email';
 
 export default function AdminNotifications() {
   const { toast } = useToast();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [type, setType] = useState('info');
@@ -46,6 +49,22 @@ export default function AdminNotifications() {
   const [scheduleAt, setScheduleAt] = useState<string>(''); // datetime-local value
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<{ notifications: number; emailsSent: number; emailsFailed: number; scheduled?: boolean; scheduledFor?: string } | null>(null);
+
+  // Prefill from "Reuse" navigation state.
+  useEffect(() => {
+    const reuse = (location.state as any)?.reuse;
+    if (!reuse) return;
+    if (reuse.title) setTitle(reuse.title);
+    if (reuse.message) setMessage(reuse.message);
+    if (reuse.type) setType(reuse.type);
+    if (reuse.link) setLink(reuse.link);
+    if (reuse.extraEmails) {
+      setSendMethod('notification_and_email');
+      setExtraEmails(reuse.extraEmails);
+    }
+    // Clear state so a reload doesn't re-apply.
+    navigate(location.pathname, { replace: true, state: {} });
+  }, [location, navigate]);
 
   // Fetch all author profiles + supporting data
   const { data: authorsData, isLoading: loadingAuthors } = useQuery({
