@@ -168,6 +168,7 @@ export type Database = {
           created_at: string | null
           created_via: string
           discovery_source: string | null
+          display_order: number | null
           document_url: string | null
           fee_reminder_email_sent_at: string | null
           formatted_content: string | null
@@ -222,6 +223,7 @@ export type Database = {
           created_at?: string | null
           created_via?: string
           discovery_source?: string | null
+          display_order?: number | null
           document_url?: string | null
           fee_reminder_email_sent_at?: string | null
           formatted_content?: string | null
@@ -276,6 +278,7 @@ export type Database = {
           created_at?: string | null
           created_via?: string
           discovery_source?: string | null
+          display_order?: number | null
           document_url?: string | null
           fee_reminder_email_sent_at?: string | null
           formatted_content?: string | null
@@ -468,6 +471,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      contact_questions: {
+        Row: {
+          admin_notes: string | null
+          created_at: string
+          email: string
+          id: string
+          ip_address: string | null
+          message: string
+          name: string
+          phone: string | null
+          status: string
+          subject: string
+          updated_at: string
+          user_agent: string | null
+        }
+        Insert: {
+          admin_notes?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          ip_address?: string | null
+          message: string
+          name: string
+          phone?: string | null
+          status?: string
+          subject: string
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Update: {
+          admin_notes?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          ip_address?: string | null
+          message?: string
+          name?: string
+          phone?: string | null
+          status?: string
+          subject?: string
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Relationships: []
       }
       discount_codes: {
         Row: {
