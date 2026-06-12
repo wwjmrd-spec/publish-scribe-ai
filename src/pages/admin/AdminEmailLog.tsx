@@ -130,7 +130,7 @@ export default function AdminEmailLog() {
       </motion.div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
         <GlassCard>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
@@ -149,7 +149,7 @@ export default function AdminEmailLog() {
             </div>
             <div>
               <p className="text-2xl font-bold">{stats.sent}</p>
-              <p className="text-sm text-muted-foreground">Sent successfully</p>
+              <p className="text-sm text-muted-foreground">Sent</p>
             </div>
           </div>
         </GlassCard>
@@ -164,7 +164,43 @@ export default function AdminEmailLog() {
             </div>
           </div>
         </GlassCard>
+        <GlassCard>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center">
+              <Clock className="w-5 h-5 text-amber-500" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{stats.pending}</p>
+              <p className="text-sm text-muted-foreground">Pending / queued</p>
+            </div>
+          </div>
+        </GlassCard>
       </div>
+
+      {/* Pending / queued broadcasts */}
+      {pendingBroadcasts && pendingBroadcasts.length > 0 && (
+        <GlassCard className="mb-6">
+          <h2 className="font-semibold mb-3 flex items-center gap-2">
+            <Clock className="w-4 h-4 text-amber-500" /> Queued / scheduled broadcasts
+          </h2>
+          <div className="space-y-2">
+            {pendingBroadcasts.map((b: any) => (
+              <div key={b.id} className="flex items-center justify-between gap-3 p-3 rounded-lg bg-[hsl(var(--glass-bg))]">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{b.title}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Scheduled for {new Date(b.scheduled_for).toLocaleString()} ·{' '}
+                    {(b.recipients?.length ?? 0)} recipient{(b.recipients?.length ?? 0) === 1 ? '' : 's'} ·{' '}
+                    {b.send_email ? 'Notification + Email' : 'Notification only'}
+                  </p>
+                </div>
+                <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/30 shrink-0">Pending</Badge>
+              </div>
+            ))}
+          </div>
+        </GlassCard>
+      )}
+
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
