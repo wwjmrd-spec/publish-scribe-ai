@@ -394,6 +394,40 @@ serve(async (req) => {
       articleTitles: itemDescriptions.length > 0 ? itemDescriptions : ['Payment'],
     };
 
+    // In-app notification to the author who paid
+    try {
+      await serviceClient.from('notifications').insert({
+        user_id: userId,
+        title: 'Payment Successful! ✅',
+        message: `Your payment of ${payment.currency} ${payment.final_amount} was received. Reference: ${capturedTransactionId || payment.id}.`,
+        type: 'success',
+        link: '/author/articles',
+      });
+    } catch (e) {
+      console.error('Failed to insert author payment notification:', e);
+    }
+
+    // In-app notification to every admin
+    try {
+      const { data: admins } = await serviceClient
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'admin');
+      if (admins && admins.length > 0) {
+        const rows = admins.map((a: any) => ({
+          user_id: a.user_id,
+          title: 'New Payment Received 💰',
+          message: `${userProfile?.full_name || 'An author'} paid ${payment.currency} ${payment.final_amount}${itemDescriptions[0] ? ` for "${itemDescriptions[0]}"` : ''}.`,
+          type: 'success',
+          link: '/admin/payment-activity',
+        }));
+        await serviceClient.from('notifications').insert(rows);
+      }
+    } catch (e) {
+      console.error('Failed to insert admin payment notifications:', e);
+    }
+
+
     // Send to author
     try {
       await fetch(`${supabaseUrl}/functions/v1/send-email`, {
