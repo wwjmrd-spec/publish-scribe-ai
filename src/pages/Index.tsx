@@ -271,6 +271,22 @@ export default function Index() {
         </div>
       </section>
 
+      {/* Recent Publications box (same style used on the author dashboard) */}
+      <section className="pb-20 px-4">
+        <div className="container mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <GlassCard>
+              <RecentPublicationsSection variant="embedded" limit={6} />
+            </GlassCard>
+          </motion.div>
+        </div>
+      </section>
+
+
       {/* Footer */}
       <footer className="py-8 px-4 border-t border-[hsl(var(--glass-border))]">
         <div className="container mx-auto flex flex-col md:flex-row items-center justify-between gap-4">

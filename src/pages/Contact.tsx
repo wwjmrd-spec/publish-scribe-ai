@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { GlassCard } from '@/components/layout/GlassCard';
@@ -7,39 +7,90 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, MapPin, Phone, Mail, Send } from 'lucide-react';
+import { ArrowLeft, MapPin, Phone, Mail, Send, ShieldCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { isHoneypotFilled, isSubmissionTooFast, isSpamContent } from '@/lib/antispam';
 
 function ContactBody() {
   const { toast } = useToast();
   const [form, setForm] = useState({ name: '', email: '', subject: '', phone: '', message: '' });
+  const [website, setWebsite] = useState(''); // honeypot
+  const startTime = useRef(Date.now());
   const [sending, setSending] = useState(false);
+
+  // Simple human-verification challenge (math captcha).
+  const [a] = useState(() => Math.floor(Math.random() * 8) + 2);
+  const [b] = useState(() => Math.floor(Math.random() * 8) + 2);
+  const [captchaAnswer, setCaptchaAnswer] = useState('');
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // 1. Honeypot — if hidden field is filled, silently succeed.
+    if (isHoneypotFilled(website)) {
+      toast({ title: 'Message sent', description: 'Thanks — we will get back to you shortly.' });
+      setForm({ name: '', email: '', subject: '', phone: '', message: '' });
+      return;
+    }
+
+    // 2. Required fields
     if (!form.name || !form.email || !form.subject || !form.message) {
       toast({ title: 'Please fill the required fields', variant: 'destructive' });
       return;
     }
+
+    // 3. Human-verification challenge
+    if (parseInt(captchaAnswer, 10) !== a + b) {
+      toast({ title: 'Verification failed', description: `Please answer: what is ${a} + ${b}?`, variant: 'destructive' });
+      return;
+    }
+
+    // 4. Timing — too fast = likely a bot
+    if (isSubmissionTooFast(startTime.current, 4)) {
+      toast({ title: 'Please slow down', description: 'Submission too fast — try again.', variant: 'destructive' });
+      return;
+    }
+
+    // 5. Spam content
+    if (isSpamContent(form.message) || isSpamContent(form.subject)) {
+      toast({ title: 'Message flagged as spam', description: 'Please rephrase your message.', variant: 'destructive' });
+      return;
+    }
+
     setSending(true);
     try {
-      const html = `<h2>New contact message</h2>
-        <p><strong>Name:</strong> ${form.name}</p>
-        <p><strong>Email:</strong> ${form.email}</p>
-        <p><strong>Phone:</strong> ${form.phone || '-'}</p>
-        <p><strong>Subject:</strong> ${form.subject}</p>
-        <p><strong>Message:</strong></p><p>${form.message.replace(/\n/g, '<br/>')}</p>`;
-      const { data: setting } = await supabase
-        .from('admin_settings').select('setting_value')
-        .eq('setting_key', 'admin_notification_email').maybeSingle();
-      const to = (setting?.setting_value as string) || 'wwjmrd@gmail.com';
-      await supabase.functions.invoke('send-email', {
-        body: { to, template: 'custom', subject: `Contact: ${form.subject}`, html, replyTo: form.email },
+      const { error } = await (supabase as any).from('contact_questions').insert({
+        name: form.name.trim().slice(0, 100),
+        email: form.email.trim().slice(0, 200),
+        subject: form.subject.trim().slice(0, 200),
+        phone: form.phone.trim().slice(0, 50) || null,
+        message: form.message.trim().slice(0, 4000),
+        user_agent: navigator.userAgent.slice(0, 500),
       });
+      if (error) throw error;
+
+      // Also email admin (best-effort) — admin gets notification via DB trigger.
+      try {
+        const { data: setting } = await supabase
+          .from('admin_settings').select('setting_value')
+          .eq('setting_key', 'admin_notification_email').maybeSingle();
+        const to = (setting?.setting_value as string) || 'wwjmrd@gmail.com';
+        const html = `<h2>New contact message</h2>
+          <p><strong>Name:</strong> ${form.name}</p>
+          <p><strong>Email:</strong> ${form.email}</p>
+          <p><strong>Phone:</strong> ${form.phone || '-'}</p>
+          <p><strong>Subject:</strong> ${form.subject}</p>
+          <p><strong>Message:</strong></p><p>${form.message.replace(/\n/g, '<br/>')}</p>`;
+        await supabase.functions.invoke('send-email', {
+          body: { to, template: 'custom', subject: `Contact: ${form.subject}`, html, replyTo: form.email },
+        });
+      } catch { /* non-blocking */ }
+
       toast({ title: 'Message sent', description: 'Thanks — we will get back to you shortly.' });
       setForm({ name: '', email: '', subject: '', phone: '', message: '' });
+      setCaptchaAnswer('');
     } catch (err: any) {
       toast({ title: 'Failed to send', description: err?.message || 'Try again later', variant: 'destructive' });
     } finally {
@@ -69,11 +120,32 @@ function ContactBody() {
       <GlassCard>
         <h2 className="font-display text-xl font-semibold mb-4">Interested in discussing?</h2>
         <form onSubmit={submit} className="space-y-3">
+          {/* Honeypot — hidden from humans */}
+          <div className="hidden" aria-hidden="true">
+            <Label>Website</Label>
+            <Input tabIndex={-1} autoComplete="off" value={website} onChange={(e) => setWebsite(e.target.value)} />
+          </div>
+
           <div><Label>Name *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="glass-input" /></div>
           <div><Label>Email *</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="glass-input" /></div>
           <div><Label>Subject *</Label><Input value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} className="glass-input" /></div>
           <div><Label>Phone</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="glass-input" /></div>
           <div><Label>Message *</Label><Textarea rows={5} value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} className="glass-input" /></div>
+
+          <div className="rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--glass-bg))] p-3">
+            <Label className="flex items-center gap-2 mb-2 text-xs"><ShieldCheck className="w-4 h-4 text-primary" /> Human verification *</Label>
+            <div className="flex items-center gap-3">
+              <span className="text-sm">What is <strong>{a} + {b}</strong>?</span>
+              <Input
+                type="number"
+                value={captchaAnswer}
+                onChange={(e) => setCaptchaAnswer(e.target.value)}
+                className="glass-input w-24"
+                placeholder="?"
+              />
+            </div>
+          </div>
+
           <Button type="submit" disabled={sending} className="gradient-primary w-full">
             <Send className="w-4 h-4 mr-2" /> {sending ? 'Sending…' : 'Send message'}
           </Button>

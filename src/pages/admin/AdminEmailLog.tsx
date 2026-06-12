@@ -1,16 +1,18 @@
 import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { GlassCard } from '@/components/layout/GlassCard';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
-import { Mail, Search, AlertCircle, CheckCircle2, Filter } from 'lucide-react';
+import { Mail, Search, AlertCircle, CheckCircle2, Filter, Clock, Repeat } from 'lucide-react';
 
 interface EmailLogRow {
   id: string;
@@ -31,6 +33,7 @@ export default function AdminEmailLog() {
   const [templateFilter, setTemplateFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
+  const navigate = useNavigate();
   const { data: emails, isLoading } = useQuery({
     queryKey: ['admin-email-log'],
     queryFn: async () => {
@@ -41,6 +44,21 @@ export default function AdminEmailLog() {
         .limit(500);
       if (error) throw error;
       return data as EmailLogRow[];
+    },
+  });
+
+  // Pending = scheduled broadcasts whose scheduled_for is in the future and not yet sent.
+  const { data: pendingBroadcasts } = useQuery({
+    queryKey: ['admin-pending-broadcasts'],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('scheduled_broadcasts')
+        .select('id, title, message, notification_type, link, recipients, scheduled_for, status, send_email, email_provider_override, email_from')
+        .in('status', ['pending', 'queued', 'scheduled'])
+        .order('scheduled_for', { ascending: true })
+        .limit(100);
+      if (error) return [] as any[];
+      return data ?? [];
     },
   });
 
@@ -71,8 +89,22 @@ export default function AdminEmailLog() {
     const total = emails?.length || 0;
     const sent = emails?.filter((e) => e.status === 'sent').length || 0;
     const failed = emails?.filter((e) => e.status === 'failed').length || 0;
-    return { total, sent, failed };
-  }, [emails]);
+    const pending = (pendingBroadcasts?.length || 0);
+    return { total, sent, failed, pending };
+  }, [emails, pendingBroadcasts]);
+
+  const reuse = (e: EmailLogRow) => {
+    navigate('/admin/notifications', {
+      state: {
+        reuse: {
+          title: e.subject,
+          message: (e.metadata as any)?.message || '',
+          type: 'info',
+          extraEmails: e.recipient_email,
+        },
+      },
+    });
+  };
 
   if (isLoading) {
     return (
@@ -98,7 +130,7 @@ export default function AdminEmailLog() {
       </motion.div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
         <GlassCard>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
@@ -117,7 +149,7 @@ export default function AdminEmailLog() {
             </div>
             <div>
               <p className="text-2xl font-bold">{stats.sent}</p>
-              <p className="text-sm text-muted-foreground">Sent successfully</p>
+              <p className="text-sm text-muted-foreground">Sent</p>
             </div>
           </div>
         </GlassCard>
@@ -132,7 +164,43 @@ export default function AdminEmailLog() {
             </div>
           </div>
         </GlassCard>
+        <GlassCard>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center">
+              <Clock className="w-5 h-5 text-amber-500" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{stats.pending}</p>
+              <p className="text-sm text-muted-foreground">Pending / queued</p>
+            </div>
+          </div>
+        </GlassCard>
       </div>
+
+      {/* Pending / queued broadcasts */}
+      {pendingBroadcasts && pendingBroadcasts.length > 0 && (
+        <GlassCard className="mb-6">
+          <h2 className="font-semibold mb-3 flex items-center gap-2">
+            <Clock className="w-4 h-4 text-amber-500" /> Queued / scheduled broadcasts
+          </h2>
+          <div className="space-y-2">
+            {pendingBroadcasts.map((b: any) => (
+              <div key={b.id} className="flex items-center justify-between gap-3 p-3 rounded-lg bg-[hsl(var(--glass-bg))]">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{b.title}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Scheduled for {new Date(b.scheduled_for).toLocaleString()} ·{' '}
+                    {(b.recipients?.length ?? 0)} recipient{(b.recipients?.length ?? 0) === 1 ? '' : 's'} ·{' '}
+                    {b.send_email ? 'Notification + Email' : 'Notification only'}
+                  </p>
+                </div>
+                <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/30 shrink-0">Pending</Badge>
+              </div>
+            ))}
+          </div>
+        </GlassCard>
+      )}
+
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
@@ -186,6 +254,7 @@ export default function AdminEmailLog() {
                   <th className="text-left py-3 px-3 text-muted-foreground font-medium">Subject</th>
                   <th className="text-left py-3 px-3 text-muted-foreground font-medium">Template</th>
                   <th className="text-left py-3 px-3 text-muted-foreground font-medium">Status</th>
+                  <th className="text-right py-3 px-3 text-muted-foreground font-medium">Reuse</th>
                 </tr>
               </thead>
               <tbody>
@@ -205,7 +274,7 @@ export default function AdminEmailLog() {
                     <td className="py-3 px-3">
                       {e.status === 'sent' ? (
                         <Badge className="bg-emerald-500/20 text-emerald-500 border-emerald-500/30">Sent</Badge>
-                      ) : (
+                      ) : e.status === 'failed' ? (
                         <div>
                           <Badge variant="destructive">Failed</Badge>
                           {e.error_message && (
@@ -214,7 +283,14 @@ export default function AdminEmailLog() {
                             </div>
                           )}
                         </div>
+                      ) : (
+                        <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/30">{e.status}</Badge>
                       )}
+                    </td>
+                    <td className="py-3 px-3 text-right">
+                      <Button size="sm" variant="ghost" onClick={() => reuse(e)} title="Reuse as new broadcast">
+                        <Repeat className="w-3.5 h-3.5 mr-1" /> Reuse
+                      </Button>
                     </td>
                   </tr>
                 ))}

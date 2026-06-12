@@ -234,6 +234,27 @@ serve(async (req) => {
           link: '/author/articles',
         });
 
+      // Notify every admin
+      try {
+        const { data: admins } = await serviceClient
+          .from('user_roles')
+          .select('user_id')
+          .eq('role', 'admin');
+        if (admins && admins.length > 0) {
+          const rows = admins.map((a: any) => ({
+            user_id: a.user_id,
+            title: 'USDT Payment Received 💰',
+            message: `USDT payment of ${payment.final_amount} verified for user ${payment.user_id.slice(0, 8)}…`,
+            type: 'success',
+            link: '/admin/usdt-payments',
+          }));
+          await serviceClient.from('notifications').insert(rows);
+        }
+      } catch (e) {
+        console.error('Failed to insert admin USDT notifications:', e);
+      }
+
+
       // Send email confirmations
       const { data: userProfile } = await serviceClient
         .from('profiles')

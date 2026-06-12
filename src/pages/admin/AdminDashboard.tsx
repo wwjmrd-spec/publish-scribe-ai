@@ -24,6 +24,7 @@ import { DiscoverySourceReport } from '@/components/admin/DiscoverySourceReport'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDashboardRange } from '@/hooks/useDashboardRange';
 import { RANGES, getRangeStart, inRange } from '@/lib/timeRange';
+import { RecentPublicationsSection } from '@/pages/PublicPublications';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -434,6 +435,27 @@ export default function AdminDashboard() {
       <div className="mb-8">
         <DiscoverySourceReport />
       </div>
+
+      {/* Recent Publications box (mirrors author dashboard) */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.39 }}
+        className="mb-8"
+      >
+        <GlassCard>
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+            <div>
+              <h2 className="font-display text-xl font-semibold">Recent Publications</h2>
+              <p className="text-xs text-muted-foreground">Shown on the public site. Adjust order in Publication Order.</p>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => navigate('/admin/publication-order')}>
+              Adjust placement
+            </Button>
+          </div>
+          <RecentPublicationsSection variant="embedded" limit={6} />
+        </GlassCard>
+      </motion.div>
 
       {/* Recent Articles */}
       <motion.div
