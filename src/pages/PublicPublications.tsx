@@ -14,14 +14,18 @@ export function useRecentPublications(limit = 12) {
   return useQuery({
     queryKey: ['public-publications', limit],
     queryFn: async () => {
-        const { data, error } = await supabase
+        const { data, error } = await (supabase as any)
         .from('articles')
-        .select('id, reference_number, title, abstract, author_name, country, published_tier, publication_year, volume, issue, updated_at, publish_queue_added_at, created_at')
+        .select('id, reference_number, title, abstract, author_name, country, published_tier, publication_year, volume, issue, updated_at, publish_queue_added_at, created_at, display_order')
         .eq('status', 'published')
-        .limit(limit * 3);
+        .limit(500);
       if (error) throw error;
-      // Most recent first: prefer publish_queue_added_at, then created_at, then reference_number (sequence).
+      // Admin-pinned items (display_order set) come first ASC; then most recent first.
       const list = (data ?? []).slice().sort((a: any, b: any) => {
+        const ao = a.display_order, bo = b.display_order;
+        if (ao != null && bo != null) return ao - bo;
+        if (ao != null) return -1;
+        if (bo != null) return 1;
         const ta = new Date(a.publish_queue_added_at || a.created_at || 0).getTime();
         const tb = new Date(b.publish_queue_added_at || b.created_at || 0).getTime();
         if (tb !== ta) return tb - ta;
@@ -33,7 +37,7 @@ export function useRecentPublications(limit = 12) {
 }
 
 export default function PublicPublications() {
-  const { data: items = [], isLoading } = useRecentPublications(60);
+  const { data: items = [], isLoading } = useRecentPublications(500);
 
   return (
     <PageLayout>

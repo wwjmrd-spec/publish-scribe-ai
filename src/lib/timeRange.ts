@@ -1,8 +1,9 @@
-import { subMonths, subYears, startOfWeek } from 'date-fns';
+import { subMonths, subYears, startOfWeek, startOfDay } from 'date-fns';
 
-export type RangeKey = 'week' | 'month' | '3m' | '6m' | '1y' | 'all';
+export type RangeKey = 'day' | 'week' | 'month' | '3m' | '6m' | '1y' | 'all';
 
 export const RANGES: { key: RangeKey; label: string }[] = [
+  { key: 'day', label: 'Day' },
   { key: 'week', label: 'Week' },
   { key: 'month', label: 'Month' },
   { key: '3m', label: '3M' },
@@ -14,6 +15,7 @@ export const RANGES: { key: RangeKey; label: string }[] = [
 export function getRangeStart(range: RangeKey): Date | null {
   const now = new Date();
   switch (range) {
+    case 'day': return startOfDay(now);
     case 'week': return startOfWeek(now, { weekStartsOn: 0 });
     case 'month': return subMonths(now, 1);
     case '3m': return subMonths(now, 3);
