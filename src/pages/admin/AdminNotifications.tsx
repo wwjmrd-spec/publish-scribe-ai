@@ -777,17 +777,33 @@ export default function AdminNotifications() {
           <GlassCard className="p-6">
             <h2 className="font-semibold mb-4 flex items-center gap-2">
               <AlertCircle className="w-4 h-4 text-muted-foreground" />
-              Recent Broadcasts
+              Recent Broadcasts — reuse for the same or new audience
             </h2>
             <div className="space-y-3">
               {recentBroadcasts.map((b, i) => (
-                <div key={i} className="flex items-start justify-between p-3 rounded-lg bg-muted/30">
-                  <div>
-                    <p className="font-medium text-sm">{b.title}</p>
-                    <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{b.message}</p>
+                <div key={i} className="flex items-start justify-between gap-3 p-3 rounded-lg bg-muted/30">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-sm truncate">{b.title}</p>
+                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{b.message}</p>
                   </div>
-                  <div className="text-xs text-muted-foreground whitespace-nowrap ml-4">
-                    {new Date(b.created_at).toLocaleDateString()} · {b.count} sent
+                  <div className="flex flex-col items-end gap-2 shrink-0">
+                    <div className="text-xs text-muted-foreground whitespace-nowrap">
+                      {new Date(b.created_at).toLocaleDateString()} · {b.count} sent
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setTitle(b.title);
+                        setMessage(b.message);
+                        setType(b.type || 'info');
+                        setResult(null);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        toast({ title: 'Loaded for reuse', description: 'Adjust audience and send again.' });
+                      }}
+                    >
+                      Reuse
+                    </Button>
                   </div>
                 </div>
               ))}
