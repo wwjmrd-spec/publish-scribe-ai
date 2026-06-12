@@ -254,6 +254,7 @@ export default function AdminEmailLog() {
                   <th className="text-left py-3 px-3 text-muted-foreground font-medium">Subject</th>
                   <th className="text-left py-3 px-3 text-muted-foreground font-medium">Template</th>
                   <th className="text-left py-3 px-3 text-muted-foreground font-medium">Status</th>
+                  <th className="text-right py-3 px-3 text-muted-foreground font-medium">Reuse</th>
                 </tr>
               </thead>
               <tbody>
@@ -273,7 +274,7 @@ export default function AdminEmailLog() {
                     <td className="py-3 px-3">
                       {e.status === 'sent' ? (
                         <Badge className="bg-emerald-500/20 text-emerald-500 border-emerald-500/30">Sent</Badge>
-                      ) : (
+                      ) : e.status === 'failed' ? (
                         <div>
                           <Badge variant="destructive">Failed</Badge>
                           {e.error_message && (
@@ -282,7 +283,14 @@ export default function AdminEmailLog() {
                             </div>
                           )}
                         </div>
+                      ) : (
+                        <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/30">{e.status}</Badge>
                       )}
+                    </td>
+                    <td className="py-3 px-3 text-right">
+                      <Button size="sm" variant="ghost" onClick={() => reuse(e)} title="Reuse as new broadcast">
+                        <Repeat className="w-3.5 h-3.5 mr-1" /> Reuse
+                      </Button>
                     </td>
                   </tr>
                 ))}
