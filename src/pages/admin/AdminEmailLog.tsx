@@ -1,16 +1,18 @@
 import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { GlassCard } from '@/components/layout/GlassCard';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
-import { Mail, Search, AlertCircle, CheckCircle2, Filter } from 'lucide-react';
+import { Mail, Search, AlertCircle, CheckCircle2, Filter, Clock, Repeat } from 'lucide-react';
 
 interface EmailLogRow {
   id: string;
