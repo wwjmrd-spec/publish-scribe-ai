@@ -33,6 +33,7 @@ export default function AdminEmailLog() {
   const [templateFilter, setTemplateFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
+  const navigate = useNavigate();
   const { data: emails, isLoading } = useQuery({
     queryKey: ['admin-email-log'],
     queryFn: async () => {
@@ -43,6 +44,21 @@ export default function AdminEmailLog() {
         .limit(500);
       if (error) throw error;
       return data as EmailLogRow[];
+    },
+  });
+
+  // Pending = scheduled broadcasts whose scheduled_for is in the future and not yet sent.
+  const { data: pendingBroadcasts } = useQuery({
+    queryKey: ['admin-pending-broadcasts'],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('scheduled_broadcasts')
+        .select('id, title, message, notification_type, link, recipients, scheduled_for, status, send_email, email_provider_override, email_from')
+        .in('status', ['pending', 'queued', 'scheduled'])
+        .order('scheduled_for', { ascending: true })
+        .limit(100);
+      if (error) return [] as any[];
+      return data ?? [];
     },
   });
 
@@ -73,8 +89,22 @@ export default function AdminEmailLog() {
     const total = emails?.length || 0;
     const sent = emails?.filter((e) => e.status === 'sent').length || 0;
     const failed = emails?.filter((e) => e.status === 'failed').length || 0;
-    return { total, sent, failed };
-  }, [emails]);
+    const pending = (pendingBroadcasts?.length || 0);
+    return { total, sent, failed, pending };
+  }, [emails, pendingBroadcasts]);
+
+  const reuse = (e: EmailLogRow) => {
+    navigate('/admin/notifications', {
+      state: {
+        reuse: {
+          title: e.subject,
+          message: (e.metadata as any)?.message || '',
+          type: 'info',
+          extraEmails: e.recipient_email,
+        },
+      },
+    });
+  };
 
   if (isLoading) {
     return (
