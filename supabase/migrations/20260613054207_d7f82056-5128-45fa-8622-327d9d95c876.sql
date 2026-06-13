@@ -1,0 +1,1 @@
+GRANT SELECT (published_tier) ON public.articles TO anon;
