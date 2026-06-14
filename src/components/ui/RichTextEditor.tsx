@@ -12,7 +12,6 @@ import FontFamily from '@tiptap/extension-font-family';
 
 // Inline FontSize extension — adds a `fontSize` attribute to the textStyle mark.
 const FontSize = TextStyle.extend({
-  name: 'fontSize',
   addAttributes() {
     return {
       ...this.parent?.(),
@@ -26,19 +25,8 @@ const FontSize = TextStyle.extend({
       },
     };
   },
-  addCommands() {
-    return {
-      setFontSize:
-        (size: string) =>
-        ({ chain }: any) =>
-          chain().setMark('textStyle', { fontSize: size }).run(),
-      unsetFontSize:
-        () =>
-        ({ chain }: any) =>
-          chain().setMark('textStyle', { fontSize: null }).removeEmptyTextStyle().run(),
-    } as any;
-  },
 });
+
 
 import { Table } from '@tiptap/extension-table';
 import TableRow from '@tiptap/extension-table-row';
