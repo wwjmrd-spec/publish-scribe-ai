@@ -35,6 +35,8 @@ export default function AdminAuthorDetail() {
   const { authorId } = useParams<{ authorId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [editAuthorOpen, setEditAuthorOpen] = useState(false);
+  const [editCoAuthor, setEditCoAuthor] = useState<any>(null);
 
   const { data: author, isLoading } = useQuery({
     queryKey: ['admin-author-detail', authorId],
