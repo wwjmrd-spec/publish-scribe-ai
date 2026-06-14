@@ -15,6 +15,7 @@ import {
   Download,
   Eye,
   RotateCcw,
+  Pencil,
 } from 'lucide-react';
 import {
   Select,
@@ -27,6 +28,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import { toast } from 'sonner';
+import { EditAuthorDialog } from '@/components/admin/EditAuthorDialog';
+import { EditCoAuthorDialog } from '@/components/admin/EditCoAuthorDialog';
 
 export default function AdminAuthorDetail() {
   const { authorId } = useParams<{ authorId: string }>();
