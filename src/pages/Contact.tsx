@@ -71,22 +71,11 @@ function ContactBody() {
       });
       if (error) throw error;
 
-      // Also email admin (best-effort) — admin gets notification via DB trigger.
-      try {
-        const { data: setting } = await supabase
-          .from('admin_settings').select('setting_value')
-          .eq('setting_key', 'admin_notification_email').maybeSingle();
-        const to = (setting?.setting_value as string) || 'wwjmrd@gmail.com';
-        const html = `<h2>New contact message</h2>
-          <p><strong>Name:</strong> ${form.name}</p>
-          <p><strong>Email:</strong> ${form.email}</p>
-          <p><strong>Phone:</strong> ${form.phone || '-'}</p>
-          <p><strong>Subject:</strong> ${form.subject}</p>
-          <p><strong>Message:</strong></p><p>${form.message.replace(/\n/g, '<br/>')}</p>`;
-        await supabase.functions.invoke('send-email', {
-          body: { to, template: 'custom', subject: `Contact: ${form.subject}`, html, replyTo: form.email },
-        });
-      } catch { /* non-blocking */ }
+      // Admin is notified via the database trigger that creates an in-app
+      // notification + admin email through the regular notification pipeline.
+      // We intentionally do NOT call send-email with custom HTML from the
+      // public contact form to avoid HTML injection in admin inboxes and to
+      // prevent abuse of the email sender as an open relay.
 
       toast({ title: 'Message sent', description: 'Thanks — we will get back to you shortly.' });
       setForm({ name: '', email: '', subject: '', phone: '', message: '' });
