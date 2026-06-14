@@ -57,7 +57,7 @@ const pageCss = `
     .formatted-body-content th, .formatted-body-content td { border: 1px solid #94a3b8; padding: 5px 6px; font-size: 9.2px; vertical-align: top; overflow-wrap: anywhere; word-break: break-word; text-align: left; }
     .formatted-body-content th { background: #e2e8f0; font-weight: 700; text-align: center; }
     .formatted-body-content .ww-references-materialized { font-size: 9.5px; line-height: 1.4; margin: 2px 0 6px; }
-    .formatted-body-content .ww-reference-item { display: block; margin: 1px 0; padding-left: 18px; text-indent: -18px; text-align: justify; }
+    .formatted-body-content .ww-reference-item { display: block; margin: 1px 0; padding-left: 18px; text-indent: -18px; text-align: justify; font-size: 9.5px; line-height: 1.4; }
     .formatted-body-content .ww-reference-number { display: inline-block; min-width: 16px; font-weight: 700; text-indent: 0; }
     .formatted-body-content .ww-reference-text { text-indent: 0; }
     .formatted-page-footer { height: ${BODY_FOOTER_MM}mm; border-top: 1px solid #cbd5e1; color: #64748b; font-family: Arial, sans-serif; font-size: 9px; line-height: ${BODY_FOOTER_MM}mm; text-align: center; }
@@ -165,18 +165,22 @@ function materializeReferenceNumbers(root: HTMLElement) {
       (!!previousHeading && /^h[1-6]$/i.test(previousHeading.tagName) && ['references', 'bibliography', 'workscited'].includes(norm(previousHeading.textContent || '')));
     if (!isReferenceList) return;
 
-    const replacement = document.createElement('div');
-    replacement.className = 'ww-references ww-references-materialized';
-
+    // Emit each reference as a sibling <p> directly into the flow so the
+    // paginator can split the references list across pages without leaving
+    // blank space at the bottom of the previous page.
+    const items: HTMLElement[] = [];
     Array.from(list.children).forEach((child, index) => {
       if (child.tagName.toLowerCase() !== 'li') return;
       const item = document.createElement('p');
       item.className = 'ww-reference-item';
       item.innerHTML = `<span class="ww-reference-number">${index + 1}.</span><span class="ww-reference-text">${(child as HTMLElement).innerHTML}</span>`;
-      replacement.appendChild(item);
+      items.push(item);
     });
 
-    list.replaceWith(replacement);
+    const parent = list.parentNode;
+    if (!parent) return;
+    items.forEach((item) => parent.insertBefore(item, list));
+    list.remove();
   });
 }
 
