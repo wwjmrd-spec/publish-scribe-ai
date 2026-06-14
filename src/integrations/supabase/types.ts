@@ -143,6 +143,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "article_reviews_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "published_articles_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "article_reviews_reviewed_by_fkey"
             columns: ["reviewed_by"]
             isOneToOne: false
@@ -429,6 +436,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "co_author_certificates_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "published_articles_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "co_author_certificates_co_author_id_fkey"
             columns: ["co_author_id"]
             isOneToOne: false
@@ -468,6 +482,13 @@ export type Database = {
             columns: ["article_id"]
             isOneToOne: false
             referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "co_authors_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "published_articles_public"
             referencedColumns: ["id"]
           },
         ]
@@ -785,6 +806,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "payment_activity_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "published_articles_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "payment_activity_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
@@ -818,6 +846,13 @@ export type Database = {
             columns: ["article_id"]
             isOneToOne: false
             referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_reminders_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "published_articles_public"
             referencedColumns: ["id"]
           },
         ]
@@ -1309,7 +1344,72 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      published_articles_public: {
+        Row: {
+          abstract: string | null
+          author_name: string | null
+          country: string | null
+          created_at: string | null
+          display_order: number | null
+          id: string | null
+          issue: string | null
+          keywords: string[] | null
+          page_number: string | null
+          publication_type: string | null
+          publication_year: string | null
+          publish_queue_added_at: string | null
+          published_link: string | null
+          published_tier: string | null
+          reference_number: string | null
+          subject: string | null
+          title: string | null
+          updated_at: string | null
+          volume: string | null
+        }
+        Insert: {
+          abstract?: string | null
+          author_name?: string | null
+          country?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          issue?: string | null
+          keywords?: string[] | null
+          page_number?: string | null
+          publication_type?: string | null
+          publication_year?: string | null
+          publish_queue_added_at?: string | null
+          published_link?: string | null
+          published_tier?: string | null
+          reference_number?: string | null
+          subject?: string | null
+          title?: string | null
+          updated_at?: string | null
+          volume?: string | null
+        }
+        Update: {
+          abstract?: string | null
+          author_name?: string | null
+          country?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          issue?: string | null
+          keywords?: string[] | null
+          page_number?: string | null
+          publication_type?: string | null
+          publication_year?: string | null
+          publish_queue_added_at?: string | null
+          published_link?: string | null
+          published_tier?: string | null
+          reference_number?: string | null
+          subject?: string | null
+          title?: string | null
+          updated_at?: string | null
+          volume?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       get_user_role: {
