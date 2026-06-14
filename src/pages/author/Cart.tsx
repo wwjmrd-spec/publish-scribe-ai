@@ -88,7 +88,7 @@ export default function Cart() {
     queryKey: ['publication-fees'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('publication_fees')
+        .from('publication_fees_public' as any)
         .select('*')
         .limit(1)
         .single();

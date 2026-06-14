@@ -29,8 +29,8 @@ export default function PublicArticleAbstract() {
   const { data: coAuthors = [] } = useQuery({
     queryKey: ['public-article-coauthors', article?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('co_authors')
+      const { data, error } = await (supabase as any)
+        .from('co_authors_public')
         .select('name, affiliation')
         .eq('article_id', article!.id);
       if (error) throw error;

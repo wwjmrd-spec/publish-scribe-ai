@@ -449,6 +449,13 @@ export type Database = {
             referencedRelation: "co_authors"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "co_author_certificates_co_author_id_fkey"
+            columns: ["co_author_id"]
+            isOneToOne: false
+            referencedRelation: "co_authors_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       co_authors: {
@@ -1344,6 +1351,81 @@ export type Database = {
       }
     }
     Views: {
+      co_authors_public: {
+        Row: {
+          affiliation: string | null
+          article_id: string | null
+          id: string | null
+          name: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "co_authors_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "co_authors_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "published_articles_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      publication_fees_public: {
+        Row: {
+          id: string | null
+          indian_coauthor_fee: number | null
+          indian_fast_track_fee: number | null
+          indian_fee: number | null
+          indian_pro_fee: number | null
+          international_coauthor_fee: number | null
+          international_fast_track_fee: number | null
+          international_fee: number | null
+          international_pro_fee: number | null
+          updated_at: string | null
+          usdt_coauthor_fee: number | null
+          usdt_fast_track_fee: number | null
+          usdt_fee: number | null
+          usdt_pro_fee: number | null
+        }
+        Insert: {
+          id?: string | null
+          indian_coauthor_fee?: number | null
+          indian_fast_track_fee?: number | null
+          indian_fee?: number | null
+          indian_pro_fee?: number | null
+          international_coauthor_fee?: number | null
+          international_fast_track_fee?: number | null
+          international_fee?: number | null
+          international_pro_fee?: number | null
+          updated_at?: string | null
+          usdt_coauthor_fee?: number | null
+          usdt_fast_track_fee?: number | null
+          usdt_fee?: number | null
+          usdt_pro_fee?: number | null
+        }
+        Update: {
+          id?: string | null
+          indian_coauthor_fee?: number | null
+          indian_fast_track_fee?: number | null
+          indian_fee?: number | null
+          indian_pro_fee?: number | null
+          international_coauthor_fee?: number | null
+          international_fast_track_fee?: number | null
+          international_fee?: number | null
+          international_pro_fee?: number | null
+          updated_at?: string | null
+          usdt_coauthor_fee?: number | null
+          usdt_fast_track_fee?: number | null
+          usdt_fee?: number | null
+          usdt_pro_fee?: number | null
+        }
+        Relationships: []
+      }
       published_articles_public: {
         Row: {
           abstract: string | null
