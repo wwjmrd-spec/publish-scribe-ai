@@ -1301,6 +1301,14 @@ const handler = async (req: Request): Promise<Response> => {
     let emailHtml: string;
 
     if (template === "custom") {
+      // Custom (free-form HTML) templates can be used to send phishing email
+      // from our verified sender domain. Restrict to admins and service role only.
+      if (!isServiceRole && !callerIsAdmin) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
       if (!subject || !html) {
         throw new Error("Custom template requires subject and html fields");
       }

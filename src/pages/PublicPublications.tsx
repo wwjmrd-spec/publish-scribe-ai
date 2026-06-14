@@ -15,9 +15,8 @@ export function useRecentPublications(limit = 12) {
     queryKey: ['public-publications', limit],
     queryFn: async () => {
         const { data, error } = await (supabase as any)
-        .from('articles')
+        .from('published_articles_public')
         .select('id, reference_number, title, abstract, author_name, country, published_tier, publication_year, volume, issue, updated_at, publish_queue_added_at, created_at, display_order')
-        .eq('status', 'published')
         .limit(500);
       if (error) throw error;
       // Admin-pinned items (display_order set) come first ASC; then most recent first.
