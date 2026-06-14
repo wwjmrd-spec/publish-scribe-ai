@@ -26,12 +26,11 @@ serve(async (req: Request) => {
       });
     }
 
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const isServiceRole = token === serviceRoleKey;
-    const isAnon = token === anonKey;
     let isAdminUser = false;
 
-    if (!isServiceRole && !isAnon) {
+    if (!isServiceRole) {
+      // Reject the anon key (public bundle key) and only accept admin user JWTs.
       const authClient = createClient(supabaseUrl, supabaseKey, {
         global: { headers: { Authorization: authHeader! } },
       });
