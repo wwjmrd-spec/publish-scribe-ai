@@ -61,13 +61,14 @@ export async function buildFormattedPdfBlob(html: string, options: PaginationOpt
         backgroundColor: '#ffffff',
         logging: false,
         imageTimeout: 0,
+        letterRendering: true,
         windowWidth: page.scrollWidth,
         windowHeight: page.scrollHeight,
-      });
+      } as any);
 
-      // JPEG with high quality but balanced size; scale 3 gives crisp text on retina
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-      pdf.addImage(dataUrl, 'JPEG', 0, 0, pageW, pageH, undefined, 'FAST');
+      // PNG for lossless, HD-clear text rendering.
+      const dataUrl = canvas.toDataURL('image/png');
+      pdf.addImage(dataUrl, 'PNG', 0, 0, pageW, pageH, undefined, 'FAST');
     }
 
     return pdf.output('blob');
