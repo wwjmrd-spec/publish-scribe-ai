@@ -15,6 +15,7 @@ import {
   Download,
   Eye,
   RotateCcw,
+  Pencil,
 } from 'lucide-react';
 import {
   Select,
@@ -27,11 +28,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import { toast } from 'sonner';
+import { EditAuthorDialog } from '@/components/admin/EditAuthorDialog';
+import { EditCoAuthorDialog } from '@/components/admin/EditCoAuthorDialog';
 
 export default function AdminAuthorDetail() {
   const { authorId } = useParams<{ authorId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [editAuthorOpen, setEditAuthorOpen] = useState(false);
+  const [editCoAuthor, setEditCoAuthor] = useState<any>(null);
 
   const { data: author, isLoading } = useQuery({
     queryKey: ['admin-author-detail', authorId],
@@ -303,7 +308,12 @@ export default function AdminAuthorDetail() {
                   {author.full_name.charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1">
-                  <h1 className="font-display text-2xl font-bold">{author.full_name}</h1>
+                  <div className="flex items-start justify-between gap-2">
+                    <h1 className="font-display text-2xl font-bold">{author.full_name}</h1>
+                    <Button variant="outline" size="sm" onClick={() => setEditAuthorOpen(true)}>
+                      <Pencil className="w-3 h-3 mr-1" /> Edit
+                    </Button>
+                  </div>
                   <div className="flex items-center gap-1 text-muted-foreground mt-1">
                     <Mail className="w-4 h-4" />
                     <span>{author.email}</span>
@@ -362,7 +372,12 @@ export default function AdminAuthorDetail() {
                 <div className="space-y-2">
                   {coAuthors.map((ca: any) => (
                     <div key={ca.id} className="p-3 rounded-lg bg-[hsl(var(--glass-bg))] text-sm space-y-1">
-                      <p className="font-medium">{ca.name}</p>
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="font-medium">{ca.name}</p>
+                        <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px]" onClick={() => setEditCoAuthor(ca)}>
+                          <Pencil className="w-3 h-3 mr-1" /> Edit
+                        </Button>
+                      </div>
                       <p className="text-muted-foreground text-xs">{ca.email}</p>
                       {ca.affiliation && <p className="text-muted-foreground text-xs">{ca.affiliation}</p>}
                       {ca.co_author_certificates?.map((cert: any) =>
@@ -629,6 +644,14 @@ export default function AdminAuthorDetail() {
           </div>
         </div>
       </motion.div>
+
+      <EditAuthorDialog open={editAuthorOpen} onOpenChange={setEditAuthorOpen} author={author} />
+      <EditCoAuthorDialog
+        open={!!editCoAuthor}
+        onOpenChange={(v) => !v && setEditCoAuthor(null)}
+        coAuthor={editCoAuthor}
+        invalidateKeys={[['admin-author-coauthors', authorId]]}
+      />
     </DashboardLayout>
   );
 }
