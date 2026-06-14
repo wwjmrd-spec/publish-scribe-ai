@@ -16,7 +16,8 @@ serve(async (req) => {
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
 
-    // Authenticate caller — must be the scheduler (service role) or an admin
+    // Authenticate caller — must be the scheduler (service role) or an admin.
+    // The publicly-known anon key is NOT accepted.
     const authHeader = req.headers.get('Authorization') || '';
     const token = authHeader.replace('Bearer ', '');
     if (!token) {
@@ -25,7 +26,7 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    if (token !== serviceRoleKey && token !== anonKey) {
+    if (token !== serviceRoleKey) {
       // Allow admin users invoking via their JWT
       const userClient = createClient(supabaseUrl, anonKey, {
         global: { headers: { Authorization: `Bearer ${token}` } },
