@@ -194,22 +194,8 @@ export function RichTextEditor({ content, onChange, className = '', placeholder,
           </SelectContent>
         </Select>
 
-        {/* Font Size */}
-        <Select
-          value="12"
-          onValueChange={(val) => {
-            editor.chain().focus().run();
-          }}
-        >
-          <SelectTrigger className="h-7 w-[60px] text-xs">
-            <SelectValue placeholder="12" />
-          </SelectTrigger>
-          <SelectContent>
-            {FONT_SIZES.map((s) => (
-              <SelectItem key={s} value={s}>{s}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {/* Font Size — manual input + preset dropdown */}
+        <FontSizeControl editor={editor} />
 
         <ToolbarDivider />
 
