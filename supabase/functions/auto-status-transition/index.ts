@@ -20,13 +20,15 @@ function decodeJwtPayload(token: string) {
 }
 
 function isAuthorizedSchedulerToken({
-  token, serviceRoleKey, anonKey, projectRef,
-}: { token: string | null; serviceRoleKey: string; anonKey: string; projectRef: string; }) {
+  token, serviceRoleKey, projectRef,
+}: { token: string | null; serviceRoleKey: string; projectRef: string; }) {
   if (!token) return false;
-  if (token === serviceRoleKey || token === anonKey) return true;
+  // Only accept the service role key (used by Supabase scheduled functions / pg_cron).
+  // The anon key is publicly exposed in the browser bundle and must NOT be accepted.
+  if (token === serviceRoleKey) return true;
   const claims = decodeJwtPayload(token);
   if (!claims) return false;
-  return claims.ref === projectRef && (claims.role === "service_role" || claims.role === "anon");
+  return claims.ref === projectRef && claims.role === "service_role";
 }
 
 serve(async (req: Request) => {
