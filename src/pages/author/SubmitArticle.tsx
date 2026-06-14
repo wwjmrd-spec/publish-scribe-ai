@@ -96,7 +96,7 @@ export default function SubmitArticle() {
     queryKey: ['publication-fees'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('publication_fees_public' as any)
+        .from('publication_fees_public')
         .select('*')
         .limit(1)
         .single();
