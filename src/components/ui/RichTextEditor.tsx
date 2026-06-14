@@ -111,6 +111,75 @@ const COLORS = [
   '#cc0000', '#cc6600', '#cccc00', '#00aa00', '#0044cc', '#6600cc',
 ];
 
+function FontSizeControl({ editor }: { editor: any }) {
+  const current = editor.getAttributes('textStyle').fontSize as string | undefined;
+  const currentNum = current ? String(parseFloat(current)) : '';
+  const [value, setValue] = useState<string>(currentNum);
+
+  useEffect(() => {
+    setValue(currentNum);
+  }, [currentNum]);
+
+  const apply = (raw: string) => {
+    const trimmed = (raw || '').trim();
+    if (!trimmed) {
+      editor.chain().focus().setMark('textStyle', { fontSize: null }).run();
+      return;
+    }
+    const num = parseFloat(trimmed);
+    if (!Number.isFinite(num) || num <= 0) return;
+    const clamped = Math.min(200, Math.max(4, num));
+    editor.chain().focus().setMark('textStyle', { fontSize: `${clamped}px` }).run();
+  };
+
+  return (
+    <div className="flex items-center gap-0.5">
+      <Input
+        type="number"
+        min={4}
+        max={200}
+        step={1}
+        value={value}
+        placeholder="12"
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={() => apply(value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            apply(value);
+          }
+        }}
+        className="h-7 w-[56px] text-xs px-2"
+        title="Font size (px)"
+      />
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button type="button" variant="ghost" size="sm" className="h-7 w-5 p-0 text-muted-foreground" title="Preset sizes">
+            ▾
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-24 p-1" align="start">
+          <div className="max-h-60 overflow-auto">
+            {FONT_SIZES.map((s) => (
+              <button
+                key={s}
+                type="button"
+                className="block w-full text-left text-xs px-2 py-1 rounded hover:bg-muted"
+                onClick={() => {
+                  setValue(s);
+                  apply(s);
+                }}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
 export function RichTextEditor({ content, onChange, className = '', placeholder, minHeight = '300px' }: RichTextEditorProps) {
   const editor = useEditor({
     extensions: [
