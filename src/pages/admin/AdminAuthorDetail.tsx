@@ -644,6 +644,14 @@ export default function AdminAuthorDetail() {
           </div>
         </div>
       </motion.div>
+
+      <EditAuthorDialog open={editAuthorOpen} onOpenChange={setEditAuthorOpen} author={author} />
+      <EditCoAuthorDialog
+        open={!!editCoAuthor}
+        onOpenChange={(v) => !v && setEditCoAuthor(null)}
+        coAuthor={editCoAuthor}
+        invalidateKeys={[['admin-author-coauthors', authorId]]}
+      />
     </DashboardLayout>
   );
 }
