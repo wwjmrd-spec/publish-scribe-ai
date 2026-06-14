@@ -15,11 +15,10 @@ export default function PublicArticleAbstract() {
   const { data: article, isLoading } = useQuery({
     queryKey: ['public-article', reference],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('articles')
-        .select('id, reference_number, title, abstract, keywords, author_name, country, published_tier, publication_year, volume, issue, page_number, published_link, status')
+      const { data, error } = await (supabase as any)
+        .from('published_articles_public')
+        .select('id, reference_number, title, abstract, keywords, author_name, country, published_tier, publication_year, volume, issue, page_number, published_link')
         .eq('reference_number', reference!)
-        .eq('status', 'published')
         .maybeSingle();
       if (error) throw error;
       return data;
