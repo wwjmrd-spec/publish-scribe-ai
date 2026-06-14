@@ -372,7 +372,12 @@ export default function AdminAuthorDetail() {
                 <div className="space-y-2">
                   {coAuthors.map((ca: any) => (
                     <div key={ca.id} className="p-3 rounded-lg bg-[hsl(var(--glass-bg))] text-sm space-y-1">
-                      <p className="font-medium">{ca.name}</p>
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="font-medium">{ca.name}</p>
+                        <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px]" onClick={() => setEditCoAuthor(ca)}>
+                          <Pencil className="w-3 h-3 mr-1" /> Edit
+                        </Button>
+                      </div>
                       <p className="text-muted-foreground text-xs">{ca.email}</p>
                       {ca.affiliation && <p className="text-muted-foreground text-xs">{ca.affiliation}</p>}
                       {ca.co_author_certificates?.map((cert: any) =>
