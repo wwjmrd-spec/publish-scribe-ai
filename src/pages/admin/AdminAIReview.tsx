@@ -36,6 +36,9 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { SimplePager } from '@/components/ui/SimplePager';
+
+const PAGE_SIZE = 10;
 
 export default function AdminAIReview() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -46,6 +49,8 @@ export default function AdminAIReview() {
   const [scoreFilter, setScoreFilter] = useState<string>('all');
   const [recommendationFilter, setRecommendationFilter] = useState<string>('all');
   const [reviewStatusFilter, setReviewStatusFilter] = useState<string>('all');
+  const [page, setPage] = useState(1);
+  React.useEffect(() => { setPage(1); }, [searchQuery, scoreFilter, recommendationFilter, reviewStatusFilter]);
 
   // Fetch all articles
   const { data: articles, isLoading: articlesLoading } = useQuery({
