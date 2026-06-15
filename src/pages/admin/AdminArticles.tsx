@@ -456,7 +456,7 @@ export default function AdminArticles() {
           <div>
             {/* Mobile cards */}
             <div className="space-y-3 sm:hidden">
-              {filteredArticles.map((article) => (
+              {pagedArticles.map((article) => (
                 <div
                   key={article.id}
                   className="p-3 rounded-lg bg-[hsl(var(--glass-bg))] border border-[hsl(var(--glass-border))] space-y-2 cursor-pointer"
@@ -507,10 +507,10 @@ export default function AdminArticles() {
                   <tr className="border-b border-[hsl(var(--glass-border))]">
                     <th className="py-3 px-2 w-10">
                       <Checkbox
-                        checked={filteredArticles.length > 0 && filteredArticles.every(a => selectedIds.has(a.id))}
+                        checked={pagedArticles.length > 0 && pagedArticles.every(a => selectedIds.has(a.id))}
                         onCheckedChange={(checked) => {
-                          if (checked) setSelectedIds(new Set(filteredArticles.map(a => a.id)));
-                          else setSelectedIds(new Set());
+                          if (checked) setSelectedIds(new Set([...Array.from(selectedIds), ...pagedArticles.map(a => a.id)]));
+                          else setSelectedIds(new Set(Array.from(selectedIds).filter(id => !pagedArticles.some(a => a.id === id))));
                         }}
                         aria-label="Select all"
                       />
@@ -525,7 +525,7 @@ export default function AdminArticles() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredArticles.map((article) => (
+                  {pagedArticles.map((article) => (
                     <tr key={article.id} className="border-b border-[hsl(var(--glass-border))] hover:bg-[hsl(var(--glass-bg))] transition-colors">
                       <td className="py-3 px-2 text-center">
                         <Checkbox
@@ -630,6 +630,7 @@ export default function AdminArticles() {
                 </tbody>
               </table>
             </div>
+            <SimplePager page={page} pageSize={PAGE_SIZE} total={totalArticles} onPageChange={setPage} />
           </div>
         )}
       </GlassCard>
