@@ -244,6 +244,12 @@ export default function AdminAIReview() {
     return result;
   }, [articles, searchQuery, reviewStatusFilter, scoreFilter, recommendationFilter]);
 
+  const totalReview = filteredArticles?.length || 0;
+  const pagedReviewArticles = useMemo(
+    () => filteredArticles?.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE) || [],
+    [filteredArticles, page]
+  );
+
   const getScoreColor = (score: number) => {
     if (score >= 80) return 'text-green-400';
     if (score >= 60) return 'text-yellow-400';
@@ -367,7 +373,7 @@ export default function AdminAIReview() {
 
       {/* Articles List */}
       <div className="space-y-4">
-        {filteredArticles?.map((article, index) => {
+        {pagedReviewArticles?.map((article, index) => {
           const latestReview = article.article_reviews?.[0];
           const isSelected = selectedArticleId === article.id;
 
@@ -773,6 +779,7 @@ export default function AdminAIReview() {
             <p className="text-muted-foreground">No articles found</p>
           </GlassCard>
         )}
+        <SimplePager page={page} pageSize={PAGE_SIZE} total={totalReview} onPageChange={setPage} />
       </div>
     </DashboardLayout>
   );
