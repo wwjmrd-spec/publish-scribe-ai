@@ -13,6 +13,9 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import { Mail, Search, AlertCircle, CheckCircle2, Filter, Clock, Repeat } from 'lucide-react';
+import { SimplePager } from '@/components/ui/SimplePager';
+
+const PAGE_SIZE = 10;
 
 interface EmailLogRow {
   id: string;
@@ -32,6 +35,8 @@ export default function AdminEmailLog() {
   const [search, setSearch] = useState('');
   const [templateFilter, setTemplateFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [page, setPage] = useState(1);
+  React.useEffect(() => { setPage(1); }, [search, templateFilter, statusFilter]);
 
   const navigate = useNavigate();
   const { data: emails, isLoading } = useQuery({
