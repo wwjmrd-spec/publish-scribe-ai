@@ -180,7 +180,7 @@ export default function AdminFormatting() {
 
       {/* Articles */}
       <div className="space-y-4">
-        {filteredArticles?.map((article, index) => {
+        {pagedFormattingArticles?.map((article, index) => {
           const status = (article as any).formatting_status as FormattingStatus || 'pending';
           const suggestions: Suggestion[] = ((article as any).formatting_suggestions as Suggestion[]) || [];
           const formattedUrl = (article as any).formatted_document_url;
@@ -352,6 +352,9 @@ export default function AdminFormatting() {
             <FileText className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
             <p className="text-muted-foreground">No articles found</p>
           </GlassCard>
+        )}
+        {filteredArticles && (
+          <SimplePager page={page} pageSize={PAGE_SIZE} total={filteredArticles.length} onPageChange={setPage} />
         )}
       </div>
     </DashboardLayout>
