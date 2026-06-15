@@ -263,7 +263,7 @@ export default function AdminEmailLog() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((e) => (
+                {filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((e) => (
                   <tr key={e.id} className="border-b border-[hsl(var(--glass-border))] hover:bg-[hsl(var(--glass-bg))] transition-colors">
                     <td className="py-3 px-3 text-xs text-muted-foreground whitespace-nowrap">
                       {new Date(e.sent_at).toLocaleString()}
@@ -301,6 +301,7 @@ export default function AdminEmailLog() {
                 ))}
               </tbody>
             </table>
+            <SimplePager page={page} pageSize={PAGE_SIZE} total={filtered.length} onPageChange={setPage} />
           </div>
         )}
       </GlassCard>
