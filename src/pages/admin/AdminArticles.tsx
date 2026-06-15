@@ -52,6 +52,9 @@ import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
 import { useNavigate } from 'react-router-dom';
 import { formatArticleStatus, getArticleStatusBadgeClass } from '@/lib/articleStatus';
+import { SimplePager } from '@/components/ui/SimplePager';
+
+const PAGE_SIZE = 10;
 
 type ArticleStatus = Database['public']['Enums']['article_status'];
 
@@ -60,6 +63,8 @@ export default function AdminArticles() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedArticle, setSelectedArticle] = useState<any>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [page, setPage] = useState(1);
+  React.useEffect(() => { setPage(1); }, [searchQuery, statusFilter]);
   const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
   const [publishDetails, setPublishDetails] = useState({
     volume: '',
@@ -334,6 +339,8 @@ export default function AdminArticles() {
     article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     article.reference_number.toLowerCase().includes(searchQuery.toLowerCase())
   );
+  const totalArticles = filteredArticles?.length || 0;
+  const pagedArticles = filteredArticles?.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE) || [];
 
   const getStatusBadge = (status: string) => getArticleStatusBadgeClass(status);
   const formatStatus = (status: string) => formatArticleStatus(status);
