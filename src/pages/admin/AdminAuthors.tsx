@@ -39,11 +39,17 @@ import {
 } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { toast } from 'sonner';
+import { SimplePager } from '@/components/ui/SimplePager';
+
+const PAGE_SIZE = 10;
 
 export default function AdminAuthors() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAuthor, setSelectedAuthor] = useState<any>(null);
   const [isPlanDialogOpen, setIsPlanDialogOpen] = useState(false);
+  const [authorsPage, setAuthorsPage] = useState(1);
+  const [coAuthorsPage, setCoAuthorsPage] = useState(1);
+  React.useEffect(() => { setAuthorsPage(1); setCoAuthorsPage(1); }, [searchQuery]);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
