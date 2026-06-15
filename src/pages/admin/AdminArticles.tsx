@@ -52,6 +52,9 @@ import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
 import { useNavigate } from 'react-router-dom';
 import { formatArticleStatus, getArticleStatusBadgeClass } from '@/lib/articleStatus';
+import { SimplePager } from '@/components/ui/SimplePager';
+
+const PAGE_SIZE = 10;
 
 type ArticleStatus = Database['public']['Enums']['article_status'];
 
@@ -60,6 +63,8 @@ export default function AdminArticles() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedArticle, setSelectedArticle] = useState<any>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [page, setPage] = useState(1);
+  React.useEffect(() => { setPage(1); }, [searchQuery, statusFilter]);
   const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
   const [publishDetails, setPublishDetails] = useState({
     volume: '',
@@ -334,6 +339,8 @@ export default function AdminArticles() {
     article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     article.reference_number.toLowerCase().includes(searchQuery.toLowerCase())
   );
+  const totalArticles = filteredArticles?.length || 0;
+  const pagedArticles = filteredArticles?.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE) || [];
 
   const getStatusBadge = (status: string) => getArticleStatusBadgeClass(status);
   const formatStatus = (status: string) => formatArticleStatus(status);
@@ -449,7 +456,7 @@ export default function AdminArticles() {
           <div>
             {/* Mobile cards */}
             <div className="space-y-3 sm:hidden">
-              {filteredArticles.map((article) => (
+              {pagedArticles.map((article) => (
                 <div
                   key={article.id}
                   className="p-3 rounded-lg bg-[hsl(var(--glass-bg))] border border-[hsl(var(--glass-border))] space-y-2 cursor-pointer"
@@ -500,10 +507,10 @@ export default function AdminArticles() {
                   <tr className="border-b border-[hsl(var(--glass-border))]">
                     <th className="py-3 px-2 w-10">
                       <Checkbox
-                        checked={filteredArticles.length > 0 && filteredArticles.every(a => selectedIds.has(a.id))}
+                        checked={pagedArticles.length > 0 && pagedArticles.every(a => selectedIds.has(a.id))}
                         onCheckedChange={(checked) => {
-                          if (checked) setSelectedIds(new Set(filteredArticles.map(a => a.id)));
-                          else setSelectedIds(new Set());
+                          if (checked) setSelectedIds(new Set([...Array.from(selectedIds), ...pagedArticles.map(a => a.id)]));
+                          else setSelectedIds(new Set(Array.from(selectedIds).filter(id => !pagedArticles.some(a => a.id === id))));
                         }}
                         aria-label="Select all"
                       />
@@ -518,7 +525,7 @@ export default function AdminArticles() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredArticles.map((article) => (
+                  {pagedArticles.map((article) => (
                     <tr key={article.id} className="border-b border-[hsl(var(--glass-border))] hover:bg-[hsl(var(--glass-bg))] transition-colors">
                       <td className="py-3 px-2 text-center">
                         <Checkbox
@@ -623,6 +630,7 @@ export default function AdminArticles() {
                 </tbody>
               </table>
             </div>
+            <SimplePager page={page} pageSize={PAGE_SIZE} total={totalArticles} onPageChange={setPage} />
           </div>
         )}
       </GlassCard>

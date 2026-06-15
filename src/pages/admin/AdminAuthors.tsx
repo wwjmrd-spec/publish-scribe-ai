@@ -39,11 +39,17 @@ import {
 } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { toast } from 'sonner';
+import { SimplePager } from '@/components/ui/SimplePager';
+
+const PAGE_SIZE = 10;
 
 export default function AdminAuthors() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAuthor, setSelectedAuthor] = useState<any>(null);
   const [isPlanDialogOpen, setIsPlanDialogOpen] = useState(false);
+  const [authorsPage, setAuthorsPage] = useState(1);
+  const [coAuthorsPage, setCoAuthorsPage] = useState(1);
+  React.useEffect(() => { setAuthorsPage(1); setCoAuthorsPage(1); }, [searchQuery]);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
@@ -321,7 +327,7 @@ export default function AdminAuthors() {
             </GlassCard>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredAuthors.map((author, index) => {
+              {filteredAuthors.slice((authorsPage - 1) * PAGE_SIZE, authorsPage * PAGE_SIZE).map((author, index) => {
                 const plan = getAuthorPlan(author.id);
                 return (
                   <motion.div
@@ -439,6 +445,9 @@ export default function AdminAuthors() {
               })}
             </div>
           )}
+          {filteredAuthors && (
+            <SimplePager page={authorsPage} pageSize={PAGE_SIZE} total={filteredAuthors.length} onPageChange={setAuthorsPage} />
+          )}
         </TabsContent>
 
         <TabsContent value="coauthors">
@@ -462,33 +471,36 @@ export default function AdminAuthors() {
               );
             }
             return (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {allCoAuthors.map((ca: any) => (
-                  <div key={ca.id} className="glass-card p-5">
-                    <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-full bg-secondary/30 flex items-center justify-center text-secondary font-semibold">
-                        {(ca.name || '?').charAt(0).toUpperCase()}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold truncate">{ca.name || '(unnamed)'}</h3>
-                        <a href={`mailto:${ca.email}`} className="flex items-center gap-1 text-sm text-primary hover:underline truncate">
-                          <Mail className="w-3 h-3" /> <span className="truncate">{ca.email}</span>
-                        </a>
-                        {ca.affiliation && (
-                          <p className="flex items-center gap-1 text-xs text-muted-foreground mt-1 truncate">
-                            <Building className="w-3 h-3" /> {ca.affiliation}
-                          </p>
-                        )}
-                        {ca.article && (
-                          <p className="text-[11px] text-muted-foreground mt-2 truncate">
-                            On article: <span className="font-mono">{ca.article.reference_number}</span> — {ca.article.title}
-                          </p>
-                        )}
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {allCoAuthors.slice((coAuthorsPage - 1) * PAGE_SIZE, coAuthorsPage * PAGE_SIZE).map((ca: any) => (
+                    <div key={ca.id} className="glass-card p-5">
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-full bg-secondary/30 flex items-center justify-center text-secondary font-semibold">
+                          {(ca.name || '?').charAt(0).toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold truncate">{ca.name || '(unnamed)'}</h3>
+                          <a href={`mailto:${ca.email}`} className="flex items-center gap-1 text-sm text-primary hover:underline truncate">
+                            <Mail className="w-3 h-3" /> <span className="truncate">{ca.email}</span>
+                          </a>
+                          {ca.affiliation && (
+                            <p className="flex items-center gap-1 text-xs text-muted-foreground mt-1 truncate">
+                              <Building className="w-3 h-3" /> {ca.affiliation}
+                            </p>
+                          )}
+                          {ca.article && (
+                            <p className="text-[11px] text-muted-foreground mt-2 truncate">
+                              On article: <span className="font-mono">{ca.article.reference_number}</span> — {ca.article.title}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+                <SimplePager page={coAuthorsPage} pageSize={PAGE_SIZE} total={allCoAuthors.length} onPageChange={setCoAuthorsPage} />
+              </>
             );
           })()}
         </TabsContent>

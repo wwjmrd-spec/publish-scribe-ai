@@ -31,6 +31,9 @@ import {
 } from '@/components/ui/collapsible';
 import { ArticleContentEditor } from '@/components/admin/ArticleContentEditor';
 import { downloadFormattedAsPdf, downloadFormattedAsDocx } from '@/lib/exportFormattedArticle';
+import { SimplePager } from '@/components/ui/SimplePager';
+
+const PAGE_SIZE = 10;
 
 type FormattingStatus = 'pending' | 'formatting' | 'ready_for_review' | 'approved' | 'failed';
 
@@ -44,6 +47,8 @@ export default function AdminFormatting() {
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedArticle, setExpandedArticle] = useState<string | null>(null);
   const [editingArticle, setEditingArticle] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  React.useEffect(() => { setPage(1); }, [searchQuery]);
   const queryClient = useQueryClient();
 
   const { data: articles, isLoading } = useQuery({
@@ -104,6 +109,7 @@ export default function AdminFormatting() {
       a.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       a.reference_number.toLowerCase().includes(searchQuery.toLowerCase())
   );
+  const pagedFormattingArticles = filteredArticles?.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const getStatusBadge = (status: string | null) => {
     const s = (status || 'pending') as FormattingStatus;
@@ -174,7 +180,7 @@ export default function AdminFormatting() {
 
       {/* Articles */}
       <div className="space-y-4">
-        {filteredArticles?.map((article, index) => {
+        {pagedFormattingArticles?.map((article, index) => {
           const status = (article as any).formatting_status as FormattingStatus || 'pending';
           const suggestions: Suggestion[] = ((article as any).formatting_suggestions as Suggestion[]) || [];
           const formattedUrl = (article as any).formatted_document_url;
@@ -346,6 +352,9 @@ export default function AdminFormatting() {
             <FileText className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
             <p className="text-muted-foreground">No articles found</p>
           </GlassCard>
+        )}
+        {filteredArticles && (
+          <SimplePager page={page} pageSize={PAGE_SIZE} total={filteredArticles.length} onPageChange={setPage} />
         )}
       </div>
     </DashboardLayout>
