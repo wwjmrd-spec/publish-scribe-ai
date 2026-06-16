@@ -1317,6 +1317,18 @@ serve(async (req) => {
     meta.authors = overrideAuthors;
     meta.correspondence = { name: primaryName, designation: primaryDesignation };
 
+    // OVERRIDE header so the formatted output always reflects the journal's
+    // current issue, not whatever the AI parsed out of an old manuscript.
+    const _now = new Date();
+    const _currentMonth = String(_now.getMonth() + 1).padStart(2, "0");
+    meta.header = {
+      year: ((article as any).publication_year || String(_now.getFullYear())).toString(),
+      volume: ((article as any).volume || "12").toString(),
+      issue: ((article as any).issue || _currentMonth).toString(),
+      page_range: ((article as any).page_number || meta.header?.page_range || "01-10").toString(),
+    };
+
+
     // 4. Slice body
     const body = removeReferenceSection(sliceBodyBlocks(allBlocks, meta), meta);
     console.log(`Body has ${body.length} blocks (out of ${allBlocks.length})`);
