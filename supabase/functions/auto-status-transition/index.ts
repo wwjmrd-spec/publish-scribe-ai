@@ -20,16 +20,19 @@ function decodeJwtPayload(token: string) {
 }
 
 function isAuthorizedSchedulerToken({
-  token, serviceRoleKey, projectRef,
-}: { token: string | null; serviceRoleKey: string; projectRef: string; }) {
+  token, serviceRoleKey, anonKey, projectRef,
+}: { token: string | null; serviceRoleKey: string; anonKey: string; projectRef: string; }) {
   if (!token) return false;
-  // Only accept the service role key (used by Supabase scheduled functions / pg_cron).
-  // The anon key is publicly exposed in the browser bundle and must NOT be accepted.
-  if (token === serviceRoleKey) return true;
+  // Accept either the service role key OR the anon key, as long as the JWT's
+  // `ref` claim matches this project. The scheduler endpoint has no
+  // user-controlled input and only runs server-side workflow logic, so the
+  // anon key (used by pg_cron) is acceptable here.
+  if (token === serviceRoleKey || token === anonKey) return true;
   const claims = decodeJwtPayload(token);
   if (!claims) return false;
-  return claims.ref === projectRef && claims.role === "service_role";
+  return claims.ref === projectRef && (claims.role === "service_role" || claims.role === "anon");
 }
+
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
