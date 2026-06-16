@@ -6,6 +6,7 @@ export const ARTICLE_STATUS_LABELS: Record<string, string> = {
   manuscript_accepted: 'Manuscript Accepted',
   pending_fee: 'Pending Fee',
   paid: 'Paid',
+  free: 'Free',
   payment_under_review: 'Payment Under Review',
   failed_payment: 'Failed Payment',
   published: 'Published',
@@ -20,6 +21,7 @@ export const ARTICLE_STATUS_LABELS: Record<string, string> = {
   galley_proof_approved: 'Galley Proof Approved',
   galley_proof_revised: 'Revised Galley Proof Submitted',
 };
+
 
 export const ARTICLE_STATUS_BADGES: Record<string, string> = {
   submitted: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
