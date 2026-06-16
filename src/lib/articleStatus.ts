@@ -29,6 +29,8 @@ export const ARTICLE_STATUS_BADGES: Record<string, string> = {
   manuscript_accepted: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
   pending_fee: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
   paid: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
+  free: 'bg-lime-500/20 text-lime-400 border-lime-500/30',
+
   payment_under_review: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
   failed_payment: 'bg-red-500/20 text-red-400 border-red-500/30',
   published: 'bg-green-500/20 text-green-400 border-green-500/30',
