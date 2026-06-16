@@ -166,9 +166,10 @@ serve(async (req: Request) => {
         .from("article_reviews")
         .select("id, article_id, report_url, overall_score, detailed_feedback, summary, reviewed_at, approved")
         .eq("approved", false)
-        .not("report_url", "is", null)
+        .not("reviewed_at", "is", null)
         .lte("reviewed_at", sixHoursAgo)
         .limit(50);
+
 
       if (error) {
         results.errors.push(`Step1 fetch: ${error.message}`);
