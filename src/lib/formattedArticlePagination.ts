@@ -507,6 +507,20 @@ export async function buildPagedFormattedArticleHtml(
   document.body.removeChild(measureHost);
 
   const totalPages = (firstPage ? 1 : 0) + pages.length;
+  const lastPageNumber = startPage + totalPages - 1;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const computedPageRange = totalPages > 0
+    ? (totalPages === 1 ? pad(startPage) : `${pad(startPage)}-${pad(lastPageNumber)}`)
+    : pad(startPage);
+
+  // Patch any "Pages <span class='ww-page-range'>…</span>" markers on the cover
+  // so the cover always reflects the actual page-range derived from start page
+  // and current document length.
+  if (firstPage) {
+    firstPage.querySelectorAll('.ww-page-range').forEach((el) => {
+      el.textContent = computedPageRange;
+    });
+  }
 
   const firstPageHtml = firstPage
     ? `<section class="formatted-a4-page formatted-cover-page" data-formatted-page="first">
@@ -520,6 +534,7 @@ export async function buildPagedFormattedArticleHtml(
   const bodyStart = startPage + (firstPage ? 1 : 0);
   const bodyPagesHtml = pages.map((content, index) => createBodyPage(content, bodyStart + index)).join('');
   const doc = `<div class="formatted-a4-document">${firstPageHtml}${bodyPagesHtml}</div>`.replace(/<span class="formatted-total-pages">\.\.\.<\/span>/g, `<span class="formatted-total-pages">${totalPages}</span>`);
+
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8">${pageCss}${styleTags}</head><body>${doc}</body></html>`;
 }

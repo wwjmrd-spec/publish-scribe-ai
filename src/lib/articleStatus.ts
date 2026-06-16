@@ -6,6 +6,7 @@ export const ARTICLE_STATUS_LABELS: Record<string, string> = {
   manuscript_accepted: 'Manuscript Accepted',
   pending_fee: 'Pending Fee',
   paid: 'Paid',
+  free: 'Free',
   payment_under_review: 'Payment Under Review',
   failed_payment: 'Failed Payment',
   published: 'Published',
@@ -21,12 +22,15 @@ export const ARTICLE_STATUS_LABELS: Record<string, string> = {
   galley_proof_revised: 'Revised Galley Proof Submitted',
 };
 
+
 export const ARTICLE_STATUS_BADGES: Record<string, string> = {
   submitted: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
   under_review: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
   manuscript_accepted: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
   pending_fee: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
   paid: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
+  free: 'bg-lime-500/20 text-lime-400 border-lime-500/30',
+
   payment_under_review: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
   failed_payment: 'bg-red-500/20 text-red-400 border-red-500/30',
   published: 'bg-green-500/20 text-green-400 border-green-500/30',
@@ -68,6 +72,8 @@ export const MANUAL_ADMIN_STATUSES: { value: string; label: string }[] = [
   { value: 'revised_review_generated', label: 'Revised Review Generated' },
   { value: 'pending_fee', label: 'Pending Fee' },
   { value: 'paid', label: 'Paid' },
+  { value: 'free', label: 'Free (No Fee)' },
+
   { value: 'galley_proof_sent', label: 'Galley Proof Sent' },
   { value: 'galley_proof_approved', label: 'Galley Proof Approved' },
   { value: 'galley_proof_revised', label: 'Revised Galley Proof Submitted' },

@@ -1549,6 +1549,7 @@ export type Database = {
         | "galley_proof_sent"
         | "galley_proof_approved"
         | "galley_proof_revised"
+        | "free"
       coauthor_payment_status: "pending" | "paid" | "failed"
       currency_type: "INR" | "USD" | "USDT"
       discount_currency: "INR" | "USD" | "BOTH" | "USDT"
@@ -1702,6 +1703,7 @@ export const Constants = {
         "galley_proof_sent",
         "galley_proof_approved",
         "galley_proof_revised",
+        "free",
       ],
       coauthor_payment_status: ["pending", "paid", "failed"],
       currency_type: ["INR", "USD", "USDT"],
