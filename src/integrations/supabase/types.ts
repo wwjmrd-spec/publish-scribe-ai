@@ -203,6 +203,7 @@ export type Database = {
           publish_queue_added_at: string | null
           published_link: string | null
           published_tier: string | null
+          published_to_wwjmrd_at: string | null
           reason_of_research: string | null
           reference_number: string
           review_report_url: string | null
@@ -213,6 +214,7 @@ export type Database = {
           title: string
           updated_at: string | null
           volume: string | null
+          wwjmrd_article_id: number | null
         }
         Insert: {
           abstract?: string | null
@@ -258,6 +260,7 @@ export type Database = {
           publish_queue_added_at?: string | null
           published_link?: string | null
           published_tier?: string | null
+          published_to_wwjmrd_at?: string | null
           reason_of_research?: string | null
           reference_number: string
           review_report_url?: string | null
@@ -268,6 +271,7 @@ export type Database = {
           title: string
           updated_at?: string | null
           volume?: string | null
+          wwjmrd_article_id?: number | null
         }
         Update: {
           abstract?: string | null
@@ -313,6 +317,7 @@ export type Database = {
           publish_queue_added_at?: string | null
           published_link?: string | null
           published_tier?: string | null
+          published_to_wwjmrd_at?: string | null
           reason_of_research?: string | null
           reference_number?: string
           review_report_url?: string | null
@@ -323,6 +328,7 @@ export type Database = {
           title?: string
           updated_at?: string | null
           volume?: string | null
+          wwjmrd_article_id?: number | null
         }
         Relationships: [
           {
@@ -1550,6 +1556,7 @@ export type Database = {
         | "galley_proof_approved"
         | "galley_proof_revised"
         | "free"
+        | "published_to_wwjmrd"
       coauthor_payment_status: "pending" | "paid" | "failed"
       currency_type: "INR" | "USD" | "USDT"
       discount_currency: "INR" | "USD" | "BOTH" | "USDT"
@@ -1704,6 +1711,7 @@ export const Constants = {
         "galley_proof_approved",
         "galley_proof_revised",
         "free",
+        "published_to_wwjmrd",
       ],
       coauthor_payment_status: ["pending", "paid", "failed"],
       currency_type: ["INR", "USD", "USDT"],
