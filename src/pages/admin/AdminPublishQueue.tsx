@@ -225,6 +225,18 @@ export default function AdminPublishQueue() {
                     </Button>
                     <Button
                       size="sm"
+                      variant="outline"
+                      className="gap-1 text-green-400 border-green-500/30 hover:text-green-300"
+                      onClick={() => {
+                        if (confirm('Publish this article to WWJMRD now? This will POST article data to wwjmrd.com.'))
+                          publishToWwjmrdMutation.mutate(a.id);
+                      }}
+                      disabled={publishToWwjmrdMutation.isPending}
+                    >
+                      <Globe className="w-4 h-4" /> Publish to WWJMRD
+                    </Button>
+                    <Button
+                      size="sm"
                       onClick={() => publishMutation.mutate(a.id)}
                       disabled={publishMutation.isPending}
                       className="gap-1"
