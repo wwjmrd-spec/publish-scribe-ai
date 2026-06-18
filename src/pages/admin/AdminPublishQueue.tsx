@@ -15,7 +15,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
-import { Plus, Trash2, CheckCircle, Search, FileText, ClipboardList } from 'lucide-react';
+import { Plus, Trash2, CheckCircle, Search, FileText, ClipboardList, Globe } from 'lucide-react';
 
 export default function AdminPublishQueue() {
   const qc = useQueryClient();
@@ -27,9 +27,10 @@ export default function AdminPublishQueue() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('articles')
-        .select('id, title, reference_number, author_name, status, publish_queue_added_at')
+        .select('id, title, reference_number, author_name, status, publish_queue_added_at, wwjmrd_article_id, published_to_wwjmrd_at')
         .eq('in_publish_queue', true)
         .neq('status', 'published')
+        .neq('status', 'published_to_wwjmrd')
         .order('publish_queue_added_at', { ascending: false });
       if (error) throw error;
       return data ?? [];
@@ -102,6 +103,23 @@ export default function AdminPublishQueue() {
       qc.invalidateQueries({ queryKey: ['publish-queue'] });
     },
     onError: (e: any) => toast.error(e.message),
+  });
+
+  const publishToWwjmrdMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { data, error } = await supabase.functions.invoke('publish-to-wwjmrd', {
+        body: { articleId: id },
+      });
+      console.log('publish-to-wwjmrd response:', { data, error });
+      if (error) throw new Error(error.message);
+      if (!data?.success) throw new Error(data?.error || 'Publish failed');
+      return data;
+    },
+    onSuccess: (data) => {
+      toast.success(`Article successfully published to WWJMRD (ID ${data.wwjmrd_article_id}).`);
+      qc.invalidateQueries({ queryKey: ['publish-queue'] });
+    },
+    onError: (e: any) => toast.error('Publish to WWJMRD failed: ' + e.message),
   });
 
   return (
@@ -204,6 +222,18 @@ export default function AdminPublishQueue() {
                       <Link to={`/admin/publish-queue/${a.id}/publication-form`}>
                         <ClipboardList className="w-4 h-4" /> Prepare Publication
                       </Link>
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1 text-green-400 border-green-500/30 hover:text-green-300"
+                      onClick={() => {
+                        if (confirm('Publish this article to WWJMRD now? This will POST article data to wwjmrd.com.'))
+                          publishToWwjmrdMutation.mutate(a.id);
+                      }}
+                      disabled={publishToWwjmrdMutation.isPending}
+                    >
+                      <Globe className="w-4 h-4" /> Publish to WWJMRD
                     </Button>
                     <Button
                       size="sm"

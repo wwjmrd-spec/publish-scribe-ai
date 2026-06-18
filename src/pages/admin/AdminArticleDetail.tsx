@@ -25,6 +25,7 @@ import {
   PlayCircle,
   RotateCcw,
   Pencil,
+  Globe,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -391,6 +392,25 @@ export default function AdminArticleDetail() {
     onError: (error) => {
       toast.error('Failed to send reminder: ' + error.message);
     },
+  });
+
+  const publishToWwjmrdMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('publish-to-wwjmrd', {
+        body: { articleId: article!.id },
+      });
+      console.log('publish-to-wwjmrd response:', { data, error });
+      if (error) throw new Error(error.message);
+      if (!data?.success) throw new Error(data?.error || 'Publish failed');
+      return data;
+    },
+    onSuccess: (data) => {
+      toast.success(`Article successfully published to WWJMRD (ID ${data.wwjmrd_article_id}).`);
+      queryClient.invalidateQueries({ queryKey: ['admin-article-detail', articleId] });
+      queryClient.invalidateQueries({ queryKey: ['admin-articles'] });
+      queryClient.invalidateQueries({ queryKey: ['publish-queue'] });
+    },
+    onError: (err: any) => toast.error('Publish to WWJMRD failed: ' + err.message),
   });
 
   const getStatusBadge = (status: string) => getArticleStatusBadgeClass(status);
@@ -830,6 +850,26 @@ export default function AdminArticleDetail() {
                   disabled={updateStatusMutation.isPending || article.status === 'published'}
                 >
                   <CheckCircle className="w-4 h-4 mr-2" /> Publish
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-green-400 hover:text-green-300 border-green-500/30"
+                  onClick={() => {
+                    if (!confirm('Publish this article to WWJMRD now? This will POST article data to wwjmrd.com.')) return;
+                    publishToWwjmrdMutation.mutate();
+                  }}
+                  disabled={
+                    publishToWwjmrdMutation.isPending ||
+                    article.status === 'published_to_wwjmrd'
+                  }
+                >
+                  <Globe className="w-4 h-4 mr-2" />
+                  {publishToWwjmrdMutation.isPending
+                    ? 'Publishing to WWJMRD…'
+                    : article.status === 'published_to_wwjmrd'
+                      ? `Published to WWJMRD (ID ${(article as any).wwjmrd_article_id ?? ''})`
+                      : 'Publish to WWJMRD'}
                 </Button>
                 <Button
                   variant="outline"
