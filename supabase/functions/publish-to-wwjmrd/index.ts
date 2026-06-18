@@ -1,0 +1,206 @@
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+
+const WWJMRD_ENDPOINT =
+  "https://wwjmrd.com/manage/index.php/api/publish_article";
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+function monthName(m: number): string {
+  return [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+  ][Math.max(0, Math.min(11, m - 1))];
+}
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  try {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) return json({ error: "Unauthorized" }, 401);
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const wwjmrdSecret = Deno.env.get("WWJMRD_PUBLISH_SECRET") || "";
+
+    if (!wwjmrdSecret) {
+      return json({ error: "WWJMRD_PUBLISH_SECRET is not configured" }, 500);
+    }
+
+    const userClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: userData, error: userErr } = await userClient.auth.getUser();
+    if (userErr || !userData?.user) return json({ error: "Unauthorized" }, 401);
+
+    const admin = createClient(supabaseUrl, serviceKey);
+    const { data: role } = await admin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userData.user.id)
+      .maybeSingle();
+    if (role?.role !== "admin") return json({ error: "Forbidden" }, 403);
+
+    const { articleId } = await req.json().catch(() => ({}));
+    if (!articleId) return json({ error: "articleId is required" }, 400);
+
+    // Load article + co-authors
+    const { data: article, error: artErr } = await admin
+      .from("articles")
+      .select(
+        "id, title, author_name, country, subject, abstract, reason_of_research, keywords, publication_year, volume, issue, page_number, published_link, galley_proof_pdf_url, formatted_document_url, status, co_authors(name)"
+      )
+      .eq("id", articleId)
+      .maybeSingle();
+    if (artErr || !article) return json({ error: "Article not found" }, 404);
+
+    // Optional admin-curated publication form overrides
+    const { data: pubForm } = await admin
+      .from("publication_form_data")
+      .select(
+        "article_title, correspondence_author_name, co_authors_names, country, subject, description, keywords, publication_year_month, doi, abstract, final_pdf_url"
+      )
+      .eq("article_id", articleId)
+      .maybeSingle();
+
+    const coAuthorsStr =
+      pubForm?.co_authors_names?.trim() ||
+      (Array.isArray((article as any).co_authors)
+        ? (article as any).co_authors.map((c: any) => c.name).filter(Boolean).join(", ")
+        : "");
+
+    const keywords =
+      pubForm?.keywords?.trim() ||
+      (Array.isArray(article.keywords) ? article.keywords.join(", ") : "");
+
+    const now = new Date();
+    let year = (pubForm?.publication_year_month || article.publication_year || "").trim();
+    let month = "";
+    // publication_year_month may be "2026", "2026-06", "June 2026"
+    const ym = (pubForm?.publication_year_month || "").trim();
+    if (/^\d{4}-\d{1,2}/.test(ym)) {
+      const [y, m] = ym.split("-");
+      year = y;
+      month = monthName(parseInt(m, 10));
+    } else if (/^\d{4}$/.test(ym)) {
+      year = ym;
+    } else if (ym) {
+      // free-form, send as-is for month, year stays from article
+      month = ym;
+    }
+    if (!year) year = String(now.getFullYear());
+    if (!month) month = monthName(now.getMonth() + 1);
+
+    // Build the public PDF URL: prefer published_link; otherwise sign the final PDF path
+    let pdfUrl = article.published_link || "";
+    const pdfPath =
+      pubForm?.final_pdf_url ||
+      (article as any).galley_proof_pdf_url ||
+      (article as any).formatted_document_url ||
+      "";
+    if (!pdfUrl && pdfPath) {
+      const { data: signed } = await admin.storage
+        .from("formatted-articles")
+        .createSignedUrl(pdfPath, 60 * 60 * 24 * 365);
+      pdfUrl = signed?.signedUrl || "";
+    }
+
+    const payload: Record<string, string> = {
+      secret: wwjmrdSecret,
+      title: pubForm?.article_title || article.title || "",
+      author: pubForm?.correspondence_author_name || article.author_name || "",
+      co_authors: coAuthorsStr,
+      country: pubForm?.country || article.country || "",
+      subject: pubForm?.subject || article.subject || "",
+      abstract: pubForm?.abstract || article.abstract || "",
+      description: pubForm?.description || article.reason_of_research || "",
+      keyword: keywords,
+      year,
+      month,
+      doi: pubForm?.doi || "",
+      pdf_url: pdfUrl,
+    };
+
+    // Log payload WITHOUT the secret
+    const { secret: _omit, ...loggable } = payload;
+    console.log("WWJMRD publish payload:", JSON.stringify(loggable));
+
+    const form = new URLSearchParams();
+    for (const [k, v] of Object.entries(payload)) form.append(k, v ?? "");
+
+    let res: Response;
+    try {
+      res = await fetch(WWJMRD_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: form.toString(),
+      });
+    } catch (e: any) {
+      console.error("WWJMRD network error:", e?.message || e);
+      return json({ error: "Network error contacting WWJMRD", details: String(e?.message || e) }, 502);
+    }
+
+    const text = await res.text();
+    console.log("WWJMRD HTTP status:", res.status);
+    console.log("WWJMRD response body:", text);
+
+    let body: any = null;
+    try { body = JSON.parse(text); } catch { /* not JSON */ }
+
+    if (!res.ok || !body || body.success !== true || typeof body.article_id !== "number") {
+      return json(
+        {
+          error: body?.message || body?.error || `WWJMRD returned HTTP ${res.status}`,
+          httpStatus: res.status,
+          response: body ?? text,
+        },
+        502,
+      );
+    }
+
+    // Mark as published on our side
+    const publishedAt = new Date().toISOString();
+    const { error: updErr } = await admin
+      .from("articles")
+      .update({
+        wwjmrd_article_id: body.article_id,
+        published_to_wwjmrd_at: publishedAt,
+        status: "published_to_wwjmrd",
+        in_publish_queue: false,
+        automation_paused: true,
+      })
+      .eq("id", articleId);
+    if (updErr) {
+      console.error("Failed to update local article after publish:", updErr.message);
+      return json(
+        {
+          error: "Published to WWJMRD but failed to update local record: " + updErr.message,
+          wwjmrd_article_id: body.article_id,
+        },
+        500,
+      );
+    }
+
+    return json({
+      success: true,
+      wwjmrd_article_id: body.article_id,
+      published_to_wwjmrd_at: publishedAt,
+    });
+  } catch (e: any) {
+    console.error("publish-to-wwjmrd error:", e?.message || e);
+    return json({ error: e?.message || "Unexpected error" }, 500);
+  }
+});
