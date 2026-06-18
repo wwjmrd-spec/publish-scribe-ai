@@ -854,6 +854,26 @@ export default function AdminArticleDetail() {
                 <Button
                   variant="outline"
                   size="sm"
+                  className="text-green-400 hover:text-green-300 border-green-500/30"
+                  onClick={() => {
+                    if (!confirm('Publish this article to WWJMRD now? This will POST article data to wwjmrd.com.')) return;
+                    publishToWwjmrdMutation.mutate();
+                  }}
+                  disabled={
+                    publishToWwjmrdMutation.isPending ||
+                    article.status === 'published_to_wwjmrd'
+                  }
+                >
+                  <Globe className="w-4 h-4 mr-2" />
+                  {publishToWwjmrdMutation.isPending
+                    ? 'Publishing to WWJMRD…'
+                    : article.status === 'published_to_wwjmrd'
+                      ? `Published to WWJMRD (ID ${(article as any).wwjmrd_article_id ?? ''})`
+                      : 'Publish to WWJMRD'}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
                   className="text-destructive hover:text-destructive"
                   onClick={() => updateStatusMutation.mutate({ status: 'rejected' })}
                   disabled={updateStatusMutation.isPending}
