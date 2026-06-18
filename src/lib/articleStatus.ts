@@ -20,6 +20,7 @@ export const ARTICLE_STATUS_LABELS: Record<string, string> = {
   galley_proof_sent: 'Galley Proof Sent',
   galley_proof_approved: 'Galley Proof Approved',
   galley_proof_revised: 'Revised Galley Proof Submitted',
+  published_to_wwjmrd: 'Published to WWJMRD',
 };
 
 
@@ -44,6 +45,7 @@ export const ARTICLE_STATUS_BADGES: Record<string, string> = {
   galley_proof_sent: 'bg-sky-500/20 text-sky-400 border-sky-500/30',
   galley_proof_approved: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
   galley_proof_revised: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+  published_to_wwjmrd: 'bg-green-500/20 text-green-400 border-green-500/30',
 };
 
 export function formatArticleStatus(status: string | null | undefined): string {
@@ -78,6 +80,7 @@ export const MANUAL_ADMIN_STATUSES: { value: string; label: string }[] = [
   { value: 'galley_proof_approved', label: 'Galley Proof Approved' },
   { value: 'galley_proof_revised', label: 'Revised Galley Proof Submitted' },
   { value: 'published', label: 'Published' },
+  { value: 'published_to_wwjmrd', label: 'Published to WWJMRD' },
   { value: 'rejected', label: 'Rejected' },
   { value: 'withdrawn', label: 'Withdrawn' },
 ];
