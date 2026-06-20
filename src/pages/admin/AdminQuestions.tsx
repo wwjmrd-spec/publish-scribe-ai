@@ -7,12 +7,17 @@ import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { MessageSquare, Search, Mail, Phone, Trash2, CheckCircle2, Reply } from 'lucide-react';
+import { MessageSquare, Search, Mail, Phone, Trash2, CheckCircle2, Reply, Send } from 'lucide-react';
 
 type Question = {
   id: string;
@@ -26,12 +31,27 @@ type Question = {
   created_at: string;
 };
 
+const PROVIDERS = [
+  { value: 'default', label: 'Default (admin setting)' },
+  { value: 'resend', label: 'Resend' },
+  { value: 'sendgrid', label: 'SendGrid' },
+  { value: 'mailgun', label: 'Mailgun' },
+  { value: 'aws-ses', label: 'AWS SES' },
+];
+
 export default function AdminQuestions() {
   const qc = useQueryClient();
   const { toast } = useToast();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<string>('all');
   const [expanded, setExpanded] = useState<string | null>(null);
+
+  // Reply dialog state
+  const [replyTo, setReplyTo] = useState<Question | null>(null);
+  const [replySubject, setReplySubject] = useState('');
+  const [replyBody, setReplyBody] = useState('');
+  const [replyProvider, setReplyProvider] = useState<string>('default');
+  const [sending, setSending] = useState(false);
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['admin-questions'],
@@ -79,6 +99,59 @@ export default function AdminQuestions() {
     if (error) { toast({ title: 'Failed', description: error.message, variant: 'destructive' }); return; }
     toast({ title: 'Deleted' });
     qc.invalidateQueries({ queryKey: ['admin-questions'] });
+  };
+
+  const openReply = (r: Question) => {
+    setReplyTo(r);
+    setReplySubject(`Re: ${r.subject}`);
+    setReplyBody(`Hi ${r.name},\n\nThank you for reaching out to WWJMRD.\n\n\n\n— Original message —\n${r.message}`);
+    setReplyProvider('default');
+  };
+
+  const sendReply = async () => {
+    if (!replyTo) return;
+    if (!replySubject.trim() || !replyBody.trim()) {
+      toast({ title: 'Missing fields', description: 'Subject and message are required.', variant: 'destructive' });
+      return;
+    }
+    setSending(true);
+    try {
+      const safeBody = replyBody
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/\n/g, '<br/>');
+      const html = `<div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:15px;line-height:1.6;color:#1f2937;">${safeBody}</div>`;
+
+      const { data, error } = await supabase.functions.invoke('send-email', {
+        body: {
+          to: replyTo.email,
+          template: 'custom',
+          subject: replySubject,
+          html,
+          providerOverride: replyProvider === 'default' ? undefined : replyProvider,
+        },
+      });
+      if (error) throw error;
+      if (data && (data as any).success === false) {
+        throw new Error((data as any).error || 'Send failed');
+      }
+
+      await (supabase as any)
+        .from('contact_questions')
+        .update({
+          status: 'resolved',
+          admin_notes: [replyTo.admin_notes, `Replied via ${replyProvider} on ${new Date().toISOString()}`]
+            .filter(Boolean).join('\n'),
+        })
+        .eq('id', replyTo.id);
+
+      toast({ title: 'Reply sent', description: `Email delivered to ${replyTo.email}` });
+      setReplyTo(null);
+      qc.invalidateQueries({ queryKey: ['admin-questions'] });
+    } catch (e: any) {
+      toast({ title: 'Send failed', description: e?.message ?? String(e), variant: 'destructive' });
+    } finally {
+      setSending(false);
+    }
   };
 
   if (isLoading) {
@@ -147,8 +220,8 @@ export default function AdminQuestions() {
                     <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Resolve
                   </Button>
                 )}
-                <Button size="sm" variant="outline" asChild>
-                  <a href={`mailto:${r.email}?subject=Re: ${encodeURIComponent(r.subject)}`}><Reply className="w-3.5 h-3.5 mr-1" />Reply</a>
+                <Button size="sm" variant="outline" onClick={() => openReply(r)}>
+                  <Reply className="w-3.5 h-3.5 mr-1" />Reply
                 </Button>
                 <Button size="sm" variant="ghost" onClick={() => remove(r.id)}>
                   <Trash2 className="w-3.5 h-3.5" />
@@ -167,6 +240,63 @@ export default function AdminQuestions() {
           </GlassCard>
         ))}
       </div>
+
+      <Dialog open={!!replyTo} onOpenChange={(o) => !o && setReplyTo(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Reply to {replyTo?.name}</DialogTitle>
+            <DialogDescription>
+              Sending to <span className="font-medium">{replyTo?.email}</span>. Pick which email server to send from.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <Label>Email server</Label>
+              <Select value={replyProvider} onValueChange={setReplyProvider}>
+                <SelectTrigger className="glass-input mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {PROVIDERS.map((p) => (
+                    <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Falls back to the next configured server automatically if the chosen one fails.
+              </p>
+            </div>
+
+            <div>
+              <Label>Subject</Label>
+              <Input
+                value={replySubject}
+                onChange={(e) => setReplySubject(e.target.value)}
+                className="glass-input mt-1"
+                maxLength={200}
+              />
+            </div>
+
+            <div>
+              <Label>Message</Label>
+              <Textarea
+                value={replyBody}
+                onChange={(e) => setReplyBody(e.target.value)}
+                rows={10}
+                className="glass-input mt-1 font-mono text-sm"
+                maxLength={10000}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReplyTo(null)} disabled={sending}>Cancel</Button>
+            <Button onClick={sendReply} disabled={sending}>
+              <Send className="w-4 h-4 mr-2" />
+              {sending ? 'Sending…' : 'Send Reply'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }
