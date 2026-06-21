@@ -111,6 +111,7 @@ export default function AdminDiscounts() {
         end_date: formData.end_date,
         usage_limit: formData.usage_limit ? parseInt(formData.usage_limit) : null,
         is_active: formData.is_active,
+        show_in_cart: formData.show_in_cart,
         created_by: user?.id,
         applies_to: formData.applies_to,
         article_position_limit: formData.article_position_limit,
@@ -121,7 +122,7 @@ export default function AdminDiscounts() {
         max_uses_per_user: formData.max_uses_per_user
           ? parseInt(formData.max_uses_per_user)
           : null,
-      });
+      } as any);
 
       if (error) throw error;
     },
