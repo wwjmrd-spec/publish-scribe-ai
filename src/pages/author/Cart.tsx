@@ -264,11 +264,12 @@ export default function Cart() {
 
   const applyDiscountCode = async () => {
     const trimmedCode = discountCode.trim().toUpperCase();
-    const DISCOUNT_CODE_REGEX = /^[A-Z0-9]{4,20}$/;
+    const DISCOUNT_CODE_REGEX = /^[A-Z0-9_-]{4,20}$/;
     if (!trimmedCode || !DISCOUNT_CODE_REGEX.test(trimmedCode)) {
-      toast({ title: 'Invalid format', description: 'Discount code must be 4-20 alphanumeric characters', variant: 'destructive' });
+      toast({ title: 'Invalid format', description: 'Discount code must be 4-20 characters (letters, numbers, hyphens, underscores)', variant: 'destructive' });
       return;
     }
+
 
     setApplyingDiscount(true);
     try {
