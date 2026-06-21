@@ -312,6 +312,7 @@ export default function AdminDiscounts() {
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Usage</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Max/User</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Active</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">In Cart</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Actions</th>
                   </tr>
                 </thead>
