@@ -67,6 +67,7 @@ export default function AdminDiscounts() {
     end_date: '',
     usage_limit: '',
     is_active: true,
+    show_in_cart: false,
     applies_to: 'both' as AppliesTo,
     article_position_limit: 'any' as PositionLimit,
     specific_article_ids: [] as string[],
@@ -111,6 +112,7 @@ export default function AdminDiscounts() {
         end_date: formData.end_date,
         usage_limit: formData.usage_limit ? parseInt(formData.usage_limit) : null,
         is_active: formData.is_active,
+        show_in_cart: formData.show_in_cart,
         created_by: user?.id,
         applies_to: formData.applies_to,
         article_position_limit: formData.article_position_limit,
@@ -121,7 +123,7 @@ export default function AdminDiscounts() {
         max_uses_per_user: formData.max_uses_per_user
           ? parseInt(formData.max_uses_per_user)
           : null,
-      });
+      } as any);
 
       if (error) throw error;
     },
@@ -165,6 +167,22 @@ export default function AdminDiscounts() {
     onError: (error: any) => toast.error('Failed to update: ' + (error?.message || 'Unknown error')),
   });
 
+  const toggleShowInCartMutation = useMutation({
+    mutationFn: async ({ id, show_in_cart }: { id: string; show_in_cart: boolean }) => {
+      const { error } = await supabase
+        .from('discount_codes')
+        .update({ show_in_cart } as any)
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['admin-discounts'] });
+      await queryClient.refetchQueries({ queryKey: ['admin-discounts'] });
+      toast.success('Cart visibility updated');
+    },
+    onError: (error: any) => toast.error('Failed to update: ' + (error?.message || 'Unknown error')),
+  });
+
   const resetForm = () => {
     setFormData({
       code: '',
@@ -175,6 +193,7 @@ export default function AdminDiscounts() {
       end_date: '',
       usage_limit: '',
       is_active: true,
+      show_in_cart: false,
       applies_to: 'both',
       article_position_limit: 'any',
       specific_article_ids: [],
@@ -271,6 +290,13 @@ export default function AdminDiscounts() {
                       Max/user: {discount.max_uses_per_user ?? '∞'}
                     </span>
                   </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <Label className="text-xs text-muted-foreground">Show in author cart</Label>
+                    <Switch
+                      checked={(discount as any).show_in_cart || false}
+                      onCheckedChange={(checked) => toggleShowInCartMutation.mutate({ id: discount.id, show_in_cart: checked })}
+                    />
+                  </div>
                   <p className="text-xs text-muted-foreground">{new Date(discount.start_date).toLocaleDateString()} - {new Date(discount.end_date).toLocaleDateString()}</p>
                 </div>
               ))}
@@ -289,6 +315,7 @@ export default function AdminDiscounts() {
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Usage</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Max/User</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Active</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">In Cart</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Actions</th>
                   </tr>
                 </thead>
@@ -341,6 +368,12 @@ export default function AdminDiscounts() {
                         <td className="py-3 px-4 text-sm">{discount.max_uses_per_user ?? '∞'}</td>
                         <td className="py-3 px-4">
                           <Switch checked={discount.is_active || false} onCheckedChange={(checked) => toggleActiveMutation.mutate({ id: discount.id, is_active: checked })} />
+                        </td>
+                        <td className="py-3 px-4">
+                          <Switch
+                            checked={(discount as any).show_in_cart || false}
+                            onCheckedChange={(checked) => toggleShowInCartMutation.mutate({ id: discount.id, show_in_cart: checked })}
+                          />
                         </td>
                         <td className="py-3 px-4">
                           <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => deleteMutation.mutate(discount.id)}>
@@ -611,6 +644,14 @@ export default function AdminDiscounts() {
                 onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
               />
               <Label>Active immediately</Label>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={formData.show_in_cart}
+                onCheckedChange={(checked) => setFormData({ ...formData, show_in_cart: checked })}
+              />
+              <Label>Show in author cart (publicly listed)</Label>
             </div>
           </div>
 

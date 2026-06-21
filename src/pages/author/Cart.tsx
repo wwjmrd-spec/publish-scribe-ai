@@ -108,6 +108,25 @@ export default function Cart() {
     }).then(() => {});
   }, [user?.id]);
 
+  // Available discount codes admin chose to publicly list
+  const { data: availableCodes } = useQuery({
+    queryKey: ['cart-available-discount-codes'],
+    queryFn: async () => {
+      const nowIso = new Date().toISOString();
+      const { data, error } = await supabase
+        .from('discount_codes')
+        .select('id, code, discount_type, discount_value, currency, end_date, applies_to')
+        .eq('show_in_cart', true)
+        .eq('is_active', true)
+        .gt('end_date', nowIso)
+        .order('created_at', { ascending: false });
+      if (error) return [];
+      return data || [];
+    },
+    enabled: !!user?.id,
+  });
+
+
   // Auto-apply latest unused referral/welcome discount code, OR admin-configured default code
   useEffect(() => {
     if (!user?.id || appliedDiscount) return;
@@ -729,6 +748,31 @@ export default function Cart() {
                         <Button variant="outline" onClick={applyDiscountCode} disabled={applyingDiscount || !discountCode.trim()}>
                           {applyingDiscount ? <GlassSpinner size="sm" /> : 'Apply'}
                         </Button>
+                      </div>
+                    )}
+                    {!appliedDiscount && (availableCodes?.length ?? 0) > 0 && (
+                      <div className="space-y-1.5">
+                        <p className="text-xs text-muted-foreground">Available codes — tap to apply</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {availableCodes!.map((c: any) => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => {
+                                setDiscountCode(c.code);
+                                setTimeout(() => applyDiscountCode(), 0);
+                              }}
+                              className="group inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs bg-primary/10 hover:bg-primary/20 border border-primary/30 transition-colors"
+                              title={`Valid until ${new Date(c.end_date).toLocaleDateString()}`}
+                            >
+                              <Tag className="w-3 h-3" />
+                              <span className="font-mono font-semibold">{c.code}</span>
+                              <span className="text-muted-foreground">
+                                {c.discount_type === 'percentage' ? `${c.discount_value}% off` : `${c.discount_value} off`}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
