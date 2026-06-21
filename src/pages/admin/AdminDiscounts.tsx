@@ -165,6 +165,22 @@ export default function AdminDiscounts() {
     onError: (error: any) => toast.error('Failed to update: ' + (error?.message || 'Unknown error')),
   });
 
+  const toggleShowInCartMutation = useMutation({
+    mutationFn: async ({ id, show_in_cart }: { id: string; show_in_cart: boolean }) => {
+      const { error } = await supabase
+        .from('discount_codes')
+        .update({ show_in_cart } as any)
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['admin-discounts'] });
+      await queryClient.refetchQueries({ queryKey: ['admin-discounts'] });
+      toast.success('Cart visibility updated');
+    },
+    onError: (error: any) => toast.error('Failed to update: ' + (error?.message || 'Unknown error')),
+  });
+
   const resetForm = () => {
     setFormData({
       code: '',
