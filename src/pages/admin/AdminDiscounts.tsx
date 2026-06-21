@@ -645,6 +645,14 @@ export default function AdminDiscounts() {
               />
               <Label>Active immediately</Label>
             </div>
+
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={formData.show_in_cart}
+                onCheckedChange={(checked) => setFormData({ ...formData, show_in_cart: checked })}
+              />
+              <Label>Show in author cart (publicly listed)</Label>
+            </div>
           </div>
 
           <DialogFooter>
