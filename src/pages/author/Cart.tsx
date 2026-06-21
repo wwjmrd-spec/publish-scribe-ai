@@ -750,6 +750,31 @@ export default function Cart() {
                         </Button>
                       </div>
                     )}
+                    {!appliedDiscount && (availableCodes?.length ?? 0) > 0 && (
+                      <div className="space-y-1.5">
+                        <p className="text-xs text-muted-foreground">Available codes — tap to apply</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {availableCodes!.map((c: any) => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => {
+                                setDiscountCode(c.code);
+                                setTimeout(() => applyDiscountCode(), 0);
+                              }}
+                              className="group inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs bg-primary/10 hover:bg-primary/20 border border-primary/30 transition-colors"
+                              title={`Valid until ${new Date(c.end_date).toLocaleDateString()}`}
+                            >
+                              <Tag className="w-3 h-3" />
+                              <span className="font-mono font-semibold">{c.code}</span>
+                              <span className="text-muted-foreground">
+                                {c.discount_type === 'percentage' ? `${c.discount_value}% off` : `${c.discount_value} off`}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Summary */}
