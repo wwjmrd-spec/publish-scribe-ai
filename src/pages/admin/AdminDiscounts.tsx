@@ -287,6 +287,13 @@ export default function AdminDiscounts() {
                       Max/user: {discount.max_uses_per_user ?? '∞'}
                     </span>
                   </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <Label className="text-xs text-muted-foreground">Show in author cart</Label>
+                    <Switch
+                      checked={(discount as any).show_in_cart || false}
+                      onCheckedChange={(checked) => toggleShowInCartMutation.mutate({ id: discount.id, show_in_cart: checked })}
+                    />
+                  </div>
                   <p className="text-xs text-muted-foreground">{new Date(discount.start_date).toLocaleDateString()} - {new Date(discount.end_date).toLocaleDateString()}</p>
                 </div>
               ))}
