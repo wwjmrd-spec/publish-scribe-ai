@@ -367,6 +367,12 @@ export default function AdminDiscounts() {
                           <Switch checked={discount.is_active || false} onCheckedChange={(checked) => toggleActiveMutation.mutate({ id: discount.id, is_active: checked })} />
                         </td>
                         <td className="py-3 px-4">
+                          <Switch
+                            checked={(discount as any).show_in_cart || false}
+                            onCheckedChange={(checked) => toggleShowInCartMutation.mutate({ id: discount.id, show_in_cart: checked })}
+                          />
+                        </td>
+                        <td className="py-3 px-4">
                           <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => deleteMutation.mutate(discount.id)}>
                             <Trash2 className="w-4 h-4" />
                           </Button>
