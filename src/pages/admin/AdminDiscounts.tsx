@@ -193,6 +193,7 @@ export default function AdminDiscounts() {
       end_date: '',
       usage_limit: '',
       is_active: true,
+      show_in_cart: false,
       applies_to: 'both',
       article_position_limit: 'any',
       specific_article_ids: [],
