@@ -108,6 +108,25 @@ export default function Cart() {
     }).then(() => {});
   }, [user?.id]);
 
+  // Available discount codes admin chose to publicly list
+  const { data: availableCodes } = useQuery({
+    queryKey: ['cart-available-discount-codes'],
+    queryFn: async () => {
+      const nowIso = new Date().toISOString();
+      const { data, error } = await supabase
+        .from('discount_codes')
+        .select('id, code, discount_type, discount_value, currency, end_date, applies_to')
+        .eq('show_in_cart', true)
+        .eq('is_active', true)
+        .gt('end_date', nowIso)
+        .order('created_at', { ascending: false });
+      if (error) return [];
+      return data || [];
+    },
+    enabled: !!user?.id,
+  });
+
+
   // Auto-apply latest unused referral/welcome discount code, OR admin-configured default code
   useEffect(() => {
     if (!user?.id || appliedDiscount) return;
