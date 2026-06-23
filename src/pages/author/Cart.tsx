@@ -262,8 +262,9 @@ export default function Cart() {
     }
   };
 
-  const applyDiscountCode = async () => {
-    const trimmedCode = discountCode.trim().toUpperCase();
+  const applyDiscountCode = async (codeOverride?: string) => {
+    const trimmedCode = (codeOverride ?? discountCode).trim().toUpperCase();
+
     const DISCOUNT_CODE_REGEX = /^[A-Z0-9_-]{4,20}$/;
     if (!trimmedCode || !DISCOUNT_CODE_REGEX.test(trimmedCode)) {
       toast({ title: 'Invalid format', description: 'Discount code must be 4-20 characters (letters, numbers, hyphens, underscores)', variant: 'destructive' });
@@ -746,7 +747,7 @@ export default function Cart() {
                           placeholder="Enter code"
                           className="glass-input uppercase"
                         />
-                        <Button variant="outline" onClick={applyDiscountCode} disabled={applyingDiscount || !discountCode.trim()}>
+                        <Button variant="outline" onClick={() => applyDiscountCode()} disabled={applyingDiscount || !discountCode.trim()}>
                           {applyingDiscount ? <GlassSpinner size="sm" /> : 'Apply'}
                         </Button>
                       </div>
@@ -761,8 +762,9 @@ export default function Cart() {
                               type="button"
                               onClick={() => {
                                 setDiscountCode(c.code);
-                                setTimeout(() => applyDiscountCode(), 0);
+                                applyDiscountCode(c.code);
                               }}
+
                               className="group inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs bg-primary/10 hover:bg-primary/20 border border-primary/30 transition-colors"
                               title={`Valid until ${new Date(c.end_date).toLocaleDateString()}`}
                             >
