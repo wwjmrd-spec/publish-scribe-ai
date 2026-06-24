@@ -237,6 +237,13 @@ export function ArticleContentEditor({
         // 1mm = 3.7795275591px (CSS spec). Use this to translate mm → px.
         const mmToPx = 3.7795275591;
         const pageHeightPx = PAGE_HEIGHT_MM * mmToPx;
+        // IMPORTANT: clear the overlay before measuring. Absolutely-positioned
+        // children still contribute to the parent's scrollHeight, so leaving
+        // stale labels in place pins the height at the old (larger) value and
+        // the page count would "keep counting" instead of shrinking when the
+        // author deletes content.
+        overlay.innerHTML = '';
+        overlay.style.height = '0px';
         const contentHeight = Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight);
         const pages = Math.max(1, Math.ceil(contentHeight / pageHeightPx));
         const start = startPageRef.current || 1;
@@ -253,9 +260,9 @@ export function ArticleContentEditor({
       // Auto-grow the iframe to its content height so the paged background
       // shows full A4 pages instead of one long scrollable block.
       const resize = () => {
+        renderPageNumbers();
         const h = Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight);
         iframe.style.height = `${h + 24}px`;
-        renderPageNumbers();
       };
       resize();
       const ro = new ResizeObserver(resize);
