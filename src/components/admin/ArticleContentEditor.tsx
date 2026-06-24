@@ -257,7 +257,18 @@ export function ArticleContentEditor({
     body.style.setProperty('--ww-line-height', lineHeight);
     body.style.setProperty('--ww-para-spacing', `${paraSpacing}px`);
     renderPageNumbersRef.current?.();
-  }, [lineHeight, paraSpacing, ready, startPage]);
+
+    // Keep the banner "Pages NN-NN" baked into the formatted HTML in sync with
+    // the admin's Page # input and the live page count. Pads to 2 digits like
+    // the formatter ("01-10") and falls back to a single number for 1-page docs.
+    const start = Math.max(1, startPage || 1);
+    const end = start + Math.max(1, pageCount) - 1;
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const rangeText = end > start ? `${pad(start)}-${pad(end)}` : pad(start);
+    body.querySelectorAll<HTMLElement>('.ww-page-range').forEach((el) => {
+      if (el.textContent !== rangeText) el.textContent = rangeText;
+    });
+  }, [lineHeight, paraSpacing, ready, startPage, pageCount]);
 
 
   const getContent = useCallback(() => {
