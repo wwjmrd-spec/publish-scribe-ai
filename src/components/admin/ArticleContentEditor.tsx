@@ -591,6 +591,21 @@ export function ArticleContentEditor({
     }
   }, [getContent, startPage]);
 
+  // Live-rebuild the preview whenever the admin changes the starting page
+  // number while the preview dialog is already open, so HTML editor + Preview
+  // A4 always show the same numbers.
+  useEffect(() => {
+    if (!showPreview) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const paged = await buildPagedFormattedArticleHtml(getContent(), { startPage, showFirstPageNumber: true });
+        if (!cancelled) setPreviewHtml(paged);
+      } catch {/* ignore */}
+    })();
+    return () => { cancelled = true; };
+  }, [startPage, showPreview, getContent]);
+
   const handleDownloadPdf = useCallback(async () => {
     try {
       toast.info('Building PDF…');
