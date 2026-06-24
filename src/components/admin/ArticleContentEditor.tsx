@@ -143,6 +143,7 @@ export function ArticleContentEditor({
   const [startPage, setStartPage] = useState<number>(1);
   const [pageCount, setPageCount] = useState<number>(1);
   const [autoFilledStart, setAutoFilledStart] = useState<boolean>(false);
+  const [currentIssue, setCurrentIssue] = useState<string>(() => String(new Date().getMonth() + 1));
   const [selectedImg, setSelectedImg] = useState<HTMLImageElement | null>(null);
   const queryClient = useQueryClient();
 
@@ -152,30 +153,47 @@ export function ArticleContentEditor({
 
   const renderPageNumbersRef = useRef<() => void>(() => {});
 
-  // Auto-continue page numbers from the last published article.
-  // Admin can override by typing a new value into the Page # input.
+  // Auto-continue page numbers from the last published article OF THE SAME ISSUE
+  // (= same publication month). When a new issue/month starts, numbering resets to 1.
+  // Admin can still override by typing a new value into the Page # input.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
+        // 1. Find which issue this article belongs to. Fall back to current month.
+        const { data: thisArticle } = await supabase
+          .from('articles')
+          .select('issue')
+          .eq('id', articleId)
+          .maybeSingle();
+        const issue =
+          ((thisArticle as any)?.issue && String((thisArticle as any).issue).trim()) ||
+          String(new Date().getMonth() + 1);
+        if (cancelled) return;
+        setCurrentIssue(issue);
+
+        // 2. Look only at previously published articles in the SAME issue.
         const { data } = await supabase
           .from('articles')
-          .select('page_number,status,id')
+          .select('page_number,status,id,issue')
+          .eq('issue', issue)
           .in('status', ['published', 'published_to_wwjmrd', 'free', 'paid', 'galley_proof_sent', 'galley_proof_approved'] as any)
           .neq('id', articleId)
           .not('page_number', 'is', null)
           .limit(500);
-        if (cancelled || !data) return;
+        if (cancelled) return;
+
         let maxEnd = 0;
-        for (const row of data as any[]) {
+        for (const row of (data || []) as any[]) {
           const pn: string = (row.page_number || '').toString();
           const nums = pn.match(/\d+/g);
           if (!nums || !nums.length) continue;
           const last = parseInt(nums[nums.length - 1], 10);
           if (Number.isFinite(last) && last > maxEnd) maxEnd = last;
         }
-        if (!cancelled && maxEnd > 0 && !autoFilledStart) {
-          setStartPage(maxEnd + 1);
+        if (!cancelled && !autoFilledStart) {
+          // New issue (no prior articles) → start at 1. Otherwise continue from last end + 1.
+          setStartPage(maxEnd > 0 ? maxEnd + 1 : 1);
           setAutoFilledStart(true);
         }
       } catch {/* ignore */}
@@ -219,6 +237,13 @@ export function ArticleContentEditor({
         // 1mm = 3.7795275591px (CSS spec). Use this to translate mm → px.
         const mmToPx = 3.7795275591;
         const pageHeightPx = PAGE_HEIGHT_MM * mmToPx;
+        // IMPORTANT: clear the overlay before measuring. Absolutely-positioned
+        // children still contribute to the parent's scrollHeight, so leaving
+        // stale labels in place pins the height at the old (larger) value and
+        // the page count would "keep counting" instead of shrinking when the
+        // author deletes content.
+        overlay.innerHTML = '';
+        overlay.style.height = '0px';
         const contentHeight = Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight);
         const pages = Math.max(1, Math.ceil(contentHeight / pageHeightPx));
         const start = startPageRef.current || 1;
@@ -235,9 +260,9 @@ export function ArticleContentEditor({
       // Auto-grow the iframe to its content height so the paged background
       // shows full A4 pages instead of one long scrollable block.
       const resize = () => {
+        renderPageNumbers();
         const h = Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight);
         iframe.style.height = `${h + 24}px`;
-        renderPageNumbers();
       };
       resize();
       const ro = new ResizeObserver(resize);
@@ -503,7 +528,7 @@ export function ArticleContentEditor({
       const content = getContent();
       const { error } = await supabase
         .from('articles')
-        .update({ formatted_content: content, page_number: computedPageRange() } as any)
+        .update({ formatted_content: content, page_number: computedPageRange(), issue: currentIssue } as any)
         .eq('id', articleId);
       if (error) throw error;
       toast.success(`Saved (pages ${computedPageRange()})`);
@@ -530,6 +555,7 @@ export function ArticleContentEditor({
           formatting_status: 'approved',
           formatting_approved_at: new Date().toISOString(),
           page_number: pageRange,
+          issue: currentIssue,
         } as any)
         .eq('id', articleId);
       if (saveError) throw saveError;
