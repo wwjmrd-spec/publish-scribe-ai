@@ -548,6 +548,7 @@ export function ArticleContentEditor({
           formatting_status: 'approved',
           formatting_approved_at: new Date().toISOString(),
           page_number: pageRange,
+          issue: currentIssue,
         } as any)
         .eq('id', articleId);
       if (saveError) throw saveError;
