@@ -521,7 +521,7 @@ export function ArticleContentEditor({
       const content = getContent();
       const { error } = await supabase
         .from('articles')
-        .update({ formatted_content: content, page_number: computedPageRange() } as any)
+        .update({ formatted_content: content, page_number: computedPageRange(), issue: currentIssue } as any)
         .eq('id', articleId);
       if (error) throw error;
       toast.success(`Saved (pages ${computedPageRange()})`);
