@@ -477,16 +477,25 @@ export function ArticleContentEditor({
     }
   }, [getContent, articleId, queryClient, onClose]);
 
+  // Build the canonical page range string (e.g. "12-18" or "12") from
+  // current startPage + measured pageCount. Stored on the article so the
+  // NEXT article auto-continues numbering from this one.
+  const computedPageRange = useCallback(() => {
+    const start = Math.max(1, startPage || 1);
+    const end = start + Math.max(1, pageCount) - 1;
+    return end > start ? `${start}-${end}` : `${start}`;
+  }, [startPage, pageCount]);
+
   const handleSave = async () => {
     setSaving(true);
     try {
       const content = getContent();
       const { error } = await supabase
         .from('articles')
-        .update({ formatted_content: content } as any)
+        .update({ formatted_content: content, page_number: computedPageRange() } as any)
         .eq('id', articleId);
       if (error) throw error;
-      toast.success('Content saved successfully');
+      toast.success(`Saved (pages ${computedPageRange()})`);
       queryClient.invalidateQueries({ queryKey: ['admin-formatting-articles'] });
     } catch (err: any) {
       toast.error('Failed to save: ' + err.message);
@@ -500,20 +509,22 @@ export function ArticleContentEditor({
     const tid = toast.loading('Building galley proof PDF…');
     try {
       const content = getContent();
+      const pageRange = computedPageRange();
 
-      // 1. Save current edits + mark formatting approved
+      // 1. Save current edits + mark formatting approved + persist page range
       const { error: saveError } = await supabase
         .from('articles')
         .update({
           formatted_content: content,
           formatting_status: 'approved',
           formatting_approved_at: new Date().toISOString(),
+          page_number: pageRange,
         } as any)
         .eq('id', articleId);
       if (saveError) throw saveError;
 
-      // 2. Generate PDF from the same paginated A4 pipeline used in preview/download
-      const pdfBlob = await buildFormattedPdfBlob(content, { startPage: 1, showFirstPageNumber: true });
+      // 2. Generate PDF using the admin's chosen starting page number
+      const pdfBlob = await buildFormattedPdfBlob(content, { startPage, showFirstPageNumber: true });
 
       // 3. Ask the backend for a secure one-time upload target, then upload PDF.
       const prepared = await supabase.functions.invoke('send-galley-proof', {
@@ -544,7 +555,7 @@ export function ArticleContentEditor({
           publicationYear: (article as any).publication_year || '',
           pubVolume: (article as any).volume || '',
           pubIssue: (article as any).issue || '',
-          pubPageRange: (article as any).page_number || '',
+          pubPageRange: pageRange,
         },
       });
       if (sendResponse.error) throw new Error(sendResponse.error.message);
