@@ -843,18 +843,21 @@ export type Database = {
           id: string
           reminder_type: string
           sent_at: string
+          urgency_level: number | null
         }
         Insert: {
           article_id: string
           id?: string
           reminder_type?: string
           sent_at?: string
+          urgency_level?: number | null
         }
         Update: {
           article_id?: string
           id?: string
           reminder_type?: string
           sent_at?: string
+          urgency_level?: number | null
         }
         Relationships: [
           {
@@ -1179,33 +1182,45 @@ export type Database = {
           email_provider_override: string | null
           frequency_hours: number
           id: string
+          last_fee_submission_date: string | null
           max_article_age_days: number
           max_days: number
           min_article_age_days: number
           updated_at: string
           updated_by: string | null
+          urgency_high_after_days: number
+          urgency_informational_after_days: number
+          urgency_moderate_after_days: number
         }
         Insert: {
           email_from_override?: string | null
           email_provider_override?: string | null
           frequency_hours?: number
           id?: string
+          last_fee_submission_date?: string | null
           max_article_age_days?: number
           max_days?: number
           min_article_age_days?: number
           updated_at?: string
           updated_by?: string | null
+          urgency_high_after_days?: number
+          urgency_informational_after_days?: number
+          urgency_moderate_after_days?: number
         }
         Update: {
           email_from_override?: string | null
           email_provider_override?: string | null
           frequency_hours?: number
           id?: string
+          last_fee_submission_date?: string | null
           max_article_age_days?: number
           max_days?: number
           min_article_age_days?: number
           updated_at?: string
           updated_by?: string | null
+          urgency_high_after_days?: number
+          urgency_informational_after_days?: number
+          urgency_moderate_after_days?: number
         }
         Relationships: [
           {
