@@ -143,6 +143,7 @@ export function ArticleContentEditor({
   const [startPage, setStartPage] = useState<number>(1);
   const [pageCount, setPageCount] = useState<number>(1);
   const [autoFilledStart, setAutoFilledStart] = useState<boolean>(false);
+  const [currentIssue, setCurrentIssue] = useState<string>(() => String(new Date().getMonth() + 1));
   const [selectedImg, setSelectedImg] = useState<HTMLImageElement | null>(null);
   const queryClient = useQueryClient();
 
@@ -152,30 +153,47 @@ export function ArticleContentEditor({
 
   const renderPageNumbersRef = useRef<() => void>(() => {});
 
-  // Auto-continue page numbers from the last published article.
-  // Admin can override by typing a new value into the Page # input.
+  // Auto-continue page numbers from the last published article OF THE SAME ISSUE
+  // (= same publication month). When a new issue/month starts, numbering resets to 1.
+  // Admin can still override by typing a new value into the Page # input.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
+        // 1. Find which issue this article belongs to. Fall back to current month.
+        const { data: thisArticle } = await supabase
+          .from('articles')
+          .select('issue')
+          .eq('id', articleId)
+          .maybeSingle();
+        const issue =
+          ((thisArticle as any)?.issue && String((thisArticle as any).issue).trim()) ||
+          String(new Date().getMonth() + 1);
+        if (cancelled) return;
+        setCurrentIssue(issue);
+
+        // 2. Look only at previously published articles in the SAME issue.
         const { data } = await supabase
           .from('articles')
-          .select('page_number,status,id')
+          .select('page_number,status,id,issue')
+          .eq('issue', issue)
           .in('status', ['published', 'published_to_wwjmrd', 'free', 'paid', 'galley_proof_sent', 'galley_proof_approved'] as any)
           .neq('id', articleId)
           .not('page_number', 'is', null)
           .limit(500);
-        if (cancelled || !data) return;
+        if (cancelled) return;
+
         let maxEnd = 0;
-        for (const row of data as any[]) {
+        for (const row of (data || []) as any[]) {
           const pn: string = (row.page_number || '').toString();
           const nums = pn.match(/\d+/g);
           if (!nums || !nums.length) continue;
           const last = parseInt(nums[nums.length - 1], 10);
           if (Number.isFinite(last) && last > maxEnd) maxEnd = last;
         }
-        if (!cancelled && maxEnd > 0 && !autoFilledStart) {
-          setStartPage(maxEnd + 1);
+        if (!cancelled && !autoFilledStart) {
+          // New issue (no prior articles) → start at 1. Otherwise continue from last end + 1.
+          setStartPage(maxEnd > 0 ? maxEnd + 1 : 1);
           setAutoFilledStart(true);
         }
       } catch {/* ignore */}
