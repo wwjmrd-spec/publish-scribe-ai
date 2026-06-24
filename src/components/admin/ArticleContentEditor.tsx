@@ -141,6 +141,8 @@ export function ArticleContentEditor({
   const [lineHeight, setLineHeight] = useState<string>('1.6');
   const [paraSpacing, setParaSpacing] = useState<string>('4');
   const [startPage, setStartPage] = useState<number>(1);
+  const [pageCount, setPageCount] = useState<number>(1);
+  const [autoFilledStart, setAutoFilledStart] = useState<boolean>(false);
   const [selectedImg, setSelectedImg] = useState<HTMLImageElement | null>(null);
   const queryClient = useQueryClient();
 
@@ -149,6 +151,38 @@ export function ArticleContentEditor({
   useEffect(() => { startPageRef.current = startPage; }, [startPage]);
 
   const renderPageNumbersRef = useRef<() => void>(() => {});
+
+  // Auto-continue page numbers from the last published article.
+  // Admin can override by typing a new value into the Page # input.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('articles')
+          .select('page_number,status,id')
+          .in('status', ['published', 'published_to_wwjmrd', 'free', 'paid', 'galley_proof_sent', 'galley_proof_approved'] as any)
+          .neq('id', articleId)
+          .not('page_number', 'is', null)
+          .limit(500);
+        if (cancelled || !data) return;
+        let maxEnd = 0;
+        for (const row of data as any[]) {
+          const pn: string = (row.page_number || '').toString();
+          const nums = pn.match(/\d+/g);
+          if (!nums || !nums.length) continue;
+          const last = parseInt(nums[nums.length - 1], 10);
+          if (Number.isFinite(last) && last > maxEnd) maxEnd = last;
+        }
+        if (!cancelled && maxEnd > 0 && !autoFilledStart) {
+          setStartPage(maxEnd + 1);
+          setAutoFilledStart(true);
+        }
+      } catch {/* ignore */}
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [articleId]);
 
   useEffect(() => {
     const iframe = iframeRef.current;
