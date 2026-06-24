@@ -144,6 +144,12 @@ export function ArticleContentEditor({
   const [selectedImg, setSelectedImg] = useState<HTMLImageElement | null>(null);
   const queryClient = useQueryClient();
 
+  // Keep a ref to startPage so the resize handler always reads the latest value
+  const startPageRef = useRef(1);
+  useEffect(() => { startPageRef.current = startPage; }, [startPage]);
+
+  const renderPageNumbersRef = useRef<() => void>(() => {});
+
   useEffect(() => {
     const iframe = iframeRef.current;
     if (!iframe) return;
@@ -165,11 +171,38 @@ export function ArticleContentEditor({
         }
       });
 
+      // Page-number overlay: one absolutely-positioned label per A4 page,
+      // mirroring the dashed page-break background. Stays in sync with content
+      // height and the admin's "Start page #" input.
+      const overlay = doc.createElement('div');
+      overlay.id = 'ww-page-num-overlay';
+      overlay.setAttribute('contenteditable', 'false');
+      overlay.style.cssText = 'position:absolute;top:0;left:0;width:100%;pointer-events:none;z-index:5;';
+      doc.body.style.position = 'relative';
+      doc.body.appendChild(overlay);
+
+      const renderPageNumbers = () => {
+        // 1mm = 3.7795275591px (CSS spec). Use this to translate mm → px.
+        const mmToPx = 3.7795275591;
+        const pageHeightPx = PAGE_HEIGHT_MM * mmToPx;
+        const contentHeight = Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight);
+        const pageCount = Math.max(1, Math.ceil(contentHeight / pageHeightPx));
+        const start = startPageRef.current || 1;
+        let html = '';
+        for (let i = 0; i < pageCount; i++) {
+          const top = (i + 1) * pageHeightPx - 22; // sit just above the dashed divider
+          html += `<div style="position:absolute;left:0;right:0;top:${top}px;text-align:center;font-family:'Times New Roman',serif;font-size:10px;color:#475569;">— ${start + i} —</div>`;
+        }
+        overlay.innerHTML = html;
+      };
+      renderPageNumbersRef.current = renderPageNumbers;
+
       // Auto-grow the iframe to its content height so the paged background
       // shows full A4 pages instead of one long scrollable block.
       const resize = () => {
         const h = Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight);
         iframe.style.height = `${h + 24}px`;
+        renderPageNumbers();
       };
       resize();
       const ro = new ResizeObserver(resize);
@@ -188,7 +221,9 @@ export function ArticleContentEditor({
     if (!body) return;
     body.style.setProperty('--ww-line-height', lineHeight);
     body.style.setProperty('--ww-para-spacing', `${paraSpacing}px`);
-  }, [lineHeight, paraSpacing, ready]);
+    renderPageNumbersRef.current?.();
+  }, [lineHeight, paraSpacing, ready, startPage]);
+
 
   const getContent = useCallback(() => {
     return iframeRef.current?.contentDocument?.body?.innerHTML || '';
