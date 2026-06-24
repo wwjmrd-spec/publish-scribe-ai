@@ -27,6 +27,10 @@ export default function AdminReminderSettings() {
   const [maxAge, setMaxAge] = useState<number>(30);
   const [provider, setProvider] = useState<string>('default');
   const [fromAddress, setFromAddress] = useState<string>('');
+  const [infoAfter, setInfoAfter] = useState<number>(0);
+  const [moderateAfter, setModerateAfter] = useState<number>(3);
+  const [highAfter, setHighAfter] = useState<number>(6);
+  const [deadline, setDeadline] = useState<string>('');
 
   const { data: settings, isLoading } = useQuery({
     queryKey: ['reminder-settings'],
@@ -45,6 +49,10 @@ export default function AdminReminderSettings() {
       setMaxAge(settings.max_article_age_days ?? 30);
       setProvider(settings.email_provider_override || 'default');
       setFromAddress(settings.email_from_override || '');
+      setInfoAfter(settings.urgency_informational_after_days ?? 0);
+      setModerateAfter(settings.urgency_moderate_after_days ?? 3);
+      setHighAfter(settings.urgency_high_after_days ?? 6);
+      setDeadline(settings.last_fee_submission_date || '');
     }
   }, [settings]);
 
@@ -58,6 +66,10 @@ export default function AdminReminderSettings() {
           max_article_age_days: maxAge,
           email_provider_override: provider === 'default' ? null : provider,
           email_from_override: fromAddress.trim() || null,
+          urgency_informational_after_days: infoAfter,
+          urgency_moderate_after_days: moderateAfter,
+          urgency_high_after_days: highAfter,
+          last_fee_submission_date: deadline || null,
           updated_at: new Date().toISOString(),
         } as any)
         .eq('id', settings.id);
