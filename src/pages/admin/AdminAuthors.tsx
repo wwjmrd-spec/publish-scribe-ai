@@ -51,7 +51,9 @@ export default function AdminAuthors() {
   const [isPlanDialogOpen, setIsPlanDialogOpen] = useState(false);
   const [authorsPage, setAuthorsPage] = useState(1);
   const [coAuthorsPage, setCoAuthorsPage] = useState(1);
+  const [downloadFilter, setDownloadFilter] = useState<'all' | 'submitted' | 'not_submitted' | 'paid' | 'unpaid'>('all');
   React.useEffect(() => { setAuthorsPage(1); setCoAuthorsPage(1); }, [searchQuery]);
+
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
