@@ -422,6 +422,31 @@ export default function MyArticles() {
 
                     {/* Actions */}
                     <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border/50">
+                      {article.document_url && (
+                        <DownloadButton
+                          size="sm"
+                          variant="outline"
+                          onDownload={async () => {
+                            const tid = toast.loading('Preparing article…');
+                            try {
+                              const response = await supabase.functions.invoke('get-document-url', {
+                                body: { articleId: article.id, fileType: 'document' },
+                              });
+                              if (response.error || !response.data?.url) {
+                                toast.error('Failed to get download link', { id: tid });
+                                throw new Error('no url');
+                              }
+                              toast.success('Article ready', { id: tid });
+                              downloadFromUrl(response.data.url, `${article.reference_number || article.id}.docx`);
+                            } catch (e) {
+                              toast.error('Failed to download article', { id: tid });
+                              throw e;
+                            }
+                          }}
+                        >
+                          Article
+                        </DownloadButton>
+                      )}
                       {article.review_report_url && (
                         <DownloadButton
                           size="sm"
