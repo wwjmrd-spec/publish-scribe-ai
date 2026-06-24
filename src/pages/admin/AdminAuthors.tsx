@@ -143,7 +143,8 @@ export default function AdminAuthors() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('articles')
-        .select('id, title, author_id, reference_number');
+        .select('id, title, author_id, reference_number, status');
+
       if (error) throw error;
       const map: Record<string, any[]> = {};
       data?.forEach(a => {
