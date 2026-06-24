@@ -690,7 +690,7 @@ export function ArticleContentEditor({
               </Select>
             </div>
 
-            {/* Page number start */}
+            {/* Page number start — auto-continues from last published article; admin can override */}
             <div className="flex items-center gap-1.5">
               <Label className="text-xs text-muted-foreground flex items-center gap-1">
                 <Hash className="w-3 h-3" /> Page #:
@@ -699,10 +699,16 @@ export function ArticleContentEditor({
                 type="number"
                 min={1}
                 value={startPage}
-                onChange={(e) => setStartPage(Math.max(1, Number(e.target.value) || 1))}
+                onChange={(e) => {
+                  setAutoFilledStart(true); // treat any manual edit as an override
+                  setStartPage(Math.max(1, Number(e.target.value) || 1));
+                }}
                 className="h-7 w-[55px] text-xs rounded border border-input bg-background px-2"
-                title="Starting page number"
+                title="Starting page number (auto-continues from last published article)"
               />
+              <span className="text-[10px] text-muted-foreground whitespace-nowrap" title="Computed page range">
+                → {computedPageRange()}
+              </span>
             </div>
 
             {/* Image controls (only enabled when an image is selected) */}
