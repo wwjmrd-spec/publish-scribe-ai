@@ -18,7 +18,9 @@ import {
   IndianRupee,
   ChevronDown,
   UserCheck,
+  Download,
 } from 'lucide-react';
+
 import {
   Select,
   SelectContent,
@@ -49,7 +51,9 @@ export default function AdminAuthors() {
   const [isPlanDialogOpen, setIsPlanDialogOpen] = useState(false);
   const [authorsPage, setAuthorsPage] = useState(1);
   const [coAuthorsPage, setCoAuthorsPage] = useState(1);
+  const [downloadFilter, setDownloadFilter] = useState<'all' | 'submitted' | 'not_submitted' | 'paid' | 'unpaid'>('all');
   React.useEffect(() => { setAuthorsPage(1); setCoAuthorsPage(1); }, [searchQuery]);
+
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
@@ -139,7 +143,8 @@ export default function AdminAuthors() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('articles')
-        .select('id, title, author_id, reference_number');
+        .select('id, title, author_id, reference_number, status');
+
       if (error) throw error;
       const map: Record<string, any[]> = {};
       data?.forEach(a => {
@@ -256,16 +261,84 @@ export default function AdminAuthors() {
         <p className="text-muted-foreground">View and manage registered authors</p>
       </motion.div>
 
-      {/* Search */}
-      <div className="relative mb-6">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder="Search by name or email..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10 glass-input max-w-md"
-        />
+      {/* Search + Download */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-6">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by name or email..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 glass-input"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Select value={downloadFilter} onValueChange={(v) => setDownloadFilter(v as any)}>
+            <SelectTrigger className="h-10 w-[200px] glass-input">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All authors</SelectItem>
+              <SelectItem value="submitted">Submitted ≥1 article</SelectItem>
+              <SelectItem value="not_submitted">No submissions</SelectItem>
+              <SelectItem value="paid">Paid fee</SelectItem>
+              <SelectItem value="unpaid">Unpaid fee</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            variant="outline"
+            onClick={() => {
+              const PAID_STATUSES = new Set(['paid','free','galley_proof_sent','galley_proof_approved','galley_proof_revised','published','published_to_wwjmrd']);
+              const all = authors || [];
+              const rows = all.filter((a) => {
+                const arts = authorArticlesMap?.[a.id] || [];
+                const hasPaid = arts.some((x: any) => PAID_STATUSES.has(x.status));
+                if (downloadFilter === 'submitted') return arts.length > 0;
+                if (downloadFilter === 'not_submitted') return arts.length === 0;
+                if (downloadFilter === 'paid') return hasPaid;
+                if (downloadFilter === 'unpaid') return arts.length > 0 && !hasPaid;
+                return true;
+              });
+              if (!rows.length) { toast.error('No authors match this filter'); return; }
+              const esc = (v: any) => {
+                const s = v === null || v === undefined ? '' : String(v);
+                return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+              };
+              const header = ['Full Name','Email','Country','Affiliation','Currency','Plan','Articles','Paid Fee','Joined'];
+              const lines = [header.join(',')];
+              rows.forEach((a: any) => {
+                const arts = authorArticlesMap?.[a.id] || [];
+                const hasPaid = arts.some((x: any) => PAID_STATUSES.has(x.status));
+                lines.push([
+                  esc(a.full_name),
+                  esc(a.email),
+                  esc(a.country || (a.is_indian ? 'India' : '')),
+                  esc(a.affiliation || ''),
+                  esc(a.is_indian ? 'INR' : 'USD'),
+                  esc(getAuthorPlan(a.id)),
+                  esc(arts.length),
+                  esc(hasPaid ? 'Yes' : 'No'),
+                  esc(a.created_at ? new Date(a.created_at).toISOString().slice(0,10) : ''),
+                ].join(','));
+              });
+              const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+              const url = URL.createObjectURL(blob);
+              const link = document.createElement('a');
+              link.href = url;
+              link.download = `authors-${downloadFilter}-${new Date().toISOString().slice(0,10)}.csv`;
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+              URL.revokeObjectURL(url);
+              toast.success(`Downloaded ${rows.length} author${rows.length === 1 ? '' : 's'}`);
+            }}
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Download CSV
+          </Button>
+        </div>
       </div>
+
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
