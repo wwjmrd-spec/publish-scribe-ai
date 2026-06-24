@@ -220,14 +220,15 @@ export function ArticleContentEditor({
         const mmToPx = 3.7795275591;
         const pageHeightPx = PAGE_HEIGHT_MM * mmToPx;
         const contentHeight = Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight);
-        const pageCount = Math.max(1, Math.ceil(contentHeight / pageHeightPx));
+        const pages = Math.max(1, Math.ceil(contentHeight / pageHeightPx));
         const start = startPageRef.current || 1;
         let html = '';
-        for (let i = 0; i < pageCount; i++) {
+        for (let i = 0; i < pages; i++) {
           const top = (i + 1) * pageHeightPx - 22; // sit just above the dashed divider
           html += `<div style="position:absolute;left:0;right:0;top:${top}px;text-align:center;font-family:'Times New Roman',serif;font-size:10px;color:#475569;">— ${start + i} —</div>`;
         }
         overlay.innerHTML = html;
+        setPageCount((prev) => (prev === pages ? prev : pages));
       };
       renderPageNumbersRef.current = renderPageNumbers;
 
