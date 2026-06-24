@@ -509,24 +509,49 @@ const getReviewReportReadyTemplate = (data: EmailRequest["data"]): string => {
   return wrapEmail(isLowScore ? "Revision Recommended - Review Report" : "Review Report Ready", body);
 };
 const getPaymentReminderTemplate = (data: EmailRequest["data"]): string => {
+  const d = (data || {}) as any;
+  const level = Number(d.urgencyLevel) || 1;
+  const urgencyMeta: Record<number, { label: string; color: string; emoji: string; intro: string }> = {
+    1: { label: "Informational", color: "#3b82f6", emoji: "ℹ️", intro: "This is a gentle informational reminder that the publication fee for your article is still pending." },
+    2: { label: "Moderate", color: "#f59e0b", emoji: "⏰", intro: "Your publication fee is still outstanding. Please complete the payment soon to keep your article on track." },
+    3: { label: "High", color: "#ef4444", emoji: "🚨", intro: "Urgent: your publication fee remains unpaid. Immediate action is required to avoid delays or removal from the publishing queue." },
+  };
+  const meta = urgencyMeta[level] || urgencyMeta[1];
+  const deadlineRow = d.deadline
+    ? emailInfoRow("Last Fee Submission Date", escapeHtml(String(d.deadline)), " color:#ef4444; font-weight:600;")
+    : "";
+  const daysRow = typeof d.daysSinceAcceptance === "number"
+    ? emailInfoRow("Days Since Acceptance", String(d.daysSinceAcceptance))
+    : "";
+  const deadlineWarn = (typeof d.daysUntilDeadline === "number")
+    ? (d.daysUntilDeadline < 0
+        ? emailP(`<strong style="color:#ef4444;">The fee submission deadline has passed by ${Math.abs(d.daysUntilDeadline)} day(s).</strong>`)
+        : emailP(`<strong style="color:${meta.color};">Only ${d.daysUntilDeadline} day(s) left until the fee submission deadline.</strong>`))
+    : "";
+
   const body = `
-    ${emailH1("⏰ Payment Reminder")}
-    ${emailP(`Hi ${escapeHtml(data?.authorName || "Author")},`)}
-    ${emailP(`This is a friendly reminder that the publication fee for your article is still pending. Please complete the payment to proceed with the publication process.`)}
+    ${emailH1(`${meta.emoji} Payment Reminder — ${meta.label} Urgency`)}
+    ${emailP(`Hi ${escapeHtml(d.authorName || "Author")},`)}
+    ${emailP(meta.intro)}
+    ${d.extraMessage ? emailP(escapeHtml(String(d.extraMessage))) : ""}
     ${emailInfoBox(
       "Article Details:",
       [
-        emailInfoRow("Reference Number", escapeHtml(data?.referenceNumber || "N/A")),
-        emailInfoRow("Title", escapeHtml(data?.articleTitle || "N/A")),
+        emailInfoRow("Reference Number", escapeHtml(d.referenceNumber || "N/A")),
+        emailInfoRow("Title", escapeHtml(d.articleTitle || "N/A")),
         emailInfoRow("Status", "Pending Fee", " color:#f97316; font-weight:600;"),
+        emailInfoRow("Urgency", meta.label, ` color:${meta.color}; font-weight:700;`),
+        daysRow,
+        deadlineRow,
       ].join(""),
     )}
+    ${deadlineWarn}
     ${emailP("Please log in to your dashboard and complete the payment at your earliest convenience to avoid any delays in publishing your article.")}
-    ${emailButton("https://wwjmrdai.online/author/articles", "Pay Publication Fee Now")}
+    ${emailButton("https://wwjmrdai.online/author/cart", "Pay Publication Fee Now")}
     ${emailDivider()}
     ${emailFooterText("If you've already made the payment, please disregard this email. For any queries, contact us at support@wwjmrd.com")}
   `;
-  return wrapEmail("Payment Reminder - WWJMRD", body);
+  return wrapEmail(`Payment Reminder (${meta.label}) - WWJMRD`, body);
 };
 
 const getArticleResubmissionTemplate = (data: EmailRequest["data"], isAdmin: boolean = false): string => {
