@@ -141,6 +141,8 @@ export function ArticleContentEditor({
   const [lineHeight, setLineHeight] = useState<string>('1.6');
   const [paraSpacing, setParaSpacing] = useState<string>('4');
   const [startPage, setStartPage] = useState<number>(1);
+  const [pageCount, setPageCount] = useState<number>(1);
+  const [autoFilledStart, setAutoFilledStart] = useState<boolean>(false);
   const [selectedImg, setSelectedImg] = useState<HTMLImageElement | null>(null);
   const queryClient = useQueryClient();
 
@@ -149,6 +151,38 @@ export function ArticleContentEditor({
   useEffect(() => { startPageRef.current = startPage; }, [startPage]);
 
   const renderPageNumbersRef = useRef<() => void>(() => {});
+
+  // Auto-continue page numbers from the last published article.
+  // Admin can override by typing a new value into the Page # input.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('articles')
+          .select('page_number,status,id')
+          .in('status', ['published', 'published_to_wwjmrd', 'free', 'paid', 'galley_proof_sent', 'galley_proof_approved'] as any)
+          .neq('id', articleId)
+          .not('page_number', 'is', null)
+          .limit(500);
+        if (cancelled || !data) return;
+        let maxEnd = 0;
+        for (const row of data as any[]) {
+          const pn: string = (row.page_number || '').toString();
+          const nums = pn.match(/\d+/g);
+          if (!nums || !nums.length) continue;
+          const last = parseInt(nums[nums.length - 1], 10);
+          if (Number.isFinite(last) && last > maxEnd) maxEnd = last;
+        }
+        if (!cancelled && maxEnd > 0 && !autoFilledStart) {
+          setStartPage(maxEnd + 1);
+          setAutoFilledStart(true);
+        }
+      } catch {/* ignore */}
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [articleId]);
 
   useEffect(() => {
     const iframe = iframeRef.current;
@@ -186,14 +220,15 @@ export function ArticleContentEditor({
         const mmToPx = 3.7795275591;
         const pageHeightPx = PAGE_HEIGHT_MM * mmToPx;
         const contentHeight = Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight);
-        const pageCount = Math.max(1, Math.ceil(contentHeight / pageHeightPx));
+        const pages = Math.max(1, Math.ceil(contentHeight / pageHeightPx));
         const start = startPageRef.current || 1;
         let html = '';
-        for (let i = 0; i < pageCount; i++) {
+        for (let i = 0; i < pages; i++) {
           const top = (i + 1) * pageHeightPx - 22; // sit just above the dashed divider
           html += `<div style="position:absolute;left:0;right:0;top:${top}px;text-align:center;font-family:'Times New Roman',serif;font-size:10px;color:#475569;">— ${start + i} —</div>`;
         }
         overlay.innerHTML = html;
+        setPageCount((prev) => (prev === pages ? prev : pages));
       };
       renderPageNumbersRef.current = renderPageNumbers;
 
@@ -442,16 +477,25 @@ export function ArticleContentEditor({
     }
   }, [getContent, articleId, queryClient, onClose]);
 
+  // Build the canonical page range string (e.g. "12-18" or "12") from
+  // current startPage + measured pageCount. Stored on the article so the
+  // NEXT article auto-continues numbering from this one.
+  const computedPageRange = useCallback(() => {
+    const start = Math.max(1, startPage || 1);
+    const end = start + Math.max(1, pageCount) - 1;
+    return end > start ? `${start}-${end}` : `${start}`;
+  }, [startPage, pageCount]);
+
   const handleSave = async () => {
     setSaving(true);
     try {
       const content = getContent();
       const { error } = await supabase
         .from('articles')
-        .update({ formatted_content: content } as any)
+        .update({ formatted_content: content, page_number: computedPageRange() } as any)
         .eq('id', articleId);
       if (error) throw error;
-      toast.success('Content saved successfully');
+      toast.success(`Saved (pages ${computedPageRange()})`);
       queryClient.invalidateQueries({ queryKey: ['admin-formatting-articles'] });
     } catch (err: any) {
       toast.error('Failed to save: ' + err.message);
@@ -465,20 +509,22 @@ export function ArticleContentEditor({
     const tid = toast.loading('Building galley proof PDF…');
     try {
       const content = getContent();
+      const pageRange = computedPageRange();
 
-      // 1. Save current edits + mark formatting approved
+      // 1. Save current edits + mark formatting approved + persist page range
       const { error: saveError } = await supabase
         .from('articles')
         .update({
           formatted_content: content,
           formatting_status: 'approved',
           formatting_approved_at: new Date().toISOString(),
+          page_number: pageRange,
         } as any)
         .eq('id', articleId);
       if (saveError) throw saveError;
 
-      // 2. Generate PDF from the same paginated A4 pipeline used in preview/download
-      const pdfBlob = await buildFormattedPdfBlob(content, { startPage: 1, showFirstPageNumber: true });
+      // 2. Generate PDF using the admin's chosen starting page number
+      const pdfBlob = await buildFormattedPdfBlob(content, { startPage, showFirstPageNumber: true });
 
       // 3. Ask the backend for a secure one-time upload target, then upload PDF.
       const prepared = await supabase.functions.invoke('send-galley-proof', {
@@ -509,7 +555,7 @@ export function ArticleContentEditor({
           publicationYear: (article as any).publication_year || '',
           pubVolume: (article as any).volume || '',
           pubIssue: (article as any).issue || '',
-          pubPageRange: (article as any).page_number || '',
+          pubPageRange: pageRange,
         },
       });
       if (sendResponse.error) throw new Error(sendResponse.error.message);
@@ -544,6 +590,21 @@ export function ArticleContentEditor({
       setPreviewBuilding(false);
     }
   }, [getContent, startPage]);
+
+  // Live-rebuild the preview whenever the admin changes the starting page
+  // number while the preview dialog is already open, so HTML editor + Preview
+  // A4 always show the same numbers.
+  useEffect(() => {
+    if (!showPreview) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const paged = await buildPagedFormattedArticleHtml(getContent(), { startPage, showFirstPageNumber: true });
+        if (!cancelled) setPreviewHtml(paged);
+      } catch {/* ignore */}
+    })();
+    return () => { cancelled = true; };
+  }, [startPage, showPreview, getContent]);
 
   const handleDownloadPdf = useCallback(async () => {
     try {
@@ -629,7 +690,7 @@ export function ArticleContentEditor({
               </Select>
             </div>
 
-            {/* Page number start */}
+            {/* Page number start — auto-continues from last published article; admin can override */}
             <div className="flex items-center gap-1.5">
               <Label className="text-xs text-muted-foreground flex items-center gap-1">
                 <Hash className="w-3 h-3" /> Page #:
@@ -638,10 +699,16 @@ export function ArticleContentEditor({
                 type="number"
                 min={1}
                 value={startPage}
-                onChange={(e) => setStartPage(Math.max(1, Number(e.target.value) || 1))}
+                onChange={(e) => {
+                  setAutoFilledStart(true); // treat any manual edit as an override
+                  setStartPage(Math.max(1, Number(e.target.value) || 1));
+                }}
                 className="h-7 w-[55px] text-xs rounded border border-input bg-background px-2"
-                title="Starting page number"
+                title="Starting page number (auto-continues from last published article)"
               />
+              <span className="text-[10px] text-muted-foreground whitespace-nowrap" title="Computed page range">
+                → {computedPageRange()}
+              </span>
             </div>
 
             {/* Image controls (only enabled when an image is selected) */}
