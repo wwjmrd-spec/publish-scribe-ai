@@ -156,12 +156,47 @@ export default function AdminReminderSettings() {
                 <p className="text-xs text-muted-foreground">Leave blank to use the default from-address.</p>
               </div>
 
+              <div className="space-y-3 p-4 rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--glass-bg))]">
+                <Label className="flex items-center gap-2 text-base">
+                  <AlertTriangle className="w-4 h-4 text-orange-400" /> Urgency Schedule (days since acceptance)
+                </Label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-blue-400">1 · Informational after</Label>
+                    <Input type="number" min={0} value={infoAfter} onChange={(e) => setInfoAfter(Number(e.target.value))} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-orange-400">2 · Moderate after</Label>
+                    <Input type="number" min={0} value={moderateAfter} onChange={(e) => setModerateAfter(Number(e.target.value))} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-red-400">3 · High after</Label>
+                    <Input type="number" min={0} value={highAfter} onChange={(e) => setHighAfter(Number(e.target.value))} />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Each urgency level is sent at most once per article. The system automatically escalates Informational → Moderate → High until the fee is paid.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2"><CalendarDays className="w-4 h-4 text-muted-foreground" /> Last fee submission date (current month)</Label>
+                <Input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
+                <p className="text-xs text-muted-foreground">
+                  Displayed in reminders. When the deadline is within 2 days or has passed, the next reminder is automatically sent at <strong className="text-red-400">High</strong> urgency.
+                </p>
+              </div>
+
               <div className="p-4 rounded-lg bg-[hsl(var(--glass-bg))] border border-[hsl(var(--glass-border))]">
                 <p className="text-sm text-muted-foreground">
-                  <strong className="text-foreground">Behavior:</strong> Reminder every{' '}
+                  <strong className="text-foreground">Behavior:</strong> Check every{' '}
                   <strong className="text-primary">{frequencyHours}h</strong>, for articles pending between{' '}
-                  <strong className="text-primary">{minAge}</strong> and <strong className="text-primary">{maxAge}</strong> days, sent via{' '}
+                  <strong className="text-primary">{minAge}</strong> and <strong className="text-primary">{maxAge}</strong> days, via{' '}
                   <strong className="text-primary">{provider === 'default' ? 'system default' : provider}</strong>.
+                  Urgency steps at <strong className="text-blue-400">{infoAfter}d</strong> /{' '}
+                  <strong className="text-orange-400">{moderateAfter}d</strong> /{' '}
+                  <strong className="text-red-400">{highAfter}d</strong>
+                  {deadline ? <> · deadline <strong className="text-red-400">{deadline}</strong></> : null}.
                 </p>
               </div>
 
