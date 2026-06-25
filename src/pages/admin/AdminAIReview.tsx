@@ -144,6 +144,8 @@ export default function AdminAIReview() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-articles-for-review'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-article-reviews'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-article-detail'] });
       toast.success('Scores updated. Approve to send the new report to the author.');
       setEditingScoresFor(null);
     },
