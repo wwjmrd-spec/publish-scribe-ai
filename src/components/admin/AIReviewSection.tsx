@@ -50,8 +50,7 @@ export function AIReviewSection({ articleId }: Props) {
       return r.data;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin-article-reviews', articleId] });
-      qc.invalidateQueries({ queryKey: ['admin-article-detail', articleId] });
+      invalidateAll();
       toast.success('AI review completed. Approve to send to author.');
     },
     onError: (e: any) => toast.error('Review failed: ' + e.message),
@@ -64,8 +63,7 @@ export function AIReviewSection({ articleId }: Props) {
       return r.data;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin-article-reviews', articleId] });
-      qc.invalidateQueries({ queryKey: ['admin-article-detail', articleId] });
+      invalidateAll();
       toast.success('Review approved and sent to the author.');
     },
     onError: (e: any) => toast.error('Approval failed: ' + e.message),
@@ -80,7 +78,7 @@ export function AIReviewSection({ articleId }: Props) {
       return r.data;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin-article-reviews', articleId] });
+      invalidateAll();
       toast.success('Scores updated. Approve to send the new report.');
       setEditing(false); setDraft(null);
     },
