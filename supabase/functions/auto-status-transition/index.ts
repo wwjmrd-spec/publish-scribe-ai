@@ -164,10 +164,12 @@ serve(async (req: Request) => {
     {
       const { data: reviews, error } = await supabase
         .from("article_reviews")
-        .select("id, article_id, report_url, overall_score, detailed_feedback, summary, reviewed_at, approved")
+        .select("id, article_id, report_url, overall_score, detailed_feedback, summary, reviewed_at, approved, articles!inner(automation_paused)")
         .eq("approved", false)
+        .eq("articles.automation_paused", false)
         .not("reviewed_at", "is", null)
         .lte("reviewed_at", sixHoursAgo)
+        .order("reviewed_at", { ascending: true })
         .limit(50);
 
       console.log(`Step1: sixHoursAgo=${sixHoursAgo} fetched=${reviews?.length ?? 0} err=${error?.message ?? "none"}`);
