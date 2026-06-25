@@ -686,6 +686,29 @@ Rules: Base every score on evidence visible in the supplied text. Never invent q
       return jsonResponse({ error: "Failed to parse AI response" }, 500);
     }
 
+    // Normalize & enforce the weighted overall-score formula so the DB and UI always agree.
+    const clamp = (n: any) => {
+      const v = Math.round(Number(n));
+      if (!Number.isFinite(v)) return 0;
+      return Math.max(0, Math.min(100, v));
+    };
+    reviewData.plagiarismScore = clamp(reviewData.plagiarismScore);
+    reviewData.grammarScore = clamp(reviewData.grammarScore);
+    reviewData.contentScore = clamp(reviewData.contentScore);
+    const computedOverall = Math.round(
+      0.20 * reviewData.plagiarismScore +
+      0.25 * reviewData.grammarScore +
+      0.55 * reviewData.contentScore,
+    );
+    reviewData.overallScore = computedOverall;
+    // If metadata-only review, cap every score at 60 per the rubric.
+    if (!documentText) {
+      reviewData.plagiarismScore = Math.min(60, reviewData.plagiarismScore);
+      reviewData.grammarScore = Math.min(60, reviewData.grammarScore);
+      reviewData.contentScore = Math.min(60, reviewData.contentScore);
+      reviewData.overallScore = Math.min(60, reviewData.overallScore);
+    }
+
     // Generate PDF review report
     const authorName = (article.profiles as any)?.full_name || "Unknown Author";
     console.log("Generating PDF report for:", article.reference_number);
