@@ -44,6 +44,8 @@ import { SendGalleyProofDialog } from '@/components/admin/SendGalleyProofDialog'
 import { ChangeAuthorButton } from '@/components/admin/ChangeAuthorButton';
 import { formatArticleStatus, getArticleStatusBadgeClass, MANUAL_ADMIN_STATUSES } from '@/lib/articleStatus';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AIReviewSection } from '@/components/admin/AIReviewSection';
+import { FormattingSection } from '@/components/admin/FormattingSection';
 
 
 type ArticleStatus = Database['public']['Enums']['article_status'];
@@ -773,6 +775,12 @@ export default function AdminArticleDetail() {
                 </div>
               </GlassCard>
             )}
+
+            {/* AI Review */}
+            <AIReviewSection articleId={article.id} />
+
+            {/* Article Formatting */}
+            <FormattingSection articleId={article.id} />
           </div>
 
           {/* Sidebar - Status & Actions */}
