@@ -116,6 +116,8 @@ export default function AdminAIReview() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-articles-for-review'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-article-reviews'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-article-detail'] });
       toast.success('Review approved and sent to the author.');
     },
     onError: (error) => {
