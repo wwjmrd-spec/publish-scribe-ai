@@ -66,13 +66,14 @@ export default function AdminAIReview() {
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      // Ensure latest review is first (article_reviews[0]) by sorting desc by reviewed_at
+      // Sort nested reviews: newest reviewed_at first, then id desc as deterministic tiebreaker
       const sorted = (data || []).map((article: any) => ({
         ...article,
         article_reviews: [...(article.article_reviews || [])].sort((a, b) => {
           const ta = a.reviewed_at ? new Date(a.reviewed_at).getTime() : 0;
           const tb = b.reviewed_at ? new Date(b.reviewed_at).getTime() : 0;
-          return tb - ta;
+          if (tb !== ta) return tb - ta;
+          return String(b.id).localeCompare(String(a.id));
         }),
       }));
       return sorted;
@@ -90,8 +91,10 @@ export default function AdminAIReview() {
       if (response.data?.error) throw new Error(response.data.message || response.data.error);
       return response.data;
     },
-    onSuccess: (data) => {
+    onSuccess: (data, articleId) => {
       queryClient.invalidateQueries({ queryKey: ['admin-articles-for-review'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-article-reviews', articleId] });
+      queryClient.invalidateQueries({ queryKey: ['admin-article-detail', articleId] });
       const base = data?.documentReviewed
         ? 'AI review completed! Full document was analyzed.'
         : 'AI review completed (metadata only - no document found).';
@@ -113,6 +116,8 @@ export default function AdminAIReview() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-articles-for-review'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-article-reviews'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-article-detail'] });
       toast.success('Review approved and sent to the author.');
     },
     onError: (error) => {
@@ -139,6 +144,8 @@ export default function AdminAIReview() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-articles-for-review'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-article-reviews'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-article-detail'] });
       toast.success('Scores updated. Approve to send the new report to the author.');
       setEditingScoresFor(null);
     },

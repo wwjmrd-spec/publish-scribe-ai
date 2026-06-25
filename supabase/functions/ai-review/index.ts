@@ -573,49 +573,74 @@ serve(async (req) => {
       messages: [
           {
             role: "system",
-            content: `You are an expert academic article reviewer. Analyze the submitted article (including its full document content if provided) and provide a comprehensive review covering:
+            content: `You are a senior peer reviewer for an indexed multidisciplinary academic journal (WWJMRD). Apply COPE (Committee on Publication Ethics), ICMJE and WAME guidelines strictly. Your review must be evidence-based, reproducible, and conservative — do not inflate scores.
 
-1. **Plagiarism Assessment** (0-100 score): Analyze writing patterns, phrase originality, and potential concerns about originality. Note: You cannot check actual databases, but can assess writing quality indicators.
+Evaluate the article on FOUR dimensions, each 0–100. Be strict; most genuine submissions score 55–80. Only award 90+ when the work is genuinely outstanding with no significant issues.
 
-2. **Grammar & Structure** (0-100 score): Evaluate writing quality, sentence structure, academic tone, proper formatting, and clarity.
+SCORING RUBRIC (anchor scores to specific, observable evidence in the text):
 
-3. **Content Quality** (0-100 score): Assess relevance, depth of analysis, methodology soundness (if applicable), contribution to the field, and scholarly merit.
+1. PLAGIARISM & ORIGINALITY (plagiarismScore — higher = MORE original / cleaner)
+   • 90–100: Highly original phrasing; no formulaic or templated sections; references properly paraphrased; ideas clearly the authors'.
+   • 70–89: Mostly original; minor over-reliance on common phrasings; no obvious copy-paste indicators.
+   • 50–69: Noticeable boilerplate, repeated stock phrases, weak paraphrasing, or unattributed common knowledge framed as novel.
+   • 30–49: Multiple passages read like patchwriting / mosaic plagiarism; possible reuse from prior literature without quotation.
+   • 0–29: Clear signs of verbatim reuse, AI-generated filler, self-plagiarism, or fabricated/duplicate content.
+   Flag (in suggestions): possible duplicate publication, salami-slicing, ghost/guest authorship signals, undisclosed AI-generation, missing citations for specific claims.
 
-4. **Overall Score** (0-100): Weighted average of above scores.
+2. GRAMMAR, STRUCTURE & STYLE (grammarScore)
+   • Judge: sentence-level grammar, academic tone, IMRaD/section structure, abstract quality (background/methods/results/conclusions), keyword relevance, figure/table referencing, citation style consistency, reference completeness.
+   • Penalize: run-ons, tense shifts, undefined acronyms, missing sections, broken numbering, inconsistent citation style, vague titles.
 
-Provide your response as a valid JSON object with this exact structure:
+3. CONTENT QUALITY & SCHOLARLY MERIT (contentScore)
+   • Judge: clarity of research question, novelty, methodological soundness, validity of data/analysis, logical reasoning, depth of discussion, contribution to field, ethical declarations (consent, IRB, conflicts of interest, data availability, funding).
+   • Penalize: unsupported claims, missing methodology, absent limitations, no statistical justification (where applicable), missing ethics statements, conclusions not grounded in results, predatory citation patterns.
+
+4. OVERALL SCORE — compute as a WEIGHTED average and round to nearest integer:
+   overallScore = round(0.20*plagiarismScore + 0.25*grammarScore + 0.55*contentScore)
+   Do NOT pick a number independently; it MUST match this formula.
+
+RECOMMENDATION MAPPING (use overallScore + ethical red flags):
+   • overall ≥ 80 AND no ethical red flags → "accept"
+   • 70–79 → "minor_revisions"
+   • 55–69 → "major_revisions"
+   • < 55 OR any serious ethical violation (plagiarism, fabrication, undisclosed COI, missing IRB for human/animal research) → "reject"
+
+OUTPUT — return ONLY a valid JSON object, no markdown fences, no commentary. Use this EXACT structure:
 {
   "plagiarismScore": number,
   "grammarScore": number,
   "contentScore": number,
   "overallScore": number,
-  "summary": "Brief 2-3 sentence overall assessment",
+  "summary": "2–3 sentence overall assessment grounded in the rubric above",
   "detailedFeedback": {
     "plagiarism": {
-      "assessment": "string describing plagiarism concerns or lack thereof",
-      "suggestions": ["array of suggestions"]
+      "assessment": "Concrete observations from the text (cite phrases or sections, e.g. 'Introduction paragraph 2 reads as boilerplate').",
+      "suggestions": ["specific, actionable items"]
     },
     "grammar": {
-      "assessment": "string describing grammar quality",
-      "issues": ["array of specific issues found"],
-      "suggestions": ["array of suggestions"]
+      "assessment": "Specific grammar / structural observations.",
+      "issues": ["concrete issues with section/line context"],
+      "suggestions": ["specific fixes"]
     },
     "content": {
-      "assessment": "string describing content quality",
-      "strengths": ["array of strengths"],
-      "weaknesses": ["array of weaknesses"],
-      "suggestions": ["array of suggestions"]
+      "assessment": "Methodological and scholarly assessment with evidence.",
+      "strengths": ["specific strengths"],
+      "weaknesses": ["specific weaknesses, including missing ethics/COI/IRB/data statements when applicable"],
+      "suggestions": ["specific, actionable improvements"]
     },
     "recommendation": "accept | minor_revisions | major_revisions | reject"
   }
-}`,
+}
+
+Rules: Base every score on evidence visible in the supplied text. Never invent quotations. If the document is metadata-only, cap all scores at 60 and state this limitation in the summary. Verify the overallScore formula before returning.`,
           },
           {
             role: "user",
             content: `Please review the following academic article submission:\n\n${contentToReview}`,
           },
         ],
-      temperature: 0.3,
+      temperature: 0.1,
+      top_p: 0.9,
     });
 
     if (!aiResponse.ok) {
@@ -659,6 +684,29 @@ Provide your response as a valid JSON object with this exact structure:
     } catch (parseError) {
       console.error("Failed to parse AI response:", responseContent);
       return jsonResponse({ error: "Failed to parse AI response" }, 500);
+    }
+
+    // Normalize & enforce the weighted overall-score formula so the DB and UI always agree.
+    const clamp = (n: any) => {
+      const v = Math.round(Number(n));
+      if (!Number.isFinite(v)) return 0;
+      return Math.max(0, Math.min(100, v));
+    };
+    reviewData.plagiarismScore = clamp(reviewData.plagiarismScore);
+    reviewData.grammarScore = clamp(reviewData.grammarScore);
+    reviewData.contentScore = clamp(reviewData.contentScore);
+    const computedOverall = Math.round(
+      0.20 * reviewData.plagiarismScore +
+      0.25 * reviewData.grammarScore +
+      0.55 * reviewData.contentScore,
+    );
+    reviewData.overallScore = computedOverall;
+    // If metadata-only review, cap every score at 60 per the rubric.
+    if (!documentText) {
+      reviewData.plagiarismScore = Math.min(60, reviewData.plagiarismScore);
+      reviewData.grammarScore = Math.min(60, reviewData.grammarScore);
+      reviewData.contentScore = Math.min(60, reviewData.contentScore);
+      reviewData.overallScore = Math.min(60, reviewData.overallScore);
     }
 
     // Generate PDF review report

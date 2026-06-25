@@ -27,11 +27,18 @@ export function AIReviewSection({ articleId }: Props) {
         .from('article_reviews')
         .select('*')
         .eq('article_id', articleId)
-        .order('reviewed_at', { ascending: false });
+        .order('reviewed_at', { ascending: false, nullsFirst: false })
+        .order('id', { ascending: false });
       if (error) throw error;
       return data || [];
     },
   });
+
+  const invalidateAll = () => {
+    qc.invalidateQueries({ queryKey: ['admin-article-reviews', articleId] });
+    qc.invalidateQueries({ queryKey: ['admin-article-detail', articleId] });
+    qc.invalidateQueries({ queryKey: ['admin-articles-for-review'] });
+  };
 
   const latest: any = reviews?.[0];
 
@@ -43,8 +50,7 @@ export function AIReviewSection({ articleId }: Props) {
       return r.data;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin-article-reviews', articleId] });
-      qc.invalidateQueries({ queryKey: ['admin-article-detail', articleId] });
+      invalidateAll();
       toast.success('AI review completed. Approve to send to author.');
     },
     onError: (e: any) => toast.error('Review failed: ' + e.message),
@@ -57,8 +63,7 @@ export function AIReviewSection({ articleId }: Props) {
       return r.data;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin-article-reviews', articleId] });
-      qc.invalidateQueries({ queryKey: ['admin-article-detail', articleId] });
+      invalidateAll();
       toast.success('Review approved and sent to the author.');
     },
     onError: (e: any) => toast.error('Approval failed: ' + e.message),
@@ -73,7 +78,7 @@ export function AIReviewSection({ articleId }: Props) {
       return r.data;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin-article-reviews', articleId] });
+      invalidateAll();
       toast.success('Scores updated. Approve to send the new report.');
       setEditing(false); setDraft(null);
     },
