@@ -91,8 +91,10 @@ export default function AdminAIReview() {
       if (response.data?.error) throw new Error(response.data.message || response.data.error);
       return response.data;
     },
-    onSuccess: (data) => {
+    onSuccess: (data, articleId) => {
       queryClient.invalidateQueries({ queryKey: ['admin-articles-for-review'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-article-reviews', articleId] });
+      queryClient.invalidateQueries({ queryKey: ['admin-article-detail', articleId] });
       const base = data?.documentReviewed
         ? 'AI review completed! Full document was analyzed.'
         : 'AI review completed (metadata only - no document found).';
