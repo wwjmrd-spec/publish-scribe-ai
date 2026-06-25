@@ -27,11 +27,18 @@ export function AIReviewSection({ articleId }: Props) {
         .from('article_reviews')
         .select('*')
         .eq('article_id', articleId)
-        .order('reviewed_at', { ascending: false });
+        .order('reviewed_at', { ascending: false, nullsFirst: false })
+        .order('id', { ascending: false });
       if (error) throw error;
       return data || [];
     },
   });
+
+  const invalidateAll = () => {
+    qc.invalidateQueries({ queryKey: ['admin-article-reviews', articleId] });
+    qc.invalidateQueries({ queryKey: ['admin-article-detail', articleId] });
+    qc.invalidateQueries({ queryKey: ['admin-articles-for-review'] });
+  };
 
   const latest: any = reviews?.[0];
 
