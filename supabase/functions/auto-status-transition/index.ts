@@ -170,6 +170,7 @@ serve(async (req: Request) => {
         .lte("reviewed_at", sixHoursAgo)
         .limit(50);
 
+      console.log(`Step1: sixHoursAgo=${sixHoursAgo} fetched=${reviews?.length ?? 0} err=${error?.message ?? "none"}`);
 
       if (error) {
         results.errors.push(`Step1 fetch: ${error.message}`);
