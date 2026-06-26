@@ -187,7 +187,7 @@ export function RichTextEditor({ content, onChange, className = '', placeholder,
       TableCell,
       TableHeader,
       Placeholder.configure({ placeholder: placeholder || 'Start editing...' }),
-    ],
+    ] as any,
     content,
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
