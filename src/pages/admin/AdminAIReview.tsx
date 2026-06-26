@@ -37,6 +37,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { SimplePager } from '@/components/ui/SimplePager';
+import { queryTimeout } from '@/lib/queryTimeout';
 
 const PAGE_SIZE = 10;
 
@@ -59,11 +60,12 @@ export default function AdminAIReview() {
       const { data, error } = await supabase
         .from('articles')
         .select(`
-          *,
+          id, reference_number, title, status, created_at, review_report_url, ai_autocorrected, ai_autocorrected_at,
           profiles:author_id (full_name, email),
-          article_reviews (*)
+          article_reviews (id, article_id, plagiarism_score, grammar_score, content_score, overall_score, detailed_feedback, summary, report_url, approved, reviewed_at, scores_edited)
         `)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .abortSignal(queryTimeout());
       
       if (error) throw error;
       // Sort nested reviews: newest reviewed_at first, then id desc as deterministic tiebreaker

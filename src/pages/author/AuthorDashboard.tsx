@@ -20,6 +20,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import { PlanLimitsCard } from '@/components/dashboard/PlanLimitsCard';
 import { RecentPublicationsSection } from '@/pages/PublicPublications';
+import { queryTimeout } from '@/lib/queryTimeout';
 
 export default function AuthorDashboard() {
   const { user, isIndian } = useAuth();
@@ -30,9 +31,10 @@ export default function AuthorDashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('articles')
-        .select('*')
+        .select('id, reference_number, title, status, created_at')
         .eq('author_id', user?.id)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .abortSignal(queryTimeout());
       
       if (error) throw error;
       return data;

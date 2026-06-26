@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useSubscription, incrementUsage } from '@/hooks/useSubscription';
 import { toast } from 'sonner';
 import { downloadFromUrl } from '@/lib/downloadFile';
+import { queryTimeout } from '@/lib/queryTimeout';
 import {
   FileText,
   Eye,
@@ -211,11 +212,17 @@ export default function MyArticles() {
       const { data, error } = await supabase
         .from('articles')
         .select(`
-          *,
-          co_authors (*)
+          id, reference_number, author_id, title, abstract, status,
+          review_report_url, certificate_url, created_at,
+          publication_type, galley_proof_status, galley_proof_sent_at,
+          galley_proof_deadline, galley_proof_pdf_url, galley_proof_word_url,
+          allow_withdrawal, document_url, page_count, keywords,
+          author_name, copyright_form_url,
+          co_authors (id, name, email, affiliation, country, certificate_url, payment_status)
         `)
         .eq('author_id', user?.id)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .abortSignal(queryTimeout());
 
       if (error) throw error;
       return data;

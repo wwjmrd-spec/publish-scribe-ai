@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { ArticleContentEditor } from '@/components/admin/ArticleContentEditor';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { queryTimeout } from '@/lib/queryTimeout';
 
 interface GalleyProofReviewSectionProps {
   article: any;
@@ -30,6 +31,8 @@ export function GalleyProofReviewSection({ article }: GalleyProofReviewSectionPr
   const [uploading, setUploading] = useState(false);
   const [approving, setApproving] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
+  const [editorContent, setEditorContent] = useState<string | null>(null);
+  const [editorLoading, setEditorLoading] = useState(false);
 
   const galleyStatus = (article as any).galley_proof_status;
   const deadline = (article as any).galley_proof_deadline;
@@ -149,13 +152,36 @@ export function GalleyProofReviewSection({ article }: GalleyProofReviewSectionPr
   /** Use the admin-edited formatted content as the seed for the author editor.
    *  Falls back to a minimal rebuild from article fields when missing. */
   const buildEditorSeed = () => {
-    const formatted = (article as any).author_revision_html || (article as any).formatted_content;
+    const formatted = editorContent || (article as any).author_revision_html || (article as any).formatted_content;
     if (formatted) return formatted as string;
     let html = `<h1>${article.title || 'Untitled'}</h1>`;
     if (article.author_name) html += `<p><strong>${article.author_name}</strong></p>`;
     if (article.abstract) html += `<h2>Abstract</h2><p>${article.abstract}</p>`;
     if (article.keywords?.length > 0) html += `<p><strong>Keywords:</strong> ${article.keywords.join(', ')}</p>`;
     return html;
+  };
+
+  const openEditor = async () => {
+    setShowEditor(true);
+    if (editorContent || (article as any).author_revision_html || (article as any).formatted_content) return;
+
+    setEditorLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('articles')
+        .select('formatted_content, author_revision_html, abstract, keywords')
+        .eq('id', article.id)
+        .abortSignal(queryTimeout())
+        .maybeSingle();
+      if (error) throw error;
+      if ((data as any)?.abstract && !article.abstract) article.abstract = (data as any).abstract;
+      if ((data as any)?.keywords && !article.keywords) article.keywords = (data as any).keywords;
+      setEditorContent(((data as any)?.author_revision_html || (data as any)?.formatted_content || null) as string | null);
+    } catch (err: any) {
+      toast.error('Editor content could not be loaded. Opening basic article details instead.');
+    } finally {
+      setEditorLoading(false);
+    }
   };
 
   return (
@@ -226,7 +252,7 @@ export function GalleyProofReviewSection({ article }: GalleyProofReviewSectionPr
             </DownloadButton>
           )}
           {(galleyStatus === 'sent' || galleyStatus === 'revision_submitted') && (
-            <Button variant="outline" size="sm" onClick={() => setShowEditor(true)} className="text-primary">
+            <Button variant="outline" size="sm" onClick={openEditor} className="text-primary">
               <Edit3 className="w-4 h-4 mr-1" />
               {galleyStatus === 'revision_submitted' ? 'Re-open Editor' : 'Open Article Editor'}
             </Button>
@@ -295,18 +321,24 @@ export function GalleyProofReviewSection({ article }: GalleyProofReviewSectionPr
             </Button>
           </div>
           <div className="p-3">
-            <ArticleContentEditor
-              articleId={article.id}
-              initialContent={buildEditorSeed()}
-              articleTitle={article.title}
-              referenceNumber={article.reference_number}
-              onClose={() => setShowEditor(false)}
-              mode="author"
-              articleMeta={{
-                authorName: article.author_name || undefined,
-                authorEmail: user?.email || undefined,
-              }}
-            />
+            {editorLoading ? (
+              <div className="flex items-center justify-center h-64">
+                <GlassSpinner size="lg" />
+              </div>
+            ) : (
+              <ArticleContentEditor
+                articleId={article.id}
+                initialContent={buildEditorSeed()}
+                articleTitle={article.title}
+                referenceNumber={article.reference_number}
+                onClose={() => setShowEditor(false)}
+                mode="author"
+                articleMeta={{
+                  authorName: article.author_name || undefined,
+                  authorEmail: user?.email || undefined,
+                }}
+              />
+            )}
           </div>
         </DialogContent>
       </Dialog>

@@ -32,6 +32,7 @@ import {
 import { ArticleContentEditor } from '@/components/admin/ArticleContentEditor';
 import { downloadFormattedAsPdf, downloadFormattedAsDocx } from '@/lib/exportFormattedArticle';
 import { SimplePager } from '@/components/ui/SimplePager';
+import { queryTimeout } from '@/lib/queryTimeout';
 
 const PAGE_SIZE = 10;
 
@@ -47,6 +48,8 @@ export default function AdminFormatting() {
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedArticle, setExpandedArticle] = useState<string | null>(null);
   const [editingArticle, setEditingArticle] = useState<string | null>(null);
+  const [articleContents, setArticleContents] = useState<Record<string, string>>({});
+  const [contentLoadingId, setContentLoadingId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   React.useEffect(() => { setPage(1); }, [searchQuery]);
   const queryClient = useQueryClient();
@@ -56,12 +59,33 @@ export default function AdminFormatting() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('articles')
-        .select('*, profiles:author_id (full_name, email)')
-        .order('created_at', { ascending: false });
+        .select('id, reference_number, title, created_at, formatting_status, formatting_suggestions, formatted_document_url, formatted_docx_url, profiles:author_id (full_name, email)')
+        .order('created_at', { ascending: false })
+        .abortSignal(queryTimeout());
       if (error) throw error;
       return data;
     },
   });
+
+  const loadFormattedContent = async (articleId: string) => {
+    if (articleContents[articleId]) return articleContents[articleId];
+    setContentLoadingId(articleId);
+    try {
+      const { data, error } = await supabase
+        .from('articles')
+        .select('formatted_content, author_revision_html')
+        .eq('id', articleId)
+        .abortSignal(queryTimeout())
+        .maybeSingle();
+      if (error) throw error;
+      const content = ((data as any)?.author_revision_html || (data as any)?.formatted_content || '') as string;
+      if (!content) throw new Error('No formatted article content found. Please run Format first.');
+      setArticleContents(prev => ({ ...prev, [articleId]: content }));
+      return content;
+    } finally {
+      setContentLoadingId(null);
+    }
+  };
 
   const formatMutation = useMutation({
     mutationFn: async (articleId: string) => {
@@ -84,14 +108,10 @@ export default function AdminFormatting() {
     article: any,
     fileType: 'formatted_document' | 'formatted_word' = 'formatted_document'
   ) => {
-    const html: string | null = article.formatted_content;
     const baseName = `formatted-${article.reference_number || 'article'}`;
-    if (!html) {
-      toast.error('No formatted preview available yet — run Format first.');
-      return;
-    }
     try {
       toast.info(fileType === 'formatted_word' ? 'Building Word file…' : 'Building PDF…');
+      const html = await loadFormattedContent(article.id);
       if (fileType === 'formatted_word') {
         await downloadFormattedAsDocx(html, baseName);
       } else {
@@ -185,10 +205,8 @@ export default function AdminFormatting() {
           const suggestions: Suggestion[] = ((article as any).formatting_suggestions as Suggestion[]) || [];
           const formattedUrl = (article as any).formatted_document_url;
           const formattedDocxUrl = (article as any).formatted_docx_url;
-          // Prefer author corrections (red-highlighted) when present so the
-          // admin can review them in the same editor.
-          const authorRevision = (article as any).author_revision_html as string | null;
-          const formattedContent = (authorRevision || (article as any).formatted_content) as string | null;
+          const formattedContent = articleContents[article.id] || null;
+          const canOpenFormatted = status === 'ready_for_review' || status === 'approved' || !!formattedUrl || !!formattedDocxUrl;
 
           return (
             <motion.div
@@ -245,18 +263,27 @@ export default function AdminFormatting() {
                       </Button>
                     )}
 
-                    {(status === 'ready_for_review' || status === 'approved') && formattedContent && (
+                    {canOpenFormatted && (
                       <Button
                         variant={editingArticle === article.id ? 'default' : 'outline'}
                         size="sm"
-                        onClick={() => setEditingArticle(editingArticle === article.id ? null : article.id)}
+                        onClick={async () => {
+                          if (editingArticle === article.id) return setEditingArticle(null);
+                          try {
+                            await loadFormattedContent(article.id);
+                            setEditingArticle(article.id);
+                          } catch (err: any) {
+                            toast.error(err.message || 'Could not load formatted article');
+                          }
+                        }}
+                        disabled={contentLoadingId === article.id}
                       >
-                        <Edit className="w-4 h-4 mr-2" />
+                        {contentLoadingId === article.id ? <GlassSpinner size="sm" className="mr-2" /> : <Edit className="w-4 h-4 mr-2" />}
                         {editingArticle === article.id ? 'Close Editor' : 'Edit Article'}
                       </Button>
                     )}
 
-                    {formattedContent && (
+                    {canOpenFormatted && (
                       <DownloadButton
                         size="sm"
                         onDownload={() => handleDownloadFormatted(article, 'formatted_document')}
@@ -265,7 +292,7 @@ export default function AdminFormatting() {
                       </DownloadButton>
                     )}
 
-                    {formattedContent && (
+                    {canOpenFormatted && (
                       <DownloadButton
                         size="sm"
                         onDownload={() => handleDownloadFormatted(article, 'formatted_word')}
