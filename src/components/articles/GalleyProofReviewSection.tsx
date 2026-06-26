@@ -171,8 +171,8 @@ export function GalleyProofReviewSection({ article }: GalleyProofReviewSectionPr
         .from('articles')
         .select('formatted_content, author_revision_html, abstract, keywords')
         .eq('id', article.id)
-        .maybeSingle()
-        .abortSignal(queryTimeout());
+        .abortSignal(queryTimeout())
+        .maybeSingle();
       if (error) throw error;
       if ((data as any)?.abstract && !article.abstract) article.abstract = (data as any).abstract;
       if ((data as any)?.keywords && !article.keywords) article.keywords = (data as any).keywords;
