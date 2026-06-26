@@ -70,7 +70,13 @@ export default function Cart() {
   const currencySymbol = preferredCurrency === 'INR' ? '₹' : preferredCurrency === 'USDT' ? '₮' : '$';
   const useIndianFees = preferredCurrency === 'INR';
 
-  const { data: pendingArticles, isLoading: articlesLoading } = useQuery({
+  const {
+    data: pendingArticles,
+    isLoading: articlesLoading,
+    isError: articlesError,
+    error: articlesErrorDetails,
+    refetch: refetchArticles,
+  } = useQuery({
     queryKey: ['pending-articles', user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -79,6 +85,7 @@ export default function Cart() {
         .eq('author_id', user?.id)
         .eq('status', 'pending_fee')
         .order('created_at', { ascending: false })
+        .limit(100)
         .abortSignal(queryTimeout());
       if (error) throw error;
       return data;
@@ -93,7 +100,8 @@ export default function Cart() {
         .from('publication_fees_public')
         .select('*')
         .limit(1)
-        .single();
+        .single()
+        .abortSignal(queryTimeout());
       if (error) throw error;
       return data;
     },
@@ -121,7 +129,9 @@ export default function Cart() {
         .eq('show_in_cart', true)
         .eq('is_active', true)
         .gt('end_date', nowIso)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(20)
+        .abortSignal(queryTimeout());
       if (error) return [];
       return data || [];
     },
@@ -462,6 +472,24 @@ export default function Cart() {
         <div className="flex items-center justify-center h-64">
           <GlassSpinner size="lg" />
         </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (articlesError) {
+    return (
+      <DashboardLayout type="author">
+        <GlassCard className="max-w-xl mx-auto text-center py-10">
+          <AlertCircle className="w-10 h-10 text-destructive mx-auto mb-4" />
+          <h2 className="font-display text-xl font-semibold mb-2">Cart could not load</h2>
+          <p className="text-muted-foreground mb-6">
+            The server took too long to return your pending-fee articles. Please retry; the page will no longer stay stuck on the loading ring.
+          </p>
+          {articlesErrorDetails instanceof Error && (
+            <p className="text-xs text-muted-foreground mb-4 break-words">{articlesErrorDetails.message}</p>
+          )}
+          <Button onClick={() => refetchArticles()}>Retry</Button>
+        </GlassCard>
       </DashboardLayout>
     );
   }
