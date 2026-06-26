@@ -100,8 +100,8 @@ export default function Cart() {
         .from('publication_fees_public')
         .select('*')
         .limit(1)
-        .single()
-        .abortSignal(queryTimeout());
+        .abortSignal(queryTimeout())
+        .single();
       if (error) throw error;
       return data;
     },
