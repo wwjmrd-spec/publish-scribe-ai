@@ -53,6 +53,7 @@ import type { Database } from '@/integrations/supabase/types';
 import { useNavigate } from 'react-router-dom';
 import { formatArticleStatus, getArticleStatusBadgeClass } from '@/lib/articleStatus';
 import { SimplePager } from '@/components/ui/SimplePager';
+import { queryTimeout } from '@/lib/queryTimeout';
 
 const PAGE_SIZE = 10;
 
@@ -134,7 +135,8 @@ export default function AdminArticles() {
       let query = supabase
         .from('articles')
         .select(`
-          *,
+          id, author_id, reference_number, title, status, created_at, publication_type,
+          document_url, certificate_url, review_report_url,
           profiles:author_id (full_name, email, country, affiliation),
           co_authors (id, name, email, affiliation, co_author_certificates (id, certificate_url, payment_status))
         `)
@@ -144,7 +146,7 @@ export default function AdminArticles() {
        query = query.eq('status', statusFilter as ArticleStatus);
       }
       
-      const { data, error } = await query;
+      const { data, error } = await query.abortSignal(queryTimeout());
       if (error) throw error;
       return data;
     },
