@@ -14,6 +14,7 @@ import { usePayment, PaymentGateway, BinanceOrderResult } from '@/hooks/usePayme
 import { useSubscription } from '@/hooks/useSubscription';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { queryTimeout } from '@/lib/queryTimeout';
 import { useSearchParams } from 'react-router-dom';
 import {
   ShoppingCart,
@@ -74,10 +75,11 @@ export default function Cart() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('articles')
-        .select('*')
+        .select('id, title, reference_number, created_at, status, publication_type, page_count')
         .eq('author_id', user?.id)
         .eq('status', 'pending_fee')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .abortSignal(queryTimeout());
       if (error) throw error;
       return data;
     },
