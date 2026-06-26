@@ -25,6 +25,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDashboardRange } from '@/hooks/useDashboardRange';
 import { RANGES, getRangeStart, inRange } from '@/lib/timeRange';
 import { RecentPublicationsSection } from '@/pages/PublicPublications';
+import { queryTimeout } from '@/lib/queryTimeout';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -35,8 +36,9 @@ export default function AdminDashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('articles')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select('id, reference_number, title, status, created_at, created_via')
+        .order('created_at', { ascending: false })
+        .abortSignal(queryTimeout());
       
       if (error) throw error;
       return data;
@@ -48,7 +50,8 @@ export default function AdminDashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, created_at');
+        .select('id, created_at')
+        .abortSignal(queryTimeout());
       
       if (error) throw error;
       return data;
@@ -60,8 +63,9 @@ export default function AdminDashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('payments')
-        .select('*')
-        .eq('payment_status', 'success');
+        .select('id, payment_status, currency, final_amount, created_at')
+        .eq('payment_status', 'success')
+        .abortSignal(queryTimeout());
       
       if (error) throw error;
       return data;
@@ -75,7 +79,8 @@ export default function AdminDashboard() {
         .from('ai_writer_usage')
         .select('id, user_id, user_email, user_name, action, created_at')
         .order('created_at', { ascending: false })
-        .limit(500);
+        .limit(500)
+        .abortSignal(queryTimeout());
       if (error) throw error;
       return data;
     },
