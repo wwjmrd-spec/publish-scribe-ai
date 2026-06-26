@@ -58,7 +58,18 @@ import { CountryCollectionModal } from "./components/auth/CountryCollectionModal
 import { MauticTrackingProvider } from "./components/MauticTrackingProvider";
 import { BugReporter } from "./components/BugReporter";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: false,
+      refetchOnWindowFocus: false,
+      staleTime: 30_000,
+    },
+    mutations: {
+      retry: false,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
