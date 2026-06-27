@@ -46,6 +46,302 @@ export type Database = {
           },
         ]
       }
+      ai_draft_replies: {
+        Row: {
+          approved_at: string | null
+          body: string | null
+          category: string | null
+          confidence: number | null
+          confidence_label: string | null
+          created_at: string
+          edited_by: string | null
+          email_id: string
+          id: string
+          language: string | null
+          model: string | null
+          reasoning: string | null
+          sources: Json
+          status: string
+          subject: string | null
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          body?: string | null
+          category?: string | null
+          confidence?: number | null
+          confidence_label?: string | null
+          created_at?: string
+          edited_by?: string | null
+          email_id: string
+          id?: string
+          language?: string | null
+          model?: string | null
+          reasoning?: string | null
+          sources?: Json
+          status?: string
+          subject?: string | null
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          body?: string | null
+          category?: string | null
+          confidence?: number | null
+          confidence_label?: string | null
+          created_at?: string
+          edited_by?: string | null
+          email_id?: string
+          id?: string
+          language?: string | null
+          model?: string | null
+          reasoning?: string | null
+          sources?: Json
+          status?: string
+          subject?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_draft_replies_email_id_fkey"
+            columns: ["email_id"]
+            isOneToOne: false
+            referencedRelation: "ai_emails"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_email_logs: {
+        Row: {
+          action: string
+          created_at: string
+          created_by: string | null
+          detail: Json | null
+          draft_id: string | null
+          email_id: string | null
+          id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          created_by?: string | null
+          detail?: Json | null
+          draft_id?: string | null
+          email_id?: string | null
+          id?: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          created_by?: string | null
+          detail?: Json | null
+          draft_id?: string | null
+          email_id?: string | null
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_email_logs_draft_id_fkey"
+            columns: ["draft_id"]
+            isOneToOne: false
+            referencedRelation: "ai_draft_replies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_email_logs_email_id_fkey"
+            columns: ["email_id"]
+            isOneToOne: false
+            referencedRelation: "ai_emails"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_email_settings: {
+        Row: {
+          ai_enabled: boolean
+          ai_instructions: string | null
+          created_at: string
+          default_language: string
+          id: string
+          last_poll_at: string | null
+          last_poll_status: string | null
+          polling_interval_minutes: number
+          reply_tone: string
+          signature: string | null
+          updated_at: string
+          zoho_account_id: string | null
+          zoho_region: string
+        }
+        Insert: {
+          ai_enabled?: boolean
+          ai_instructions?: string | null
+          created_at?: string
+          default_language?: string
+          id?: string
+          last_poll_at?: string | null
+          last_poll_status?: string | null
+          polling_interval_minutes?: number
+          reply_tone?: string
+          signature?: string | null
+          updated_at?: string
+          zoho_account_id?: string | null
+          zoho_region?: string
+        }
+        Update: {
+          ai_enabled?: boolean
+          ai_instructions?: string | null
+          created_at?: string
+          default_language?: string
+          id?: string
+          last_poll_at?: string | null
+          last_poll_status?: string | null
+          polling_interval_minutes?: number
+          reply_tone?: string
+          signature?: string | null
+          updated_at?: string
+          zoho_account_id?: string | null
+          zoho_region?: string
+        }
+        Relationships: []
+      }
+      ai_emails: {
+        Row: {
+          attachments: Json
+          body_html: string | null
+          body_text: string | null
+          created_at: string
+          folder: string
+          from_email: string | null
+          from_name: string | null
+          has_attachments: boolean
+          id: string
+          is_read: boolean
+          raw: Json | null
+          received_at: string | null
+          snippet: string | null
+          status: string
+          subject: string | null
+          to_email: string | null
+          updated_at: string
+          zoho_message_id: string
+          zoho_thread_id: string | null
+        }
+        Insert: {
+          attachments?: Json
+          body_html?: string | null
+          body_text?: string | null
+          created_at?: string
+          folder?: string
+          from_email?: string | null
+          from_name?: string | null
+          has_attachments?: boolean
+          id?: string
+          is_read?: boolean
+          raw?: Json | null
+          received_at?: string | null
+          snippet?: string | null
+          status?: string
+          subject?: string | null
+          to_email?: string | null
+          updated_at?: string
+          zoho_message_id: string
+          zoho_thread_id?: string | null
+        }
+        Update: {
+          attachments?: Json
+          body_html?: string | null
+          body_text?: string | null
+          created_at?: string
+          folder?: string
+          from_email?: string | null
+          from_name?: string | null
+          has_attachments?: boolean
+          id?: string
+          is_read?: boolean
+          raw?: Json | null
+          received_at?: string | null
+          snippet?: string | null
+          status?: string
+          subject?: string | null
+          to_email?: string | null
+          updated_at?: string
+          zoho_message_id?: string
+          zoho_thread_id?: string | null
+        }
+        Relationships: []
+      }
+      ai_faq: {
+        Row: {
+          answer: string
+          category: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          keywords: string[]
+          question: string
+          updated_at: string
+        }
+        Insert: {
+          answer: string
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          keywords?: string[]
+          question: string
+          updated_at?: string
+        }
+        Update: {
+          answer?: string
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          keywords?: string[]
+          question?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ai_knowledge_base: {
+        Row: {
+          category: string | null
+          content: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          keywords: string[]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          content: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          keywords?: string[]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          keywords?: string[]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ai_writer_usage: {
         Row: {
           action: string
