@@ -47,6 +47,11 @@ import AdminPublicationForm from "./pages/admin/AdminPublicationForm";
 import AdminSubmitForAuthor from "./pages/admin/AdminSubmitForAuthor";
 import AdminQuestions from "./pages/admin/AdminQuestions";
 import AdminPublicationOrder from "./pages/admin/AdminPublicationOrder";
+import AdminEmailAssistant from "./pages/admin/AdminEmailAssistant";
+import AdminEmailDrafts from "./pages/admin/AdminEmailDrafts";
+import AdminEmailKB from "./pages/admin/AdminEmailKB";
+import AdminEmailFAQ from "./pages/admin/AdminEmailFAQ";
+import AdminEmailAssistantSettings from "./pages/admin/AdminEmailAssistantSettings";
 import NotFound from "./pages/NotFound";
 import PublicPublications from "./pages/PublicPublications";
 import PublicArticleAbstract from "./pages/PublicArticleAbstract";
@@ -402,6 +407,12 @@ const App = () => (
               }
             />
 
+
+            <Route path="/admin/email-assistant" element={<ProtectedRoute allowedRoles={['admin']}><AdminEmailAssistant /></ProtectedRoute>} />
+            <Route path="/admin/email-assistant/drafts" element={<ProtectedRoute allowedRoles={['admin']}><AdminEmailDrafts /></ProtectedRoute>} />
+            <Route path="/admin/email-assistant/knowledge" element={<ProtectedRoute allowedRoles={['admin']}><AdminEmailKB /></ProtectedRoute>} />
+            <Route path="/admin/email-assistant/faq" element={<ProtectedRoute allowedRoles={['admin']}><AdminEmailFAQ /></ProtectedRoute>} />
+            <Route path="/admin/email-assistant/settings" element={<ProtectedRoute allowedRoles={['admin']}><AdminEmailAssistantSettings /></ProtectedRoute>} />
 
             {/* Catch-all */}
             <Route path="*" element={<NotFound />} />
