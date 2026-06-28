@@ -20,10 +20,15 @@ export default function AdminEmailAssistantSettings() {
   useEffect(() => {
     (async () => {
       const { data } = await supabase.from("ai_email_settings").select("*").limit(1).maybeSingle();
-      setS(data || {});
+      const d: any = data || {};
+      // Don't keep secret values in form state — only show whether they're set.
+      const zoho_client_secret_set = !!d.zoho_client_secret;
+      const zoho_refresh_token_set = !!d.zoho_refresh_token;
+      setS({ ...d, zoho_client_secret: "", zoho_refresh_token: "", zoho_client_secret_set, zoho_refresh_token_set });
       setLoading(false);
     })();
   }, []);
+
 
   const save = async () => {
     setSaving(true);
