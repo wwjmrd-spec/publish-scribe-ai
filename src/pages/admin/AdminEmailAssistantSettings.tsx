@@ -20,14 +20,19 @@ export default function AdminEmailAssistantSettings() {
   useEffect(() => {
     (async () => {
       const { data } = await supabase.from("ai_email_settings").select("*").limit(1).maybeSingle();
-      setS(data || {});
+      const d: any = data || {};
+      // Don't keep secret values in form state — only show whether they're set.
+      const zoho_client_secret_set = !!d.zoho_client_secret;
+      const zoho_refresh_token_set = !!d.zoho_refresh_token;
+      setS({ ...d, zoho_client_secret: "", zoho_refresh_token: "", zoho_client_secret_set, zoho_refresh_token_set });
       setLoading(false);
     })();
   }, []);
 
+
   const save = async () => {
     setSaving(true);
-    const payload = {
+    const payload: any = {
       ai_enabled: s.ai_enabled ?? true,
       polling_interval_minutes: Number(s.polling_interval_minutes) || 5,
       default_language: s.default_language || "English",
@@ -36,10 +41,15 @@ export default function AdminEmailAssistantSettings() {
       ai_instructions: s.ai_instructions || "",
       zoho_account_id: s.zoho_account_id || null,
       zoho_region: s.zoho_region || "com",
+      zoho_client_id: s.zoho_client_id || null,
     };
+    // Only overwrite secrets when admin entered a new value (avoid wiping when field is left blank)
+    if (s.zoho_client_secret && String(s.zoho_client_secret).trim()) payload.zoho_client_secret = String(s.zoho_client_secret).trim();
+    if (s.zoho_refresh_token && String(s.zoho_refresh_token).trim()) payload.zoho_refresh_token = String(s.zoho_refresh_token).trim();
     if (s.id) await supabase.from("ai_email_settings").update(payload).eq("id", s.id);
     else await supabase.from("ai_email_settings").insert(payload);
     setSaving(false);
+    setS({ ...s, zoho_client_secret: "", zoho_refresh_token: "" });
     toast({ title: "Settings saved" });
   };
 
@@ -78,6 +88,30 @@ export default function AdminEmailAssistantSettings() {
             <div><Label>Zoho Account ID (optional override)</Label><Input value={s.zoho_account_id || ""} onChange={(e) => setS({ ...s, zoho_account_id: e.target.value })} /></div>
             <div><Label>Zoho Region (com / eu / in / com.au)</Label><Input value={s.zoho_region || "com"} onChange={(e) => setS({ ...s, zoho_region: e.target.value })} /></div>
           </div>
+
+          <div className="border-t border-[hsl(var(--glass-border))] pt-4 mt-2 space-y-3">
+            <div>
+              <h3 className="font-semibold">Zoho OAuth Credentials</h3>
+              <p className="text-xs text-muted-foreground">
+                Stored encrypted in the database and used by the inbox poller. Leave secret fields blank to keep the saved value.
+                Generate a Self Client refresh token at <span className="font-mono">api-console.zoho.&lt;region&gt;</span> with scopes
+                <span className="font-mono"> ZohoMail.accounts.READ, ZohoMail.messages.READ, ZohoMail.folders.READ</span>.
+              </p>
+            </div>
+            <div>
+              <Label>Zoho Client ID</Label>
+              <Input value={s.zoho_client_id || ""} onChange={(e) => setS({ ...s, zoho_client_id: e.target.value })} placeholder="1000.XXXXXXXXXXXXXXXXXXXXXXXXXXX" />
+            </div>
+            <div>
+              <Label>Zoho Client Secret {s.zoho_client_secret_set && <span className="text-xs text-muted-foreground">(saved — leave blank to keep)</span>}</Label>
+              <Input type="password" autoComplete="new-password" value={s.zoho_client_secret || ""} onChange={(e) => setS({ ...s, zoho_client_secret: e.target.value })} placeholder={s.zoho_client_secret_set ? "••••••••" : ""} />
+            </div>
+            <div>
+              <Label>Zoho Refresh Token {s.zoho_refresh_token_set && <span className="text-xs text-muted-foreground">(saved — leave blank to keep)</span>}</Label>
+              <Input type="password" autoComplete="new-password" value={s.zoho_refresh_token || ""} onChange={(e) => setS({ ...s, zoho_refresh_token: e.target.value })} placeholder={s.zoho_refresh_token_set ? "••••••••" : "1000.xxxxxxxx.yyyyyyyy"} />
+            </div>
+          </div>
+
           {s.last_poll_at && <div className="text-xs text-muted-foreground">Last poll: {new Date(s.last_poll_at).toLocaleString()} — {s.last_poll_status}</div>}
           <Button onClick={save} disabled={saving} className="gap-2">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save

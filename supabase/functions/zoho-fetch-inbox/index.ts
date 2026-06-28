@@ -31,23 +31,23 @@ function normalizeRegion(region?: string | null) {
 async function getZohoConfig(supabase: ReturnType<typeof createClient>): Promise<ZohoConfig> {
   const { data: settings } = await supabase
     .from("ai_email_settings")
-    .select("zoho_account_id, zoho_region")
+    .select("zoho_account_id, zoho_region, zoho_client_id, zoho_client_secret, zoho_refresh_token")
     .limit(1)
     .maybeSingle();
 
   const config = {
     region: normalizeRegion(settings?.zoho_region || Deno.env.get("ZOHO_MAIL_REGION")),
     accountId: String(settings?.zoho_account_id || Deno.env.get("ZOHO_MAIL_ACCOUNT_ID") || "").trim(),
-    clientId: String(Deno.env.get("ZOHO_MAIL_CLIENT_ID") || "").trim(),
-    clientSecret: String(Deno.env.get("ZOHO_MAIL_CLIENT_SECRET") || "").trim(),
-    refreshToken: String(Deno.env.get("ZOHO_MAIL_REFRESH_TOKEN") || "").trim(),
+    clientId: String(settings?.zoho_client_id || Deno.env.get("ZOHO_MAIL_CLIENT_ID") || "").trim(),
+    clientSecret: String(settings?.zoho_client_secret || Deno.env.get("ZOHO_MAIL_CLIENT_SECRET") || "").trim(),
+    refreshToken: String(settings?.zoho_refresh_token || Deno.env.get("ZOHO_MAIL_REFRESH_TOKEN") || "").trim(),
   };
 
   const missing = Object.entries(config)
     .filter(([key, value]) => key !== "region" && !value)
     .map(([key]) => key);
   if (missing.length) {
-    throw new ZohoSetupError(`Zoho Mail credentials are incomplete. Missing: ${missing.join(", ")}.`, { missing });
+    throw new ZohoSetupError(`Zoho Mail credentials are incomplete. Missing: ${missing.join(", ")}. Set them in Admin → Email Assistant → Settings.`, { missing });
   }
 
   return config;
