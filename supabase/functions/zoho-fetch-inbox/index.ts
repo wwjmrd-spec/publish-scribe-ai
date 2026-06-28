@@ -7,18 +7,58 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const REGION = Deno.env.get("ZOHO_MAIL_REGION") || "com";
-const ACCOUNT_ID = Deno.env.get("ZOHO_MAIL_ACCOUNT_ID")!;
-const CLIENT_ID = Deno.env.get("ZOHO_MAIL_CLIENT_ID")!;
-const CLIENT_SECRET = Deno.env.get("ZOHO_MAIL_CLIENT_SECRET")!;
-const REFRESH_TOKEN = Deno.env.get("ZOHO_MAIL_REFRESH_TOKEN")!;
+type ZohoConfig = {
+  region: string;
+  accountId: string;
+  clientId: string;
+  clientSecret: string;
+  refreshToken: string;
+};
 
-async function getAccessToken(): Promise<string> {
-  const url = `https://accounts.zoho.${REGION}/oauth/v2/token`;
+class ZohoSetupError extends Error {
+  code = "ZOHO_SETUP_ERROR";
+  status = 200;
+  constructor(message: string, public detail?: Record<string, unknown>) {
+    super(message);
+  }
+}
+
+function normalizeRegion(region?: string | null) {
+  const cleaned = String(region || "com").trim().toLowerCase();
+  return ["com", "in", "eu", "com.au"].includes(cleaned) ? cleaned : "com";
+}
+
+async function getZohoConfig(supabase: ReturnType<typeof createClient>): Promise<ZohoConfig> {
+  const { data: settings } = await supabase
+    .from("ai_email_settings")
+    .select("zoho_account_id, zoho_region")
+    .limit(1)
+    .maybeSingle();
+
+  const config = {
+    region: normalizeRegion(settings?.zoho_region || Deno.env.get("ZOHO_MAIL_REGION")),
+    accountId: String(settings?.zoho_account_id || Deno.env.get("ZOHO_MAIL_ACCOUNT_ID") || "").trim(),
+    clientId: String(Deno.env.get("ZOHO_MAIL_CLIENT_ID") || "").trim(),
+    clientSecret: String(Deno.env.get("ZOHO_MAIL_CLIENT_SECRET") || "").trim(),
+    refreshToken: String(Deno.env.get("ZOHO_MAIL_REFRESH_TOKEN") || "").trim(),
+  };
+
+  const missing = Object.entries(config)
+    .filter(([key, value]) => key !== "region" && !value)
+    .map(([key]) => key);
+  if (missing.length) {
+    throw new ZohoSetupError(`Zoho Mail credentials are incomplete. Missing: ${missing.join(", ")}.`, { missing });
+  }
+
+  return config;
+}
+
+async function getAccessToken(config: ZohoConfig): Promise<string> {
+  const url = `https://accounts.zoho.${config.region}/oauth/v2/token`;
   const body = new URLSearchParams({
-    refresh_token: REFRESH_TOKEN,
-    client_id: CLIENT_ID,
-    client_secret: CLIENT_SECRET,
+    refresh_token: config.refreshToken,
+    client_id: config.clientId,
+    client_secret: config.clientSecret,
     grant_type: "refresh_token",
   });
   const r = await fetch(url, { method: "POST", body });
@@ -27,9 +67,10 @@ async function getAccessToken(): Promise<string> {
   try { j = JSON.parse(text); } catch { /* ignore */ }
   if (!j.access_token) {
     if (j.error === "invalid_code" || j.error === "invalid_client") {
-      throw new Error(
-        `Zoho refresh token rejected (${j.error}). The refresh token, client ID/secret, or region (currently "${REGION}") is wrong or revoked. ` +
-        `Regenerate a self-client refresh token at api-console.zoho.${REGION} with scopes ZohoMail.accounts.READ, ZohoMail.messages.READ, ZohoMail.folders.READ, then update ZOHO_MAIL_REFRESH_TOKEN.`
+      throw new ZohoSetupError(
+        `Zoho connection needs to be reconnected. The saved refresh token was rejected by Zoho (${j.error}) for region "${config.region}". ` +
+        `Generate a new Self Client refresh token in the same Zoho data center with scopes ZohoMail.accounts.READ, ZohoMail.messages.READ, ZohoMail.folders.READ, then update the saved ZOHO_MAIL_REFRESH_TOKEN secret.`,
+        { zoho_error: j.error, region: config.region }
       );
     }
     throw new Error(`Zoho OAuth failed (${r.status}): ${text}`);
@@ -37,8 +78,8 @@ async function getAccessToken(): Promise<string> {
   return j.access_token;
 }
 
-async function listInbox(token: string, limit = 25): Promise<any[]> {
-  const url = `https://mail.zoho.${REGION}/api/accounts/${ACCOUNT_ID}/messages/view?folder=Inbox&limit=${limit}&start=1`;
+async function listInbox(config: ZohoConfig, token: string, limit = 25): Promise<any[]> {
+  const url = `https://mail.zoho.${config.region}/api/accounts/${config.accountId}/messages/view?folder=Inbox&limit=${limit}&start=1`;
   const r = await fetch(url, {
     headers: { Authorization: `Zoho-oauthtoken ${token}` },
   });
@@ -47,8 +88,8 @@ async function listInbox(token: string, limit = 25): Promise<any[]> {
   return j.data || [];
 }
 
-async function fetchContent(token: string, folderId: string, messageId: string): Promise<{ content: string }> {
-  const url = `https://mail.zoho.${REGION}/api/accounts/${ACCOUNT_ID}/folders/${folderId}/messages/${messageId}/content`;
+async function fetchContent(config: ZohoConfig, token: string, folderId: string, messageId: string): Promise<{ content: string }> {
+  const url = `https://mail.zoho.${config.region}/api/accounts/${config.accountId}/folders/${folderId}/messages/${messageId}/content`;
   const r = await fetch(url, { headers: { Authorization: `Zoho-oauthtoken ${token}` } });
   if (!r.ok) return { content: "" };
   const j = await r.json();
@@ -73,12 +114,9 @@ Deno.serve(async (req) => {
   );
 
   try {
-    if (!ACCOUNT_ID || !CLIENT_ID || !CLIENT_SECRET || !REFRESH_TOKEN) {
-      throw new Error("Zoho Mail credentials are not configured");
-    }
-
-    const token = await getAccessToken();
-    const messages = await listInbox(token, 30);
+    const config = await getZohoConfig(supabase);
+    const token = await getAccessToken(config);
+    const messages = await listInbox(config, token, 30);
 
     let inserted = 0;
     const newIds: string[] = [];
@@ -97,7 +135,7 @@ Deno.serve(async (req) => {
       try {
         const folderId = String(m.folderId || "");
         if (folderId) {
-          const c = await fetchContent(token, folderId, messageId);
+          const c = await fetchContent(config, token, folderId, messageId);
           bodyHtml = c.content || "";
           bodyText = stripHtml(bodyHtml);
         }
@@ -161,9 +199,23 @@ Deno.serve(async (req) => {
     });
   } catch (e: any) {
     console.error("zoho-fetch-inbox error", e);
-    await supabase.from("ai_email_logs").insert({ action: "error", detail: { where: "fetch", message: String(e?.message || e) } });
-    return new Response(JSON.stringify({ ok: false, error: String(e?.message || e) }), {
-      status: 500,
+    const status = e instanceof ZohoSetupError ? e.status : 500;
+    const body = {
+      ok: false,
+      code: e?.code || "ZOHO_FETCH_ERROR",
+      error: String(e?.message || e),
+      detail: e?.detail || undefined,
+    };
+    await supabase.from("ai_email_logs").insert({ action: "error", detail: { where: "fetch", ...body } });
+    const { data: settings } = await supabase.from("ai_email_settings").select("id").limit(1).maybeSingle();
+    if (settings?.id) {
+      await supabase.from("ai_email_settings").update({
+        last_poll_at: new Date().toISOString(),
+        last_poll_status: body.error,
+      }).eq("id", settings.id);
+    }
+    return new Response(JSON.stringify(body), {
+      status,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

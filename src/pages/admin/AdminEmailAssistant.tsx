@@ -6,8 +6,9 @@ import { GlassCard } from "@/components/layout/GlassCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, RefreshCw, Inbox as InboxIcon, FileEdit, BookOpen, HelpCircle, Settings as SettingsIcon, Mail, Sparkles } from "lucide-react";
+import { AlertTriangle, Loader2, RefreshCw, Inbox as InboxIcon, FileEdit, BookOpen, HelpCircle, Settings as SettingsIcon, Mail, Sparkles } from "lucide-react";
 import { SimplePager } from "@/components/ui/SimplePager";
 
 const NAV = [
@@ -43,6 +44,7 @@ export default function AdminEmailAssistant() {
   const [syncing, setSyncing] = useState(false);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [syncError, setSyncError] = useState<string | null>(null);
   const [stats, setStats] = useState({ total: 0, drafted: 0, pending: 0, replied: 0 });
 
   const load = async () => {
@@ -68,13 +70,17 @@ export default function AdminEmailAssistant() {
 
   const sync = async () => {
     setSyncing(true);
+    setSyncError(null);
     try {
       const { data, error } = await supabase.functions.invoke("zoho-fetch-inbox", { body: {} });
       if (error) throw error;
+      if (data?.ok === false) throw new Error(data.error || "Zoho inbox sync failed");
       toast({ title: "Inbox synced", description: `${data?.inserted ?? 0} new email(s) imported.` });
       await load();
     } catch (e: any) {
-      toast({ title: "Sync failed", description: String(e?.message || e), variant: "destructive" });
+      const message = String(e?.message || e);
+      setSyncError(message);
+      toast({ title: "Zoho sync needs attention", description: message, variant: "destructive" });
     } finally {
       setSyncing(false);
     }
@@ -103,6 +109,22 @@ export default function AdminEmailAssistant() {
         <p className="text-muted-foreground mb-6">Reads Zoho Mail inbox, generates AI drafts. Nothing is sent automatically.</p>
 
         <EmailAssistantNav active="/admin/email-assistant" />
+
+        {syncError && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Zoho connection needs to be reconnected</AlertTitle>
+            <AlertDescription className="space-y-3">
+              <p>{syncError}</p>
+              <div className="text-sm">
+                Generate a new Zoho Self Client refresh token in the same data center and update the saved <strong>ZOHO_MAIL_REFRESH_TOKEN</strong> secret. Make sure the scopes are <strong>ZohoMail.accounts.READ</strong>, <strong>ZohoMail.messages.READ</strong>, and <strong>ZohoMail.folders.READ</strong>.
+              </div>
+              <Button asChild variant="outline" size="sm">
+                <Link to="/admin/email-assistant/settings">Check Zoho settings</Link>
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <GlassCard className="p-4"><div className="text-xs text-muted-foreground">Total</div><div className="text-2xl font-bold">{stats.total}</div></GlassCard>
