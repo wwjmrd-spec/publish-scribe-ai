@@ -83,6 +83,30 @@ export default function AdminEmailAssistantSettings() {
             <div><Label>Zoho Account ID (optional override)</Label><Input value={s.zoho_account_id || ""} onChange={(e) => setS({ ...s, zoho_account_id: e.target.value })} /></div>
             <div><Label>Zoho Region (com / eu / in / com.au)</Label><Input value={s.zoho_region || "com"} onChange={(e) => setS({ ...s, zoho_region: e.target.value })} /></div>
           </div>
+
+          <div className="border-t border-[hsl(var(--glass-border))] pt-4 mt-2 space-y-3">
+            <div>
+              <h3 className="font-semibold">Zoho OAuth Credentials</h3>
+              <p className="text-xs text-muted-foreground">
+                Stored encrypted in the database and used by the inbox poller. Leave secret fields blank to keep the saved value.
+                Generate a Self Client refresh token at <span className="font-mono">api-console.zoho.&lt;region&gt;</span> with scopes
+                <span className="font-mono"> ZohoMail.accounts.READ, ZohoMail.messages.READ, ZohoMail.folders.READ</span>.
+              </p>
+            </div>
+            <div>
+              <Label>Zoho Client ID</Label>
+              <Input value={s.zoho_client_id || ""} onChange={(e) => setS({ ...s, zoho_client_id: e.target.value })} placeholder="1000.XXXXXXXXXXXXXXXXXXXXXXXXXXX" />
+            </div>
+            <div>
+              <Label>Zoho Client Secret {s.zoho_client_secret_set && <span className="text-xs text-muted-foreground">(saved — leave blank to keep)</span>}</Label>
+              <Input type="password" autoComplete="new-password" value={s.zoho_client_secret || ""} onChange={(e) => setS({ ...s, zoho_client_secret: e.target.value })} placeholder={s.zoho_client_secret_set ? "••••••••" : ""} />
+            </div>
+            <div>
+              <Label>Zoho Refresh Token {s.zoho_refresh_token_set && <span className="text-xs text-muted-foreground">(saved — leave blank to keep)</span>}</Label>
+              <Input type="password" autoComplete="new-password" value={s.zoho_refresh_token || ""} onChange={(e) => setS({ ...s, zoho_refresh_token: e.target.value })} placeholder={s.zoho_refresh_token_set ? "••••••••" : "1000.xxxxxxxx.yyyyyyyy"} />
+            </div>
+          </div>
+
           {s.last_poll_at && <div className="text-xs text-muted-foreground">Last poll: {new Date(s.last_poll_at).toLocaleString()} — {s.last_poll_status}</div>}
           <Button onClick={save} disabled={saving} className="gap-2">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save
