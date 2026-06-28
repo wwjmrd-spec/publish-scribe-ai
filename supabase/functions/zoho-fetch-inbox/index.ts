@@ -22,9 +22,18 @@ async function getAccessToken(): Promise<string> {
     grant_type: "refresh_token",
   });
   const r = await fetch(url, { method: "POST", body });
-  if (!r.ok) throw new Error(`Zoho OAuth failed ${r.status}: ${await r.text()}`);
-  const j = await r.json();
-  if (!j.access_token) throw new Error(`Zoho OAuth no token: ${JSON.stringify(j)}`);
+  const text = await r.text();
+  let j: any = {};
+  try { j = JSON.parse(text); } catch { /* ignore */ }
+  if (!j.access_token) {
+    if (j.error === "invalid_code" || j.error === "invalid_client") {
+      throw new Error(
+        `Zoho refresh token rejected (${j.error}). The refresh token, client ID/secret, or region (currently "${REGION}") is wrong or revoked. ` +
+        `Regenerate a self-client refresh token at api-console.zoho.${REGION} with scopes ZohoMail.accounts.READ, ZohoMail.messages.READ, ZohoMail.folders.READ, then update ZOHO_MAIL_REFRESH_TOKEN.`
+      );
+    }
+    throw new Error(`Zoho OAuth failed (${r.status}): ${text}`);
+  }
   return j.access_token;
 }
 
