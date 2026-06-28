@@ -27,7 +27,7 @@ export default function AdminEmailAssistantSettings() {
 
   const save = async () => {
     setSaving(true);
-    const payload = {
+    const payload: any = {
       ai_enabled: s.ai_enabled ?? true,
       polling_interval_minutes: Number(s.polling_interval_minutes) || 5,
       default_language: s.default_language || "English",
@@ -36,10 +36,15 @@ export default function AdminEmailAssistantSettings() {
       ai_instructions: s.ai_instructions || "",
       zoho_account_id: s.zoho_account_id || null,
       zoho_region: s.zoho_region || "com",
+      zoho_client_id: s.zoho_client_id || null,
     };
+    // Only overwrite secrets when admin entered a new value (avoid wiping when field is left blank)
+    if (s.zoho_client_secret && String(s.zoho_client_secret).trim()) payload.zoho_client_secret = String(s.zoho_client_secret).trim();
+    if (s.zoho_refresh_token && String(s.zoho_refresh_token).trim()) payload.zoho_refresh_token = String(s.zoho_refresh_token).trim();
     if (s.id) await supabase.from("ai_email_settings").update(payload).eq("id", s.id);
     else await supabase.from("ai_email_settings").insert(payload);
     setSaving(false);
+    setS({ ...s, zoho_client_secret: "", zoho_refresh_token: "" });
     toast({ title: "Settings saved" });
   };
 
