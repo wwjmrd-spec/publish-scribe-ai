@@ -170,6 +170,9 @@ export type Database = {
           signature: string | null
           updated_at: string
           zoho_account_id: string | null
+          zoho_client_id: string | null
+          zoho_client_secret: string | null
+          zoho_refresh_token: string | null
           zoho_region: string
         }
         Insert: {
@@ -185,6 +188,9 @@ export type Database = {
           signature?: string | null
           updated_at?: string
           zoho_account_id?: string | null
+          zoho_client_id?: string | null
+          zoho_client_secret?: string | null
+          zoho_refresh_token?: string | null
           zoho_region?: string
         }
         Update: {
@@ -200,6 +206,9 @@ export type Database = {
           signature?: string | null
           updated_at?: string
           zoho_account_id?: string | null
+          zoho_client_id?: string | null
+          zoho_client_secret?: string | null
+          zoho_refresh_token?: string | null
           zoho_region?: string
         }
         Relationships: []
