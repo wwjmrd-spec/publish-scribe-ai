@@ -1,0 +1,1 @@
+UPDATE public.ai_email_settings SET zoho_refresh_token = NULL;
