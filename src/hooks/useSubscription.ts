@@ -17,8 +17,8 @@ export interface SubscriptionInfo {
   freePeriodKey: string | null;
 }
 
-const FREE_REVIEW_LIMIT = 2; // per monthly period, anchored to signup date
-const PRO_REVIEW_LIMIT = 5; // per calendar month
+const FREE_REVIEW_LIMIT = 1; // 1 free review report per article (tracked per-article server-side)
+const PRO_REVIEW_LIMIT = 10; // 10 review reports per calendar month for Pro
 const PRO_COAUTHOR_LIMIT = 4; // per calendar month
 
 function getCurrentMonth() {

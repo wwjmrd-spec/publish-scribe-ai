@@ -209,7 +209,8 @@ export default function MyArticles() {
   const { data: articles, isLoading } = useQuery({
     queryKey: ['my-articles', user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Split the heavy co-authors join out so slow joins can't block the page.
+      const { data: rows, error } = await supabase
         .from('articles')
         .select(`
           id, reference_number, author_id, title, abstract, status,
@@ -218,14 +219,28 @@ export default function MyArticles() {
           galley_proof_deadline, galley_proof_pdf_url, galley_proof_word_url,
           allow_withdrawal, document_url, page_count, keywords,
           author_name, copyright_form_url,
-          co_authors (id, name, email, affiliation, country, certificate_url, payment_status)
+          review_report_download_count, free_review_report_downloaded, review_report_paid
         `)
         .eq('author_id', user?.id)
         .order('created_at', { ascending: false })
         .abortSignal(queryTimeout());
 
       if (error) throw error;
-      return data;
+      const list = rows || [];
+      const ids = list.map((a: any) => a.id);
+      let coMap: Record<string, any[]> = {};
+      if (ids.length) {
+        const { data: co } = await supabase
+          .from('co_authors')
+          .select('id, article_id, name, email, affiliation, country, certificate_url, payment_status')
+          .in('article_id', ids)
+          .abortSignal(queryTimeout());
+        (co || []).forEach((c: any) => {
+          coMap[c.article_id] = coMap[c.article_id] || [];
+          coMap[c.article_id].push(c);
+        });
+      }
+      return list.map((a: any) => ({ ...a, co_authors: coMap[a.id] || [] }));
     },
     enabled: !!user?.id,
   });
@@ -277,7 +292,7 @@ export default function MyArticles() {
     return ['submitted', 'under_review', 'revision_requested'].includes(status);
   };
 
-  if (isLoading || subLoading) {
+  if (isLoading) {
     return (
       <DashboardLayout type="author">
         <div className="flex items-center justify-center h-64">
