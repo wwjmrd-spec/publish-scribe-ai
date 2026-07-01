@@ -61,21 +61,36 @@ export default function MyArticles() {
   const handleDownloadReport = async (articleId: string) => {
     if (!user) return;
 
-    if (!subscription.canDownloadReport) {
-      toast.error(
-        subscription.plan === 'free'
-          ? `You've used all ${subscription.reviewReportsLimit} free review report downloads for this period. Upgrade to Pro or wait for your next monthly reset.`
-          : `Monthly limit reached (${subscription.reviewReportsLimit} review reports/month).`
-      );
-
-      return;
-    }
-
     const tid = toast.loading('Preparing review report…');
     try {
       const response = await supabase.functions.invoke('get-document-url', {
         body: { articleId, fileType: 'review_report' },
       });
+
+      // Payment required (Free plan, already used the 1 free per-article download)
+      if ((response.data as any)?.paymentRequired) {
+        toast.error(
+          `A ₹${(response.data as any).priceInr ?? 100} payment is required to re-download this review report. Open the article to complete payment, or upgrade to Pro (10 free reports/month).`,
+          { id: tid, duration: 8000 },
+        );
+        return;
+      }
+
+      if (response.error || !response.data?.url) {
+        const msg = (response.data as any)?.error || 'Failed to prepare review report';
+        toast.error(msg, { id: tid });
+        return;
+      }
+
+      toast.success('Review report ready', { id: tid });
+      downloadFromUrl(response.data.url, `review-report-${articleId}.pdf`);
+      queryClient.invalidateQueries({ queryKey: ['my-articles', user.id] });
+      queryClient.invalidateQueries({ queryKey: ['plan-usage', user.id] });
+    } catch {
+      toast.error('Failed to download review report', { id: tid });
+    }
+  };
+
 
       // Server now enforces the quota and increments usage atomically.
       if (response.error || !response.data?.url) {
