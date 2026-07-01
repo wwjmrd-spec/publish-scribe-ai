@@ -194,6 +194,44 @@ export default function AdminReminderSettings() {
                 </p>
               </div>
 
+              <div className="space-y-3 p-4 rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--glass-bg))]">
+                <Label className="text-base flex items-center gap-2"><Send className="w-4 h-4" /> Throttling</Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Max emails per author (total)</Label>
+                    <Input type="number" min={1} value={maxPerAuthor} onChange={(e) => setMaxPerAuthor(Number(e.target.value))} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Max emails per day (system-wide)</Label>
+                    <Input type="number" min={1} value={maxPerDay} onChange={(e) => setMaxPerDay(Number(e.target.value))} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3 p-4 rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--glass-bg))]">
+                <Label className="text-base flex items-center gap-2">
+                  <Mail className="w-4 h-4" /> Low-score AI Fixer email
+                </Label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={lowScoreEnabled} onChange={(e) => setLowScoreEnabled(e.target.checked)} />
+                  Automatically email authors whose article is set to <strong>Revision Requested</strong> or <strong>Rejected</strong>
+                </label>
+                <div className="space-y-1">
+                  <Label className="text-xs">Email server</Label>
+                  <Select value={lowScoreProvider} onValueChange={setLowScoreProvider}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {PROVIDERS.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">From address (optional)</Label>
+                  <Input placeholder="WWJMRD <noreply@wwjmrdai.online>" value={lowScoreFrom} onChange={(e) => setLowScoreFrom(e.target.value)} />
+                </div>
+                <p className="text-xs text-muted-foreground">Sent once per article, subject: <em>Your Review Score Is Low? Improve Your Manuscript with PubPortal AI</em>.</p>
+              </div>
+
               <div className="space-y-2">
                 <Label className="flex items-center gap-2"><CalendarDays className="w-4 h-4 text-muted-foreground" /> Last fee submission date (current month)</Label>
                 <Input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
