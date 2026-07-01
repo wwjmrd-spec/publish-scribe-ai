@@ -61,69 +61,37 @@ export default function MyArticles() {
   const handleDownloadReport = async (articleId: string) => {
     if (!user) return;
 
-    if (!subscription.canDownloadReport) {
-      toast.error(
-        subscription.plan === 'free'
-          ? `You've used all ${subscription.reviewReportsLimit} free review report downloads for this period. Upgrade to Pro or wait for your next monthly reset.`
-          : `Monthly limit reached (${subscription.reviewReportsLimit} review reports/month).`
-      );
-
-      return;
-    }
-
     const tid = toast.loading('Preparing review report…');
     try {
       const response = await supabase.functions.invoke('get-document-url', {
         body: { articleId, fileType: 'review_report' },
       });
 
-      // Server now enforces the quota and increments usage atomically.
-      if (response.error || !response.data?.url) {
-        const msg =
-          (response.data as any)?.error ||
-          (response.error as any)?.message ||
-          'Failed to get report download link';
-        toast.error(msg, { id: tid });
-        // Refresh local quota counters so UI reflects server truth.
-        queryClient.invalidateQueries({ queryKey: ['plan-usage'] });
-        queryClient.invalidateQueries({ queryKey: ['plan-usage-lifetime'] });
+      // Payment required (Free plan, already used the 1 free per-article download)
+      if ((response.data as any)?.paymentRequired) {
+        toast.error(
+          `A ₹${(response.data as any).priceInr ?? 100} payment is required to re-download this review report. Open the article to complete payment, or upgrade to Pro (10 free reports/month).`,
+          { id: tid, duration: 8000 },
+        );
         return;
       }
 
-      // Refresh quota cache (server already incremented).
-      queryClient.invalidateQueries({ queryKey: ['plan-usage'] });
-      queryClient.invalidateQueries({ queryKey: ['plan-usage-lifetime'] });
-
-      if (subscription.plan === 'free' && subscription.reviewReportsUsed + 1 >= subscription.reviewReportsLimit) {
-        try {
-          const { data: profile } = await supabase.from('profiles').select('full_name, email').eq('id', user.id).single();
-          await supabase.from('notifications').insert({
-            user_id: user.id,
-            title: 'Upgrade to Pro Plan 🚀',
-            message: "You've used all 2 free review report downloads. Upgrade to Pro for 5 monthly downloads, co-author certificates, and more!",
-            type: 'warning',
-            link: '/author/subscription',
-          });
-          if (profile?.email) {
-            supabase.functions.invoke('send-email', {
-              body: {
-                to: profile.email,
-                template: 'upgrade-to-pro',
-                data: { authorName: profile.full_name || 'Author' },
-              },
-            }).catch(console.error);
-          }
-        } catch (err) {
-          console.error('Failed to send upgrade notification:', err);
-        }
+      if (response.error || !response.data?.url) {
+        const msg = (response.data as any)?.error || 'Failed to prepare review report';
+        toast.error(msg, { id: tid });
+        return;
       }
 
       toast.success('Review report ready', { id: tid });
       downloadFromUrl(response.data.url, `review-report-${articleId}.pdf`);
-    } catch (err) {
-      toast.error('Failed to download report', { id: tid });
+      queryClient.invalidateQueries({ queryKey: ['my-articles', user.id] });
+      queryClient.invalidateQueries({ queryKey: ['plan-usage', user.id] });
+    } catch {
+      toast.error('Failed to download review report', { id: tid });
     }
   };
+
+
 
   const handleUpdateManuscript = async (articleId: string, file: File) => {
     if (!user?.id) return;
@@ -209,7 +177,8 @@ export default function MyArticles() {
   const { data: articles, isLoading } = useQuery({
     queryKey: ['my-articles', user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Split the heavy co-authors join out so slow joins can't block the page.
+      const { data: rows, error } = await supabase
         .from('articles')
         .select(`
           id, reference_number, author_id, title, abstract, status,
@@ -218,14 +187,28 @@ export default function MyArticles() {
           galley_proof_deadline, galley_proof_pdf_url, galley_proof_word_url,
           allow_withdrawal, document_url, page_count, keywords,
           author_name, copyright_form_url,
-          co_authors (id, name, email, affiliation, country, certificate_url, payment_status)
+          review_report_download_count, free_review_report_downloaded, review_report_paid
         `)
         .eq('author_id', user?.id)
         .order('created_at', { ascending: false })
         .abortSignal(queryTimeout());
 
       if (error) throw error;
-      return data;
+      const list = rows || [];
+      const ids = list.map((a: any) => a.id);
+      let coMap: Record<string, any[]> = {};
+      if (ids.length) {
+        const { data: co } = await supabase
+          .from('co_authors')
+          .select('id, article_id, name, email, affiliation, country, certificate_url, payment_status')
+          .in('article_id', ids)
+          .abortSignal(queryTimeout());
+        (co || []).forEach((c: any) => {
+          coMap[c.article_id] = coMap[c.article_id] || [];
+          coMap[c.article_id].push(c);
+        });
+      }
+      return list.map((a: any) => ({ ...a, co_authors: coMap[a.id] || [] }));
     },
     enabled: !!user?.id,
   });
@@ -277,7 +260,7 @@ export default function MyArticles() {
     return ['submitted', 'under_review', 'revision_requested'].includes(status);
   };
 
-  if (isLoading || subLoading) {
+  if (isLoading) {
     return (
       <DashboardLayout type="author">
         <div className="flex items-center justify-center h-64">

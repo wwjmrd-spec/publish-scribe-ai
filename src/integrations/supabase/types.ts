@@ -489,6 +489,7 @@ export type Database = {
           formatting_approved_at: string | null
           formatting_status: string | null
           formatting_suggestions: Json | null
+          free_review_report_downloaded: boolean
           galley_proof_consent: boolean | null
           galley_proof_deadline: string | null
           galley_proof_pdf_url: string | null
@@ -500,6 +501,7 @@ export type Database = {
           in_publish_queue: boolean
           issue: string | null
           keywords: string[] | null
+          low_score_email_sent_at: string | null
           manuscript_accepted_email_sent_at: string | null
           page_count: number | null
           page_number: string | null
@@ -511,6 +513,9 @@ export type Database = {
           published_to_wwjmrd_at: string | null
           reason_of_research: string | null
           reference_number: string
+          review_report_download_count: number
+          review_report_paid: boolean
+          review_report_paid_at: string | null
           review_report_url: string | null
           status: Database["public"]["Enums"]["article_status"] | null
           subject: string | null
@@ -546,6 +551,7 @@ export type Database = {
           formatting_approved_at?: string | null
           formatting_status?: string | null
           formatting_suggestions?: Json | null
+          free_review_report_downloaded?: boolean
           galley_proof_consent?: boolean | null
           galley_proof_deadline?: string | null
           galley_proof_pdf_url?: string | null
@@ -557,6 +563,7 @@ export type Database = {
           in_publish_queue?: boolean
           issue?: string | null
           keywords?: string[] | null
+          low_score_email_sent_at?: string | null
           manuscript_accepted_email_sent_at?: string | null
           page_count?: number | null
           page_number?: string | null
@@ -568,6 +575,9 @@ export type Database = {
           published_to_wwjmrd_at?: string | null
           reason_of_research?: string | null
           reference_number: string
+          review_report_download_count?: number
+          review_report_paid?: boolean
+          review_report_paid_at?: string | null
           review_report_url?: string | null
           status?: Database["public"]["Enums"]["article_status"] | null
           subject?: string | null
@@ -603,6 +613,7 @@ export type Database = {
           formatting_approved_at?: string | null
           formatting_status?: string | null
           formatting_suggestions?: Json | null
+          free_review_report_downloaded?: boolean
           galley_proof_consent?: boolean | null
           galley_proof_deadline?: string | null
           galley_proof_pdf_url?: string | null
@@ -614,6 +625,7 @@ export type Database = {
           in_publish_queue?: boolean
           issue?: string | null
           keywords?: string[] | null
+          low_score_email_sent_at?: string | null
           manuscript_accepted_email_sent_at?: string | null
           page_count?: number | null
           page_number?: string | null
@@ -625,6 +637,9 @@ export type Database = {
           published_to_wwjmrd_at?: string | null
           reason_of_research?: string | null
           reference_number?: string
+          review_report_download_count?: number
+          review_report_paid?: boolean
+          review_report_paid_at?: string | null
           review_report_url?: string | null
           status?: Database["public"]["Enums"]["article_status"] | null
           subject?: string | null
@@ -1488,8 +1503,13 @@ export type Database = {
           frequency_hours: number
           id: string
           last_fee_submission_date: string | null
+          low_score_email_enabled: boolean
+          low_score_from_override: string | null
+          low_score_provider_override: string | null
           max_article_age_days: number
           max_days: number
+          max_emails_per_author: number
+          max_emails_per_day: number
           min_article_age_days: number
           updated_at: string
           updated_by: string | null
@@ -1503,8 +1523,13 @@ export type Database = {
           frequency_hours?: number
           id?: string
           last_fee_submission_date?: string | null
+          low_score_email_enabled?: boolean
+          low_score_from_override?: string | null
+          low_score_provider_override?: string | null
           max_article_age_days?: number
           max_days?: number
+          max_emails_per_author?: number
+          max_emails_per_day?: number
           min_article_age_days?: number
           updated_at?: string
           updated_by?: string | null
@@ -1518,8 +1543,13 @@ export type Database = {
           frequency_hours?: number
           id?: string
           last_fee_submission_date?: string | null
+          low_score_email_enabled?: boolean
+          low_score_from_override?: string | null
+          low_score_provider_override?: string | null
           max_article_age_days?: number
           max_days?: number
+          max_emails_per_author?: number
+          max_emails_per_day?: number
           min_article_age_days?: number
           updated_at?: string
           updated_by?: string | null
@@ -1632,6 +1662,7 @@ export type Database = {
           paypal_subscription_id: string | null
           plan_type: string
           razorpay_subscription_id: string | null
+          review_reports_grant: number | null
           starts_at: string
           user_id: string
         }
@@ -1645,6 +1676,7 @@ export type Database = {
           paypal_subscription_id?: string | null
           plan_type?: string
           razorpay_subscription_id?: string | null
+          review_reports_grant?: number | null
           starts_at?: string
           user_id: string
         }
@@ -1658,6 +1690,7 @@ export type Database = {
           paypal_subscription_id?: string | null
           plan_type?: string
           razorpay_subscription_id?: string | null
+          review_reports_grant?: number | null
           starts_at?: string
           user_id?: string
         }

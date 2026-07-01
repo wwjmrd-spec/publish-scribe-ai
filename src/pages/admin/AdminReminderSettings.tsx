@@ -31,6 +31,11 @@ export default function AdminReminderSettings() {
   const [moderateAfter, setModerateAfter] = useState<number>(3);
   const [highAfter, setHighAfter] = useState<number>(6);
   const [deadline, setDeadline] = useState<string>('');
+  const [maxPerAuthor, setMaxPerAuthor] = useState<number>(5);
+  const [maxPerDay, setMaxPerDay] = useState<number>(200);
+  const [lowScoreEnabled, setLowScoreEnabled] = useState<boolean>(true);
+  const [lowScoreFrom, setLowScoreFrom] = useState<string>('');
+  const [lowScoreProvider, setLowScoreProvider] = useState<string>('default');
 
   const { data: settings, isLoading } = useQuery({
     queryKey: ['reminder-settings'],
@@ -53,6 +58,11 @@ export default function AdminReminderSettings() {
       setModerateAfter(settings.urgency_moderate_after_days ?? 3);
       setHighAfter(settings.urgency_high_after_days ?? 6);
       setDeadline(settings.last_fee_submission_date || '');
+      setMaxPerAuthor(settings.max_emails_per_author ?? 5);
+      setMaxPerDay(settings.max_emails_per_day ?? 200);
+      setLowScoreEnabled(settings.low_score_email_enabled ?? true);
+      setLowScoreFrom(settings.low_score_from_override || '');
+      setLowScoreProvider(settings.low_score_provider_override || 'default');
     }
   }, [settings]);
 
@@ -70,6 +80,11 @@ export default function AdminReminderSettings() {
           urgency_moderate_after_days: moderateAfter,
           urgency_high_after_days: highAfter,
           last_fee_submission_date: deadline || null,
+          max_emails_per_author: maxPerAuthor,
+          max_emails_per_day: maxPerDay,
+          low_score_email_enabled: lowScoreEnabled,
+          low_score_from_override: lowScoreFrom.trim() || null,
+          low_score_provider_override: lowScoreProvider === 'default' ? null : lowScoreProvider,
           updated_at: new Date().toISOString(),
         } as any)
         .eq('id', settings.id);
@@ -177,6 +192,44 @@ export default function AdminReminderSettings() {
                 <p className="text-xs text-muted-foreground">
                   Each urgency level is sent at most once per article. The system automatically escalates Informational → Moderate → High until the fee is paid.
                 </p>
+              </div>
+
+              <div className="space-y-3 p-4 rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--glass-bg))]">
+                <Label className="text-base flex items-center gap-2"><Send className="w-4 h-4" /> Throttling</Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Max emails per author (total)</Label>
+                    <Input type="number" min={1} value={maxPerAuthor} onChange={(e) => setMaxPerAuthor(Number(e.target.value))} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Max emails per day (system-wide)</Label>
+                    <Input type="number" min={1} value={maxPerDay} onChange={(e) => setMaxPerDay(Number(e.target.value))} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3 p-4 rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--glass-bg))]">
+                <Label className="text-base flex items-center gap-2">
+                  <Mail className="w-4 h-4" /> Low-score AI Fixer email
+                </Label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={lowScoreEnabled} onChange={(e) => setLowScoreEnabled(e.target.checked)} />
+                  Automatically email authors whose article is set to <strong>Revision Requested</strong> or <strong>Rejected</strong>
+                </label>
+                <div className="space-y-1">
+                  <Label className="text-xs">Email server</Label>
+                  <Select value={lowScoreProvider} onValueChange={setLowScoreProvider}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {PROVIDERS.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">From address (optional)</Label>
+                  <Input placeholder="WWJMRD <noreply@wwjmrdai.online>" value={lowScoreFrom} onChange={(e) => setLowScoreFrom(e.target.value)} />
+                </div>
+                <p className="text-xs text-muted-foreground">Sent once per article, subject: <em>Your Review Score Is Low? Improve Your Manuscript with PubPortal AI</em>.</p>
               </div>
 
               <div className="space-y-2">
