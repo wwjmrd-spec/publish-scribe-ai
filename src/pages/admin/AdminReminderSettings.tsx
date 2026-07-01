@@ -80,6 +80,11 @@ export default function AdminReminderSettings() {
           urgency_moderate_after_days: moderateAfter,
           urgency_high_after_days: highAfter,
           last_fee_submission_date: deadline || null,
+          max_emails_per_author: maxPerAuthor,
+          max_emails_per_day: maxPerDay,
+          low_score_email_enabled: lowScoreEnabled,
+          low_score_from_override: lowScoreFrom.trim() || null,
+          low_score_provider_override: lowScoreProvider === 'default' ? null : lowScoreProvider,
           updated_at: new Date().toISOString(),
         } as any)
         .eq('id', settings.id);
