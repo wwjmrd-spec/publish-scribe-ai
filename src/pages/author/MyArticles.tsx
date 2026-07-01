@@ -92,53 +92,6 @@ export default function MyArticles() {
   };
 
 
-      // Server now enforces the quota and increments usage atomically.
-      if (response.error || !response.data?.url) {
-        const msg =
-          (response.data as any)?.error ||
-          (response.error as any)?.message ||
-          'Failed to get report download link';
-        toast.error(msg, { id: tid });
-        // Refresh local quota counters so UI reflects server truth.
-        queryClient.invalidateQueries({ queryKey: ['plan-usage'] });
-        queryClient.invalidateQueries({ queryKey: ['plan-usage-lifetime'] });
-        return;
-      }
-
-      // Refresh quota cache (server already incremented).
-      queryClient.invalidateQueries({ queryKey: ['plan-usage'] });
-      queryClient.invalidateQueries({ queryKey: ['plan-usage-lifetime'] });
-
-      if (subscription.plan === 'free' && subscription.reviewReportsUsed + 1 >= subscription.reviewReportsLimit) {
-        try {
-          const { data: profile } = await supabase.from('profiles').select('full_name, email').eq('id', user.id).single();
-          await supabase.from('notifications').insert({
-            user_id: user.id,
-            title: 'Upgrade to Pro Plan 🚀',
-            message: "You've used all 2 free review report downloads. Upgrade to Pro for 5 monthly downloads, co-author certificates, and more!",
-            type: 'warning',
-            link: '/author/subscription',
-          });
-          if (profile?.email) {
-            supabase.functions.invoke('send-email', {
-              body: {
-                to: profile.email,
-                template: 'upgrade-to-pro',
-                data: { authorName: profile.full_name || 'Author' },
-              },
-            }).catch(console.error);
-          }
-        } catch (err) {
-          console.error('Failed to send upgrade notification:', err);
-        }
-      }
-
-      toast.success('Review report ready', { id: tid });
-      downloadFromUrl(response.data.url, `review-report-${articleId}.pdf`);
-    } catch (err) {
-      toast.error('Failed to download report', { id: tid });
-    }
-  };
 
   const handleUpdateManuscript = async (articleId: string, file: File) => {
     if (!user?.id) return;
