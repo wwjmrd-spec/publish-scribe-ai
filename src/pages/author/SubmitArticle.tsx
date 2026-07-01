@@ -501,18 +501,8 @@ export default function SubmitArticle() {
       return false;
     }
 
-    // 2-page articles require review report download limit
-    if (pageCount !== null && pageCount <= 2 && !subscription.canDownloadReport) {
-      toast({
-        title: 'Upgrade to Pro Plan Required',
-        description: `You've used all ${subscription.reviewReportsLimit} free review report downloads. Articles with 2 or fewer pages require available review reports. Upgrade to Pro to get 5 reports/month and submit unlimited articles.`,
-        variant: 'destructive',
-        duration: 8000,
-      });
-      // Navigate to subscription page after a short delay
-      setTimeout(() => navigate('/author/subscription'), 3000);
-      return false;
-    }
+    // Submission limits removed — authors can submit unlimited articles.
+    // (Review-report download quotas are now enforced per-download, not per-submission.)
 
     return true;
   };

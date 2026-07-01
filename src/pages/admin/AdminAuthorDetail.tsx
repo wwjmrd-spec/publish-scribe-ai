@@ -583,8 +583,8 @@ export default function AdminAuthorDetail() {
               {(() => {
                 const totalTracked = lifetimeReports + lifetimeCerts;
                 const isPro = plan === 'pro';
-                const freeLimit = 2;
-                const proLimit = 5;
+                const freeLimit = 1;   // 1 free review report per article
+                const proLimit = 10;   // Pro: 10 review reports per month
                 const reviewLimit = isPro ? proLimit : freeLimit;
                 const reviewUsed = isPro ? monthReports : freePeriodReports;
                 const reviewExhausted = reviewUsed >= reviewLimit;
