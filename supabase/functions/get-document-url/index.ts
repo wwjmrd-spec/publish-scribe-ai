@@ -154,14 +154,17 @@ serve(async (req) => {
       bucket = "review-reports";
       filePath = article.review_report_url || null;
 
-      // Server-side quota enforcement (authors only; admins bypass)
+      // Server-side quota enforcement (authors only; admins bypass).
+      // NEW POLICY:
+      //   Free plan  -> 1 free review-report download PER ARTICLE. After that, Rs 100/download.
+      //                 (Signed URL only issued after payment; frontend collects Razorpay payment.)
+      //   Pro plan   -> 10 review-report downloads per calendar month. No per-article limit.
       if (!isAdmin) {
-        const FREE_LIMIT = 2;   // per signup-anchored monthly period
-        const PRO_LIMIT = 5;    // per calendar month
+        const PRO_LIMIT = 10;
 
         const { data: sub } = await supabase
           .from("user_subscriptions")
-          .select("plan_type, is_active, expires_at")
+          .select("plan_type, is_active, expires_at, review_reports_grant")
           .eq("user_id", userId)
           .eq("is_active", true)
           .maybeSingle();
@@ -171,60 +174,64 @@ serve(async (req) => {
           sub.is_active &&
           (!sub.expires_at || new Date(sub.expires_at) > new Date());
 
-        let used = 0;
-        let limit = FREE_LIMIT;
-        let periodKey: string;
-
         if (isPro) {
           const now = new Date();
-          periodKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-          limit = PRO_LIMIT;
-        } else {
-          // Anchor to author signup date (profiles.created_at)
-          const { data: prof } = await supabase
-            .from("profiles")
-            .select("created_at")
-            .eq("id", userId)
+          const periodKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+          const limit = sub?.review_reports_grant ?? PRO_LIMIT;
+
+          const { data: periodRow } = await supabase
+            .from("plan_usage")
+            .select("review_reports_used")
+            .eq("user_id", userId)
+            .eq("usage_month", periodKey)
             .maybeSingle();
-          const signup = prof?.created_at ? new Date(prof.created_at) : new Date();
-          const anchorDay = Math.min(Math.max(signup.getUTCDate(), 1), 28);
-          const now = new Date();
-          let start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), anchorDay));
-          if (start.getTime() > now.getTime()) {
-            start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, anchorDay));
+          const used = periodRow?.review_reports_used ?? 0;
+
+          if (used >= limit) {
+            return new Response(
+              JSON.stringify({
+                error: `Monthly limit reached (${limit} review reports/month).`,
+                quotaExceeded: true,
+              }),
+              { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+            );
           }
-          periodKey = `${start.getUTCFullYear()}-${String(start.getUTCMonth() + 1).padStart(2, "0")}-${String(start.getUTCDate()).padStart(2, "0")}`;
+
+          await supabase.rpc("increment_plan_usage", {
+            p_user_id: userId,
+            p_field: "review_reports_used",
+            p_usage_month: periodKey,
+          });
+        } else {
+          // Free plan — per-article 1 free download; then Rs 100/download.
+          const usedFree = !!article.free_review_report_downloaded;
+          const paid = !!article.review_report_paid;
+
+          if (usedFree && !paid) {
+            return new Response(
+              JSON.stringify({
+                error: "Payment required to re-download this review report.",
+                paymentRequired: true,
+                priceInr: 100,
+                articleId,
+              }),
+              { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+            );
+          }
+
+          // Consume either the free download or the one-time paid download.
+          const patch: Record<string, unknown> = {
+            review_report_download_count: (article.review_report_download_count ?? 0) + 1,
+          };
+          if (!usedFree) patch.free_review_report_downloaded = true;
+          if (paid) {
+            // Paid download is single-use: reset paid flag once consumed.
+            patch.review_report_paid = false;
+          }
+          await supabase.from("articles").update(patch).eq("id", articleId);
         }
-
-        const { data: periodRow } = await supabase
-          .from("plan_usage")
-          .select("review_reports_used")
-          .eq("user_id", userId)
-          .eq("usage_month", periodKey)
-          .maybeSingle();
-        used = periodRow?.review_reports_used ?? 0;
-
-        if (used >= limit) {
-          return new Response(
-            JSON.stringify({
-              error: isPro
-                ? `Monthly limit reached (${limit} review reports/month).`
-                : `You've used all ${limit} free review report downloads for this period. Upgrade to Pro for more.`,
-              quotaExceeded: true,
-            }),
-            { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-          );
-        }
-
-        // Atomically increment usage BEFORE issuing the signed URL so fast
-        // double-clicks can't blow past the limit.
-        const { error: rpcError } = await supabase.rpc("increment_plan_usage", {
-          p_user_id: userId,
-          p_field: "review_reports_used",
-          p_usage_month: periodKey,
-        });
-        if (rpcError) console.error("increment_plan_usage failed:", rpcError.message);
       }
+
 
     } else if (fileType === "pending_review_report") {
       // Admin-only: preview the not-yet-approved review PDF stored on article_reviews
