@@ -31,6 +31,11 @@ export default function AdminReminderSettings() {
   const [moderateAfter, setModerateAfter] = useState<number>(3);
   const [highAfter, setHighAfter] = useState<number>(6);
   const [deadline, setDeadline] = useState<string>('');
+  const [maxPerAuthor, setMaxPerAuthor] = useState<number>(5);
+  const [maxPerDay, setMaxPerDay] = useState<number>(200);
+  const [lowScoreEnabled, setLowScoreEnabled] = useState<boolean>(true);
+  const [lowScoreFrom, setLowScoreFrom] = useState<string>('');
+  const [lowScoreProvider, setLowScoreProvider] = useState<string>('default');
 
   const { data: settings, isLoading } = useQuery({
     queryKey: ['reminder-settings'],
@@ -53,6 +58,11 @@ export default function AdminReminderSettings() {
       setModerateAfter(settings.urgency_moderate_after_days ?? 3);
       setHighAfter(settings.urgency_high_after_days ?? 6);
       setDeadline(settings.last_fee_submission_date || '');
+      setMaxPerAuthor(settings.max_emails_per_author ?? 5);
+      setMaxPerDay(settings.max_emails_per_day ?? 200);
+      setLowScoreEnabled(settings.low_score_email_enabled ?? true);
+      setLowScoreFrom(settings.low_score_from_override || '');
+      setLowScoreProvider(settings.low_score_provider_override || 'default');
     }
   }, [settings]);
 
