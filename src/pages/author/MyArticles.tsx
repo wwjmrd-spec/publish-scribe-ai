@@ -613,6 +613,49 @@ export default function MyArticles() {
           article={withdrawArticle}
         />
       )}
+
+      <AlertDialog open={!!payReportDialog} onOpenChange={(o) => !o && setPayReportDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Buy Review Report Download</AlertDialogTitle>
+            <AlertDialogDescription>
+              You've already used your 1 free review-report download for{' '}
+              <span className="font-semibold text-foreground">{payReportDialog?.title}</span>
+              {payReportDialog?.refNum ? ` (${payReportDialog.refNum})` : ''}. Pay{' '}
+              <span className="font-semibold text-foreground">
+                ₹{payReportDialog?.price ?? 100}
+              </span>{' '}
+              to download it again — or upgrade to Pro for 10 free review-report downloads
+              every month.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setPayReportDialog(null);
+                navigate('/author/subscription');
+              }}
+            >
+              <Crown className="w-4 h-4 mr-1" /> Upgrade to Pro
+            </Button>
+            <AlertDialogAction
+              onClick={() =>
+                payReportDialog &&
+                addReportToCartAndGo(
+                  payReportDialog.articleId,
+                  payReportDialog.title,
+                  payReportDialog.refNum,
+                  payReportDialog.price,
+                )
+              }
+            >
+              Add to Cart & Pay
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }
