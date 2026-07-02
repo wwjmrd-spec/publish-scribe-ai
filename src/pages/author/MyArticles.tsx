@@ -43,8 +43,10 @@ export default function MyArticles() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { subscription, isLoading: subLoading } = useSubscription();
+  const { addItem, hasItem } = useCart();
   const [withdrawArticle, setWithdrawArticle] = React.useState<any>(null);
   const [updatingManuscript, setUpdatingManuscript] = React.useState<string | null>(null);
+  const [payReportDialog, setPayReportDialog] = React.useState<{ articleId: string; title: string; refNum: string; price: number } | null>(null);
 
   const handleDownloadGalleyProof = async (articleId: string) => {
     const tid = toast.loading('Preparing galley proof…');
