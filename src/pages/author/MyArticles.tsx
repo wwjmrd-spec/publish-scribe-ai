@@ -65,7 +65,7 @@ export default function MyArticles() {
     }
   };
 
-  const handleDownloadReport = async (articleId: string) => {
+  const handleDownloadReport = async (articleId: string, articleMeta?: { title: string; refNum: string }) => {
     if (!user) return;
 
     const tid = toast.loading('Preparing review report…');
@@ -76,10 +76,14 @@ export default function MyArticles() {
 
       // Payment required (Free plan, already used the 1 free per-article download)
       if ((response.data as any)?.paymentRequired) {
-        toast.error(
-          `A ₹${(response.data as any).priceInr ?? 100} payment is required to re-download this review report. Open the article to complete payment, or upgrade to Pro (10 free reports/month).`,
-          { id: tid, duration: 8000 },
-        );
+        const price = (response.data as any).priceInr ?? 100;
+        toast.dismiss(tid);
+        setPayReportDialog({
+          articleId,
+          title: articleMeta?.title || 'this article',
+          refNum: articleMeta?.refNum || '',
+          price,
+        });
         return;
       }
 
@@ -93,10 +97,28 @@ export default function MyArticles() {
       downloadFromUrl(response.data.url, `review-report-${articleId}.pdf`);
       queryClient.invalidateQueries({ queryKey: ['my-articles', user.id] });
       queryClient.invalidateQueries({ queryKey: ['plan-usage', user.id] });
+      queryClient.invalidateQueries({ queryKey: ['plan-usage-free-period', user.id] });
     } catch {
       toast.error('Failed to download review report', { id: tid });
     }
   };
+
+  const addReportToCartAndGo = (articleId: string, title: string, refNum: string, price: number) => {
+    const cartId = `review_report:${articleId}`;
+    if (!hasItem(cartId)) {
+      addItem({
+        id: cartId,
+        type: 'review_report',
+        label: `Review Report — ${refNum || title}`,
+        description: `Downloadable review report for "${title}"`,
+        amount: price,
+        articleId,
+      });
+    }
+    setPayReportDialog(null);
+    navigate('/author/cart');
+  };
+
 
 
 
