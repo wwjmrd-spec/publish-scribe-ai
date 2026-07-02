@@ -360,7 +360,7 @@ export default function Cart() {
     const items = [
       ...selectedArticles.map(id => ({ type: 'article_fee' as const, articleId: id })),
       ...validCartItems.map(item => ({
-        type: item.type as 'pro_subscription' | 'coauthor_certificate',
+        type: item.type as 'pro_subscription' | 'coauthor_certificate' | 'review_report',
         articleId: item.articleId,
         coAuthorId: item.coAuthorId,
       })),
