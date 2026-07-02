@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 
 export interface CartItem {
   id: string;
-  type: 'pro_subscription' | 'coauthor_certificate';
+  type: 'pro_subscription' | 'coauthor_certificate' | 'review_report';
   label: string;
   description: string;
   amount: number;

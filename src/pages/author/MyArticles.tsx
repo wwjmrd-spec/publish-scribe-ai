@@ -2,11 +2,16 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCart } from '@/contexts/CartContext';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { GlassCard } from '@/components/layout/GlassCard';
 import { Button } from '@/components/ui/button';
 import { DownloadButton } from '@/components/ui/DownloadButton';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useSubscription, incrementUsage } from '@/hooks/useSubscription';
@@ -38,8 +43,10 @@ export default function MyArticles() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { subscription, isLoading: subLoading } = useSubscription();
+  const { addItem, hasItem } = useCart();
   const [withdrawArticle, setWithdrawArticle] = React.useState<any>(null);
   const [updatingManuscript, setUpdatingManuscript] = React.useState<string | null>(null);
+  const [payReportDialog, setPayReportDialog] = React.useState<{ articleId: string; title: string; refNum: string; price: number } | null>(null);
 
   const handleDownloadGalleyProof = async (articleId: string) => {
     const tid = toast.loading('Preparing galley proof…');
@@ -58,7 +65,7 @@ export default function MyArticles() {
     }
   };
 
-  const handleDownloadReport = async (articleId: string) => {
+  const handleDownloadReport = async (articleId: string, articleMeta?: { title: string; refNum: string }) => {
     if (!user) return;
 
     const tid = toast.loading('Preparing review report…');
@@ -69,10 +76,14 @@ export default function MyArticles() {
 
       // Payment required (Free plan, already used the 1 free per-article download)
       if ((response.data as any)?.paymentRequired) {
-        toast.error(
-          `A ₹${(response.data as any).priceInr ?? 100} payment is required to re-download this review report. Open the article to complete payment, or upgrade to Pro (10 free reports/month).`,
-          { id: tid, duration: 8000 },
-        );
+        const price = (response.data as any).priceInr ?? 100;
+        toast.dismiss(tid);
+        setPayReportDialog({
+          articleId,
+          title: articleMeta?.title || 'this article',
+          refNum: articleMeta?.refNum || '',
+          price,
+        });
         return;
       }
 
@@ -86,10 +97,28 @@ export default function MyArticles() {
       downloadFromUrl(response.data.url, `review-report-${articleId}.pdf`);
       queryClient.invalidateQueries({ queryKey: ['my-articles', user.id] });
       queryClient.invalidateQueries({ queryKey: ['plan-usage', user.id] });
+      queryClient.invalidateQueries({ queryKey: ['plan-usage-free-period', user.id] });
     } catch {
       toast.error('Failed to download review report', { id: tid });
     }
   };
+
+  const addReportToCartAndGo = (articleId: string, title: string, refNum: string, price: number) => {
+    const cartId = `review_report:${articleId}`;
+    if (!hasItem(cartId)) {
+      addItem({
+        id: cartId,
+        type: 'review_report',
+        label: `Review Report — ${refNum || title}`,
+        description: `Downloadable review report for "${title}"`,
+        amount: price,
+        articleId,
+      });
+    }
+    setPayReportDialog(null);
+    navigate('/author/cart');
+  };
+
 
 
 
@@ -441,22 +470,18 @@ export default function MyArticles() {
                         <DownloadButton
                           size="sm"
                           onDownload={async () => {
-                            if (!subscription.canDownloadReport) {
-                              toast(
-                                <div className="flex flex-col gap-2">
-                                  <p className="font-semibold">Review report quota exhausted</p>
-                                  <p className="text-sm text-muted-foreground">Upgrade to Pro for 5 monthly downloads, co-author certificates, and submit free articles.</p>
-                                  <Button size="sm" className="gradient-primary mt-1 w-fit" onClick={() => navigate('/author/subscription')}>
-                                    <Crown className="w-4 h-4 mr-1" /> Upgrade to Pro
-                                  </Button>
-                                </div>
-                              );
-                              throw new Error('Quota exhausted');
-                            }
-                            await handleDownloadReport(article.id);
+                            await handleDownloadReport(article.id, {
+                              title: article.title,
+                              refNum: article.reference_number,
+                            });
                           }}
                         >
                           Report
+                          {(article as any).review_report_download_count > 0 && (
+                            <span className="ml-1.5 text-xs opacity-80">
+                              ({(article as any).review_report_download_count})
+                            </span>
+                          )}
                         </DownloadButton>
                       )}
                       {article.certificate_url && (
@@ -588,6 +613,49 @@ export default function MyArticles() {
           article={withdrawArticle}
         />
       )}
+
+      <AlertDialog open={!!payReportDialog} onOpenChange={(o) => !o && setPayReportDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Buy Review Report Download</AlertDialogTitle>
+            <AlertDialogDescription>
+              You've already used your 1 free review-report download for{' '}
+              <span className="font-semibold text-foreground">{payReportDialog?.title}</span>
+              {payReportDialog?.refNum ? ` (${payReportDialog.refNum})` : ''}. Pay{' '}
+              <span className="font-semibold text-foreground">
+                ₹{payReportDialog?.price ?? 100}
+              </span>{' '}
+              to download it again — or upgrade to Pro for 10 free review-report downloads
+              every month.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setPayReportDialog(null);
+                navigate('/author/subscription');
+              }}
+            >
+              <Crown className="w-4 h-4 mr-1" /> Upgrade to Pro
+            </Button>
+            <AlertDialogAction
+              onClick={() =>
+                payReportDialog &&
+                addReportToCartAndGo(
+                  payReportDialog.articleId,
+                  payReportDialog.title,
+                  payReportDialog.refNum,
+                  payReportDialog.price,
+                )
+              }
+            >
+              Add to Cart & Pay
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }

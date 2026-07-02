@@ -148,6 +148,20 @@ serve(async (req) => {
 
         console.log('Co-author cert record created/updated for:', coAuthor.name);
       }
+
+      // Validate review-report items (per-download purchase)
+      const reviewReports = items.filter((i: any) => i.type === 'review_report');
+      for (const rr of reviewReports) {
+        if (!rr.articleId) throw new Error('Invalid review-report item');
+        const { data: art, error: artErr } = await serviceClient
+          .from('articles')
+          .select('id, author_id, review_report_url')
+          .eq('id', rr.articleId)
+          .eq('author_id', userId)
+          .maybeSingle();
+        if (artErr || !art) throw new Error('Article not found or not yours');
+        if (!art.review_report_url) throw new Error('No review report available for this article');
+      }
     } else if (body.articleIds && Array.isArray(body.articleIds)) {
       // Legacy flow
       articleIds = body.articleIds;

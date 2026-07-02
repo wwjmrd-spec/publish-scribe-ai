@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 export interface PaymentItem {
-  type: 'article_fee' | 'pro_subscription' | 'coauthor_certificate' | 'fast_track_fee';
+  type: 'article_fee' | 'pro_subscription' | 'coauthor_certificate' | 'fast_track_fee' | 'review_report';
   articleId?: string;
   coAuthorId?: string;
 }

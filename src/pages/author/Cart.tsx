@@ -360,7 +360,7 @@ export default function Cart() {
     const items = [
       ...selectedArticles.map(id => ({ type: 'article_fee' as const, articleId: id })),
       ...validCartItems.map(item => ({
-        type: item.type as 'pro_subscription' | 'coauthor_certificate',
+        type: item.type as 'pro_subscription' | 'coauthor_certificate' | 'review_report',
         articleId: item.articleId,
         coAuthorId: item.coAuthorId,
       })),
@@ -728,7 +728,7 @@ export default function Cart() {
                     {validCartItems.map((item) => (
                       <div key={item.id} className="flex items-start gap-3 p-3 sm:p-4 rounded-lg bg-[hsl(var(--glass-bg))] border border-transparent">
                         <div className="hidden sm:flex w-10 h-10 rounded-lg bg-[hsl(var(--glass-bg-strong))] items-center justify-center shrink-0">
-                          {item.type === 'pro_subscription' ? <Crown className="w-5 h-5 text-primary" /> : <Users className="w-5 h-5 text-primary" />}
+                          {item.type === 'pro_subscription' ? <Crown className="w-5 h-5 text-primary" /> : item.type === 'review_report' ? <FileText className="w-5 h-5 text-primary" /> : <Users className="w-5 h-5 text-primary" />}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-sm sm:text-base line-clamp-2 sm:truncate">{item.label}</p>
