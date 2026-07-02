@@ -332,6 +332,24 @@ serve(async (req) => {
           console.error('Failed to generate co-author certificate:', certError);
         }
       }
+
+      // Process paid review-report downloads: mark article as paid so next
+      // download attempt succeeds (one-time use, consumed on download).
+      const reviewReportItems = paymentItems.filter((i: any) => i.type === 'review_report');
+      for (const rr of reviewReportItems) {
+        if (!rr.articleId) continue;
+        await serviceClient
+          .from('articles')
+          .update({ review_report_paid: true, review_report_paid_at: new Date().toISOString() })
+          .eq('id', rr.articleId);
+
+        const { data: art } = await serviceClient
+          .from('articles')
+          .select('title')
+          .eq('id', rr.articleId)
+          .single();
+        if (art) itemDescriptions.push(`Review Report: ${art.title}`);
+      }
     } else {
       // Legacy flow - article-only payments
       if (payment.article_ids && payment.article_ids.length > 0) {
