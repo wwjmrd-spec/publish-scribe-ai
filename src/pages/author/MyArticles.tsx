@@ -470,22 +470,18 @@ export default function MyArticles() {
                         <DownloadButton
                           size="sm"
                           onDownload={async () => {
-                            if (!subscription.canDownloadReport) {
-                              toast(
-                                <div className="flex flex-col gap-2">
-                                  <p className="font-semibold">Review report quota exhausted</p>
-                                  <p className="text-sm text-muted-foreground">Upgrade to Pro for 5 monthly downloads, co-author certificates, and submit free articles.</p>
-                                  <Button size="sm" className="gradient-primary mt-1 w-fit" onClick={() => navigate('/author/subscription')}>
-                                    <Crown className="w-4 h-4 mr-1" /> Upgrade to Pro
-                                  </Button>
-                                </div>
-                              );
-                              throw new Error('Quota exhausted');
-                            }
-                            await handleDownloadReport(article.id);
+                            await handleDownloadReport(article.id, {
+                              title: article.title,
+                              refNum: article.reference_number,
+                            });
                           }}
                         >
                           Report
+                          {(article as any).review_report_download_count > 0 && (
+                            <span className="ml-1.5 text-xs opacity-80">
+                              ({(article as any).review_report_download_count})
+                            </span>
+                          )}
                         </DownloadButton>
                       )}
                       {article.certificate_url && (
