@@ -154,10 +154,10 @@ serve(async (req) => {
       bucket = "review-reports";
       filePath = article.review_report_url || null;
 
-      // Server-side quota enforcement (authors only; admins bypass).
+      // Server-side quota enforcement (authors only; admins bypass quota but still count).
       // NEW POLICY:
       //   Free plan  -> 1 free review-report download PER ARTICLE. After that, Rs 100/download.
-      //                 (Signed URL only issued after payment; frontend collects Razorpay payment.)
+      //                 (Signed URL only issued after payment; frontend collects payment.)
       //   Pro plan   -> 10 review-report downloads per calendar month. No per-article limit.
       if (!isAdmin) {
         const PRO_LIMIT = 10;
@@ -174,9 +174,10 @@ serve(async (req) => {
           sub.is_active &&
           (!sub.expires_at || new Date(sub.expires_at) > new Date());
 
+        const now = new Date();
+        const periodKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
         if (isPro) {
-          const now = new Date();
-          const periodKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
           const limit = sub?.review_reports_grant ?? PRO_LIMIT;
 
           const { data: periodRow } = await supabase
@@ -202,6 +203,14 @@ serve(async (req) => {
             p_field: "review_reports_used",
             p_usage_month: periodKey,
           });
+
+          // Also bump the per-article counter so admins see accurate totals.
+          await supabase
+            .from("articles")
+            .update({
+              review_report_download_count: (article.review_report_download_count ?? 0) + 1,
+            })
+            .eq("id", articleId);
         } else {
           // Free plan — per-article 1 free download; then Rs 100/download.
           const usedFree = !!article.free_review_report_downloaded;
@@ -210,7 +219,7 @@ serve(async (req) => {
           if (usedFree && !paid) {
             return new Response(
               JSON.stringify({
-                error: "Payment required to re-download this review report.",
+                error: "Payment required to download this review report.",
                 paymentRequired: true,
                 priceInr: 100,
                 articleId,
@@ -229,6 +238,13 @@ serve(async (req) => {
             patch.review_report_paid = false;
           }
           await supabase.from("articles").update(patch).eq("id", articleId);
+
+          // Track free-plan period usage so the admin "Free Plan Downloads" widget stays accurate.
+          await supabase.rpc("increment_plan_usage", {
+            p_user_id: userId,
+            p_field: "review_reports_used",
+            p_usage_month: periodKey,
+          });
         }
       }
 
