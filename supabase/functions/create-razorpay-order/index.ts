@@ -162,6 +162,7 @@ serve(async (req) => {
         if (artErr || !art) throw new Error('Article not found or not yours');
         if (!art.review_report_url) throw new Error('No review report available for this article');
       }
+    } else if (body.articleIds && Array.isArray(body.articleIds)) {
       // Legacy flow
       articleIds = body.articleIds;
       paymentItems = articleIds.map((id: string) => ({ type: 'article_fee', articleId: id }));
