@@ -212,16 +212,25 @@ serve(async (req) => {
             })
             .eq("id", articleId);
         } else {
-          // Free plan — per-article 1 free download; then Rs 100/download.
+          // Free plan — per-article 1 free download; then Rs 100 / $5 per download.
           const usedFree = !!article.free_review_report_downloaded;
           const paid = !!article.review_report_paid;
 
           if (usedFree && !paid) {
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("is_indian")
+              .eq("id", userId)
+              .maybeSingle();
+            const isIndian = !!profile?.is_indian;
             return new Response(
               JSON.stringify({
                 error: "Payment required to download this review report.",
                 paymentRequired: true,
                 priceInr: 100,
+                priceUsd: 5,
+                currency: isIndian ? "INR" : "USD",
+                amount: isIndian ? 100 : 5,
                 articleId,
               }),
               { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },

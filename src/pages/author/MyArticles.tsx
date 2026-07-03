@@ -46,7 +46,8 @@ export default function MyArticles() {
   const { addItem, hasItem } = useCart();
   const [withdrawArticle, setWithdrawArticle] = React.useState<any>(null);
   const [updatingManuscript, setUpdatingManuscript] = React.useState<string | null>(null);
-  const [payReportDialog, setPayReportDialog] = React.useState<{ articleId: string; title: string; refNum: string; price: number } | null>(null);
+  const [payReportDialog, setPayReportDialog] = React.useState<{ articleId: string; title: string; refNum: string; amount: number; currency: 'INR' | 'USD' } | null>(null);
+  const [payingNow, setPayingNow] = React.useState(false);
 
   const handleDownloadGalleyProof = async (articleId: string) => {
     const tid = toast.loading('Preparing galley proof…');
@@ -76,13 +77,16 @@ export default function MyArticles() {
 
       // Payment required (Free plan, already used the 1 free per-article download)
       if ((response.data as any)?.paymentRequired) {
-        const price = (response.data as any).priceInr ?? 100;
+        const d: any = response.data;
+        const currency: 'INR' | 'USD' = d.currency === 'INR' ? 'INR' : 'USD';
+        const amount = typeof d.amount === 'number' ? d.amount : (currency === 'INR' ? 100 : 5);
         toast.dismiss(tid);
         setPayReportDialog({
           articleId,
           title: articleMeta?.title || 'this article',
           refNum: articleMeta?.refNum || '',
-          price,
+          amount,
+          currency,
         });
         return;
       }
@@ -103,7 +107,7 @@ export default function MyArticles() {
     }
   };
 
-  const addReportToCartAndGo = (articleId: string, title: string, refNum: string, price: number) => {
+  const addReportToCartAndGo = (articleId: string, title: string, refNum: string, amount: number) => {
     const cartId = `review_report:${articleId}`;
     if (!hasItem(cartId)) {
       addItem({
@@ -111,13 +115,87 @@ export default function MyArticles() {
         type: 'review_report',
         label: `Review Report — ${refNum || title}`,
         description: `Downloadable review report for "${title}"`,
-        amount: price,
+        amount,
         articleId,
       });
     }
     setPayReportDialog(null);
     navigate('/author/cart');
   };
+
+  const payReportNow = async () => {
+    if (!payReportDialog || !user) return;
+    const { articleId, amount, currency, title, refNum } = payReportDialog;
+    setPayingNow(true);
+    try {
+      if (currency === 'INR') {
+        // Ensure Razorpay SDK
+        if (!(window as any).Razorpay) {
+          await new Promise<void>((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = 'https://checkout.razorpay.com/v1/checkout.js';
+            s.onload = () => resolve();
+            s.onerror = () => reject(new Error('Razorpay SDK failed to load'));
+            document.body.appendChild(s);
+          });
+        }
+        const orderRes = await supabase.functions.invoke('create-razorpay-order', {
+          body: {
+            items: [{ type: 'review_report', articleId }],
+            amount,
+            currency: 'INR',
+          },
+        });
+        if (orderRes.error || orderRes.data?.error) {
+          throw new Error(orderRes.error?.message || orderRes.data?.error || 'Order failed');
+        }
+        const orderData: any = orderRes.data;
+        const rzp = new (window as any).Razorpay({
+          key: orderData.keyId,
+          amount: orderData.amount,
+          currency: orderData.currency,
+          name: 'WWJMRD',
+          description: `Review Report — ${refNum || title}`,
+          order_id: orderData.orderId,
+          prefill: { email: user.email, name: user.user_metadata?.full_name || '' },
+          theme: { color: '#00d4ff' },
+          handler: async (resp: any) => {
+            try {
+              const v = await supabase.functions.invoke('verify-payment', {
+                body: {
+                  gateway: 'razorpay',
+                  paymentId: orderData.paymentId,
+                  razorpayOrderId: resp.razorpay_order_id,
+                  razorpayPaymentId: resp.razorpay_payment_id,
+                  razorpaySignature: resp.razorpay_signature,
+                },
+              });
+              if (v.error || v.data?.error) throw new Error(v.error?.message || v.data?.error);
+              toast.success('Payment successful. Preparing your report…');
+              setPayReportDialog(null);
+              queryClient.invalidateQueries({ queryKey: ['my-articles', user.id] });
+              // Immediately trigger download
+              await handleDownloadReport(articleId, { title, refNum });
+            } catch (e: any) {
+              toast.error('Payment verification failed: ' + (e.message || 'unknown'));
+            } finally {
+              setPayingNow(false);
+            }
+          },
+          modal: { ondismiss: () => setPayingNow(false) },
+        });
+        rzp.open();
+      } else {
+        // USD / USDT — route through cart for PayPal/Binance selection.
+        addReportToCartAndGo(articleId, title, refNum, amount);
+        setPayingNow(false);
+      }
+    } catch (e: any) {
+      toast.error('Failed to start payment: ' + (e.message || 'unknown'));
+      setPayingNow(false);
+    }
+  };
+
 
 
 
@@ -324,14 +402,18 @@ export default function MyArticles() {
 
         {/* Plan Usage Info */}
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-lg bg-muted/50">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
             <FileText className="w-4 h-4" />
             <span>
               Review reports: {subscription.reviewReportsUsed}/{subscription.reviewReportsLimit} used
-              {subscription.plan === 'free' && ' this period (Free plan — resets monthly from your signup date)'}
+              {subscription.plan === 'free' && ' this period (Free plan — 1 free per article, then paid)'}
               {subscription.plan === 'pro' && ' this month (Pro plan)'}
             </span>
-
+            {articles && articles.length > 0 && (
+              <span className="ml-2 px-2 py-0.5 rounded-full bg-[hsl(var(--glass-bg-strong))] text-xs">
+                Lifetime downloads: {articles.reduce((sum: number, a: any) => sum + (a.review_report_download_count || 0), 0)}
+              </span>
+            )}
           </div>
           {subscription.plan === 'free' && (
             <Button
@@ -623,7 +705,9 @@ export default function MyArticles() {
               <span className="font-semibold text-foreground">{payReportDialog?.title}</span>
               {payReportDialog?.refNum ? ` (${payReportDialog.refNum})` : ''}. Pay{' '}
               <span className="font-semibold text-foreground">
-                ₹{payReportDialog?.price ?? 100}
+                {payReportDialog?.currency === 'INR'
+                  ? `₹${payReportDialog?.amount ?? 100}`
+                  : `$${payReportDialog?.amount ?? 5}`}
               </span>{' '}
               to download it again — or upgrade to Pro for 10 free review-report downloads
               every month.
@@ -640,18 +724,28 @@ export default function MyArticles() {
             >
               <Crown className="w-4 h-4 mr-1" /> Upgrade to Pro
             </Button>
-            <AlertDialogAction
+            <Button
+              variant="outline"
               onClick={() =>
                 payReportDialog &&
                 addReportToCartAndGo(
                   payReportDialog.articleId,
                   payReportDialog.title,
                   payReportDialog.refNum,
-                  payReportDialog.price,
+                  payReportDialog.amount,
                 )
               }
             >
-              Add to Cart & Pay
+              Add to Cart
+            </Button>
+            <AlertDialogAction
+              disabled={payingNow}
+              onClick={(e) => {
+                e.preventDefault();
+                payReportNow();
+              }}
+            >
+              {payingNow ? <><GlassSpinner size="sm" className="mr-2" />Processing…</> : 'Pay Now'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
