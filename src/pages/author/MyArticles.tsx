@@ -77,13 +77,16 @@ export default function MyArticles() {
 
       // Payment required (Free plan, already used the 1 free per-article download)
       if ((response.data as any)?.paymentRequired) {
-        const price = (response.data as any).priceInr ?? 100;
+        const d: any = response.data;
+        const currency: 'INR' | 'USD' = d.currency === 'INR' ? 'INR' : 'USD';
+        const amount = typeof d.amount === 'number' ? d.amount : (currency === 'INR' ? 100 : 5);
         toast.dismiss(tid);
         setPayReportDialog({
           articleId,
           title: articleMeta?.title || 'this article',
           refNum: articleMeta?.refNum || '',
-          price,
+          amount,
+          currency,
         });
         return;
       }
