@@ -402,14 +402,18 @@ export default function MyArticles() {
 
         {/* Plan Usage Info */}
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-lg bg-muted/50">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
             <FileText className="w-4 h-4" />
             <span>
               Review reports: {subscription.reviewReportsUsed}/{subscription.reviewReportsLimit} used
-              {subscription.plan === 'free' && ' this period (Free plan — resets monthly from your signup date)'}
+              {subscription.plan === 'free' && ' this period (Free plan — 1 free per article, then paid)'}
               {subscription.plan === 'pro' && ' this month (Pro plan)'}
             </span>
-
+            {articles && articles.length > 0 && (
+              <span className="ml-2 px-2 py-0.5 rounded-full bg-[hsl(var(--glass-bg-strong))] text-xs">
+                Lifetime downloads: {articles.reduce((sum: number, a: any) => sum + (a.review_report_download_count || 0), 0)}
+              </span>
+            )}
           </div>
           {subscription.plan === 'free' && (
             <Button
