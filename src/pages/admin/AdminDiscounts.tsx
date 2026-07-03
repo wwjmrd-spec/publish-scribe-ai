@@ -39,13 +39,15 @@ import type { Database } from '@/integrations/supabase/types';
 
 type DiscountType = Database['public']['Enums']['discount_type'];
 type DiscountCurrency = Database['public']['Enums']['discount_currency'];
-type AppliesTo = 'article_fee' | 'pro_plan' | 'both';
+type AppliesTo = 'article_fee' | 'pro_plan' | 'review_report' | 'both' | 'all';
 type PositionLimit = 'first' | 'first_two' | 'any';
 
 const APPLIES_TO_LABELS: Record<AppliesTo, string> = {
   article_fee: 'Article fees',
   pro_plan: 'Pro plan',
-  both: 'Both',
+  review_report: 'Review report',
+  both: 'Article + Pro plan',
+  all: 'All (Article + Pro + Review report)',
 };
 
 const POSITION_LABELS: Record<PositionLimit, string> = {
