@@ -701,7 +701,9 @@ export default function MyArticles() {
               <span className="font-semibold text-foreground">{payReportDialog?.title}</span>
               {payReportDialog?.refNum ? ` (${payReportDialog.refNum})` : ''}. Pay{' '}
               <span className="font-semibold text-foreground">
-                ₹{payReportDialog?.price ?? 100}
+                {payReportDialog?.currency === 'INR'
+                  ? `₹${payReportDialog?.amount ?? 100}`
+                  : `$${payReportDialog?.amount ?? 5}`}
               </span>{' '}
               to download it again — or upgrade to Pro for 10 free review-report downloads
               every month.
@@ -718,18 +720,28 @@ export default function MyArticles() {
             >
               <Crown className="w-4 h-4 mr-1" /> Upgrade to Pro
             </Button>
-            <AlertDialogAction
+            <Button
+              variant="outline"
               onClick={() =>
                 payReportDialog &&
                 addReportToCartAndGo(
                   payReportDialog.articleId,
                   payReportDialog.title,
                   payReportDialog.refNum,
-                  payReportDialog.price,
+                  payReportDialog.amount,
                 )
               }
             >
-              Add to Cart & Pay
+              Add to Cart
+            </Button>
+            <AlertDialogAction
+              disabled={payingNow}
+              onClick={(e) => {
+                e.preventDefault();
+                payReportNow();
+              }}
+            >
+              {payingNow ? <><GlassSpinner size="sm" className="mr-2" />Processing…</> : 'Pay Now'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
