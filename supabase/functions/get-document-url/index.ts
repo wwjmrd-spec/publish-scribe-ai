@@ -224,7 +224,7 @@ serve(async (req) => {
                 priceInr: 100,
                 articleId,
               }),
-              { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+              { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
             );
           }
 
