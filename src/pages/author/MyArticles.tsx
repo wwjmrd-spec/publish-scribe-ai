@@ -107,7 +107,7 @@ export default function MyArticles() {
     }
   };
 
-  const addReportToCartAndGo = (articleId: string, title: string, refNum: string, price: number) => {
+  const addReportToCartAndGo = (articleId: string, title: string, refNum: string, amount: number) => {
     const cartId = `review_report:${articleId}`;
     if (!hasItem(cartId)) {
       addItem({
@@ -115,13 +115,87 @@ export default function MyArticles() {
         type: 'review_report',
         label: `Review Report — ${refNum || title}`,
         description: `Downloadable review report for "${title}"`,
-        amount: price,
+        amount,
         articleId,
       });
     }
     setPayReportDialog(null);
     navigate('/author/cart');
   };
+
+  const payReportNow = async () => {
+    if (!payReportDialog || !user) return;
+    const { articleId, amount, currency, title, refNum } = payReportDialog;
+    setPayingNow(true);
+    try {
+      if (currency === 'INR') {
+        // Ensure Razorpay SDK
+        if (!(window as any).Razorpay) {
+          await new Promise<void>((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = 'https://checkout.razorpay.com/v1/checkout.js';
+            s.onload = () => resolve();
+            s.onerror = () => reject(new Error('Razorpay SDK failed to load'));
+            document.body.appendChild(s);
+          });
+        }
+        const orderRes = await supabase.functions.invoke('create-razorpay-order', {
+          body: {
+            items: [{ type: 'review_report', articleId }],
+            amount,
+            currency: 'INR',
+          },
+        });
+        if (orderRes.error || orderRes.data?.error) {
+          throw new Error(orderRes.error?.message || orderRes.data?.error || 'Order failed');
+        }
+        const orderData: any = orderRes.data;
+        const rzp = new (window as any).Razorpay({
+          key: orderData.keyId,
+          amount: orderData.amount,
+          currency: orderData.currency,
+          name: 'WWJMRD',
+          description: `Review Report — ${refNum || title}`,
+          order_id: orderData.orderId,
+          prefill: { email: user.email, name: user.user_metadata?.full_name || '' },
+          theme: { color: '#00d4ff' },
+          handler: async (resp: any) => {
+            try {
+              const v = await supabase.functions.invoke('verify-payment', {
+                body: {
+                  gateway: 'razorpay',
+                  paymentId: orderData.paymentId,
+                  razorpayOrderId: resp.razorpay_order_id,
+                  razorpayPaymentId: resp.razorpay_payment_id,
+                  razorpaySignature: resp.razorpay_signature,
+                },
+              });
+              if (v.error || v.data?.error) throw new Error(v.error?.message || v.data?.error);
+              toast.success('Payment successful. Preparing your report…');
+              setPayReportDialog(null);
+              queryClient.invalidateQueries({ queryKey: ['my-articles', user.id] });
+              // Immediately trigger download
+              await handleDownloadReport(articleId, { title, refNum });
+            } catch (e: any) {
+              toast.error('Payment verification failed: ' + (e.message || 'unknown'));
+            } finally {
+              setPayingNow(false);
+            }
+          },
+          modal: { ondismiss: () => setPayingNow(false) },
+        });
+        rzp.open();
+      } else {
+        // USD / USDT — route through cart for PayPal/Binance selection.
+        addReportToCartAndGo(articleId, title, refNum, amount);
+        setPayingNow(false);
+      }
+    } catch (e: any) {
+      toast.error('Failed to start payment: ' + (e.message || 'unknown'));
+      setPayingNow(false);
+    }
+  };
+
 
 
 
