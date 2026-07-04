@@ -9,6 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Brain, Mail, SendHorizonal, AlertTriangle, CheckCircle2, Plus, Trash2, RefreshCw, Activity } from "lucide-react";
+import { MauticBackfillCard } from "@/components/admin/MauticBackfillCard";
+
 
 type ProviderStatusEntry = {
   index: number;
@@ -282,6 +284,9 @@ export default function AdminSettings() {
             Configure AI providers (with backup fallback), email sending servers (with backup fallback), and AWS SES credentials.
           </p>
         </div>
+
+        <MauticBackfillCard />
+
 
         <Tabs defaultValue="ai" className="space-y-6">
           <TabsList className="grid w-full grid-cols-4">
