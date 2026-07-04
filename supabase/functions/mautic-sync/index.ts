@@ -23,7 +23,7 @@ function markMauticDown() {
 }
 
 function getMauticConfig() {
-  let baseUrl = Deno.env.get('VITE_MAUTIC_BASE_URL') || '';
+  let baseUrl = Deno.env.get('MAUTIC_BASE_URL') || Deno.env.get('VITE_MAUTIC_BASE_URL') || '';
   // Strip any trailing path like /s/login — we only need the root URL
   const pathMatch = baseUrl.match(/^(https?:\/\/[^/]+)/);
   if (pathMatch) baseUrl = pathMatch[1];
