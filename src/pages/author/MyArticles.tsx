@@ -13,6 +13,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMauticSync } from '@/hooks/useMautic';
 import { supabase } from '@/integrations/supabase/client';
 import { useSubscription, incrementUsage } from '@/hooks/useSubscription';
 import { toast } from 'sonner';
@@ -319,6 +320,25 @@ export default function MyArticles() {
     },
     enabled: !!user?.id,
   });
+
+  // Sync article statuses to Mautic as tags (fire-and-forget, deduped per session)
+  const { syncContact } = useMauticSync();
+  const lastSyncedRef = React.useRef<string>('');
+  React.useEffect(() => {
+    if (!user?.email || !articles?.length) return;
+    const statuses = Array.from(new Set(articles.map((a: any) => a.status).filter(Boolean)));
+    const signature = statuses.sort().join('|');
+    if (signature === lastSyncedRef.current) return;
+    lastSyncedRef.current = signature;
+    const tags = statuses.map((s: string) => `article-status-${s}`);
+    const meta: any = user.user_metadata || {};
+    syncContact({
+      email: user.email,
+      tags,
+      country: meta.country || '',
+      phone: meta.phone || '',
+    });
+  }, [articles, user?.email, user?.user_metadata, syncContact]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
