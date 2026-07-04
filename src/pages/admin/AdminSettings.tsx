@@ -283,6 +283,9 @@ export default function AdminSettings() {
           </p>
         </div>
 
+        <MauticBackfillCard />
+
+
         <Tabs defaultValue="ai" className="space-y-6">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="ai"><Brain className="w-4 h-4 mr-2" /> AI</TabsTrigger>
