@@ -79,5 +79,10 @@ verify_jwt = false
 [functions.publish-to-wwjmrd]
 verify_jwt = false
 
+[functions.mautic-backfill]
+verify_jwt = false
+
+
+
 
 
