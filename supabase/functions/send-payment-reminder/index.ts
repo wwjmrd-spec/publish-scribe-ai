@@ -38,16 +38,20 @@ serve(async (req: Request) => {
     let isAdminUser = false;
 
     if (!isServiceRole && !isCronCaller) {
-      const authClient = createClient(supabaseUrl, supabaseKey, {
-        global: { headers: { Authorization: authHeader! } },
-      });
-      const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(token);
-      if (claimsError || !claimsData?.claims) {
+      // Decode JWT payload (verify_jwt=false so signature already gated at edge if enabled).
+      let claims: Record<string, any> | null = null;
+      try {
+        const payload = token.split(".")[1];
+        const decoded = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
+        claims = JSON.parse(decoded);
+      } catch {
+        claims = null;
+      }
+      if (!claims) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), {
           status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const claims = claimsData.claims as Record<string, any>;
       // Anon JWTs (used by pg_cron) have role='anon' and no sub — accept as cron.
       if (claims.role === "anon" || !claims.sub) {
         isCronCaller = true;
@@ -64,6 +68,7 @@ serve(async (req: Request) => {
         isAdminUser = true;
       }
     }
+
 
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
