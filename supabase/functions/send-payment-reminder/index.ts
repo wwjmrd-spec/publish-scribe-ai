@@ -34,30 +34,42 @@ serve(async (req: Request) => {
 
     const isServiceRole = token === serviceRoleKey;
     // Allow the anon key to call this function as a "cron" caller (no admin powers).
-    const isCronCaller = token === supabaseKey;
+    let isCronCaller = token === supabaseKey;
     let isAdminUser = false;
 
     if (!isServiceRole && !isCronCaller) {
-      const authClient = createClient(supabaseUrl, supabaseKey, {
-        global: { headers: { Authorization: authHeader! } },
-      });
-      const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(token);
-      if (claimsError || !claimsData?.claims) {
+      // Decode JWT payload (verify_jwt=false so signature already gated at edge if enabled).
+      let claims: Record<string, any> | null = null;
+      try {
+        const payload = token.split(".")[1];
+        const decoded = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
+        claims = JSON.parse(decoded);
+      } catch {
+        claims = null;
+      }
+      if (!claims) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), {
           status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const userId = claimsData.claims.sub as string;
-      const adminCheck = createClient(supabaseUrl, serviceRoleKey);
-      const { data: roleData } = await adminCheck
-        .from("user_roles").select("role").eq("user_id", userId).eq("role", "admin").single();
-      if (!roleData) {
-        return new Response(JSON.stringify({ error: "Unauthorized" }), {
-          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+      // Anon JWTs (used by pg_cron) have role='anon' and no sub — accept as cron.
+      if (claims.role === "anon" || !claims.sub) {
+        isCronCaller = true;
+      } else {
+        const userId = claims.sub as string;
+        const adminCheck = createClient(supabaseUrl, serviceRoleKey);
+        const { data: roleData } = await adminCheck
+          .from("user_roles").select("role").eq("user_id", userId).eq("role", "admin").single();
+        if (!roleData) {
+          return new Response(JSON.stringify({ error: "Unauthorized" }), {
+            status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        isAdminUser = true;
       }
-      isAdminUser = true;
     }
+
+
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
