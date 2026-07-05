@@ -34,7 +34,7 @@ serve(async (req: Request) => {
 
     const isServiceRole = token === serviceRoleKey;
     // Allow the anon key to call this function as a "cron" caller (no admin powers).
-    const isCronCaller = token === supabaseKey;
+    let isCronCaller = token === supabaseKey;
     let isAdminUser = false;
 
     if (!isServiceRole && !isCronCaller) {
@@ -47,17 +47,24 @@ serve(async (req: Request) => {
           status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const userId = claimsData.claims.sub as string;
-      const adminCheck = createClient(supabaseUrl, serviceRoleKey);
-      const { data: roleData } = await adminCheck
-        .from("user_roles").select("role").eq("user_id", userId).eq("role", "admin").single();
-      if (!roleData) {
-        return new Response(JSON.stringify({ error: "Unauthorized" }), {
-          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+      const claims = claimsData.claims as Record<string, any>;
+      // Anon JWTs (used by pg_cron) have role='anon' and no sub — accept as cron.
+      if (claims.role === "anon" || !claims.sub) {
+        isCronCaller = true;
+      } else {
+        const userId = claims.sub as string;
+        const adminCheck = createClient(supabaseUrl, serviceRoleKey);
+        const { data: roleData } = await adminCheck
+          .from("user_roles").select("role").eq("user_id", userId).eq("role", "admin").single();
+        if (!roleData) {
+          return new Response(JSON.stringify({ error: "Unauthorized" }), {
+            status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        isAdminUser = true;
       }
-      isAdminUser = true;
     }
+
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
