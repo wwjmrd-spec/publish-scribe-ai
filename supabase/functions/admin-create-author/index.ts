@@ -68,12 +68,13 @@ serve(async (req) => {
     const tempPassword = b.password || generateTempPassword();
     const isGeneratedTemp = !b.password;
 
-    // Create the auth user. We email_confirm: false so the author still has to
-    // verify their email via the reset/verify link we send below.
+    // Create the auth user. email_confirm: true so the author can immediately
+    // sign in with the temporary password. They'll still be forced to reset
+    // it via the must_reset_password metadata flag.
     const { data: created, error: createErr } = await sb.auth.admin.createUser({
       email: b.email,
       password: tempPassword,
-      email_confirm: false,
+      email_confirm: true,
       user_metadata: {
         full_name: b.full_name,
         country: b.country,
