@@ -48,6 +48,7 @@ export default function MyArticles() {
   const { addItem, hasItem } = useCart();
   const [withdrawArticle, setWithdrawArticle] = React.useState<any>(null);
   const [updatingManuscript, setUpdatingManuscript] = React.useState<string | null>(null);
+  const [manageCoAuthorsFor, setManageCoAuthorsFor] = React.useState<any>(null);
   const [payReportDialog, setPayReportDialog] = React.useState<{ articleId: string; title: string; refNum: string; amount: number; currency: 'INR' | 'USD' } | null>(null);
   const [payingNow, setPayingNow] = React.useState(false);
 
