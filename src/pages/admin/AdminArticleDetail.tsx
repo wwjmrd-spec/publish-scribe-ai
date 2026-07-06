@@ -46,6 +46,7 @@ import { formatArticleStatus, getArticleStatusBadgeClass, MANUAL_ADMIN_STATUSES 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AIReviewSection } from '@/components/admin/AIReviewSection';
 import { FormattingSection } from '@/components/admin/FormattingSection';
+import { EditCoAuthorDialog } from '@/components/admin/EditCoAuthorDialog';
 
 
 type ArticleStatus = Database['public']['Enums']['article_status'];
