@@ -1412,8 +1412,8 @@ serve(async (req) => {
 
     return jsonResponse({
       success: true,
-      pdfName,
-      docxName: docxErr ? null : docxName,
+      pdfName: savedPdfName,
+      docxName: savedDocxName,
       imagesEmbedded: extracted.images.length,
       blocksRendered: body.length,
       suggestions: meta.suggestions,
