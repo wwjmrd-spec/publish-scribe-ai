@@ -46,6 +46,7 @@ import { formatArticleStatus, getArticleStatusBadgeClass, MANUAL_ADMIN_STATUSES 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AIReviewSection } from '@/components/admin/AIReviewSection';
 import { FormattingSection } from '@/components/admin/FormattingSection';
+import { EditCoAuthorDialog } from '@/components/admin/EditCoAuthorDialog';
 
 
 type ArticleStatus = Database['public']['Enums']['article_status'];
@@ -73,6 +74,7 @@ export default function AdminArticleDetail() {
     publishedLink: '',
   });
   const [isEditDetailsDialogOpen, setIsEditDetailsDialogOpen] = useState(false);
+  const [editCoAuthor, setEditCoAuthor] = useState<any | null>(null);
   const [editDetails, setEditDetails] = useState({
     title: '',
     abstract: '',
@@ -638,6 +640,14 @@ export default function AdminArticleDetail() {
                         {ca.affiliation && <p className="text-muted-foreground text-xs">{ca.affiliation}</p>}
                       </div>
                       <div className="flex gap-1 shrink-0">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => setEditCoAuthor(ca)}
+                        >
+                          <Pencil className="w-3 h-3 mr-1" /> Edit
+                        </Button>
                         {ca.co_author_certificates?.map((cert: any) => (
                           cert.certificate_url && (
                             <Button
@@ -655,6 +665,12 @@ export default function AdminArticleDetail() {
                     </div>
                   ))}
                 </div>
+                <EditCoAuthorDialog
+                  open={!!editCoAuthor}
+                  onOpenChange={(v) => { if (!v) setEditCoAuthor(null); }}
+                  coAuthor={editCoAuthor}
+                  invalidateKeys={[['admin-article-detail', articleId]]}
+                />
               </GlassCard>
             )}
 

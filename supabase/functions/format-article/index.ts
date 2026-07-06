@@ -1337,64 +1337,60 @@ serve(async (req) => {
     const imageMap = new Map<string, ExtractedImage>();
     for (const img of extracted.images) imageMap.set(img.id, img);
 
-    // 5. Generate PDF
-    let pdfBuffer: ArrayBuffer;
-    try {
-      pdfBuffer = generatePdf(meta, body, imageMap);
-    } catch (e) {
-      console.error("PDF generation failed:", e);
-      await supabase.from("articles").update({ formatting_status: "failed" }).eq("id", articleId);
-      return jsonResponse({ error: "PDF generation failed: " + (e instanceof Error ? e.message : String(e)) }, 500);
-    }
+    // 5. Generate editor HTML (source of truth for preview + client-side PDF/Word export)
+    const htmlContent = generateEditorHtml(meta, body, imageMap);
 
-    // 6. Generate DOCX
-    let docxBuffer: Uint8Array;
-    try {
-      docxBuffer = await generateDocx(meta, body, imageMap);
-    } catch (e) {
-      console.error("DOCX generation failed:", e);
-      await supabase.from("articles").update({ formatting_status: "failed" }).eq("id", articleId);
-      return jsonResponse({ error: "DOCX generation failed: " + (e instanceof Error ? e.message : String(e)) }, 500);
-    }
-
-    // 7. Upload both
+    // 6. OPTIONAL server-side PDF/DOCX rendering.
+    // For long or image-heavy articles this hits Deno edge CPU/memory limits,
+    // so we treat it as a best-effort artifact — if it fails we still save the
+    // HTML preview and let the client export from the editor on demand.
     const refSafe = (article.reference_number || "article").replace(/[^a-zA-Z0-9_-]/g, "_");
     const ts = Date.now();
     const pdfName = `formatted-${refSafe}-${ts}.pdf`;
     const docxName = `formatted-${refSafe}-${ts}.docx`;
+    const HEAVY_ARTICLE = body.length > 250 || extracted.images.length > 4;
 
-    const { error: pdfErr } = await supabase.storage
-      .from("formatted-articles")
-      .upload(pdfName, new Blob([pdfBuffer], { type: "application/pdf" }), {
-        contentType: "application/pdf",
-        upsert: true,
-      });
-    if (pdfErr) {
-      console.error("PDF upload error:", pdfErr);
-      await supabase.from("articles").update({ formatting_status: "failed" }).eq("id", articleId);
-      return jsonResponse({ error: "Failed to upload PDF" }, 500);
+    let savedPdfName: string | null = null;
+    let savedDocxName: string | null = null;
+
+    if (!HEAVY_ARTICLE) {
+      try {
+        const pdfBuffer = generatePdf(meta, body, imageMap);
+        const { error: pdfErr } = await supabase.storage
+          .from("formatted-articles")
+          .upload(pdfName, new Blob([pdfBuffer], { type: "application/pdf" }), {
+            contentType: "application/pdf",
+            upsert: true,
+          });
+        if (!pdfErr) savedPdfName = pdfName;
+        else console.error("PDF upload error:", pdfErr);
+      } catch (e) {
+        console.error("PDF generation skipped:", e instanceof Error ? e.message : e);
+      }
+
+      try {
+        const docxBuffer = await generateDocx(meta, body, imageMap);
+        const { error: docxErr } = await supabase.storage
+          .from("formatted-articles")
+          .upload(docxName, new Blob([docxBuffer], {
+            type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          }), {
+            contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            upsert: true,
+          });
+        if (!docxErr) savedDocxName = docxName;
+        else console.error("DOCX upload error:", docxErr);
+      } catch (e) {
+        console.error("DOCX generation skipped:", e instanceof Error ? e.message : e);
+      }
+    } else {
+      console.log(`Skipping server PDF/DOCX for heavy article (${body.length} blocks, ${extracted.images.length} images) — client will export from HTML.`);
     }
 
-    const { error: docxErr } = await supabase.storage
-      .from("formatted-articles")
-      .upload(docxName, new Blob([docxBuffer], {
-        type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      }), {
-        contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        upsert: true,
-      });
-    if (docxErr) {
-      console.error("DOCX upload error:", docxErr);
-      // Still keep PDF; just warn
-    }
-
-    // 8. Generate editor HTML
-    const htmlContent = generateEditorHtml(meta, body, imageMap);
-
-    // 9. Save record
+    // 7. Save record (HTML preview is the primary output)
     await supabase.from("articles").update({
-      formatted_document_url: pdfName,
-      formatted_docx_url: docxErr ? null : docxName,
+      formatted_document_url: savedPdfName,
+      formatted_docx_url: savedDocxName,
       formatting_status: "ready_for_review",
       formatting_suggestions: meta.suggestions || [],
       formatted_content: htmlContent,
@@ -1416,8 +1412,8 @@ serve(async (req) => {
 
     return jsonResponse({
       success: true,
-      pdfName,
-      docxName: docxErr ? null : docxName,
+      pdfName: savedPdfName,
+      docxName: savedDocxName,
       imagesEmbedded: extracted.images.length,
       blocksRendered: body.length,
       suggestions: meta.suggestions,
