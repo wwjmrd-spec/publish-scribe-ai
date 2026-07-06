@@ -38,6 +38,7 @@ import {
 import { WithdrawArticleDialog } from '@/components/articles/WithdrawArticleDialog';
 import { GalleyProofReviewSection } from '@/components/articles/GalleyProofReviewSection';
 import { CopyrightFormSection } from '@/components/articles/CopyrightFormSection';
+import { ManageCoAuthorsDialog } from '@/components/articles/ManageCoAuthorsDialog';
 
 export default function MyArticles() {
   const { user } = useAuth();
