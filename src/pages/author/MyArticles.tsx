@@ -519,7 +519,20 @@ export default function MyArticles() {
                         </span>
                       )}
                       {article.co_authors && article.co_authors.length > 0 && (
-                        <span>Co-authors: {article.co_authors.length}</span>
+                        <span className="inline-flex items-center gap-2">
+                          Co-authors: {article.co_authors.length}
+                          {subscription.plan === 'pro' && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="h-6 px-2 text-xs"
+                              onClick={() => setManageCoAuthorsFor(article)}
+                            >
+                              Edit
+                            </Button>
+                          )}
+                        </span>
                       )}
                       {(article as any).page_count && (
                         <span>📄 {(article as any).page_count} pages</span>
