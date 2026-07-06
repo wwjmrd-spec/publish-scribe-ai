@@ -731,6 +731,16 @@ export default function MyArticles() {
         />
       )}
 
+      {manageCoAuthorsFor && (
+        <ManageCoAuthorsDialog
+          open={!!manageCoAuthorsFor}
+          onOpenChange={(o) => !o && setManageCoAuthorsFor(null)}
+          articleTitle={manageCoAuthorsFor.title}
+          coAuthors={manageCoAuthorsFor.co_authors || []}
+          invalidateKeys={[['my-articles', user?.id]]}
+        />
+      )}
+
       <AlertDialog open={!!payReportDialog} onOpenChange={(o) => !o && setPayReportDialog(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
