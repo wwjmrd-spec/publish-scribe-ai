@@ -638,6 +638,14 @@ export default function AdminArticleDetail() {
                         {ca.affiliation && <p className="text-muted-foreground text-xs">{ca.affiliation}</p>}
                       </div>
                       <div className="flex gap-1 shrink-0">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => setEditCoAuthor(ca)}
+                        >
+                          <Pencil className="w-3 h-3 mr-1" /> Edit
+                        </Button>
                         {ca.co_author_certificates?.map((cert: any) => (
                           cert.certificate_url && (
                             <Button
@@ -655,6 +663,12 @@ export default function AdminArticleDetail() {
                     </div>
                   ))}
                 </div>
+                <EditCoAuthorDialog
+                  open={!!editCoAuthor}
+                  onOpenChange={(v) => { if (!v) setEditCoAuthor(null); }}
+                  coAuthor={editCoAuthor}
+                  invalidateKeys={[['admin-article-detail', articleId]]}
+                />
               </GlassCard>
             )}
 
