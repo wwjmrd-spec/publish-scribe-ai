@@ -38,6 +38,7 @@ import {
 import { WithdrawArticleDialog } from '@/components/articles/WithdrawArticleDialog';
 import { GalleyProofReviewSection } from '@/components/articles/GalleyProofReviewSection';
 import { CopyrightFormSection } from '@/components/articles/CopyrightFormSection';
+import { ManageCoAuthorsDialog } from '@/components/articles/ManageCoAuthorsDialog';
 
 export default function MyArticles() {
   const { user } = useAuth();
@@ -47,6 +48,7 @@ export default function MyArticles() {
   const { addItem, hasItem } = useCart();
   const [withdrawArticle, setWithdrawArticle] = React.useState<any>(null);
   const [updatingManuscript, setUpdatingManuscript] = React.useState<string | null>(null);
+  const [manageCoAuthorsFor, setManageCoAuthorsFor] = React.useState<any>(null);
   const [payReportDialog, setPayReportDialog] = React.useState<{ articleId: string; title: string; refNum: string; amount: number; currency: 'INR' | 'USD' } | null>(null);
   const [payingNow, setPayingNow] = React.useState(false);
 
@@ -517,7 +519,20 @@ export default function MyArticles() {
                         </span>
                       )}
                       {article.co_authors && article.co_authors.length > 0 && (
-                        <span>Co-authors: {article.co_authors.length}</span>
+                        <span className="inline-flex items-center gap-2">
+                          Co-authors: {article.co_authors.length}
+                          {subscription.plan === 'pro' && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="h-6 px-2 text-xs"
+                              onClick={() => setManageCoAuthorsFor(article)}
+                            >
+                              Edit
+                            </Button>
+                          )}
+                        </span>
                       )}
                       {(article as any).page_count && (
                         <span>📄 {(article as any).page_count} pages</span>
@@ -713,6 +728,16 @@ export default function MyArticles() {
           open={!!withdrawArticle}
           onOpenChange={(open) => !open && setWithdrawArticle(null)}
           article={withdrawArticle}
+        />
+      )}
+
+      {manageCoAuthorsFor && (
+        <ManageCoAuthorsDialog
+          open={!!manageCoAuthorsFor}
+          onOpenChange={(o) => !o && setManageCoAuthorsFor(null)}
+          articleTitle={manageCoAuthorsFor.title}
+          coAuthors={manageCoAuthorsFor.co_authors || []}
+          invalidateKeys={[['my-articles', user?.id]]}
         />
       )}
 
