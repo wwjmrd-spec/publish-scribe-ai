@@ -74,6 +74,7 @@ export default function AdminArticleDetail() {
     publishedLink: '',
   });
   const [isEditDetailsDialogOpen, setIsEditDetailsDialogOpen] = useState(false);
+  const [editCoAuthor, setEditCoAuthor] = useState<any | null>(null);
   const [editDetails, setEditDetails] = useState({
     title: '',
     abstract: '',
