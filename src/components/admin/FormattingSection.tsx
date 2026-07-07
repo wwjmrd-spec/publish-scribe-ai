@@ -38,7 +38,24 @@ export function FormattingSection({ articleId }: Props) {
       if (error) throw error;
       return data;
     },
+    refetchInterval: (data: any) =>
+      data?.formatting_status === 'formatting' ? 3000 : false,
   });
+
+  const formatMut = useMutation({
+    mutationFn: async () => {
+      const r = await supabase.functions.invoke('format-article', { body: { articleId } });
+      if (r.error) throw new Error(r.error.message);
+      return r.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-article-formatting', articleId] });
+      qc.invalidateQueries({ queryKey: ['admin-article-detail', articleId] });
+      toast.success('Formatting started — this may take a minute.');
+    },
+    onError: (e: any) => toast.error('Formatting failed: ' + e.message),
+  });
+
 
   const formatMut = useMutation({
     mutationFn: async () => {
