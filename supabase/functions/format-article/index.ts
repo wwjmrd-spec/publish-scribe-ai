@@ -1224,6 +1224,10 @@ function generateEditorHtml(meta: ArticleMetadata, body: Block[], images: Map<st
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
+  let stuckArticleId: string | null = null;
+  let stuckSupabase: ReturnType<typeof createClient> | null = null;
+  let completed = false;
+
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) return jsonResponse({ error: "Unauthorized" }, 401);
@@ -1242,6 +1246,7 @@ serve(async (req) => {
 
     const userId = claimsData.claims.sub as string;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    stuckSupabase = supabase;
 
     const { data: roleData } = await supabase
       .from("user_roles")
@@ -1252,6 +1257,7 @@ serve(async (req) => {
 
     const { articleId } = await req.json();
     if (!articleId) return jsonResponse({ error: "Article ID required" }, 400);
+    stuckArticleId = articleId;
 
     await supabase.from("articles").update({ formatting_status: "formatting" }).eq("id", articleId);
 
@@ -1410,6 +1416,7 @@ serve(async (req) => {
       }
     }
 
+    completed = true;
     return jsonResponse({
       success: true,
       pdfName: savedPdfName,
@@ -1420,6 +1427,15 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error("Format article error:", error);
+    if (stuckArticleId && stuckSupabase && !completed) {
+      try {
+        await stuckSupabase.from("articles")
+          .update({ formatting_status: "failed" })
+          .eq("id", stuckArticleId);
+      } catch (e) {
+        console.error("Failed to reset formatting_status:", e);
+      }
+    }
     return jsonResponse({ error: error instanceof Error ? error.message : "Unknown error" }, 500);
   }
 });
