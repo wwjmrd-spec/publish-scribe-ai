@@ -57,19 +57,6 @@ export function FormattingSection({ articleId }: Props) {
   });
 
 
-  const formatMut = useMutation({
-    mutationFn: async () => {
-      const r = await supabase.functions.invoke('format-article', { body: { articleId } });
-      if (r.error) throw new Error(r.error.message);
-      return r.data;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin-article-formatting', articleId] });
-      qc.invalidateQueries({ queryKey: ['admin-article-detail', articleId] });
-      toast.success('Article formatted! Open the editor to review.');
-    },
-    onError: (e: any) => toast.error('Formatting failed: ' + e.message),
-  });
 
   const status = ((article as any)?.formatting_status || 'pending') as FormattingStatus;
   const suggestions: Suggestion[] = ((article as any)?.formatting_suggestions as Suggestion[]) || [];
