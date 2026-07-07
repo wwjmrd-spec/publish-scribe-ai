@@ -1416,6 +1416,7 @@ serve(async (req) => {
       }
     }
 
+    completed = true;
     return jsonResponse({
       success: true,
       pdfName: savedPdfName,
@@ -1426,6 +1427,15 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error("Format article error:", error);
+    if (stuckArticleId && stuckSupabase && !completed) {
+      try {
+        await stuckSupabase.from("articles")
+          .update({ formatting_status: "failed" })
+          .eq("id", stuckArticleId);
+      } catch (e) {
+        console.error("Failed to reset formatting_status:", e);
+      }
+    }
     return jsonResponse({ error: error instanceof Error ? error.message : "Unknown error" }, 500);
   }
 });
