@@ -38,6 +38,8 @@ export function FormattingSection({ articleId }: Props) {
       if (error) throw error;
       return data;
     },
+    refetchInterval: (data: any) =>
+      data?.formatting_status === 'formatting' ? 3000 : false,
   });
 
   const formatMut = useMutation({
@@ -49,10 +51,12 @@ export function FormattingSection({ articleId }: Props) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-article-formatting', articleId] });
       qc.invalidateQueries({ queryKey: ['admin-article-detail', articleId] });
-      toast.success('Article formatted! Open the editor to review.');
+      toast.success('Formatting started — this may take a minute.');
     },
     onError: (e: any) => toast.error('Formatting failed: ' + e.message),
   });
+
+
 
   const status = ((article as any)?.formatting_status || 'pending') as FormattingStatus;
   const suggestions: Suggestion[] = ((article as any)?.formatting_suggestions as Suggestion[]) || [];

@@ -1261,170 +1261,160 @@ serve(async (req) => {
 
     await supabase.from("articles").update({ formatting_status: "formatting" }).eq("id", articleId);
 
-    const { data: article, error: articleError } = await supabase
-      .from("articles")
-      .select("*, profiles:author_id (full_name, country, affiliation)")
-      .eq("id", articleId)
-      .single();
-    if (articleError || !article) return jsonResponse({ error: "Article not found" }, 404);
-    if (!article.document_url) {
-      await supabase.from("articles").update({ formatting_status: "failed" }).eq("id", articleId);
-      return jsonResponse({ error: "Article has no source DOCX" }, 400);
-    }
-
-    // Fetch co-authors (we exclude email per privacy policy)
-    const { data: coAuthorsRows } = await supabase
-      .from("co_authors")
-      .select("name, affiliation")
-      .eq("article_id", articleId);
-
-    // 1. Extract DOCX
-    let extracted: { html: string; rawText: string; images: ExtractedImage[] };
-    try {
-      extracted = await extractDocx(supabase, article.document_url);
-    } catch (e) {
-      console.error("Extraction failed:", e);
-      await supabase.from("articles").update({ formatting_status: "failed" }).eq("id", articleId);
-      return jsonResponse({ error: "Failed to extract document content" }, 500);
-    }
-    if (!extracted.rawText || extracted.rawText.trim().length < 100) {
-      await supabase.from("articles").update({ formatting_status: "failed" }).eq("id", articleId);
-      return jsonResponse({ error: "Document is too short or empty" }, 400);
-    }
-
-    // 2. Parse into blocks
-    const allBlocks = parseHtmlToBlocks(extracted.html);
-    console.log(`Parsed ${allBlocks.length} blocks from DOCX html`);
-
-    // 3. AI metadata extraction
-    let meta: ArticleMetadata;
-    try {
-      meta = await extractMetadata(extracted.rawText, aiGateway, article.title || "Untitled");
-    } catch (e: any) {
-      console.error("Metadata extraction failed:", e?.message);
-      meta = buildFallbackMetadata(
-        extracted.rawText,
-        article.title || "Untitled",
-        article.author_name || article.profiles?.full_name,
-      );
-    }
-
-    // OVERRIDE author info from Article Detail (excluding email) so the formatted
-    // PDF/DOCX always matches what the admin sees in the article record.
-    const profile: any = article.profiles || {};
-    const primaryName = (article.author_name || profile.full_name || meta.authors?.[0]?.name || "Author").trim();
-    const primaryDesignation = [profile.affiliation, article.country || profile.country]
-      .filter(Boolean).join(", ");
-    const overrideAuthors = [{ name: primaryName, designation: primaryDesignation }];
-    for (const c of coAuthorsRows ?? []) {
-      if (!c?.name) continue;
-      overrideAuthors.push({ name: c.name, designation: c.affiliation || "" });
-    }
-    meta.authors = overrideAuthors;
-    meta.correspondence = { name: primaryName, designation: primaryDesignation };
-
-    // OVERRIDE header so the formatted output always reflects the journal's
-    // current issue, not whatever the AI parsed out of an old manuscript.
-    const _now = new Date();
-    const _currentMonth = String(_now.getMonth() + 1).padStart(2, "0");
-    meta.header = {
-      year: ((article as any).publication_year || String(_now.getFullYear())).toString(),
-      volume: ((article as any).volume || "12").toString(),
-      issue: ((article as any).issue || _currentMonth).toString(),
-      page_range: ((article as any).page_number || meta.header?.page_range || "01-10").toString(),
-    };
-
-
-    // 4. Slice body
-    const body = removeReferenceSection(sliceBodyBlocks(allBlocks, meta), meta);
-    console.log(`Body has ${body.length} blocks (out of ${allBlocks.length})`);
-
-    // Image lookup map
-    const imageMap = new Map<string, ExtractedImage>();
-    for (const img of extracted.images) imageMap.set(img.id, img);
-
-    // 5. Generate editor HTML (source of truth for preview + client-side PDF/Word export)
-    const htmlContent = generateEditorHtml(meta, body, imageMap);
-
-    // 6. OPTIONAL server-side PDF/DOCX rendering.
-    // For long or image-heavy articles this hits Deno edge CPU/memory limits,
-    // so we treat it as a best-effort artifact — if it fails we still save the
-    // HTML preview and let the client export from the editor on demand.
-    const refSafe = (article.reference_number || "article").replace(/[^a-zA-Z0-9_-]/g, "_");
-    const ts = Date.now();
-    const pdfName = `formatted-${refSafe}-${ts}.pdf`;
-    const docxName = `formatted-${refSafe}-${ts}.docx`;
-    const HEAVY_ARTICLE = body.length > 250 || extracted.images.length > 4;
-
-    let savedPdfName: string | null = null;
-    let savedDocxName: string | null = null;
-
-    if (!HEAVY_ARTICLE) {
+    // Offload heavy work so the client fetch doesn't time out.
+    const bgTask = (async () => {
       try {
-        const pdfBuffer = generatePdf(meta, body, imageMap);
-        const { error: pdfErr } = await supabase.storage
-          .from("formatted-articles")
-          .upload(pdfName, new Blob([pdfBuffer], { type: "application/pdf" }), {
-            contentType: "application/pdf",
-            upsert: true,
-          });
-        if (!pdfErr) savedPdfName = pdfName;
-        else console.error("PDF upload error:", pdfErr);
+        const { data: article, error: articleError } = await supabase
+          .from("articles")
+          .select("*, profiles:author_id (full_name, country, affiliation)")
+          .eq("id", articleId)
+          .single();
+        if (articleError || !article) throw new Error("Article not found");
+        if (!article.document_url) throw new Error("Article has no source DOCX");
+
+        const { data: coAuthorsRows } = await supabase
+          .from("co_authors")
+          .select("name, affiliation")
+          .eq("article_id", articleId);
+
+        // 1. Extract DOCX
+        const extracted = await extractDocx(supabase, article.document_url);
+        if (!extracted.rawText || extracted.rawText.trim().length < 100) {
+          throw new Error("Document is too short or empty");
+        }
+
+        // 2. Parse blocks
+        const allBlocks = parseHtmlToBlocks(extracted.html);
+        console.log(`Parsed ${allBlocks.length} blocks from DOCX html`);
+
+        // 3. AI metadata
+        let meta: ArticleMetadata;
+        try {
+          meta = await extractMetadata(extracted.rawText, aiGateway, article.title || "Untitled");
+        } catch (e: any) {
+          console.error("Metadata extraction failed:", e?.message);
+          meta = buildFallbackMetadata(
+            extracted.rawText,
+            article.title || "Untitled",
+            article.author_name || article.profiles?.full_name,
+          );
+        }
+
+        const profile: any = article.profiles || {};
+        const primaryName = (article.author_name || profile.full_name || meta.authors?.[0]?.name || "Author").trim();
+        const primaryDesignation = [profile.affiliation, article.country || profile.country]
+          .filter(Boolean).join(", ");
+        const overrideAuthors = [{ name: primaryName, designation: primaryDesignation }];
+        for (const c of coAuthorsRows ?? []) {
+          if (!c?.name) continue;
+          overrideAuthors.push({ name: c.name, designation: c.affiliation || "" });
+        }
+        meta.authors = overrideAuthors;
+        meta.correspondence = { name: primaryName, designation: primaryDesignation };
+
+        const _now = new Date();
+        const _currentMonth = String(_now.getMonth() + 1).padStart(2, "0");
+        meta.header = {
+          year: ((article as any).publication_year || String(_now.getFullYear())).toString(),
+          volume: ((article as any).volume || "12").toString(),
+          issue: ((article as any).issue || _currentMonth).toString(),
+          page_range: ((article as any).page_number || meta.header?.page_range || "01-10").toString(),
+        };
+
+        const body = removeReferenceSection(sliceBodyBlocks(allBlocks, meta), meta);
+        console.log(`Body has ${body.length} blocks (out of ${allBlocks.length})`);
+
+        const imageMap = new Map<string, ExtractedImage>();
+        for (const img of extracted.images) imageMap.set(img.id, img);
+
+        const htmlContent = generateEditorHtml(meta, body, imageMap);
+
+        const refSafe = (article.reference_number || "article").replace(/[^a-zA-Z0-9_-]/g, "_");
+        const ts = Date.now();
+        const pdfName = `formatted-${refSafe}-${ts}.pdf`;
+        const docxName = `formatted-${refSafe}-${ts}.docx`;
+        const HEAVY_ARTICLE = body.length > 250 || extracted.images.length > 4;
+
+        let savedPdfName: string | null = null;
+        let savedDocxName: string | null = null;
+
+        if (!HEAVY_ARTICLE) {
+          try {
+            const pdfBuffer = generatePdf(meta, body, imageMap);
+            const { error: pdfErr } = await supabase.storage
+              .from("formatted-articles")
+              .upload(pdfName, new Blob([pdfBuffer], { type: "application/pdf" }), {
+                contentType: "application/pdf",
+                upsert: true,
+              });
+            if (!pdfErr) savedPdfName = pdfName;
+            else console.error("PDF upload error:", pdfErr);
+          } catch (e) {
+            console.error("PDF generation skipped:", e instanceof Error ? e.message : e);
+          }
+
+          try {
+            const docxBuffer = await generateDocx(meta, body, imageMap);
+            const { error: docxErr } = await supabase.storage
+              .from("formatted-articles")
+              .upload(docxName, new Blob([docxBuffer], {
+                type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+              }), {
+                contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                upsert: true,
+              });
+            if (!docxErr) savedDocxName = docxName;
+            else console.error("DOCX upload error:", docxErr);
+          } catch (e) {
+            console.error("DOCX generation skipped:", e instanceof Error ? e.message : e);
+          }
+        } else {
+          console.log(`Skipping server PDF/DOCX for heavy article (${body.length} blocks, ${extracted.images.length} images) — client will export from HTML.`);
+        }
+
+        await supabase.from("articles").update({
+          formatted_document_url: savedPdfName,
+          formatted_docx_url: savedDocxName,
+          formatting_status: "ready_for_review",
+          formatting_suggestions: meta.suggestions || [],
+          formatted_content: htmlContent,
+        } as any).eq("id", articleId);
+
+        const { data: admins } = await supabase.from("user_roles").select("user_id").eq("role", "admin");
+        if (admins) {
+          for (const admin of admins) {
+            await supabase.from("notifications").insert({
+              user_id: admin.user_id,
+              title: "Article Formatted - Ready for Review ✏️",
+              message: `"${article.title}" (${article.reference_number}) has been formatted with PDF + Word + figures preserved.`,
+              type: "info",
+              link: `/admin/formatting`,
+            });
+          }
+        }
       } catch (e) {
-        console.error("PDF generation skipped:", e instanceof Error ? e.message : e);
+        console.error("Background formatting failed:", e);
+        try {
+          await supabase.from("articles")
+            .update({ formatting_status: "failed" })
+            .eq("id", articleId);
+        } catch (updateErr) {
+          console.error("Failed to mark article failed:", updateErr);
+        }
       }
+    })();
 
-      try {
-        const docxBuffer = await generateDocx(meta, body, imageMap);
-        const { error: docxErr } = await supabase.storage
-          .from("formatted-articles")
-          .upload(docxName, new Blob([docxBuffer], {
-            type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-          }), {
-            contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            upsert: true,
-          });
-        if (!docxErr) savedDocxName = docxName;
-        else console.error("DOCX upload error:", docxErr);
-      } catch (e) {
-        console.error("DOCX generation skipped:", e instanceof Error ? e.message : e);
-      }
-    } else {
-      console.log(`Skipping server PDF/DOCX for heavy article (${body.length} blocks, ${extracted.images.length} images) — client will export from HTML.`);
-    }
-
-    // 7. Save record (HTML preview is the primary output)
-    await supabase.from("articles").update({
-      formatted_document_url: savedPdfName,
-      formatted_docx_url: savedDocxName,
-      formatting_status: "ready_for_review",
-      formatting_suggestions: meta.suggestions || [],
-      formatted_content: htmlContent,
-    } as any).eq("id", articleId);
-
-    // 10. Notify admins
-    const { data: admins } = await supabase.from("user_roles").select("user_id").eq("role", "admin");
-    if (admins) {
-      for (const admin of admins) {
-        await supabase.from("notifications").insert({
-          user_id: admin.user_id,
-          title: "Article Formatted - Ready for Review ✏️",
-          message: `"${article.title}" (${article.reference_number}) has been formatted with PDF + Word + figures preserved.`,
-          type: "info",
-          link: `/admin/formatting`,
-        });
-      }
-    }
+    // Keep the isolate alive until background finishes.
+    // deno-lint-ignore no-explicit-any
+    const runtime = (globalThis as any).EdgeRuntime;
+    if (runtime?.waitUntil) runtime.waitUntil(bgTask);
 
     completed = true;
     return jsonResponse({
       success: true,
-      pdfName: savedPdfName,
-      docxName: savedDocxName,
-      imagesEmbedded: extracted.images.length,
-      blocksRendered: body.length,
-      suggestions: meta.suggestions,
-    });
+      status: "processing",
+      articleId,
+    }, 202);
   } catch (error) {
     console.error("Format article error:", error);
     if (stuckArticleId && stuckSupabase && !completed) {
@@ -1439,3 +1429,4 @@ serve(async (req) => {
     return jsonResponse({ error: error instanceof Error ? error.message : "Unknown error" }, 500);
   }
 });
+
