@@ -681,28 +681,43 @@ const getUpgradeToProTemplate = (data: EmailRequest["data"]): string => {
 };
 
 const getManuscriptReviseTemplate = (data: EmailRequest["data"]): string => {
+  const d = (data || {}) as any;
+  const aiUrl = d.articleId
+    ? `https://wwjmrdai.online/author/ai-correct/${encodeURIComponent(String(d.articleId))}`
+    : "https://wwjmrdai.online/author/articles";
   const body = `
     ${emailH1("Manuscript Revision Required ✏️")}
-    ${emailP(`Hi ${escapeHtml(data?.authorName || "Author")},`)}
-    ${emailP(`Your article <strong style="color:#ffffff;">"${escapeHtml(data?.articleTitle || "")}"</strong> (Ref: ${escapeHtml(data?.referenceNumber || "N/A")}) requires revision before it can be accepted for publication.`)}
-    ${emailP(`Your article has <strong style="color:#ffffff;">${escapeHtml(String((data as any)?.pageCount || "N/A"))} pages</strong>. Please review the feedback in your review report, revise your manuscript accordingly, and resubmit it through your author dashboard.`)}
-    ${emailP("To improve your chances of acceptance:")}
-    
+    ${emailP(`Dear ${escapeHtml(d.authorName || "Author")},`)}
+    ${emailP(`Your article <strong style="color:#ffffff;">"${escapeHtml(d.articleTitle || "")}"</strong> (Ref: ${escapeHtml(d.referenceNumber || "N/A")}) requires revision before it can be accepted for publication.`)}
+    ${emailP(`Your manuscript comprises <strong style="color:#ffffff;">${escapeHtml(String(d.pageCount || "N/A"))} page(s)</strong>. Please carefully review the feedback provided in your review report, revise the manuscript accordingly, and resubmit it through your author dashboard at your earliest convenience.`)}
+
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#0f1e3d" style="background-color:#0f1e3d; border:1px solid #1e3a8a; border-radius:10px; margin:20px 0;">
+      <tr><td style="padding:20px;">
+        <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif; font-size:16px; font-weight:700; color:#ffffff; margin:0 0 8px;">✨ Save time with our AI Auto-Fix</p>
+        <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif; font-size:14px; color:#cbd5e1; margin:0 0 16px; line-height:1.6;">You may address the reviewers' comments manually or use our <strong style="color:#ffffff;">AI Auto-Fix</strong> tool, which can revise and refine your manuscript in a matter of minutes. This service applies the review feedback automatically, helping you prepare a polished, resubmission-ready draft with minimal effort.</p>
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td align="center">
+          <a href="${escapeHtml(aiUrl)}" target="_blank" style="display:inline-block; background:linear-gradient(135deg,#8b5cf6,#6366f1); color:#ffffff; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif; font-size:15px; font-weight:700; text-decoration:none; padding:14px 28px; border-radius:8px;">🤖 Fix My Article with AI Auto-Fix</a>
+        </td></tr></table>
+      </td></tr>
+    </table>
+
+    ${emailP("To improve your chances of acceptance, we recommend the following steps:")}
     <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#1a2340" style="background-color:#1a2340; border-radius:8px; margin:20px 0;">
       <tr><td style="padding:20px;">
         ${emailFeatureItem('📊 Download your review report for detailed feedback')}
-        ${emailFeatureItem('✏️ Address all highlighted issues in the report')}
+        ${emailFeatureItem('✏️ Address every issue highlighted in the report')}
         ${emailFeatureItem('📄 Resubmit the revised manuscript from your dashboard')}
-        ${emailFeatureItem('🔍 Ensure your article meets quality standards')}
+        ${emailFeatureItem('🔍 Ensure your article meets our quality and formatting standards')}
       </td></tr>
     </table>
-    
+
     ${emailButton("https://wwjmrdai.online/author/articles", "Go to My Articles")}
     ${emailDivider()}
-    ${emailFooterText("If you have any questions, contact us at support@wwjmrd.com")}
+    ${emailFooterText("If you have any questions, please contact us at support@wwjmrd.com. We look forward to receiving your revised manuscript.")}
   `;
   return wrapEmail("Manuscript Revision Required - WWJMRD", body);
 };
+
 
 const getManuscriptUpdateTemplate = (data: EmailRequest["data"], isAdmin: boolean = false): string => {
   const infoRows = [
