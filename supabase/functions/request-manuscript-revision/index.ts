@@ -123,10 +123,12 @@ serve(async (req) => {
             template: "manuscript-revise",
             data: {
               authorName: authorProfile.full_name || "Author",
+              articleId: article.id,
               articleTitle: article.title,
               referenceNumber: article.reference_number,
               pageCount: article.page_count || "N/A",
             },
+
           }),
         });
 
