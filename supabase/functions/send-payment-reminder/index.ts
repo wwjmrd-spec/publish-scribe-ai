@@ -186,19 +186,10 @@ serve(async (req: Request) => {
         continue;
       }
 
-      // Send each urgency level exactly once per article (unless force/manual articleId).
-      if (!articleId && !force) {
-        const { data: prior } = await supabase
-          .from("payment_reminders")
-          .select("id")
-          .eq("article_id", article.id)
-          .eq("urgency_level", level)
-          .limit(1);
-        if (prior && prior.length > 0) {
-          skipped.push(`${article.reference_number}: level ${level} already sent`);
-          continue;
-        }
-      }
+      // Reminders repeat every `frequency_hours` while the article stays
+      // in a fee-pending state. The frequency gate above already skipped
+      // articles that received a reminder within that window, so we no
+      // longer limit each urgency level to a single send.
 
       try {
         const pageCount = (article as any).page_count || 0;
@@ -217,6 +208,7 @@ serve(async (req: Request) => {
             fromOverride,
             data: {
               authorName: profile.full_name || "Author",
+              articleId: article.id,
               articleTitle: article.title,
               referenceNumber: article.reference_number,
               extraMessage: pageMessage,
@@ -242,6 +234,76 @@ serve(async (req: Request) => {
         errors.push(`Error sending to ${profile.email}: ${err.message}`);
       }
     }
+
+    // ==========================================================================
+    // Manuscript revision reminders (status = 'revision_requested')
+    // Repeats every `frequency_hours` until author resubmits (status changes).
+    // ==========================================================================
+    let revisionSent = 0;
+    const revisionErrors: string[] = [];
+    if (!articleId) {
+      const { data: revArticles } = await supabase
+        .from("articles")
+        .select("id, title, reference_number, author_id, status, updated_at, page_count, profiles:author_id (full_name, email)")
+        .eq("status", "revision_requested");
+
+      const frequencyMs = frequencyHours * 60 * 60 * 1000;
+      const frequencyAgoIso = new Date(now.getTime() - frequencyMs).toISOString();
+
+      for (const art of (revArticles || [])) {
+        const profile = (art as any).profiles;
+        if (!profile?.email) continue;
+
+        if (!bypassWindow) {
+          const statusChangedAt = new Date((art as any).updated_at);
+          const ageDays = (now.getTime() - statusChangedAt.getTime()) / 86400000;
+          if (ageDays < minAge) continue;
+          if (ageDays > maxAge) continue;
+
+          const { data: recent } = await supabase
+            .from("payment_reminders")
+            .select("id")
+            .eq("article_id", (art as any).id)
+            .eq("reminder_type", "revision")
+            .gte("sent_at", frequencyAgoIso)
+            .limit(1);
+          if (recent && recent.length > 0) continue;
+        }
+
+        try {
+          const { error: emailError } = await supabase.functions.invoke("send-email", {
+            body: {
+              to: profile.email,
+              template: "manuscript-revise",
+              providerOverride,
+              fromOverride,
+              data: {
+                authorName: profile.full_name || "Author",
+                articleId: (art as any).id,
+                articleTitle: (art as any).title,
+                referenceNumber: (art as any).reference_number,
+                pageCount: (art as any).page_count || "N/A",
+              },
+            },
+          });
+          if (emailError) {
+            revisionErrors.push(`Revision reminder failed for ${profile.email}: ${emailError.message}`);
+          } else {
+            revisionSent++;
+            await supabase.from("payment_reminders").insert({
+              article_id: (art as any).id,
+              reminder_type: "revision",
+              urgency_level: 1,
+            });
+          }
+        } catch (err: any) {
+          revisionErrors.push(`Revision reminder error ${profile.email}: ${err.message}`);
+        }
+      }
+    }
+    if (revisionErrors.length) errors.push(...revisionErrors);
+    sentCount += revisionSent;
+
 
     return new Response(JSON.stringify({
       success: true,
