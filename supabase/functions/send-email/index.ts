@@ -529,11 +529,25 @@ const getPaymentReminderTemplate = (data: EmailRequest["data"]): string => {
         : emailP(`<strong style="color:${meta.color};">Only ${d.daysUntilDeadline} day(s) left until the fee submission deadline.</strong>`))
     : "";
 
+  const payUrl = d.articleId
+    ? `https://wwjmrdai.online/author/cart?article=${encodeURIComponent(String(d.articleId))}`
+    : "https://wwjmrdai.online/author/cart";
+
   const body = `
     ${emailH1(`${meta.emoji} Payment Reminder — ${meta.label} Urgency`)}
     ${emailP(`Hi ${escapeHtml(d.authorName || "Author")},`)}
     ${emailP(meta.intro)}
     ${d.extraMessage ? emailP(escapeHtml(String(d.extraMessage))) : ""}
+
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:20px 0;">
+      <tr>
+        <td align="center">
+          <a href="${escapeHtml(payUrl)}" target="_blank" style="display:inline-block; background:linear-gradient(135deg,#22c55e,#16a34a); color:#ffffff; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif; font-size:16px; font-weight:700; text-decoration:none; padding:16px 32px; border-radius:10px; box-shadow:0 4px 14px rgba(34,197,94,0.35);">💳 Pay Publication Fee Now</a>
+          <p style="margin:10px 0 0; font-size:12px; color:#94a3b8; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">One click to complete payment for this article.</p>
+        </td>
+      </tr>
+    </table>
+
     ${emailInfoBox(
       "Article Details:",
       [
@@ -546,13 +560,14 @@ const getPaymentReminderTemplate = (data: EmailRequest["data"]): string => {
       ].join(""),
     )}
     ${deadlineWarn}
-    ${emailP("Please log in to your dashboard and complete the payment at your earliest convenience to avoid any delays in publishing your article.")}
-    ${emailButton("https://wwjmrdai.online/author/cart", "Pay Publication Fee Now")}
+    ${emailP("If the button above does not work, log in to your dashboard and complete the payment from the cart.")}
+    ${emailButton(payUrl, "Open Payment Page")}
     ${emailDivider()}
     ${emailFooterText("If you've already made the payment, please disregard this email. For any queries, contact us at support@wwjmrd.com")}
   `;
   return wrapEmail(`Payment Reminder (${meta.label}) - WWJMRD`, body);
 };
+
 
 const getArticleResubmissionTemplate = (data: EmailRequest["data"], isAdmin: boolean = false): string => {
   const infoRows = [
