@@ -125,6 +125,9 @@ export default function AdminFees() {
       const feeData: any = {
         indian_fee: parseFloat(fees.indian_fee) || 0,
         international_fee: parseFloat(fees.international_fee) || 0,
+        indian_fast_track_fee: parseFloat(fees.indian_fast_track_fee) || 0,
+        international_fast_track_fee: parseFloat(fees.international_fast_track_fee) || 0,
+
         indian_coauthor_fee: parseFloat(fees.indian_coauthor_fee) || 0,
         international_coauthor_fee: parseFloat(fees.international_coauthor_fee) || 0,
         indian_pro_fee: parseFloat(fees.indian_pro_fee) || 0,
