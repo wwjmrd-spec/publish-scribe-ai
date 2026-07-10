@@ -104,6 +104,8 @@ export default function AdminFees() {
       setFees({
         indian_fee: currentFees.indian_fee?.toString() || '',
         international_fee: currentFees.international_fee?.toString() || '',
+        indian_fast_track_fee: (currentFees as any).indian_fast_track_fee?.toString() || '',
+        international_fast_track_fee: (currentFees as any).international_fast_track_fee?.toString() || '',
         indian_coauthor_fee: currentFees.indian_coauthor_fee?.toString() || '',
         international_coauthor_fee: currentFees.international_coauthor_fee?.toString() || '',
         indian_pro_fee: currentFees.indian_pro_fee?.toString() || '',
@@ -116,6 +118,7 @@ export default function AdminFees() {
       });
     }
   }, [currentFees]);
+
 
   const updateMutation = useMutation({
     mutationFn: async () => {
