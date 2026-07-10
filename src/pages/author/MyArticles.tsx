@@ -402,9 +402,11 @@ export default function MyArticles() {
   };
 
   // Can update manuscript before review (submitted/under_review) or when revision requested (rejected for resubmit)
-  const canUpdateManuscript = (status: string) => {
-    return ['submitted', 'under_review', 'revision_requested'].includes(status);
+  const canUpdateManuscript = (article: any) => {
+    if (article?.allow_author_edit === false) return false;
+    return ['submitted', 'under_review', 'revision_requested'].includes(article?.status);
   };
+
 
   if (isLoading) {
     return (
