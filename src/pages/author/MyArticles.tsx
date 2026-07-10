@@ -105,6 +105,8 @@ export default function MyArticles() {
       queryClient.invalidateQueries({ queryKey: ['my-articles', user.id] });
       queryClient.invalidateQueries({ queryKey: ['plan-usage', user.id] });
       queryClient.invalidateQueries({ queryKey: ['plan-usage-free-period', user.id] });
+      queryClient.invalidateQueries({ queryKey: ['review-report-downloads-mine', user.id] });
+
     } catch {
       toast.error('Failed to download review report', { id: tid });
     }
