@@ -551,7 +551,7 @@ export default function MyArticles() {
                       {article.co_authors && article.co_authors.length > 0 && (
                         <span className="inline-flex items-center gap-2">
                           Co-authors: {article.co_authors.length}
-                          {subscription.plan === 'pro' && (
+                          {subscription.plan === 'pro' && (article as any).allow_author_edit !== false && (
                             <Button
                               type="button"
                               size="sm"
@@ -562,6 +562,7 @@ export default function MyArticles() {
                               Edit
                             </Button>
                           )}
+
                         </span>
                       )}
                       {(article as any).page_count && (
