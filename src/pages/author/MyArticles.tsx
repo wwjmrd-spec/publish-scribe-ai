@@ -515,11 +515,23 @@ export default function MyArticles() {
                             ✅ Manuscript Accepted
                           </span>
                         )}
+                        {(article as any).allow_author_edit === false && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-slate-500/20 text-slate-300 border border-slate-500/30">
+                            <Lock className="w-3 h-3" /> Locked
+                          </span>
+                        )}
                         <span className={getStatusBadge(article.status)}>
                           {formatStatus(article.status)}
                         </span>
                       </div>
                     </div>
+
+                    {(article as any).allow_author_edit === false && (
+                      <div className="text-xs text-muted-foreground p-2 rounded-md bg-slate-500/10 border border-slate-500/20">
+                        🔒 This article is locked. Contact the admin if you need to make changes.
+                      </div>
+                    )}
+
 
                     {/* Abstract */}
                     {article.abstract && (
