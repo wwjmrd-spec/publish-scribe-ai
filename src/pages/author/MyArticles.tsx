@@ -296,7 +296,7 @@ export default function MyArticles() {
           publication_type, galley_proof_status, galley_proof_sent_at,
           galley_proof_deadline, galley_proof_pdf_url, galley_proof_word_url,
           allow_withdrawal, document_url, page_count, keywords,
-          author_name, copyright_form_url,
+          author_name, copyright_form_url, allow_author_edit,
           review_report_download_count, free_review_report_downloaded, review_report_paid
         `)
         .eq('author_id', user?.id)
@@ -322,6 +322,21 @@ export default function MyArticles() {
     },
     enabled: !!user?.id,
   });
+
+  // Real download count from the review_report_downloads audit log
+  const { data: downloadStats } = useQuery({
+    queryKey: ['review-report-downloads-mine', user?.id],
+    queryFn: async () => {
+      const { count } = await (supabase as any)
+        .from('review_report_downloads')
+        .select('id', { count: 'exact', head: true })
+        .eq('author_id', user!.id);
+      return { total: count || 0 };
+    },
+    enabled: !!user?.id,
+    staleTime: 15_000,
+  });
+
 
   // Sync article statuses to Mautic as tags (fire-and-forget, deduped per session)
   const { syncContact } = useMauticSync();
