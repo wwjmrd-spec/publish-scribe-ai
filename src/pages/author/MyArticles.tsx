@@ -647,6 +647,7 @@ export default function MyArticles() {
 
                       {/* AI Auto-Correct (Pro feature, requires review report) */}
                       {article.review_report_url &&
+                        (article as any).allow_author_edit !== false &&
                         !['manuscript_accepted', 'rejected', 'withdrawn', 'galley_proof_sent', 'published'].includes(article.status) && (
                         <Button
                           variant="outline"
@@ -681,7 +682,7 @@ export default function MyArticles() {
                       )}
 
                       {/* Update Manuscript - before review */}
-                      {canUpdateManuscript(article.status) && (
+                      {canUpdateManuscript(article) && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -718,7 +719,7 @@ export default function MyArticles() {
                           Pay Now
                         </Button>
                       )}
-                      {article.status === 'rejected' && (
+                      {article.status === 'rejected' && (article as any).allow_author_edit !== false && (
                         <Button
                           size="sm"
                           variant="outline"
@@ -728,7 +729,7 @@ export default function MyArticles() {
                           Resubmit
                         </Button>
                       )}
-                      {article.status && !['withdrawn', 'rejected', 'published'].includes(article.status) && (article as any).allow_withdrawal && (
+                      {article.status && !['withdrawn', 'rejected', 'published'].includes(article.status) && (article as any).allow_withdrawal && (article as any).allow_author_edit !== false && (
                         <Button
                           size="sm"
                           variant="ghost"
@@ -739,6 +740,7 @@ export default function MyArticles() {
                           Withdraw
                         </Button>
                       )}
+
                     </div>
 
                     {/* Galley Proof Review */}
