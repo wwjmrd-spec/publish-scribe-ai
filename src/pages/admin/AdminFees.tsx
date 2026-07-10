@@ -27,6 +27,8 @@ export default function AdminFees() {
   const [fees, setFees] = useState({
     indian_fee: '',
     international_fee: '',
+    indian_fast_track_fee: '',
+    international_fast_track_fee: '',
     indian_coauthor_fee: '',
     international_coauthor_fee: '',
     indian_pro_fee: '',
@@ -37,6 +39,7 @@ export default function AdminFees() {
     usdt_pro_fee: '',
     binance_wallet_address: '',
   });
+
 
   const { data: currentFees, isLoading } = useQuery({
     queryKey: ['publication-fees'],
