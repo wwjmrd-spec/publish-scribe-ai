@@ -468,6 +468,7 @@ export type Database = {
           abstract: string | null
           ai_autocorrected: boolean
           ai_autocorrected_at: string | null
+          allow_author_edit: boolean
           allow_withdrawal: boolean
           author_id: string
           author_name: string | null
@@ -482,6 +483,9 @@ export type Database = {
           discovery_source: string | null
           display_order: number | null
           document_url: string | null
+          edit_lock_reason: string | null
+          edit_lock_updated_at: string | null
+          edit_lock_updated_by: string | null
           fee_reminder_email_sent_at: string | null
           formatted_content: string | null
           formatted_document_url: string | null
@@ -530,6 +534,7 @@ export type Database = {
           abstract?: string | null
           ai_autocorrected?: boolean
           ai_autocorrected_at?: string | null
+          allow_author_edit?: boolean
           allow_withdrawal?: boolean
           author_id: string
           author_name?: string | null
@@ -544,6 +549,9 @@ export type Database = {
           discovery_source?: string | null
           display_order?: number | null
           document_url?: string | null
+          edit_lock_reason?: string | null
+          edit_lock_updated_at?: string | null
+          edit_lock_updated_by?: string | null
           fee_reminder_email_sent_at?: string | null
           formatted_content?: string | null
           formatted_document_url?: string | null
@@ -592,6 +600,7 @@ export type Database = {
           abstract?: string | null
           ai_autocorrected?: boolean
           ai_autocorrected_at?: string | null
+          allow_author_edit?: boolean
           allow_withdrawal?: boolean
           author_id?: string
           author_name?: string | null
@@ -606,6 +615,9 @@ export type Database = {
           discovery_source?: string | null
           display_order?: number | null
           document_url?: string | null
+          edit_lock_reason?: string | null
+          edit_lock_updated_at?: string | null
+          edit_lock_updated_by?: string | null
           fee_reminder_email_sent_at?: string | null
           formatted_content?: string | null
           formatted_document_url?: string | null
@@ -1563,6 +1575,51 @@ export type Database = {
             columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      review_report_downloads: {
+        Row: {
+          article_id: string
+          author_id: string
+          created_at: string
+          download_type: string
+          id: string
+          ip_address: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          article_id: string
+          author_id: string
+          created_at?: string
+          download_type: string
+          id?: string
+          ip_address?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          article_id?: string
+          author_id?: string
+          created_at?: string
+          download_type?: string
+          id?: string
+          ip_address?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_report_downloads_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "review_report_downloads_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "published_articles_public"
             referencedColumns: ["id"]
           },
         ]

@@ -1052,6 +1052,37 @@ export default function AdminArticleDetail() {
                     }}
                   />
                 </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                  <div className="flex flex-col">
+                    <span className="text-sm text-muted-foreground">Author Edit Permission</span>
+                    <span className="text-xs text-muted-foreground/70">
+                      {(article as any).allow_author_edit === false
+                        ? '🔒 Locked — author cannot edit, resubmit, or upload'
+                        : '✏️ Unlocked — author can edit and resubmit'}
+                    </span>
+                  </div>
+                  <Switch
+                    checked={(article as any).allow_author_edit !== false}
+                    onCheckedChange={async (checked) => {
+                      const { error } = await supabase
+                        .from('articles')
+                        .update({
+                          allow_author_edit: checked,
+                          edit_lock_reason: checked ? 'Unlocked by admin' : 'Locked by admin',
+                          edit_lock_updated_at: new Date().toISOString(),
+                        } as any)
+                        .eq('id', article.id);
+                      if (error) {
+                        toast.error('Failed to update lock: ' + error.message);
+                      } else {
+                        toast.success(checked ? 'Article unlocked for author' : 'Article locked');
+                        queryClient.invalidateQueries({ queryKey: ['admin-article-detail', articleId] });
+                      }
+                    }}
+                  />
+                </div>
+
               </div>
             </GlassCard>
 

@@ -27,6 +27,8 @@ export default function AdminFees() {
   const [fees, setFees] = useState({
     indian_fee: '',
     international_fee: '',
+    indian_fast_track_fee: '',
+    international_fast_track_fee: '',
     indian_coauthor_fee: '',
     international_coauthor_fee: '',
     indian_pro_fee: '',
@@ -37,6 +39,7 @@ export default function AdminFees() {
     usdt_pro_fee: '',
     binance_wallet_address: '',
   });
+
 
   const { data: currentFees, isLoading } = useQuery({
     queryKey: ['publication-fees'],
@@ -101,6 +104,8 @@ export default function AdminFees() {
       setFees({
         indian_fee: currentFees.indian_fee?.toString() || '',
         international_fee: currentFees.international_fee?.toString() || '',
+        indian_fast_track_fee: (currentFees as any).indian_fast_track_fee?.toString() || '',
+        international_fast_track_fee: (currentFees as any).international_fast_track_fee?.toString() || '',
         indian_coauthor_fee: currentFees.indian_coauthor_fee?.toString() || '',
         international_coauthor_fee: currentFees.international_coauthor_fee?.toString() || '',
         indian_pro_fee: currentFees.indian_pro_fee?.toString() || '',
@@ -114,11 +119,15 @@ export default function AdminFees() {
     }
   }, [currentFees]);
 
+
   const updateMutation = useMutation({
     mutationFn: async () => {
       const feeData: any = {
         indian_fee: parseFloat(fees.indian_fee) || 0,
         international_fee: parseFloat(fees.international_fee) || 0,
+        indian_fast_track_fee: parseFloat(fees.indian_fast_track_fee) || 0,
+        international_fast_track_fee: parseFloat(fees.international_fast_track_fee) || 0,
+
         indian_coauthor_fee: parseFloat(fees.indian_coauthor_fee) || 0,
         international_coauthor_fee: parseFloat(fees.international_coauthor_fee) || 0,
         indian_pro_fee: parseFloat(fees.indian_pro_fee) || 0,
@@ -193,12 +202,21 @@ export default function AdminFees() {
                 </div>
               </div>
               <div>
+                <Label>Fast Track Fee (₹)</Label>
+                <div className="relative mt-1">
+                  <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input type="number" value={fees.indian_fast_track_fee} onChange={(e) => setFees({ ...fees, indian_fast_track_fee: e.target.value })} className="pl-10 glass-input" placeholder="500" />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Extra amount charged on top of the publication fee for 24h fast-track review.</p>
+              </div>
+              <div>
                 <Label>Co-Author Certificate Fee (₹)</Label>
                 <div className="relative mt-1">
                   <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input type="number" value={fees.indian_coauthor_fee} onChange={(e) => setFees({ ...fees, indian_coauthor_fee: e.target.value })} className="pl-10 glass-input" placeholder="500" />
                 </div>
               </div>
+
             </div>
           </GlassCard>
         </motion.div>
@@ -224,12 +242,21 @@ export default function AdminFees() {
                 </div>
               </div>
               <div>
+                <Label>Fast Track Fee ($)</Label>
+                <div className="relative mt-1">
+                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input type="number" value={fees.international_fast_track_fee} onChange={(e) => setFees({ ...fees, international_fast_track_fee: e.target.value })} className="pl-10 glass-input" placeholder="10" />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Extra amount charged on top of the publication fee for 24h fast-track review.</p>
+              </div>
+              <div>
                 <Label>Co-Author Certificate Fee ($)</Label>
                 <div className="relative mt-1">
                   <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input type="number" value={fees.international_coauthor_fee} onChange={(e) => setFees({ ...fees, international_coauthor_fee: e.target.value })} className="pl-10 glass-input" placeholder="10" />
                 </div>
               </div>
+
             </div>
           </GlassCard>
         </motion.div>
