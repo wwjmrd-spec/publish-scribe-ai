@@ -242,12 +242,21 @@ export default function AdminFees() {
                 </div>
               </div>
               <div>
+                <Label>Fast Track Fee ($)</Label>
+                <div className="relative mt-1">
+                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input type="number" value={fees.international_fast_track_fee} onChange={(e) => setFees({ ...fees, international_fast_track_fee: e.target.value })} className="pl-10 glass-input" placeholder="10" />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Extra amount charged on top of the publication fee for 24h fast-track review.</p>
+              </div>
+              <div>
                 <Label>Co-Author Certificate Fee ($)</Label>
                 <div className="relative mt-1">
                   <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input type="number" value={fees.international_coauthor_fee} onChange={(e) => setFees({ ...fees, international_coauthor_fee: e.target.value })} className="pl-10 glass-input" placeholder="10" />
                 </div>
               </div>
+
             </div>
           </GlassCard>
         </motion.div>
