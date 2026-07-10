@@ -154,10 +154,17 @@ serve(async (req) => {
       bucket = "review-reports";
       filePath = article.review_report_url || null;
 
+      const now = new Date();
+      const periodKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+      const clientIp =
+        req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+        req.headers.get("cf-connecting-ip") ||
+        null;
+      const clientUa = req.headers.get("user-agent") || null;
+      let logDownloadType: "free" | "paid" | "pro" | "admin" = "admin";
+
       // Server-side quota enforcement (authors only; admins bypass quota but still count).
-      // NEW POLICY:
       //   Free plan  -> 1 free review-report download PER ARTICLE. After that, Rs 100/download.
-      //                 (Signed URL only issued after payment; frontend collects payment.)
       //   Pro plan   -> 10 review-report downloads per calendar month. No per-article limit.
       if (!isAdmin) {
         const PRO_LIMIT = 10;
@@ -173,9 +180,6 @@ serve(async (req) => {
           sub?.plan_type === "pro" &&
           sub.is_active &&
           (!sub.expires_at || new Date(sub.expires_at) > new Date());
-
-        const now = new Date();
-        const periodKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
         if (isPro) {
           const limit = sub?.review_reports_grant ?? PRO_LIMIT;
@@ -204,15 +208,15 @@ serve(async (req) => {
             p_usage_month: periodKey,
           });
 
-          // Also bump the per-article counter so admins see accurate totals.
           await supabase
             .from("articles")
             .update({
               review_report_download_count: (article.review_report_download_count ?? 0) + 1,
             })
             .eq("id", articleId);
+
+          logDownloadType = "pro";
         } else {
-          // Free plan — per-article 1 free download; then Rs 100 / $5 per download.
           const usedFree = !!article.free_review_report_downloaded;
           const paid = !!article.review_report_paid;
 
@@ -237,25 +241,40 @@ serve(async (req) => {
             );
           }
 
-          // Consume either the free download or the one-time paid download.
           const patch: Record<string, unknown> = {
             review_report_download_count: (article.review_report_download_count ?? 0) + 1,
           };
           if (!usedFree) patch.free_review_report_downloaded = true;
-          if (paid) {
-            // Paid download is single-use: reset paid flag once consumed.
-            patch.review_report_paid = false;
-          }
+          if (paid) patch.review_report_paid = false;
           await supabase.from("articles").update(patch).eq("id", articleId);
 
-          // Track free-plan period usage so the admin "Free Plan Downloads" widget stays accurate.
           await supabase.rpc("increment_plan_usage", {
             p_user_id: userId,
             p_field: "review_reports_used",
             p_usage_month: periodKey,
           });
+
+          logDownloadType = paid ? "paid" : "free";
         }
+      } else {
+        // Admin download — still increment article counter for accurate totals
+        await supabase
+          .from("articles")
+          .update({
+            review_report_download_count: (article.review_report_download_count ?? 0) + 1,
+          })
+          .eq("id", articleId);
       }
+
+      // Log every download attempt that reaches this point (signed URL will be issued below)
+      await supabase.from("review_report_downloads").insert({
+        article_id: articleId,
+        author_id: article.author_id,
+        download_type: logDownloadType,
+        ip_address: clientIp,
+        user_agent: clientUa,
+      });
+
 
 
     } else if (fileType === "pending_review_report") {
