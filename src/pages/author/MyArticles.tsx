@@ -446,11 +446,12 @@ export default function MyArticles() {
               {subscription.plan === 'free' && ' this period (Free plan — 1 free per article, then paid)'}
               {subscription.plan === 'pro' && ' this month (Pro plan)'}
             </span>
-            {articles && articles.length > 0 && (
+            {(articles && articles.length > 0) && (
               <span className="ml-2 px-2 py-0.5 rounded-full bg-[hsl(var(--glass-bg-strong))] text-xs">
-                Lifetime downloads: {articles.reduce((sum: number, a: any) => sum + (a.review_report_download_count || 0), 0)}
+                Lifetime downloads: {downloadStats?.total ?? articles.reduce((sum: number, a: any) => sum + (a.review_report_download_count || 0), 0)}
               </span>
             )}
+
           </div>
           {subscription.plan === 'free' && (
             <Button
