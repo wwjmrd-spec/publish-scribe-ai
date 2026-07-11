@@ -455,6 +455,25 @@ export default function AdminArticleDetail() {
           <p className="text-muted-foreground font-mono text-sm">Reference: {article.reference_number}</p>
         </div>
 
+        {Array.isArray((article as any).missing_sections) && (article as any).missing_sections.length > 0 && (
+          <GlassCard className="border-destructive/50 bg-destructive/5 mb-6">
+            <div className="flex items-start gap-3">
+              <div className="w-2 h-2 rounded-full bg-destructive mt-2" />
+              <div className="flex-1">
+                <h3 className="font-display font-semibold text-destructive">Missing Required Sections (flagged at submission)</h3>
+                <p className="text-xs text-muted-foreground mt-1">
+                  The author chose to submit even though the AI scanner did not detect these sections in the manuscript:
+                </p>
+                <ul className="list-disc pl-5 mt-2 text-sm space-y-1">
+                  {(article as any).missing_sections.map((s: string) => (
+                    <li key={s}>{s}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </GlassCard>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
