@@ -142,9 +142,7 @@ export function useSubscription() {
   const isPro = subscription?.plan_type === 'pro';
   const plan: 'free' | 'pro' = isPro ? 'pro' : 'free';
 
-  const reviewReportsUsed = isPro
-    ? (usage?.review_reports_used ?? 0)
-    : (freeUsage?.review_reports_used ?? 0);
+  const reviewReportsUsed = reviewDownloadsCount ?? 0;
   const coauthorCertsUsed = isPro
     ? (usage?.coauthor_certs_used ?? 0)
     : (freeUsage?.coauthor_certs_used ?? 0);
@@ -167,7 +165,7 @@ export function useSubscription() {
 
   return {
     subscription: info,
-    isLoading: subLoading || usageLoading || freeUsageLoading,
+    isLoading: subLoading || usageLoading || freeUsageLoading || rdLoading,
     currentMonth,
     freePeriodKey,
   };
