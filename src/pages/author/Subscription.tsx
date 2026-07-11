@@ -198,7 +198,7 @@ export default function Subscription() {
       id: 'pro_subscription',
       type: 'pro_subscription',
       label: 'Pro Plan Subscription',
-      description: '1 Month — 5 review reports, 4 co-author certificates',
+      description: '1 Month — 10 review reports, 4 co-author certificates',
       amount: proFee,
     });
     toast.success('Pro Plan added to cart!');
@@ -345,7 +345,7 @@ export default function Subscription() {
               <ul className="space-y-3 mb-6">
                 <li className="flex items-center gap-3 text-sm">
                   <Check className="w-4 h-4 text-green-500 shrink-0" />
-                  <span>2 review report downloads (total)</span>
+                  <span>1 free review report per article (then ₹100 / $5 each)</span>
                 </li>
                 <li className="flex items-center gap-3 text-sm">
                   <X className="w-4 h-4 text-red-500 shrink-0" />
@@ -380,7 +380,7 @@ export default function Subscription() {
               <ul className="space-y-3 mb-6">
                 <li className="flex items-center gap-3 text-sm">
                   <Check className="w-4 h-4 text-green-500 shrink-0" />
-                  <span>5 review report downloads/month</span>
+                  <span>10 review report downloads/month</span>
                 </li>
                 <li className="flex items-center gap-3 text-sm">
                   <Check className="w-4 h-4 text-green-500 shrink-0" />

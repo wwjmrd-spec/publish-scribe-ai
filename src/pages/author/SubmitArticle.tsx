@@ -371,6 +371,8 @@ export default function SubmitArticle() {
         page_count: pageCount,
         discovery_source: discoverySource || null,
         created_via: createdVia,
+        missing_sections: validationWarnings?.missing?.length ? validationWarnings.missing : null,
+        missing_section_samples: validationWarnings?.samples && Object.keys(validationWarnings.samples).length ? validationWarnings.samples : null,
       } as any)
       .select()
       .single();
@@ -924,7 +926,7 @@ export default function SubmitArticle() {
                         📱 WhatsApp: <a href="https://wa.me/919999669429" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">+91 9999669429</a>
                       </p>
                     </div>
-                    <div className="flex gap-3 mt-4 ml-9">
+                    <div className="flex gap-3 mt-4 ml-9 flex-wrap">
                       <Button
                         variant="outline"
                         onClick={() => {
@@ -933,6 +935,18 @@ export default function SubmitArticle() {
                         }}
                       >
                         Upload New File
+                      </Button>
+                      <Button
+                        variant="default"
+                        onClick={() => {
+                          toast({
+                            title: 'Proceeding with missing sections',
+                            description: 'Admin will see the flagged sections in your submission.',
+                          });
+                          setStep(2);
+                        }}
+                      >
+                        Continue with submission anyway
                       </Button>
                     </div>
                   </GlassCard>

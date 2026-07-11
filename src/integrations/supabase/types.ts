@@ -507,6 +507,8 @@ export type Database = {
           keywords: string[] | null
           low_score_email_sent_at: string | null
           manuscript_accepted_email_sent_at: string | null
+          missing_section_samples: Json | null
+          missing_sections: string[] | null
           page_count: number | null
           page_number: string | null
           publication_type: string
@@ -573,6 +575,8 @@ export type Database = {
           keywords?: string[] | null
           low_score_email_sent_at?: string | null
           manuscript_accepted_email_sent_at?: string | null
+          missing_section_samples?: Json | null
+          missing_sections?: string[] | null
           page_count?: number | null
           page_number?: string | null
           publication_type?: string
@@ -639,6 +643,8 @@ export type Database = {
           keywords?: string[] | null
           low_score_email_sent_at?: string | null
           manuscript_accepted_email_sent_at?: string | null
+          missing_section_samples?: Json | null
+          missing_sections?: string[] | null
           page_count?: number | null
           page_number?: string | null
           publication_type?: string
