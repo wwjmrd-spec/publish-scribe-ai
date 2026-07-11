@@ -371,6 +371,8 @@ export default function SubmitArticle() {
         page_count: pageCount,
         discovery_source: discoverySource || null,
         created_via: createdVia,
+        missing_sections: validationWarnings?.missing?.length ? validationWarnings.missing : null,
+        missing_section_samples: validationWarnings?.samples && Object.keys(validationWarnings.samples).length ? validationWarnings.samples : null,
       } as any)
       .select()
       .single();
