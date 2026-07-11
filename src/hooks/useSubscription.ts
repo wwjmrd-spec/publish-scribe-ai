@@ -76,7 +76,39 @@ export function useSubscription() {
     enabled: !!user?.id,
   });
 
-  // Pro plan: current calendar month
+  // Review report downloads — count directly from the audit log (ground truth).
+  // Pro users: count within the current calendar month.
+  // Free users: count within the current free-period window (signup-anchored month).
+  const { data: reviewDownloadsCount, isLoading: rdLoading } = useQuery({
+    queryKey: ['review-downloads-count', user?.id, currentMonth, freePeriodKey, subscription?.plan_type],
+    queryFn: async () => {
+      const isPro = subscription?.plan_type === 'pro';
+      let fromDate: Date;
+      let toDate: Date;
+      if (isPro) {
+        const now = new Date();
+        fromDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        toDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      } else if (freePeriodKey) {
+        const [y, m] = freePeriodKey.split('-').map(Number);
+        fromDate = new Date(y, m - 1, 1);
+        toDate = new Date(y, m, 1);
+      } else {
+        return 0;
+      }
+      const { count, error } = await supabase
+        .from('review_report_downloads')
+        .select('id', { count: 'exact', head: true })
+        .eq('author_id', user!.id)
+        .gte('created_at', fromDate.toISOString())
+        .lt('created_at', toDate.toISOString());
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!user?.id,
+  });
+
+  // Co-author cert usage still comes from plan_usage.
   const { data: usage, isLoading: usageLoading } = useQuery({
     queryKey: ['plan-usage', user?.id, currentMonth],
     queryFn: async () => {
@@ -92,7 +124,6 @@ export function useSubscription() {
     enabled: !!user?.id,
   });
 
-  // Free plan: current period (signup-anchored month)
   const { data: freeUsage, isLoading: freeUsageLoading } = useQuery({
     queryKey: ['plan-usage-free-period', user?.id, freePeriodKey],
     queryFn: async () => {
