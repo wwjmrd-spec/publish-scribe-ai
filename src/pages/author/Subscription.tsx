@@ -380,7 +380,7 @@ export default function Subscription() {
               <ul className="space-y-3 mb-6">
                 <li className="flex items-center gap-3 text-sm">
                   <Check className="w-4 h-4 text-green-500 shrink-0" />
-                  <span>5 review report downloads/month</span>
+                  <span>10 review report downloads/month</span>
                 </li>
                 <li className="flex items-center gap-3 text-sm">
                   <Check className="w-4 h-4 text-green-500 shrink-0" />
