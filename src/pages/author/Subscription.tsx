@@ -198,7 +198,7 @@ export default function Subscription() {
       id: 'pro_subscription',
       type: 'pro_subscription',
       label: 'Pro Plan Subscription',
-      description: '1 Month — 5 review reports, 4 co-author certificates',
+      description: '1 Month — 10 review reports, 4 co-author certificates',
       amount: proFee,
     });
     toast.success('Pro Plan added to cart!');
