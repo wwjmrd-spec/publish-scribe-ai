@@ -93,7 +93,11 @@ async function getAccessToken(config: ZohoConfig): Promise<string> {
     client_secret: config.clientSecret,
     grant_type: "refresh_token",
   });
-  const r = await fetch(url, { method: "POST", body });
+  const r = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+  });
   const text = await r.text();
   let j: any = {};
   try { j = JSON.parse(text); } catch { /* ignore */ }
