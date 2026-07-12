@@ -35,12 +35,15 @@ async function getZohoConfig(supabase: ReturnType<typeof createClient>): Promise
     .limit(1)
     .maybeSingle();
 
+  // Prefer Lovable Cloud runtime secrets over database fields. The settings table
+  // may contain old Zoho Self Client values entered through the admin UI, and a
+  // stale DB refresh token can incorrectly override a valid ZOHO_MAIL_REFRESH_TOKEN secret.
   const config = {
-    region: normalizeRegion(settings?.zoho_region || Deno.env.get("ZOHO_MAIL_REGION")),
-    accountId: String(settings?.zoho_account_id || Deno.env.get("ZOHO_MAIL_ACCOUNT_ID") || "").trim(),
-    clientId: String(settings?.zoho_client_id || Deno.env.get("ZOHO_MAIL_CLIENT_ID") || "").trim(),
-    clientSecret: String(settings?.zoho_client_secret || Deno.env.get("ZOHO_MAIL_CLIENT_SECRET") || "").trim(),
-    refreshToken: String(settings?.zoho_refresh_token || Deno.env.get("ZOHO_MAIL_REFRESH_TOKEN") || "").trim(),
+    region: normalizeRegion(Deno.env.get("ZOHO_MAIL_REGION") || settings?.zoho_region),
+    accountId: String(Deno.env.get("ZOHO_MAIL_ACCOUNT_ID") || settings?.zoho_account_id || "").trim(),
+    clientId: String(Deno.env.get("ZOHO_MAIL_CLIENT_ID") || settings?.zoho_client_id || "").trim(),
+    clientSecret: String(Deno.env.get("ZOHO_MAIL_CLIENT_SECRET") || settings?.zoho_client_secret || "").trim(),
+    refreshToken: String(Deno.env.get("ZOHO_MAIL_REFRESH_TOKEN") || settings?.zoho_refresh_token || "").trim(),
   };
 
   const missing = Object.entries(config)
