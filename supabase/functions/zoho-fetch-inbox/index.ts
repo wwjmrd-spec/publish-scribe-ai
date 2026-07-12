@@ -34,7 +34,6 @@ function describeLoadedSecret(value: string, source: "runtime_secret" | "admin_s
     source,
     set: !!value,
     length: value.length,
-    prefix: value ? value.slice(0, Math.min(8, value.length)) : "",
   };
 }
 
