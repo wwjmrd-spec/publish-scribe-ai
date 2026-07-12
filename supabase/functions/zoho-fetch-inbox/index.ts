@@ -13,6 +13,7 @@ type ZohoConfig = {
   clientId: string;
   clientSecret: string;
   refreshToken: string;
+  diagnostics: Record<string, unknown>;
 };
 
 class ZohoSetupError extends Error {
@@ -28,6 +29,14 @@ function normalizeRegion(region?: string | null) {
   return ["com", "in", "eu", "com.au"].includes(cleaned) ? cleaned : "com";
 }
 
+function describeLoadedSecret(value: string, source: "runtime_secret" | "admin_settings") {
+  return {
+    source,
+    set: !!value,
+    length: value.length,
+  };
+}
+
 async function getZohoConfig(supabase: ReturnType<typeof createClient>): Promise<ZohoConfig> {
   const { data: settings } = await supabase
     .from("ai_email_settings")
@@ -38,12 +47,31 @@ async function getZohoConfig(supabase: ReturnType<typeof createClient>): Promise
   // Prefer Lovable Cloud runtime secrets over database fields. The settings table
   // may contain old Zoho Self Client values entered through the admin UI, and a
   // stale DB refresh token can incorrectly override a valid ZOHO_MAIL_REFRESH_TOKEN secret.
+  const envRegion = Deno.env.get("ZOHO_MAIL_REGION");
+  const envAccountId = Deno.env.get("ZOHO_MAIL_ACCOUNT_ID");
+  const envClientId = Deno.env.get("ZOHO_MAIL_CLIENT_ID");
+  const envClientSecret = Deno.env.get("ZOHO_MAIL_CLIENT_SECRET");
+  const envRefreshToken = Deno.env.get("ZOHO_MAIL_REFRESH_TOKEN");
+
   const config = {
-    region: normalizeRegion(Deno.env.get("ZOHO_MAIL_REGION") || settings?.zoho_region),
-    accountId: String(Deno.env.get("ZOHO_MAIL_ACCOUNT_ID") || settings?.zoho_account_id || "").trim(),
-    clientId: String(Deno.env.get("ZOHO_MAIL_CLIENT_ID") || settings?.zoho_client_id || "").trim(),
-    clientSecret: String(Deno.env.get("ZOHO_MAIL_CLIENT_SECRET") || settings?.zoho_client_secret || "").trim(),
-    refreshToken: String(Deno.env.get("ZOHO_MAIL_REFRESH_TOKEN") || settings?.zoho_refresh_token || "").trim(),
+    region: normalizeRegion(envRegion || settings?.zoho_region),
+    accountId: String(envAccountId || settings?.zoho_account_id || "").trim(),
+    clientId: String(envClientId || settings?.zoho_client_id || "").trim(),
+    clientSecret: String(envClientSecret || settings?.zoho_client_secret || "").trim(),
+    refreshToken: String(envRefreshToken || settings?.zoho_refresh_token || "").trim(),
+    diagnostics: {
+      tokenRequest: {
+        method: "POST",
+        url: `https://accounts.zoho.${normalizeRegion(envRegion || settings?.zoho_region)}/oauth/v2/token`,
+        grant_type: "refresh_token",
+        content_type: "application/x-www-form-urlencoded",
+      },
+      region: { value: normalizeRegion(envRegion || settings?.zoho_region), source: envRegion ? "runtime_secret" : "admin_settings" },
+      accountId: describeLoadedSecret(String(envAccountId || settings?.zoho_account_id || "").trim(), envAccountId ? "runtime_secret" : "admin_settings"),
+      clientId: describeLoadedSecret(String(envClientId || settings?.zoho_client_id || "").trim(), envClientId ? "runtime_secret" : "admin_settings"),
+      clientSecret: describeLoadedSecret(String(envClientSecret || settings?.zoho_client_secret || "").trim(), envClientSecret ? "runtime_secret" : "admin_settings"),
+      refreshToken: describeLoadedSecret(String(envRefreshToken || settings?.zoho_refresh_token || "").trim(), envRefreshToken ? "runtime_secret" : "admin_settings"),
+    },
   };
 
   const missing = Object.entries(config)
@@ -64,7 +92,11 @@ async function getAccessToken(config: ZohoConfig): Promise<string> {
     client_secret: config.clientSecret,
     grant_type: "refresh_token",
   });
-  const r = await fetch(url, { method: "POST", body });
+  const r = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+  });
   const text = await r.text();
   let j: any = {};
   try { j = JSON.parse(text); } catch { /* ignore */ }
@@ -73,7 +105,7 @@ async function getAccessToken(config: ZohoConfig): Promise<string> {
       throw new ZohoSetupError(
         `Zoho connection needs to be reconnected. The saved refresh token was rejected by Zoho (${j.error}) for region "${config.region}". ` +
         `Generate a new Self Client refresh token in the same Zoho data center with scopes ZohoMail.accounts.READ, ZohoMail.messages.READ, ZohoMail.folders.READ, then update the saved ZOHO_MAIL_REFRESH_TOKEN secret.`,
-        { zoho_error: j.error, region: config.region }
+        { zoho_error: j.error, region: config.region, loaded: config.diagnostics }
       );
     }
     throw new Error(`Zoho OAuth failed (${r.status}): ${text}`);
