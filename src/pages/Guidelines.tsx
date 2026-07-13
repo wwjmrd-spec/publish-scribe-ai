@@ -68,8 +68,8 @@ function GuidelinesBody() {
             <tbody>
               <tr className="border-t border-[hsl(var(--glass-border))]">
                 <td className="px-4 py-2">Publication Fee for 1 Article</td>
-                <td className="px-4 py-2">Rs 1200</td>
-                <td className="px-4 py-2">$30</td>
+                <td className="px-4 py-2">Rs 1199</td>
+                <td className="px-4 py-2">$29</td>
               </tr>
             </tbody>
           </table>
