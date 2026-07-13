@@ -334,6 +334,7 @@ export default function AdminDiscounts() {
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Max/User</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Active</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">In Cart</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Default (auto-apply)</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Actions</th>
                   </tr>
                 </thead>
@@ -392,6 +393,17 @@ export default function AdminDiscounts() {
                             checked={(discount as any).show_in_cart || false}
                             onCheckedChange={(checked) => toggleShowInCartMutation.mutate({ id: discount.id, show_in_cart: checked })}
                           />
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              checked={(discount as any).is_default || false}
+                              onCheckedChange={(checked) => toggleDefaultMutation.mutate({ id: discount.id, makeDefault: checked })}
+                            />
+                            {(discount as any).is_default && (
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-primary/20 text-primary font-semibold">DEFAULT</span>
+                            )}
+                          </div>
                         </td>
                         <td className="py-3 px-4">
                           <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => deleteMutation.mutate(discount.id)}>
