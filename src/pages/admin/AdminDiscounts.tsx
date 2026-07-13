@@ -185,6 +185,22 @@ export default function AdminDiscounts() {
     onError: (error: any) => toast.error('Failed to update: ' + (error?.message || 'Unknown error')),
   });
 
+  const toggleDefaultMutation = useMutation({
+    mutationFn: async ({ id, makeDefault }: { id: string; makeDefault: boolean }) => {
+      const { error } = await supabase
+        .from('discount_codes')
+        .update({ is_default: makeDefault, auto_apply: makeDefault } as any)
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['admin-discounts'] });
+      await queryClient.refetchQueries({ queryKey: ['admin-discounts'] });
+      toast.success('Default coupon updated — it will auto-apply on the cart');
+    },
+    onError: (error: any) => toast.error('Failed to update: ' + (error?.message || 'Unknown error')),
+  });
+
   const resetForm = () => {
     setFormData({
       code: '',
