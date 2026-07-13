@@ -168,7 +168,24 @@ export default function Cart() {
         });
         return;
       }
-      // 2) Fall back to admin-configured auto-apply code
+      // 2) Prefer the admin-marked Default coupon (is_default + auto_apply)
+      const { data: defaultCoupon } = await supabase.rpc('get_default_auto_apply_discount' as any);
+      const def: any = Array.isArray(defaultCoupon) ? defaultCoupon[0] : defaultCoupon;
+      if (def && def.is_active) {
+        setDiscountCode(def.code);
+        setAppliedDiscount({
+          code: def.code,
+          value: Number(def.discount_value),
+          type: def.discount_type as 'percentage' | 'fixed',
+        });
+        toast({
+          title: 'Default discount applied 🎁',
+          description: `${def.discount_type === 'percentage' ? def.discount_value + '%' : def.discount_value} off — code ${def.code}`,
+        });
+        return;
+      }
+
+      // 3) Legacy fallback: admin_settings auto_apply_discount_code
       const { data: cfg } = await supabase
         .from('admin_settings').select('setting_value').eq('setting_key', 'auto_apply_discount_code').maybeSingle();
       const adminCode = (cfg?.setting_value as string | undefined)?.trim();

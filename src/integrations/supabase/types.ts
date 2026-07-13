@@ -893,6 +893,7 @@ export type Database = {
         Row: {
           applies_to: string
           article_position_limit: string
+          auto_apply: boolean
           code: string
           created_at: string | null
           created_by: string | null
@@ -902,6 +903,7 @@ export type Database = {
           end_date: string
           id: string
           is_active: boolean | null
+          is_default: boolean
           max_uses_per_user: number | null
           show_in_cart: boolean
           specific_article_ids: string[] | null
@@ -912,6 +914,7 @@ export type Database = {
         Insert: {
           applies_to?: string
           article_position_limit?: string
+          auto_apply?: boolean
           code: string
           created_at?: string | null
           created_by?: string | null
@@ -921,6 +924,7 @@ export type Database = {
           end_date: string
           id?: string
           is_active?: boolean | null
+          is_default?: boolean
           max_uses_per_user?: number | null
           show_in_cart?: boolean
           specific_article_ids?: string[] | null
@@ -931,6 +935,7 @@ export type Database = {
         Update: {
           applies_to?: string
           article_position_limit?: string
+          auto_apply?: boolean
           code?: string
           created_at?: string | null
           created_by?: string | null
@@ -940,6 +945,7 @@ export type Database = {
           end_date?: string
           id?: string
           is_active?: boolean | null
+          is_default?: boolean
           max_uses_per_user?: number | null
           show_in_cart?: boolean
           specific_article_ids?: string[] | null
@@ -1919,6 +1925,25 @@ export type Database = {
       }
     }
     Functions: {
+      get_default_auto_apply_discount: {
+        Args: never
+        Returns: {
+          applies_to: string
+          article_position_limit: string
+          code: string
+          currency: Database["public"]["Enums"]["discount_currency"]
+          discount_type: Database["public"]["Enums"]["discount_type"]
+          discount_value: number
+          end_date: string
+          id: string
+          is_active: boolean
+          max_uses_per_user: number
+          specific_article_ids: string[]
+          start_date: string
+          usage_limit: number
+          used_count: number
+        }[]
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["user_role"]
