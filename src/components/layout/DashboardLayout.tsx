@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { GuidedTour } from '@/components/onboarding/GuidedTour';
+import { HelpButton } from '@/components/help/HelpButton';
 import { useSubscription } from '@/hooks/useSubscription';
 
 interface NavItem {
@@ -338,6 +339,9 @@ export function DashboardLayout({ children, type }: DashboardLayoutProps) {
       {showTour && (
         <GuidedTour type={type} onComplete={handleTourComplete} />
       )}
+
+      {/* Floating help button for authors */}
+      {type === 'author' && <HelpButton />}
     </div>
   );
 }
