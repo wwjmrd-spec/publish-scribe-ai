@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { GuidedTour } from '@/components/onboarding/GuidedTour';
+import { HelpButton } from '@/components/help/HelpButton';
 import { useSubscription } from '@/hooks/useSubscription';
 
 interface NavItem {
