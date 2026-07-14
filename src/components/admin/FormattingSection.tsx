@@ -38,9 +38,9 @@ export function FormattingSection({ articleId }: Props) {
       if (error) throw error;
       return data;
     },
-    refetchInterval: (data: any) =>
-      data?.formatting_status === 'formatting' ? 3000 : false,
-  });
+    refetchInterval: (query: any) =>
+      query?.state?.data?.formatting_status === 'formatting' ? 3000 : false,
+    refetchIntervalInBackground: true,
 
   const formatMut = useMutation({
     mutationFn: async () => {
