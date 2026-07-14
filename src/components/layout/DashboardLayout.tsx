@@ -339,6 +339,9 @@ export function DashboardLayout({ children, type }: DashboardLayoutProps) {
       {showTour && (
         <GuidedTour type={type} onComplete={handleTourComplete} />
       )}
+
+      {/* Floating help button for authors */}
+      {type === 'author' && <HelpButton />}
     </div>
   );
 }
