@@ -280,20 +280,19 @@ serve(async (req) => {
           overall_score: over,
           report_url: reportFileName,
           scores_edited: true,
-          // Reset approval if it was already approved – admin must re-approve
-          approved: false,
-          approved_at: null,
-          approved_by: null,
         })
         .eq("id", reviewId);
       if (updErr) return jsonResponse({ error: "Failed to update review" }, 500);
 
-      // Also clear the public-facing report on the article so the author doesn't
-      // see the old report until re-approval
-      await supabase
-        .from("articles")
-        .update({ review_report_url: null })
-        .eq("id", review.article_id);
+      // If this review was already approved (author already has access),
+      // update the article's public report URL so the author sees the new
+      // report immediately without another approval step.
+      if (review.approved) {
+        await supabase
+          .from("articles")
+          .update({ review_report_url: reportFileName })
+          .eq("id", review.article_id);
+      }
 
       return jsonResponse({ success: true, reportUrl: reportFileName });
     }
