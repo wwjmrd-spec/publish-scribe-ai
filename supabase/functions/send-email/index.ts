@@ -1402,6 +1402,27 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Missing required field: template");
     }
 
+    // Append unsubscribe footer for reminder/marketing style emails when
+    // the caller provided a signed unsubscribe URL in data.unsubscribeUrl.
+    const unsubUrl = (data as any)?.unsubscribeUrl as string | undefined;
+    const unsubCategoryLabel = (data as any)?.unsubscribeLabel as string | undefined;
+    if (unsubUrl) {
+      const footer = `
+        <div style="margin-top:24px;padding:16px;border-top:1px solid rgba(255,255,255,0.08);text-align:center;font-size:12px;color:#94a3b8;font-family:Arial,sans-serif;line-height:1.6;">
+          You are receiving this ${unsubCategoryLabel || "notification"} from WWJMRD.
+          <br/>
+          <a href="${unsubUrl}" style="color:#60a5fa;text-decoration:underline;">Unsubscribe from these emails</a>
+          &nbsp;·&nbsp;
+          <a href="https://wwjmrdai.online/author/email-preferences" style="color:#60a5fa;text-decoration:underline;">Manage email preferences</a>
+        </div>`;
+      // Insert before </body> if present, else append.
+      if (/<\/body>/i.test(emailHtml)) {
+        emailHtml = emailHtml.replace(/<\/body>/i, `${footer}</body>`);
+      } else {
+        emailHtml = `${emailHtml}${footer}`;
+      }
+    }
+
     console.log(`Sending ${template} email to: ${to}, subject: ${emailSubject}, isAdmin: ${isAdmin}, providerOverride: ${providerOverride || "(default)"}`);
 
     let emailResponse: any = null;
