@@ -1043,6 +1043,81 @@ export type Database = {
         }
         Relationships: []
       }
+      email_preference_audit: {
+        Row: {
+          action: string
+          actor_id: string | null
+          author_id: string
+          category: string
+          created_at: string
+          email: string | null
+          id: string
+          ip_address: string | null
+          source: string
+          user_agent: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          author_id: string
+          category: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          ip_address?: string | null
+          source?: string
+          user_agent?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          author_id?: string
+          category?: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          ip_address?: string | null
+          source?: string
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
+      email_preferences: {
+        Row: {
+          announcements_enabled: boolean
+          author_id: string
+          created_at: string
+          email: string
+          fee_reminder_enabled: boolean
+          id: string
+          marketing_enabled: boolean
+          revision_requested_enabled: boolean
+          updated_at: string
+        }
+        Insert: {
+          announcements_enabled?: boolean
+          author_id: string
+          created_at?: string
+          email: string
+          fee_reminder_enabled?: boolean
+          id?: string
+          marketing_enabled?: boolean
+          revision_requested_enabled?: boolean
+          updated_at?: string
+        }
+        Update: {
+          announcements_enabled?: boolean
+          author_id?: string
+          created_at?: string
+          email?: string
+          fee_reminder_enabled?: boolean
+          id?: string
+          marketing_enabled?: boolean
+          revision_requested_enabled?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       email_templates: {
         Row: {
           html: string
@@ -1064,6 +1139,30 @@ export type Database = {
           template_key?: string
           updated_at?: string
           updated_by?: string | null
+        }
+        Relationships: []
+      }
+      email_unsubscribe_tokens: {
+        Row: {
+          author_id: string
+          category: string
+          created_at: string
+          id: string
+          token: string
+        }
+        Insert: {
+          author_id: string
+          category: string
+          created_at?: string
+          id?: string
+          token: string
+        }
+        Update: {
+          author_id?: string
+          category?: string
+          created_at?: string
+          id?: string
+          token?: string
         }
         Relationships: []
       }
@@ -1958,6 +2057,10 @@ export type Database = {
       increment_plan_usage: {
         Args: { p_field: string; p_usage_month: string; p_user_id: string }
         Returns: undefined
+      }
+      is_email_category_enabled: {
+        Args: { _author_id: string; _category: string }
+        Returns: boolean
       }
       lookup_discount_code: {
         Args: { p_code: string }

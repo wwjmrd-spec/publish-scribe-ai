@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { getUnsubscribeUrl, isCategoryEnabled, CATEGORY_LABEL } from "../_shared/emailPreferences.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -192,6 +193,13 @@ serve(async (req: Request) => {
       // longer limit each urgency level to a single send.
 
       try {
+        // Respect author's email preferences.
+        if (!(await isCategoryEnabled(supabase, article.author_id, "fee_reminder"))) {
+          skipped.push(`${article.reference_number}: author unsubscribed from fee_reminder`);
+          continue;
+        }
+        const unsubUrl = await getUnsubscribeUrl(supabase, article.author_id, "fee_reminder");
+
         const pageCount = (article as any).page_count || 0;
         const pageMessage = pageCount > 2
           ? ` Your article has ${pageCount} pages, which exceeds the 2-page free publication limit.`
@@ -217,6 +225,8 @@ serve(async (req: Request) => {
               deadline: deadlineText,
               daysUntilDeadline,
               daysSinceAcceptance: ageDays,
+              unsubscribeUrl: unsubUrl,
+              unsubscribeLabel: CATEGORY_LABEL.fee_reminder,
             },
           },
         });
@@ -271,6 +281,10 @@ serve(async (req: Request) => {
         }
 
         try {
+          if (!(await isCategoryEnabled(supabase, (art as any).author_id, "revision_requested"))) {
+            continue;
+          }
+          const unsubUrl = await getUnsubscribeUrl(supabase, (art as any).author_id, "revision_requested");
           const { error: emailError } = await supabase.functions.invoke("send-email", {
             body: {
               to: profile.email,
@@ -283,6 +297,8 @@ serve(async (req: Request) => {
                 articleTitle: (art as any).title,
                 referenceNumber: (art as any).reference_number,
                 pageCount: (art as any).page_count || "N/A",
+                unsubscribeUrl: unsubUrl,
+                unsubscribeLabel: CATEGORY_LABEL.revision_requested,
               },
             },
           });

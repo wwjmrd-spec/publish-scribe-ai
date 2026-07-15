@@ -52,6 +52,9 @@ import AdminEmailDrafts from "./pages/admin/AdminEmailDrafts";
 import AdminEmailKB from "./pages/admin/AdminEmailKB";
 import AdminEmailFAQ from "./pages/admin/AdminEmailFAQ";
 import AdminEmailAssistantSettings from "./pages/admin/AdminEmailAssistantSettings";
+import AdminEmailPreferences from "./pages/admin/AdminEmailPreferences";
+import EmailPreferences from "./pages/author/EmailPreferences";
+import Unsubscribe from "./pages/Unsubscribe";
 import NotFound from "./pages/NotFound";
 import PublicPublications from "./pages/PublicPublications";
 import PublicArticleAbstract from "./pages/PublicArticleAbstract";
@@ -98,6 +101,8 @@ const App = () => (
             <Route path="/contact" element={<Contact />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/unsubscribe" element={<Unsubscribe />} />
+            
             
             {/* Author Routes */}
             <Route 
@@ -188,6 +193,9 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
+            <Route path="/author/email-preferences" element={<ProtectedRoute allowedRoles={['author']}><EmailPreferences /></ProtectedRoute>} />
+            <Route path="/admin/email-preferences" element={<ProtectedRoute allowedRoles={['admin']}><AdminEmailPreferences /></ProtectedRoute>} />
+            
             
             {/* Admin Routes */}
             <Route 
