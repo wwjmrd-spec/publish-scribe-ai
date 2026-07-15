@@ -62,6 +62,7 @@ const authorNavItems: NavItem[] = [
   { label: 'Rewards', href: '/author/rewards', icon: Gift, tourId: 'rewards' },
   { label: 'Guidelines', href: '/guidelines', icon: BookOpen },
   { label: 'Contact Us', href: '/contact', icon: MessageCircle },
+  { label: 'Email Preferences', href: '/author/email-preferences', icon: Mail },
   { label: 'Profile', href: '/author/profile', icon: UserCircle, tourId: 'profile' },
 ];
 
