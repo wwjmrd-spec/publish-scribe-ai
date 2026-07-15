@@ -85,6 +85,7 @@ const adminNavItems: NavItem[] = [
   { label: 'Notifications', href: '/admin/notifications', icon: Megaphone },
   { label: 'Sent Emails', href: '/admin/email-log', icon: Mail },
   { label: 'Email Templates', href: '/admin/email-templates', icon: Mail },
+  { label: 'Email Preferences', href: '/admin/email-preferences', icon: Mail },
   { label: 'AI Email Assistant', href: '/admin/email-assistant', icon: Wand2 },
   { label: 'Publication Order', href: '/admin/publication-order', icon: ListOrdered },
   { label: 'Questions', href: '/admin/questions', icon: MessageCircle },
