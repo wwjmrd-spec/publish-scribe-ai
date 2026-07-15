@@ -447,7 +447,7 @@ export default function MyArticles() {
             <FileText className="w-4 h-4" />
             <span>
               Review reports: {subscription.reviewReportsUsed}/{subscription.reviewReportsLimit} used
-              {subscription.plan === 'free' && ' this period (Free plan — 1 free per article, then paid)'}
+              {subscription.plan === 'free' && ' (Free plan — 2 lifetime free downloads, then ₹100 / $5 each)'}
               {subscription.plan === 'pro' && ' this month (Pro plan)'}
             </span>
             {(articles && articles.length > 0) && (
