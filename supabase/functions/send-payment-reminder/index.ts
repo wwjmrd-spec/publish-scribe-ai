@@ -193,6 +193,13 @@ serve(async (req: Request) => {
       // longer limit each urgency level to a single send.
 
       try {
+        // Respect author's email preferences.
+        if (!(await isCategoryEnabled(supabase, article.author_id, "fee_reminder"))) {
+          skipped.push(`${article.reference_number}: author unsubscribed from fee_reminder`);
+          continue;
+        }
+        const unsubUrl = await getUnsubscribeUrl(supabase, article.author_id, "fee_reminder");
+
         const pageCount = (article as any).page_count || 0;
         const pageMessage = pageCount > 2
           ? ` Your article has ${pageCount} pages, which exceeds the 2-page free publication limit.`
@@ -218,6 +225,8 @@ serve(async (req: Request) => {
               deadline: deadlineText,
               daysUntilDeadline,
               daysSinceAcceptance: ageDays,
+              unsubscribeUrl: unsubUrl,
+              unsubscribeLabel: CATEGORY_LABEL.fee_reminder,
             },
           },
         });
