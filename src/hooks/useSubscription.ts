@@ -17,7 +17,7 @@ export interface SubscriptionInfo {
   freePeriodKey: string | null;
 }
 
-const FREE_REVIEW_LIMIT = 1; // 1 free review report per article (tracked per-article server-side)
+const FREE_REVIEW_LIMIT = 2; // 2 lifetime free review-report downloads across all articles.
 const PRO_REVIEW_LIMIT = 10; // 10 review reports per calendar month for Pro
 const PRO_COAUTHOR_LIMIT = 4; // per calendar month
 
