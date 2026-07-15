@@ -193,6 +193,9 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
+            <Route path="/author/email-preferences" element={<ProtectedRoute allowedRoles={['author']}><EmailPreferences /></ProtectedRoute>} />
+            <Route path="/admin/email-preferences" element={<ProtectedRoute allowedRoles={['admin']}><AdminEmailPreferences /></ProtectedRoute>} />
+            
             
             {/* Admin Routes */}
             <Route 
