@@ -781,9 +781,9 @@ export default function MyArticles() {
           <AlertDialogHeader>
             <AlertDialogTitle>Buy Review Report Download</AlertDialogTitle>
             <AlertDialogDescription>
-              You've already used your 1 free review-report download for{' '}
+              You've used your 2 free review-report downloads. To download{' '}
               <span className="font-semibold text-foreground">{payReportDialog?.title}</span>
-              {payReportDialog?.refNum ? ` (${payReportDialog.refNum})` : ''}. Pay{' '}
+              {payReportDialog?.refNum ? ` (${payReportDialog.refNum})` : ''}, pay{' '}
               <span className="font-semibold text-foreground">
                 {payReportDialog?.currency === 'INR'
                   ? `₹${payReportDialog?.amount ?? 100}`
