@@ -217,10 +217,19 @@ serve(async (req) => {
 
           logDownloadType = "pro";
         } else {
-          const usedFree = !!article.free_review_report_downloaded;
-          const paid = !!article.review_report_paid;
+          // Lifetime free tier: 2 free review-report downloads across ALL articles.
+          const FREE_LIFETIME = 2;
 
-          if (usedFree && !paid) {
+          const { count: lifetimeFreeUsed } = await supabase
+            .from("review_report_downloads")
+            .select("id", { count: "exact", head: true })
+            .eq("author_id", userId)
+            .eq("download_type", "free");
+
+          const paid = !!article.review_report_paid;
+          const usedCount = lifetimeFreeUsed ?? 0;
+
+          if (usedCount >= FREE_LIFETIME && !paid) {
             const { data: profile } = await supabase
               .from("profiles")
               .select("is_indian")
@@ -229,13 +238,15 @@ serve(async (req) => {
             const isIndian = !!profile?.is_indian;
             return new Response(
               JSON.stringify({
-                error: "Payment required to download this review report.",
+                error: "You've used your 2 free review-report downloads. Please pay to download this report or upgrade to Pro.",
                 paymentRequired: true,
                 priceInr: 100,
                 priceUsd: 5,
                 currency: isIndian ? "INR" : "USD",
                 amount: isIndian ? 100 : 5,
                 articleId,
+                lifetimeFreeUsed: usedCount,
+                lifetimeFreeLimit: FREE_LIFETIME,
               }),
               { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
             );
@@ -244,15 +255,9 @@ serve(async (req) => {
           const patch: Record<string, unknown> = {
             review_report_download_count: (article.review_report_download_count ?? 0) + 1,
           };
-          if (!usedFree) patch.free_review_report_downloaded = true;
+          if (!article.free_review_report_downloaded) patch.free_review_report_downloaded = true;
           if (paid) patch.review_report_paid = false;
           await supabase.from("articles").update(patch).eq("id", articleId);
-
-          await supabase.rpc("increment_plan_usage", {
-            p_user_id: userId,
-            p_field: "review_reports_used",
-            p_usage_month: periodKey,
-          });
 
           logDownloadType = paid ? "paid" : "free";
         }
