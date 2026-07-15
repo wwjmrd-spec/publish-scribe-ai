@@ -281,6 +281,10 @@ serve(async (req: Request) => {
         }
 
         try {
+          if (!(await isCategoryEnabled(supabase, (art as any).author_id, "revision_requested"))) {
+            continue;
+          }
+          const unsubUrl = await getUnsubscribeUrl(supabase, (art as any).author_id, "revision_requested");
           const { error: emailError } = await supabase.functions.invoke("send-email", {
             body: {
               to: profile.email,
@@ -293,6 +297,8 @@ serve(async (req: Request) => {
                 articleTitle: (art as any).title,
                 referenceNumber: (art as any).reference_number,
                 pageCount: (art as any).page_count || "N/A",
+                unsubscribeUrl: unsubUrl,
+                unsubscribeLabel: CATEGORY_LABEL.revision_requested,
               },
             },
           });
