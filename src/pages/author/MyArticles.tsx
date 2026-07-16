@@ -39,6 +39,9 @@ import { WithdrawArticleDialog } from '@/components/articles/WithdrawArticleDial
 import { GalleyProofReviewSection } from '@/components/articles/GalleyProofReviewSection';
 import { CopyrightFormSection } from '@/components/articles/CopyrightFormSection';
 import { ManageCoAuthorsDialog } from '@/components/articles/ManageCoAuthorsDialog';
+import { PublicationCard } from '@/components/articles/PublicationCard';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ChevronDown, Share2 } from 'lucide-react';
 
 export default function MyArticles() {
   const { user } = useAuth();
@@ -299,7 +302,8 @@ export default function MyArticles() {
           galley_proof_deadline, galley_proof_pdf_url, galley_proof_word_url,
           allow_withdrawal, document_url, page_count, keywords,
           author_name, copyright_form_url, allow_author_edit,
-          review_report_download_count, free_review_report_downloaded, review_report_paid
+          review_report_download_count, free_review_report_downloaded, review_report_paid,
+          publication_year, volume, issue, page_number, published_link
         `)
         .eq('author_id', user?.id)
         .order('created_at', { ascending: false })
@@ -750,6 +754,43 @@ export default function MyArticles() {
 
                     {/* Copyright Form Upload */}
                     <CopyrightFormSection article={article} />
+
+                    {/* Shareable Publication Card (published or ready-to-publish articles) */}
+                    {['published', 'galley_proof_sent', 'manuscript_accepted'].includes(article.status) && (
+                      <Collapsible>
+                        <CollapsibleTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full justify-between border-primary/30 text-primary hover:bg-primary/10"
+                          >
+                            <span className="flex items-center gap-2">
+                              <Share2 className="w-4 h-4" />
+                              Publication Card & Share
+                            </span>
+                            <ChevronDown className="w-4 h-4 transition-transform data-[state=open]:rotate-180" />
+                          </Button>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="pt-4">
+                          <PublicationCard
+                            article={{
+                              id: article.id,
+                              reference_number: article.reference_number,
+                              title: article.title,
+                              author_name: article.author_name,
+                              country: (user?.user_metadata as any)?.country || null,
+                              publication_year: (article as any).publication_year,
+                              volume: (article as any).volume,
+                              issue: (article as any).issue,
+                              page_number: (article as any).page_number,
+                              published_link: (article as any).published_link,
+                              keywords: article.keywords,
+                              abstract: article.abstract,
+                            }}
+                          />
+                        </CollapsibleContent>
+                      </Collapsible>
+                    )}
                   </div>
                 </GlassCard>
               </motion.div>
