@@ -302,7 +302,8 @@ export default function MyArticles() {
           galley_proof_deadline, galley_proof_pdf_url, galley_proof_word_url,
           allow_withdrawal, document_url, page_count, keywords,
           author_name, copyright_form_url, allow_author_edit,
-          review_report_download_count, free_review_report_downloaded, review_report_paid
+          review_report_download_count, free_review_report_downloaded, review_report_paid,
+          publication_year, volume, issue, page_number, published_link
         `)
         .eq('author_id', user?.id)
         .order('created_at', { ascending: false })
