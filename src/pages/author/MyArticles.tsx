@@ -39,6 +39,9 @@ import { WithdrawArticleDialog } from '@/components/articles/WithdrawArticleDial
 import { GalleyProofReviewSection } from '@/components/articles/GalleyProofReviewSection';
 import { CopyrightFormSection } from '@/components/articles/CopyrightFormSection';
 import { ManageCoAuthorsDialog } from '@/components/articles/ManageCoAuthorsDialog';
+import { PublicationCard } from '@/components/articles/PublicationCard';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ChevronDown, Share2 } from 'lucide-react';
 
 export default function MyArticles() {
   const { user } = useAuth();
