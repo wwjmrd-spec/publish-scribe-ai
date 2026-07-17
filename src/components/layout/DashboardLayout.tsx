@@ -32,6 +32,7 @@ import {
   BookOpen,
   MessageCircle,
   ListOrdered,
+  Share2,
 } from 'lucide-react';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { GuidedTour } from '@/components/onboarding/GuidedTour';
