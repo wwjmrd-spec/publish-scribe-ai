@@ -32,6 +32,7 @@ import {
   BookOpen,
   MessageCircle,
   ListOrdered,
+  Share2,
 } from 'lucide-react';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { GuidedTour } from '@/components/onboarding/GuidedTour';
@@ -88,6 +89,7 @@ const adminNavItems: NavItem[] = [
   { label: 'Email Preferences', href: '/admin/email-preferences', icon: Mail },
   { label: 'AI Email Assistant', href: '/admin/email-assistant', icon: Wand2 },
   { label: 'Publication Order', href: '/admin/publication-order', icon: ListOrdered },
+  { label: 'Publication Cards', href: '/admin/publication-cards', icon: Share2 },
   { label: 'Questions', href: '/admin/questions', icon: MessageCircle },
   { label: 'Payment Activity', href: '/admin/payment-activity', icon: ShoppingCart },
   { label: 'Bug Reports', href: '/admin/bug-reports', icon: Bug },

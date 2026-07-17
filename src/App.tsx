@@ -47,6 +47,7 @@ import AdminPublicationForm from "./pages/admin/AdminPublicationForm";
 import AdminSubmitForAuthor from "./pages/admin/AdminSubmitForAuthor";
 import AdminQuestions from "./pages/admin/AdminQuestions";
 import AdminPublicationOrder from "./pages/admin/AdminPublicationOrder";
+import AdminPublicationCards from "./pages/admin/AdminPublicationCards";
 import AdminEmailAssistant from "./pages/admin/AdminEmailAssistant";
 import AdminEmailDrafts from "./pages/admin/AdminEmailDrafts";
 import AdminEmailKB from "./pages/admin/AdminEmailKB";
@@ -411,6 +412,14 @@ const App = () => (
               element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <AdminPublicationOrder />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/publication-cards"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminPublicationCards />
                 </ProtectedRoute>
               }
             />
