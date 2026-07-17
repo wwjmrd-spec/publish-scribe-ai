@@ -1,5 +1,5 @@
 import React from 'react';
-import { QRCodeSVG } from 'qrcode.react';
+import QRCode from 'qrcode';
 import html2canvas from 'html2canvas';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import {
   Send,
   QrCode,
 } from 'lucide-react';
+import logoAsset from '@/assets/wwjmrd-logo.png.asset.json';
 
 export interface PublicationCardData {
   id: string;
@@ -32,7 +33,6 @@ export interface PublicationCardData {
 
 function monthYearFromYearField(y?: string | null) {
   if (!y) return '';
-  // publication_year may be "2026" or "July 2026" or ISO date
   const d = new Date(y);
   if (!isNaN(d.getTime())) {
     return d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
@@ -43,6 +43,7 @@ function monthYearFromYearField(y?: string | null) {
 export function PublicationCard({ article }: { article: PublicationCardData }) {
   const cardRef = React.useRef<HTMLDivElement>(null);
   const [busy, setBusy] = React.useState(false);
+  const [qrDataUrl, setQrDataUrl] = React.useState<string>('');
 
   const publishedLink =
     article.published_link ||
@@ -52,6 +53,24 @@ export function PublicationCard({ article }: { article: PublicationCardData }) {
   const volume = article.volume || '';
   const issue = article.issue || '';
   const pages = article.page_number || '';
+
+  // Generate QR as PNG data URL so html2canvas captures it reliably.
+  React.useEffect(() => {
+    let cancelled = false;
+    QRCode.toDataURL(publishedLink, {
+      errorCorrectionLevel: 'H',
+      margin: 1,
+      width: 512,
+      color: { dark: '#0b3a8f', light: '#ffffff' },
+    })
+      .then((url) => {
+        if (!cancelled) setQrDataUrl(url);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [publishedLink]);
 
   const caption = React.useMemo(() => {
     const parts = [
@@ -69,28 +88,62 @@ export function PublicationCard({ article }: { article: PublicationCardData }) {
     return parts.join('\n');
   }, [article, publishedOn, volume, issue, pages, publishedLink]);
 
+  const waitForImages = async (root: HTMLElement) => {
+    const imgs = Array.from(root.querySelectorAll('img')) as HTMLImageElement[];
+    await Promise.all(
+      imgs.map(
+        (img) =>
+          new Promise<void>((resolve) => {
+            if (img.complete && img.naturalWidth > 0) return resolve();
+            const done = () => resolve();
+            img.addEventListener('load', done, { once: true });
+            img.addEventListener('error', done, { once: true });
+            setTimeout(done, 4000);
+          }),
+      ),
+    );
+  };
+
   const renderCanvas = async () => {
     if (!cardRef.current) return null;
-    // Larger scale for HD output
+    await waitForImages(cardRef.current);
     return await html2canvas(cardRef.current, {
       scale: 2,
       backgroundColor: '#ffffff',
       useCORS: true,
+      allowTaint: true,
       logging: false,
+      windowWidth: cardRef.current.scrollWidth,
+      windowHeight: cardRef.current.scrollHeight,
     });
+  };
+
+  const getBlob = async (): Promise<{ blob: Blob; file: File } | null> => {
+    const canvas = await renderCanvas();
+    if (!canvas) return null;
+    const blob: Blob | null = await new Promise((r) => canvas.toBlob((b) => r(b), 'image/png', 1));
+    if (!blob) return null;
+    const file = new File(
+      [blob],
+      `WWJMRD-${article.reference_number || article.id}.png`,
+      { type: 'image/png' },
+    );
+    return { blob, file };
   };
 
   const downloadImage = async () => {
     try {
       setBusy(true);
-      const canvas = await renderCanvas();
-      if (!canvas) return;
+      const res = await getBlob();
+      if (!res) return;
+      const url = URL.createObjectURL(res.blob);
       const link = document.createElement('a');
-      link.download = `WWJMRD-${article.reference_number || article.id}.png`;
-      link.href = canvas.toDataURL('image/png');
+      link.download = res.file.name;
+      link.href = url;
       link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
       toast.success('Card downloaded');
-    } catch (e: any) {
+    } catch (e) {
       toast.error('Failed to generate image');
     } finally {
       setBusy(false);
@@ -118,24 +171,26 @@ export function PublicationCard({ article }: { article: PublicationCardData }) {
   const nativeShare = async () => {
     try {
       setBusy(true);
-      const canvas = await renderCanvas();
-      const files: File[] = [];
-      if (canvas) {
-        const blob: Blob | null = await new Promise((r) => canvas.toBlob((b) => r(b), 'image/png'));
-        if (blob) files.push(new File([blob], `WWJMRD-${article.reference_number || article.id}.png`, { type: 'image/png' }));
-      }
-      const shareData: any = {
-        title: article.title,
-        text: caption,
-        url: publishedLink,
-      };
+      const res = await getBlob();
+      const files = res ? [res.file] : [];
+      const shareData: any = { title: article.title, text: caption, url: publishedLink };
       if (files.length && (navigator as any).canShare?.({ files })) {
         shareData.files = files;
       }
       if ((navigator as any).share) {
         await (navigator as any).share(shareData);
       } else {
+        // Fallback: download image and copy caption so user can paste anywhere
+        if (res) {
+          const url = URL.createObjectURL(res.blob);
+          const link = document.createElement('a');
+          link.download = res.file.name;
+          link.href = url;
+          link.click();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
         await copyCaption();
+        toast.success('Card downloaded & caption copied — paste it with the image');
       }
     } catch {
       /* user cancelled */
@@ -144,16 +199,37 @@ export function PublicationCard({ article }: { article: PublicationCardData }) {
     }
   };
 
-  const shareUrls = {
-    whatsapp: `https://api.whatsapp.com/send?text=${encodeURIComponent(caption)}`,
-    facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(publishedLink)}&quote=${encodeURIComponent(caption)}`,
-    twitter: `https://twitter.com/intent/tweet?url=${encodeURIComponent(publishedLink)}&text=${encodeURIComponent(`Published in WWJMRD: ${article.title}`)}`,
-    linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(publishedLink)}`,
-    telegram: `https://t.me/share/url?url=${encodeURIComponent(publishedLink)}&text=${encodeURIComponent(caption)}`,
-  };
-
-  const openShare = (url: string) => {
-    window.open(url, '_blank', 'noopener,noreferrer');
+  // For platforms that don't support attaching a file via URL scheme,
+  // download the PNG first and copy the caption so the user can attach + paste.
+  const shareToPlatform = async (
+    platform: 'whatsapp' | 'facebook' | 'twitter' | 'linkedin' | 'telegram',
+  ) => {
+    try {
+      setBusy(true);
+      const res = await getBlob();
+      if (res) {
+        const url = URL.createObjectURL(res.blob);
+        const link = document.createElement('a');
+        link.download = res.file.name;
+        link.href = url;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+      try {
+        await navigator.clipboard.writeText(caption);
+      } catch {}
+      const urls: Record<string, string> = {
+        whatsapp: `https://api.whatsapp.com/send?text=${encodeURIComponent(caption)}`,
+        facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(publishedLink)}&quote=${encodeURIComponent(caption)}`,
+        twitter: `https://twitter.com/intent/tweet?url=${encodeURIComponent(publishedLink)}&text=${encodeURIComponent(`Published in WWJMRD: ${article.title}`)}`,
+        linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(publishedLink)}`,
+        telegram: `https://t.me/share/url?url=${encodeURIComponent(publishedLink)}&text=${encodeURIComponent(caption)}`,
+      };
+      window.open(urls[platform], '_blank', 'noopener,noreferrer');
+      toast.success('Card downloaded & caption copied — attach the image and paste the caption');
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -165,10 +241,10 @@ export function PublicationCard({ article }: { article: PublicationCardData }) {
           className="mx-auto"
           style={{
             width: 900,
-            minHeight: 900,
+            height: 900,
             background: '#ffffff',
             color: '#0f172a',
-            fontFamily: 'Inter, "Helvetica Neue", Arial, sans-serif',
+            fontFamily: 'Arial, Helvetica, sans-serif',
             position: 'relative',
             overflow: 'hidden',
           }}
@@ -192,9 +268,10 @@ export function PublicationCard({ article }: { article: PublicationCardData }) {
               right: 30,
               color: '#e6f0ff',
               textAlign: 'right',
-              lineHeight: 1.35,
+              lineHeight: '1.35',
               fontSize: 14,
               fontWeight: 500,
+              width: 300,
             }}
           >
             Advancing Knowledge<br />
@@ -202,56 +279,44 @@ export function PublicationCard({ article }: { article: PublicationCardData }) {
             Impacting the World
           </div>
 
-          {/* Header */}
-          <div style={{ padding: '32px 40px 0 40px', display: 'flex', alignItems: 'center', gap: 14 }}>
-            <div
-              style={{
-                width: 64,
-                height: 64,
-                borderRadius: 10,
-                background: '#1e6feb',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontSize: 32,
-                fontWeight: 700,
-              }}
-            >
-              📖
-            </div>
-            <div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: '#0b3a8f', letterSpacing: -0.5 }}>
-                WORLD WIDE <span style={{ color: '#1e6feb' }}>JOURNAL</span>
-              </div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#334155', letterSpacing: 1 }}>
-                OF MULTIDISCIPLINARY RESEARCH AND DEVELOPMENT
-              </div>
-              <div style={{ marginTop: 6, fontSize: 9, fontWeight: 700, color: '#1e6feb', letterSpacing: 2 }}>
-                RESEARCH TODAY | INNOVATION TOMORROW | IMPACT FOREVER
-              </div>
-            </div>
+          {/* Header with logo */}
+          <div style={{ padding: '32px 40px 0 40px' }}>
+            <img
+              src={logoAsset.url}
+              alt="WWJMRD"
+              crossOrigin="anonymous"
+              style={{ height: 70, width: 'auto', display: 'block' }}
+            />
           </div>
 
           {/* Congratulations block */}
-          <div style={{ padding: '28px 40px 0 40px' }}>
-            <div style={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: 34, color: '#1e6feb' }}>
+          <div style={{ padding: '20px 40px 0 40px' }}>
+            <div
+              style={{
+                fontFamily: 'Georgia, serif',
+                fontStyle: 'italic',
+                fontSize: 34,
+                color: '#1e6feb',
+                lineHeight: '1',
+              }}
+            >
               Congratulations!
             </div>
             <div
               style={{
-                fontSize: 76,
+                fontSize: 72,
                 fontWeight: 900,
                 color: '#0b3a8f',
-                lineHeight: 1,
-                letterSpacing: -2,
+                lineHeight: '1',
+                letterSpacing: '-2px',
+                marginTop: 8,
               }}
             >
               PUBLISHED
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10 }}>
               <div style={{ height: 2, width: 60, background: '#1e6feb' }} />
-              <div style={{ fontSize: 14, fontWeight: 700, color: '#1e6feb', letterSpacing: 4 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#1e6feb', letterSpacing: '4px' }}>
                 IN WWJMRD
               </div>
               <div style={{ height: 2, width: 60, background: '#1e6feb' }} />
@@ -259,68 +324,56 @@ export function PublicationCard({ article }: { article: PublicationCardData }) {
 
             <div
               style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
+                display: 'inline-block',
                 marginTop: 18,
                 background: 'linear-gradient(90deg, #1e6feb, #4a90ff)',
-                color: 'white',
+                color: '#ffffff',
                 padding: '8px 22px',
                 borderRadius: 30,
                 fontSize: 13,
                 fontWeight: 700,
-                letterSpacing: 2,
+                letterSpacing: '2px',
               }}
             >
-              📄 RESEARCH ARTICLE
+              RESEARCH ARTICLE
             </div>
 
             {/* Title */}
             <div
               style={{
                 marginTop: 18,
-                fontSize: 26,
+                fontSize: 24,
                 fontWeight: 800,
                 color: '#0f172a',
-                lineHeight: 1.25,
-                maxWidth: 500,
+                lineHeight: '1.3',
+                maxWidth: 480,
               }}
             >
               {article.title}
             </div>
 
             {/* Author */}
-            <div style={{ marginTop: 18, display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div
-                style={{
-                  width: 42,
-                  height: 42,
-                  borderRadius: '50%',
-                  background: '#e6f0ff',
-                  color: '#1e6feb',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 22,
-                  fontWeight: 700,
-                }}
-              >
-                👤
+            <div style={{ marginTop: 18, maxWidth: 480 }}>
+              <div style={{ fontSize: 20, fontWeight: 700, color: '#1e6feb', lineHeight: '1.2' }}>
+                {article.author_name || 'Author'}
               </div>
-              <div>
-                <div style={{ fontSize: 20, fontWeight: 700, color: '#1e6feb' }}>
-                  {article.author_name || 'Author'}
+              {article.country && (
+                <div style={{ fontSize: 13, color: '#475569', fontWeight: 600, marginTop: 4 }}>
+                  {article.country}
                 </div>
-                {article.country && (
-                  <div style={{ fontSize: 13, color: '#475569', fontWeight: 600 }}>
-                    🌍 {article.country}
-                  </div>
-                )}
-              </div>
+              )}
             </div>
 
             {/* Meta pills */}
-            <div style={{ marginTop: 18, display: 'flex', gap: 10, flexWrap: 'wrap', maxWidth: 500 }}>
+            <div
+              style={{
+                marginTop: 18,
+                display: 'flex',
+                gap: 10,
+                flexWrap: 'wrap',
+                maxWidth: 500,
+              }}
+            >
               <MetaChip label="PUBLISHED IN" value={publishedOn || '—'} />
               <MetaChip label="VOLUME · ISSUE" value={`Vol. ${volume || '—'} · Issue ${issue || '—'}`} />
               <MetaChip label="PAGES" value={pages || '—'} />
@@ -342,26 +395,29 @@ export function PublicationCard({ article }: { article: PublicationCardData }) {
                   style={{
                     display: 'inline-block',
                     background: '#0b3a8f',
-                    color: 'white',
+                    color: '#ffffff',
                     padding: '4px 14px',
                     borderRadius: 6,
                     fontSize: 11,
                     fontWeight: 700,
-                    letterSpacing: 1.5,
+                    letterSpacing: '1.5px',
                     marginBottom: 10,
                   }}
                 >
                   RESEARCH HIGHLIGHTS
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div>
                   {(article.keywords?.slice(0, 3) || []).map((k, i) => (
-                    <div key={i} style={{ display: 'flex', gap: 8, fontSize: 13, color: '#334155' }}>
-                      <span style={{ color: '#1e6feb', fontWeight: 700 }}>✓</span>
-                      <span>{k}</span>
+                    <div
+                      key={i}
+                      style={{ fontSize: 13, color: '#334155', lineHeight: '1.5', marginBottom: 4 }}
+                    >
+                      <span style={{ color: '#1e6feb', fontWeight: 700, marginRight: 6 }}>✓</span>
+                      {k}
                     </div>
                   ))}
                   {(!article.keywords || article.keywords.length === 0) && article.abstract && (
-                    <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.5 }}>
+                    <div style={{ fontSize: 12, color: '#475569', lineHeight: '1.5' }}>
                       {article.abstract.slice(0, 180)}
                       {article.abstract.length > 180 ? '…' : ''}
                     </div>
@@ -375,30 +431,50 @@ export function PublicationCard({ article }: { article: PublicationCardData }) {
           <div
             style={{
               position: 'absolute',
-              top: 340,
-              right: 40,
+              top: 200,
+              right: 30,
               width: 300,
               textAlign: 'center',
-              color: 'white',
+              color: '#ffffff',
             }}
           >
-            <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: 1 }}>SCAN TO READ</div>
-            <div style={{ fontSize: 13, fontWeight: 600, opacity: 0.9, marginBottom: 14 }}>THE FULL ARTICLE</div>
+            <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: '1px', lineHeight: '1.2' }}>
+              SCAN TO READ
+            </div>
             <div
               style={{
-                background: 'white',
+                fontSize: 13,
+                fontWeight: 600,
+                opacity: 0.9,
+                marginTop: 4,
+                marginBottom: 14,
+              }}
+            >
+              THE FULL ARTICLE
+            </div>
+            <div
+              style={{
+                background: '#ffffff',
                 padding: 14,
                 borderRadius: 12,
                 display: 'inline-block',
               }}
             >
-              <QRCodeSVG value={publishedLink} size={220} level="H" includeMargin={false} />
+              {qrDataUrl ? (
+                <img
+                  src={qrDataUrl}
+                  alt="QR"
+                  style={{ width: 220, height: 220, display: 'block' }}
+                />
+              ) : (
+                <div style={{ width: 220, height: 220, background: '#eee' }} />
+              )}
             </div>
             <div
               style={{
                 marginTop: 14,
                 background: 'linear-gradient(90deg, #4a90ff, #1e6feb)',
-                color: 'white',
+                color: '#ffffff',
                 padding: '8px 18px',
                 borderRadius: 30,
                 fontSize: 13,
@@ -406,7 +482,7 @@ export function PublicationCard({ article }: { article: PublicationCardData }) {
                 display: 'inline-block',
               }}
             >
-              🌐 www.wwjmrd.online
+              www.wwjmrd.online
             </div>
           </div>
 
@@ -419,20 +495,21 @@ export function PublicationCard({ article }: { article: PublicationCardData }) {
               right: 0,
               height: 70,
               background: '#0b3a8f',
-              color: 'white',
+              color: '#ffffff',
               display: 'flex',
               alignItems: 'center',
               padding: '0 40px',
-              gap: 30,
               fontSize: 12,
               fontWeight: 600,
             }}
           >
-            <div>
+            <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 800, fontSize: 15 }}>www.wwjmrd.online</div>
-              <div style={{ fontSize: 10, opacity: 0.8 }}>Your Research. Our Platform. Global Impact.</div>
+              <div style={{ fontSize: 10, opacity: 0.85, marginTop: 2 }}>
+                Your Research. Our Platform. Global Impact.
+              </div>
             </div>
-            <div style={{ marginLeft: 'auto', textAlign: 'right', fontSize: 11 }}>
+            <div style={{ textAlign: 'right', fontSize: 11, lineHeight: '1.4' }}>
               Indexed | Peer Reviewed<br />
               Multidisciplinary | Open Access
             </div>
@@ -457,27 +534,31 @@ export function PublicationCard({ article }: { article: PublicationCardData }) {
           <Download className="w-4 h-4 mr-1" /> Download Card
         </Button>
         <Button size="sm" variant="outline" onClick={nativeShare} disabled={busy}>
-          <Share2 className="w-4 h-4 mr-1" /> Share
+          <Share2 className="w-4 h-4 mr-1" /> Share (image + caption)
         </Button>
-        <Button size="sm" variant="outline" onClick={() => openShare(shareUrls.whatsapp)}>
+        <Button size="sm" variant="outline" onClick={() => shareToPlatform('whatsapp')} disabled={busy}>
           <MessageCircle className="w-4 h-4 mr-1" /> WhatsApp
         </Button>
-        <Button size="sm" variant="outline" onClick={() => openShare(shareUrls.facebook)}>
+        <Button size="sm" variant="outline" onClick={() => shareToPlatform('facebook')} disabled={busy}>
           <Facebook className="w-4 h-4 mr-1" /> Facebook
         </Button>
-        <Button size="sm" variant="outline" onClick={() => openShare(shareUrls.twitter)}>
+        <Button size="sm" variant="outline" onClick={() => shareToPlatform('twitter')} disabled={busy}>
           <Twitter className="w-4 h-4 mr-1" /> X / Twitter
         </Button>
-        <Button size="sm" variant="outline" onClick={() => openShare(shareUrls.linkedin)}>
+        <Button size="sm" variant="outline" onClick={() => shareToPlatform('linkedin')} disabled={busy}>
           <Linkedin className="w-4 h-4 mr-1" /> LinkedIn
         </Button>
-        <Button size="sm" variant="outline" onClick={() => openShare(shareUrls.telegram)}>
+        <Button size="sm" variant="outline" onClick={() => shareToPlatform('telegram')} disabled={busy}>
           <Send className="w-4 h-4 mr-1" /> Telegram
         </Button>
         <Button size="sm" variant="ghost" onClick={copyLink}>
           <QrCode className="w-4 h-4 mr-1" /> Copy Link
         </Button>
       </div>
+      <p className="text-[11px] text-muted-foreground">
+        Tip: WhatsApp/Facebook/X don't accept image uploads via web links. We download the card and copy
+        the caption for you — just attach the PNG and paste the caption in the opened compose window.
+      </p>
     </div>
   );
 }
@@ -486,9 +567,6 @@ function MetaChip({ label, value }: { label: string; value: string }) {
   return (
     <div
       style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
         padding: '10px 14px',
         border: '1px solid #dbe6f5',
         borderRadius: 10,
@@ -498,23 +576,16 @@ function MetaChip({ label, value }: { label: string; value: string }) {
     >
       <div
         style={{
-          width: 30,
-          height: 30,
-          borderRadius: '50%',
-          background: '#e6f0ff',
+          fontSize: 10,
+          fontWeight: 700,
           color: '#1e6feb',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: 16,
+          letterSpacing: '1px',
+          marginBottom: 2,
         }}
       >
-        📘
+        {label}
       </div>
-      <div>
-        <div style={{ fontSize: 10, fontWeight: 700, color: '#1e6feb', letterSpacing: 1 }}>{label}</div>
-        <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{value}</div>
-      </div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{value}</div>
     </div>
   );
 }
