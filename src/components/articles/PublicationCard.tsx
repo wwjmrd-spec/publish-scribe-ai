@@ -284,12 +284,13 @@ async function createPublicationCanvas(article: PublicationCardData, publishedLi
   ctx.fillStyle = text;
   ctx.font = '900 34px Arial, Helvetica, sans-serif';
   let cursorY = 480;
-  cursorY += drawWrappedText(ctx, article.title, 56, cursorY, 640, 44, 5);
+  cursorY += drawWrappedText(ctx, article.title, 56, cursorY, 640, 44, 4);
 
   cursorY += 26;
+  cursorY = Math.min(cursorY, 674);
   ctx.fillStyle = brightBlue;
   ctx.font = '800 30px Arial, Helvetica, sans-serif';
-  cursorY += drawWrappedText(ctx, article.author_name || 'Author', 56, cursorY, 620, 36, 2);
+  cursorY += drawWrappedText(ctx, article.author_name || 'Author', 56, cursorY, 620, 36, 1);
 
   if (article.country) {
     cursorY += 4;
@@ -299,7 +300,7 @@ async function createPublicationCanvas(article: PublicationCardData, publishedLi
     cursorY += 28;
   }
 
-  const chipY = Math.min(cursorY + 12, 775);
+  const chipY = 770;
   drawMetaChip(ctx, 'PUBLISHED IN', publishedOn || '—', 56, chipY, 224);
   drawMetaChip(ctx, 'VOLUME · ISSUE', `Vol. ${volume || '—'} · Issue ${issue || '—'}`, 298, chipY, 250);
   drawMetaChip(ctx, 'PAGES', pages || '—', 566, chipY, 154);
@@ -494,6 +495,13 @@ export function PublicationCard({ article }: { article: PublicationCardData }) {
       if (platform === 'instagram' && navigator.share && (navigator as any).canShare?.({ files: [res.file] })) {
         await navigator.share({ title: article.title, text: caption, files: [res.file] } as ShareData & { files: File[] });
         toast.success('Choose Instagram and paste the copied caption');
+        setTimeout(() => URL.revokeObjectURL(res.url), 1000);
+        return;
+      }
+
+      if (navigator.share && (navigator as any).canShare?.({ files: [res.file] })) {
+        await navigator.share({ title: article.title, text: caption, files: [res.file] } as ShareData & { files: File[] });
+        toast.success('Card PNG and caption shared');
         setTimeout(() => URL.revokeObjectURL(res.url), 1000);
         return;
       }
