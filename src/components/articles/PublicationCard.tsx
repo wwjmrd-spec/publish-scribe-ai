@@ -485,6 +485,8 @@ export function PublicationCard({ article }: { article: PublicationCardData }) {
   const shareToPlatform = async (
     platform: 'whatsapp' | 'facebook' | 'twitter' | 'linkedin' | 'telegram' | 'instagram',
   ) => {
+    const popup = window.open('', '_blank');
+    if (popup) popup.opener = null;
     try {
       setBusy(true);
       const res = await getCardFile();
@@ -493,6 +495,7 @@ export function PublicationCard({ article }: { article: PublicationCardData }) {
       } catch {}
 
       if (platform === 'instagram' && navigator.share && (navigator as any).canShare?.({ files: [res.file] })) {
+        popup?.close();
         await navigator.share({ title: article.title, text: caption, files: [res.file] } as ShareData & { files: File[] });
         toast.success('Choose Instagram and paste the copied caption');
         setTimeout(() => URL.revokeObjectURL(res.url), 1000);
@@ -500,6 +503,7 @@ export function PublicationCard({ article }: { article: PublicationCardData }) {
       }
 
       if (navigator.share && (navigator as any).canShare?.({ files: [res.file] })) {
+        popup?.close();
         await navigator.share({ title: article.title, text: caption, files: [res.file] } as ShareData & { files: File[] });
         toast.success('Card PNG and caption shared');
         setTimeout(() => URL.revokeObjectURL(res.url), 1000);
@@ -521,10 +525,15 @@ export function PublicationCard({ article }: { article: PublicationCardData }) {
         telegram: `https://t.me/share/url?url=${encodeURIComponent(publishedLink)}&text=${encodeURIComponent(caption)}`,
         instagram: 'https://www.instagram.com/',
       };
-      window.open(urls[platform], '_blank', 'noopener,noreferrer');
+      if (popup) {
+        popup.location.href = urls[platform];
+      } else {
+        window.open(urls[platform], '_blank', 'noopener,noreferrer');
+      }
       toast.success('Screenshot card downloaded and caption copied — upload the PNG in the opened app');
       setTimeout(() => URL.revokeObjectURL(res.url), 1000);
     } catch (error) {
+      popup?.close();
       if ((error as Error)?.name !== 'AbortError') toast.error('Could not prepare share card');
     } finally {
       setBusy(false);
