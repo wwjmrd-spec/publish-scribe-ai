@@ -597,9 +597,6 @@ export function PublicationCard({ article }: { article: PublicationCardData }) {
           <QrCode className="mr-1 h-4 w-4" /> Copy Link
         </Button>
       </div>
-      <p className="text-[11px] text-muted-foreground">
-        The PNG is generated directly from canvas, so the logo, QR code, layout, and text styling are included in the downloaded/shared image.
-      </p>
     </div>
   );
 }
