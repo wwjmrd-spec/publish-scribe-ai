@@ -40,7 +40,7 @@ export default function AdminPublicationCards() {
       const { data, error } = await (supabase as any)
         .from('articles')
         .select(
-          'id, reference_number, title, author_name, country, publication_year, volume, issue, page_number, published_link, keywords, abstract, status, created_at',
+          'id, reference_number, title, author_id, author_name, country, publication_year, volume, issue, page_number, published_link, keywords, abstract, status, created_at',
         )
         .eq('status', 'published')
         .order('created_at', { ascending: false })
