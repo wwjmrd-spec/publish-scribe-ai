@@ -17,6 +17,7 @@ interface PubRow {
   id: string;
   reference_number: string | null;
   title: string;
+  author_id: string | null;
   author_name: string | null;
   country: string | null;
   publication_year: string | null;
