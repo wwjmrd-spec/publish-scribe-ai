@@ -456,6 +456,22 @@ export default function MyArticles() {
           </Button>
         </div>
 
+        {hasAvatar === false && (
+          <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3">
+            <AlertCircle className="w-5 h-5 text-amber-500 shrink-0" />
+            <div className="flex-1 text-sm">
+              <p className="font-semibold text-amber-700 dark:text-amber-300">Add a profile picture</p>
+              <p className="text-xs text-muted-foreground">
+                Your publication cards will look more personal with a photo. You can upload one from your Profile page or directly from any article's Publication Card panel.
+              </p>
+            </div>
+            <Button size="sm" variant="outline" onClick={() => navigate('/author/profile')}>
+              <Upload className="w-4 h-4 mr-1" />
+              Upload Now
+            </Button>
+          </div>
+        )}
+
         {/* Plan Usage Info */}
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-lg bg-muted/50">
           <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
