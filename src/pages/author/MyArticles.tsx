@@ -777,6 +777,7 @@ export default function MyArticles() {
                               id: article.id,
                               reference_number: article.reference_number,
                               title: article.title,
+                              author_id: (article as any).author_id || user?.id || null,
                               author_name: article.author_name,
                               country: (user?.user_metadata as any)?.country || null,
                               publication_year: (article as any).publication_year,
