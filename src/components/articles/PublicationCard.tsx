@@ -13,14 +13,21 @@ import {
   Send,
   Share2,
   Twitter,
+  UserCircle2,
+  Upload,
+  AlertTriangle,
 } from 'lucide-react';
 import logoAsset from '@/assets/wwjmrd-logo.png.asset.json';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 export interface PublicationCardData {
   id: string;
   reference_number?: string | null;
   title: string;
+  author_id?: string | null;
   author_name?: string | null;
+  author_avatar_url?: string | null;
   country?: string | null;
   publication_year?: string | null;
   volume?: string | null;
@@ -33,6 +40,40 @@ export interface PublicationCardData {
 
 const CARD_SIZE = 1200;
 const EXPORT_SCALE = 2;
+
+// Compact country → ISO-2 mapping for flags. Fallback: no flag drawn.
+const COUNTRY_ISO2: Record<string, string> = {
+  india: 'in', 'united states': 'us', 'united states of america': 'us', usa: 'us', 'u.s.a.': 'us',
+  'united kingdom': 'gb', uk: 'gb', 'great britain': 'gb', england: 'gb', scotland: 'gb',
+  canada: 'ca', australia: 'au', 'new zealand': 'nz', ireland: 'ie',
+  germany: 'de', france: 'fr', spain: 'es', italy: 'it', portugal: 'pt', netherlands: 'nl',
+  belgium: 'be', switzerland: 'ch', austria: 'at', sweden: 'se', norway: 'no', denmark: 'dk',
+  finland: 'fi', poland: 'pl', 'czech republic': 'cz', czechia: 'cz', greece: 'gr',
+  hungary: 'hu', romania: 'ro', bulgaria: 'bg', ukraine: 'ua', russia: 'ru',
+  turkey: 'tr', 'saudi arabia': 'sa', uae: 'ae', 'united arab emirates': 'ae',
+  qatar: 'qa', kuwait: 'kw', bahrain: 'bh', oman: 'om', jordan: 'jo', lebanon: 'lb',
+  egypt: 'eg', morocco: 'ma', algeria: 'dz', tunisia: 'tn', libya: 'ly',
+  'south africa': 'za', nigeria: 'ng', kenya: 'ke', ghana: 'gh', ethiopia: 'et',
+  uganda: 'ug', tanzania: 'tz', zimbabwe: 'zw', rwanda: 'rw', sudan: 'sd',
+  china: 'cn', japan: 'jp', 'south korea': 'kr', korea: 'kr', 'north korea': 'kp',
+  taiwan: 'tw', 'hong kong': 'hk', singapore: 'sg', malaysia: 'my', indonesia: 'id',
+  philippines: 'ph', thailand: 'th', vietnam: 'vn', cambodia: 'kh', laos: 'la',
+  myanmar: 'mm', burma: 'mm', bangladesh: 'bd', pakistan: 'pk', nepal: 'np',
+  'sri lanka': 'lk', bhutan: 'bt', maldives: 'mv', afghanistan: 'af', iran: 'ir', iraq: 'iq',
+  israel: 'il', palestine: 'ps', syria: 'sy', yemen: 'ye',
+  mexico: 'mx', brazil: 'br', argentina: 'ar', chile: 'cl', colombia: 'co',
+  peru: 'pe', venezuela: 've', ecuador: 'ec', bolivia: 'bo', uruguay: 'uy', paraguay: 'py',
+  cuba: 'cu', 'dominican republic': 'do', 'puerto rico': 'pr', jamaica: 'jm',
+  kazakhstan: 'kz', uzbekistan: 'uz', azerbaijan: 'az', georgia: 'ge', armenia: 'am',
+  serbia: 'rs', croatia: 'hr', slovenia: 'si', slovakia: 'sk', lithuania: 'lt',
+  latvia: 'lv', estonia: 'ee', belarus: 'by', moldova: 'md',
+};
+
+function countryToIso2(name?: string | null): string | null {
+  if (!name) return null;
+  const k = name.trim().toLowerCase();
+  return COUNTRY_ISO2[k] || null;
+}
 
 function monthYearFromYearField(y?: string | null) {
   if (!y) return '';
@@ -52,12 +93,12 @@ function resolveAssetUrl(url: string) {
   return `${window.location.origin}${url}`;
 }
 
-function loadImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
+function loadImage(src: string): Promise<HTMLImageElement | null> {
+  return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => resolve(img);
-    img.onerror = reject;
+    img.onerror = () => resolve(null);
     img.src = src;
   });
 }
@@ -137,6 +178,46 @@ function drawContainedImage(
   ctx.drawImage(img, x, y + (height - drawHeight) / 2, drawWidth, drawHeight);
 }
 
+function drawCircularAvatar(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement | null,
+  initials: string,
+  cx: number,
+  cy: number,
+  radius: number,
+) {
+  ctx.save();
+  // Outer ring
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius + 4, 0, Math.PI * 2);
+  ctx.fillStyle = '#1e6feb';
+  ctx.fill();
+  // Clip inner circle
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.clip();
+
+  if (img) {
+    const size = radius * 2;
+    const scale = Math.max(size / img.naturalWidth, size / img.naturalHeight);
+    const w = img.naturalWidth * scale;
+    const h = img.naturalHeight * scale;
+    ctx.drawImage(img, cx - w / 2, cy - h / 2, w, h);
+  } else {
+    ctx.fillStyle = '#dbe6f5';
+    ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
+    ctx.fillStyle = '#0b3a8f';
+    ctx.font = `800 ${Math.round(radius * 0.9)}px Arial, Helvetica, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(initials || '?', cx, cy + 2);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+  }
+  ctx.restore();
+}
+
 function drawMetaChip(
   ctx: CanvasRenderingContext2D,
   label: string,
@@ -185,7 +266,18 @@ function makeCaption(
     .join('\n');
 }
 
-async function createPublicationCanvas(article: PublicationCardData, publishedLink: string) {
+function getInitials(name?: string | null) {
+  if (!name) return '?';
+  const parts = name.trim().split(/\s+/);
+  return (parts[0]?.[0] || '') + (parts[1]?.[0] || '');
+}
+
+async function createPublicationCanvas(
+  article: PublicationCardData,
+  publishedLink: string,
+  avatarUrl: string | null,
+  country: string | null,
+) {
   const publishedOn = monthYearFromYearField(article.publication_year);
   const volume = article.volume || '';
   const issue = article.issue || '';
@@ -197,9 +289,14 @@ async function createPublicationCanvas(article: PublicationCardData, publishedLi
     color: { dark: '#0b3a8f', light: '#ffffff' },
   });
 
-  const [logo, qr] = await Promise.all([
+  const iso2 = countryToIso2(country);
+  const flagUrl = iso2 ? `https://flagcdn.com/w160/${iso2}.png` : null;
+
+  const [logo, qr, avatar, flag] = await Promise.all([
     loadImage(resolveAssetUrl(logoAsset.url)),
     loadImage(qrDataUrl),
+    avatarUrl ? loadImage(avatarUrl) : Promise.resolve(null),
+    flagUrl ? loadImage(flagUrl) : Promise.resolve(null),
   ]);
 
   const canvas = document.createElement('canvas');
@@ -241,7 +338,7 @@ async function createPublicationCanvas(article: PublicationCardData, publishedLi
   ctx.fill();
   ctx.globalAlpha = 1;
 
-  drawContainedImage(ctx, logo, 56, 46, 460, 112);
+  if (logo) drawContainedImage(ctx, logo, 56, 46, 460, 112);
 
   ctx.fillStyle = '#e6f0ff';
   ctx.textAlign = 'right';
@@ -286,18 +383,41 @@ async function createPublicationCanvas(article: PublicationCardData, publishedLi
   let cursorY = 480;
   cursorY += drawWrappedText(ctx, article.title, 56, cursorY, 640, 44, 4);
 
-  cursorY += 26;
+  cursorY += 30;
   cursorY = Math.min(cursorY, 674);
+
+  // Circular avatar + author block
+  const avatarRadius = 44;
+  const avatarCx = 56 + avatarRadius;
+  const avatarCy = cursorY + avatarRadius - 8;
+  drawCircularAvatar(ctx, avatar, getInitials(article.author_name).toUpperCase(), avatarCx, avatarCy, avatarRadius);
+
+  const authorTextX = avatarCx + avatarRadius + 18;
   ctx.fillStyle = brightBlue;
   ctx.font = '800 30px Arial, Helvetica, sans-serif';
-  cursorY += drawWrappedText(ctx, article.author_name || 'Author', 56, cursorY, 620, 36, 1);
+  drawWrappedText(ctx, article.author_name || 'Author', authorTextX, cursorY + 20, 520, 36, 1);
 
-  if (article.country) {
-    cursorY += 4;
+  // Country line with flag
+  const countryLineY = cursorY + 56;
+  let countryX = authorTextX;
+  if (flag) {
+    const flagW = 34;
+    const flagH = 22;
+    ctx.save();
+    roundRect(ctx, countryX, countryLineY - flagH + 4, flagW, flagH, 3);
+    ctx.clip();
+    ctx.drawImage(flag, countryX, countryLineY - flagH + 4, flagW, flagH);
+    ctx.restore();
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.lineWidth = 1;
+    roundRect(ctx, countryX, countryLineY - flagH + 4, flagW, flagH, 3);
+    ctx.stroke();
+    countryX += flagW + 10;
+  }
+  if (country) {
     ctx.fillStyle = '#475569';
     ctx.font = '700 20px Arial, Helvetica, sans-serif';
-    ctx.fillText(article.country, 56, cursorY);
-    cursorY += 28;
+    ctx.fillText(country, countryX, countryLineY);
   }
 
   const chipY = 770;
@@ -344,7 +464,7 @@ async function createPublicationCanvas(article: PublicationCardData, publishedLi
   roundRect(ctx, 846, 358, 328, 328, 24);
   ctx.fillStyle = '#ffffff';
   ctx.fill();
-  ctx.drawImage(qr, 868, 380, 284, 284);
+  if (qr) ctx.drawImage(qr, 868, 380, 284, 284);
 
   const siteGradient = ctx.createLinearGradient(840, 725, 1160, 725);
   siteGradient.addColorStop(0, '#4a90ff');
@@ -374,8 +494,39 @@ async function createPublicationCanvas(article: PublicationCardData, publishedLi
 }
 
 export function PublicationCard({ article }: { article: PublicationCardData }) {
+  const { user } = useAuth();
   const [busy, setBusy] = React.useState(false);
+  const [uploading, setUploading] = React.useState(false);
   const [previewUrl, setPreviewUrl] = React.useState<string>('');
+  const [avatarUrl, setAvatarUrl] = React.useState<string | null>(article.author_avatar_url || null);
+  const [country, setCountry] = React.useState<string | null>(article.country || null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const isOwner = !!user && !!article.author_id && user.id === article.author_id;
+
+  // Fetch author profile (avatar + country) if we don't have them
+  React.useEffect(() => {
+    let cancelled = false;
+    if (!article.author_id) return;
+    if (article.author_avatar_url && article.country) {
+      setAvatarUrl(article.author_avatar_url);
+      setCountry(article.country);
+      return;
+    }
+    (async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('avatar_url, country')
+        .eq('id', article.author_id!)
+        .maybeSingle();
+      if (cancelled || !data) return;
+      setAvatarUrl((prev) => prev || data.avatar_url || null);
+      setCountry((prev) => prev || data.country || null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [article.author_id, article.author_avatar_url, article.country]);
 
   const publishedLink =
     article.published_link ||
@@ -393,7 +544,7 @@ export function PublicationCard({ article }: { article: PublicationCardData }) {
   const fileName = `WWJMRD-${safeFileName(article.reference_number || article.id)}.png`;
 
   const getCardFile = async (): Promise<{ blob: Blob; file: File; url: string }> => {
-    const canvas = await createPublicationCanvas(article, publishedLink);
+    const canvas = await createPublicationCanvas(article, publishedLink, avatarUrl, country);
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png', 1));
     if (!blob) throw new Error('Failed to create card image');
     const file = new File([blob], fileName, { type: 'image/png' });
@@ -402,7 +553,7 @@ export function PublicationCard({ article }: { article: PublicationCardData }) {
 
   React.useEffect(() => {
     let cancelled = false;
-    createPublicationCanvas(article, publishedLink)
+    createPublicationCanvas(article, publishedLink, avatarUrl, country)
       .then((canvas) => {
         if (!cancelled) setPreviewUrl(canvas.toDataURL('image/png', 1));
       })
@@ -412,7 +563,37 @@ export function PublicationCard({ article }: { article: PublicationCardData }) {
     return () => {
       cancelled = true;
     };
-  }, [article, publishedLink]);
+  }, [article, publishedLink, avatarUrl, country]);
+
+  const handleAvatarUpload = async (file: File) => {
+    if (!user) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image must be under 5MB');
+      return;
+    }
+    setUploading(true);
+    try {
+      const ext = file.name.split('.').pop() || 'jpg';
+      const path = `${user.id}/avatar-${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from('avatars')
+        .upload(path, file, { upsert: true, contentType: file.type });
+      if (upErr) throw upErr;
+      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
+      const publicUrl = urlData.publicUrl;
+      const { error: profErr } = await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrl })
+        .eq('id', user.id);
+      if (profErr) throw profErr;
+      setAvatarUrl(publicUrl);
+      toast.success('Profile picture updated');
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to upload picture');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const copyCaption = async () => {
     try {
@@ -540,8 +721,62 @@ export function PublicationCard({ article }: { article: PublicationCardData }) {
     }
   };
 
+  const showMissingAvatarBanner = isOwner && !avatarUrl;
+
   return (
     <div className="space-y-4">
+      {showMissingAvatarBanner && (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+          <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
+          <div className="flex-1">
+            <p className="font-semibold text-amber-700 dark:text-amber-300">
+              Add a profile picture for a more personal card
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Your publication card is showing your initials. Upload a photo to make it stand out.
+            </p>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+          >
+            <Upload className="w-4 h-4 mr-1" />
+            {uploading ? 'Uploading…' : 'Add Profile Picture'}
+          </Button>
+        </div>
+      )}
+
+      {isOwner && avatarUrl && (
+        <div className="flex items-center gap-3 rounded-lg border border-border/50 bg-background/40 p-2 text-xs">
+          <img src={avatarUrl} alt="Your profile" className="w-8 h-8 rounded-full object-cover" />
+          <span className="text-muted-foreground flex-1">Profile picture on card</span>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="h-7 px-2 text-xs"
+          >
+            <Upload className="w-3 h-3 mr-1" />
+            {uploading ? 'Uploading…' : 'Change'}
+          </Button>
+        </div>
+      )}
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) handleAvatarUpload(f);
+          e.target.value = '';
+        }}
+      />
+
       <div className="w-full overflow-auto">
         <div className="mx-auto w-[900px] max-w-full">
           {previewUrl ? (
