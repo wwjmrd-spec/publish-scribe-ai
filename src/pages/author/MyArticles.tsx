@@ -54,6 +54,17 @@ export default function MyArticles() {
   const [manageCoAuthorsFor, setManageCoAuthorsFor] = React.useState<any>(null);
   const [payReportDialog, setPayReportDialog] = React.useState<{ articleId: string; title: string; refNum: string; amount: number; currency: 'INR' | 'USD' } | null>(null);
   const [payingNow, setPayingNow] = React.useState(false);
+  const [hasAvatar, setHasAvatar] = React.useState<boolean | null>(null);
+
+  React.useEffect(() => {
+    if (!user?.id) return;
+    supabase
+      .from('profiles')
+      .select('avatar_url')
+      .eq('id', user.id)
+      .maybeSingle()
+      .then(({ data }) => setHasAvatar(!!data?.avatar_url));
+  }, [user?.id]);
 
   const handleDownloadGalleyProof = async (articleId: string) => {
     const tid = toast.loading('Preparing galley proof…');
