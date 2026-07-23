@@ -74,8 +74,140 @@ serve(async (req: Request) => {
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
+    // Direct fetch to send-email using the service-role Authorization header.
+    // supabase.functions.invoke() does not always forward Authorization from a
+    // service-role client, which caused send-email to reject calls as 401.
+    async function sendEmailDirect(payload: Record<string, unknown>) {
+      try {
+        const res = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${serviceRoleKey}`,
+            apikey: serviceRoleKey,
+          },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          return { error: { message: `send-email ${res.status}: ${text.slice(0, 200)}` } };
+        }
+        return { error: null as any };
+      } catch (e: any) {
+        return { error: { message: e?.message || String(e) } };
+      }
+    }
+
     const body = await req.json().catch(() => ({}));
-    const { articleId, all, force } = body as { articleId?: string; all?: boolean; force?: boolean };
+    const { articleId, all, force, backfillStatusEmails, limit } = body as {
+      articleId?: string;
+      all?: boolean;
+      force?: boolean;
+      backfillStatusEmails?: boolean;
+      limit?: number;
+    };
+
+    // -------------------------------------------------------------------------
+    // Backfill mode: send manuscript-accepted + pending-fee status emails to
+    // every pending_fee article that hasn't received them yet. Runs in the
+    // background so the request returns immediately.
+    // -------------------------------------------------------------------------
+    if (backfillStatusEmails) {
+      const { data: sRow } = await supabase
+        .from("reminder_settings")
+        .select("email_provider_override, email_from_override")
+        .limit(1).single();
+      const providerOv = sRow?.email_provider_override || undefined;
+      const fromOv = sRow?.email_from_override || undefined;
+
+      const batchLimit = Math.min(Math.max(limit ?? 200, 1), 500);
+      const { data: pendingArticles } = await supabase
+        .from("articles")
+        .select("id, title, reference_number, author_id, page_count, manuscript_accepted_email_sent_at, fee_reminder_email_sent_at, profiles:author_id (full_name, email)")
+        .eq("status", "pending_fee")
+        .or("manuscript_accepted_email_sent_at.is.null,fee_reminder_email_sent_at.is.null")
+        .limit(batchLimit);
+
+      const queued = (pendingArticles || []).length;
+
+      const run = async () => {
+        for (const art of (pendingArticles || [])) {
+          const profile = (art as any).profiles;
+          if (!profile?.email) continue;
+          const authorName = profile.full_name || "Author";
+          const pageCount = (art as any).page_count || 0;
+          const aId = (art as any).id;
+
+          if (!(art as any).manuscript_accepted_email_sent_at) {
+            const r1 = await sendEmailDirect({
+              to: profile.email,
+              template: "article-status-change",
+              providerOverride: providerOv,
+              fromOverride: fromOv,
+              data: {
+                authorName,
+                articleId: aId,
+                articleTitle: (art as any).title,
+                referenceNumber: (art as any).reference_number,
+                status: "manuscript_accepted",
+              },
+            });
+            if (!r1.error) {
+              await supabase.from("articles")
+                .update({ manuscript_accepted_email_sent_at: new Date().toISOString() })
+                .eq("id", aId);
+            } else {
+              console.error("[backfill accepted]", profile.email, r1.error.message);
+            }
+            await new Promise((res) => setTimeout(res, 800));
+          }
+
+          if (!(art as any).fee_reminder_email_sent_at) {
+            const r2 = await sendEmailDirect({
+              to: profile.email,
+              template: "article-status-change",
+              providerOverride: providerOv,
+              fromOverride: fromOv,
+              data: {
+                authorName,
+                articleId: aId,
+                articleTitle: (art as any).title,
+                referenceNumber: (art as any).reference_number,
+                status: "pending_fee",
+                extraMessage: pageCount > 2 ? `Your article has ${pageCount} pages and exceeds the 2-page free publication limit.` : "",
+              },
+            });
+            if (!r2.error) {
+              await supabase.from("articles")
+                .update({ fee_reminder_email_sent_at: new Date().toISOString() })
+                .eq("id", aId);
+            } else {
+              console.error("[backfill fee]", profile.email, r2.error.message);
+            }
+            await new Promise((res) => setTimeout(res, 800));
+          }
+        }
+        console.log(`[backfill] processed ${queued} articles`);
+      };
+
+      // Fire-and-forget in background so the request returns immediately.
+      // deno-lint-ignore no-explicit-any
+      const edgeRuntime: any = (globalThis as any).EdgeRuntime;
+      if (edgeRuntime?.waitUntil) edgeRuntime.waitUntil(run());
+      else run();
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          mode: "backfillStatusEmails",
+          queued,
+          message: `Processing ${queued} articles in background. Call again to process the next batch.`,
+        }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } },
+      );
+    }
+
+
 
     const { data: settingsRow } = await supabase
       .from("reminder_settings")
@@ -208,26 +340,24 @@ serve(async (req: Request) => {
           ? lastFeeDate.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
           : null;
 
-        const { error: emailError } = await supabase.functions.invoke("send-email", {
-          body: {
-            to: profile.email,
-            template: "payment-reminder",
-            providerOverride,
-            fromOverride,
-            data: {
-              authorName: profile.full_name || "Author",
-              articleId: article.id,
-              articleTitle: article.title,
-              referenceNumber: article.reference_number,
-              extraMessage: pageMessage,
-              urgencyLevel: level,
-              urgencyLabel: URGENCY_LABEL[level],
-              deadline: deadlineText,
-              daysUntilDeadline,
-              daysSinceAcceptance: ageDays,
-              unsubscribeUrl: unsubUrl,
-              unsubscribeLabel: CATEGORY_LABEL.fee_reminder,
-            },
+        const { error: emailError } = await sendEmailDirect({
+          to: profile.email,
+          template: "payment-reminder",
+          providerOverride,
+          fromOverride,
+          data: {
+            authorName: profile.full_name || "Author",
+            articleId: article.id,
+            articleTitle: article.title,
+            referenceNumber: article.reference_number,
+            extraMessage: pageMessage,
+            urgencyLevel: level,
+            urgencyLabel: URGENCY_LABEL[level],
+            deadline: deadlineText,
+            daysUntilDeadline,
+            daysSinceAcceptance: ageDays,
+            unsubscribeUrl: unsubUrl,
+            unsubscribeLabel: CATEGORY_LABEL.fee_reminder,
           },
         });
         if (emailError) {
@@ -285,21 +415,19 @@ serve(async (req: Request) => {
             continue;
           }
           const unsubUrl = await getUnsubscribeUrl(supabase, (art as any).author_id, "revision_requested");
-          const { error: emailError } = await supabase.functions.invoke("send-email", {
-            body: {
-              to: profile.email,
-              template: "manuscript-revise",
-              providerOverride,
-              fromOverride,
-              data: {
-                authorName: profile.full_name || "Author",
-                articleId: (art as any).id,
-                articleTitle: (art as any).title,
-                referenceNumber: (art as any).reference_number,
-                pageCount: (art as any).page_count || "N/A",
-                unsubscribeUrl: unsubUrl,
-                unsubscribeLabel: CATEGORY_LABEL.revision_requested,
-              },
+          const { error: emailError } = await sendEmailDirect({
+            to: profile.email,
+            template: "manuscript-revise",
+            providerOverride,
+            fromOverride,
+            data: {
+              authorName: profile.full_name || "Author",
+              articleId: (art as any).id,
+              articleTitle: (art as any).title,
+              referenceNumber: (art as any).reference_number,
+              pageCount: (art as any).page_count || "N/A",
+              unsubscribeUrl: unsubUrl,
+              unsubscribeLabel: CATEGORY_LABEL.revision_requested,
             },
           });
           if (emailError) {
