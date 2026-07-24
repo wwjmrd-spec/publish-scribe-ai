@@ -48,7 +48,14 @@ export default function AdminNotifications() {
   const [scheduleEnabled, setScheduleEnabled] = useState(false);
   const [scheduleAt, setScheduleAt] = useState<string>(''); // datetime-local value
   const [sending, setSending] = useState(false);
-  const [result, setResult] = useState<{ notifications: number; emailsSent: number; emailsFailed: number; scheduled?: boolean; scheduledFor?: string } | null>(null);
+  const [result, setResult] = useState<{
+    notifications: number;
+    emailsSent: number;
+    emailsFailed: number;
+    scheduled?: boolean;
+    scheduledFor?: string;
+    results?: Array<{ email: string; name?: string | null; kind: 'recipient' | 'coauthor' | 'extra'; status: 'sent' | 'failed'; error?: string }>;
+  } | null>(null);
 
   // Prefill from "Reuse" navigation state.
   useEffect(() => {
