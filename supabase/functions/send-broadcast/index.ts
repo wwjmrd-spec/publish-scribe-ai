@@ -243,6 +243,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const emailCount = { sent: 0, failed: 0 };
+    const emailResults: Array<{ email: string; name?: string | null; kind: "recipient" | "coauthor" | "extra"; status: "sent" | "failed"; error?: string }> = [];
 
     // Insert notifications in batches (per-recipient rendered)
     const notifications = recipients.map((r) => {
