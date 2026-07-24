@@ -336,6 +336,7 @@ const handler = async (req: Request): Promise<Response> => {
               metadata: { message: renderedMessage, link: renderedLink || null },
             });
           } catch (_) { /* ignore */ }
+        }
       }
 
       // Email-only sends (no notification row): co-authors of recipient authors + admin-provided extras.
