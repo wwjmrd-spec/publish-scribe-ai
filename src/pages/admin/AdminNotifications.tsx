@@ -72,22 +72,29 @@ export default function AdminNotifications() {
     queryFn: async () => {
       const { data: roles } = await supabase
         .from('user_roles')
-        .select('user_id')
-        .eq('role', 'author');
-      const authorIds = (roles || []).map((r) => r.user_id);
-      if (authorIds.length === 0) return { profiles: [], subs: [], articles: [] };
+        .select('user_id, role');
+      const authorIds = new Set(
+        (roles || []).filter((r) => r.role === 'author').map((r) => r.user_id)
+      );
+      if (authorIds.size === 0) return { profiles: [], subs: [], articles: [] };
 
-      const [{ data: profiles }, { data: subs }, { data: articles }] = await Promise.all([
-        supabase.from('profiles').select('id, full_name, email, created_at, is_indian, country').in('id', authorIds),
+      // Fetch without .in() filters — the ID list is too long for the URL.
+      // Filter client-side against the author set instead.
+      const [{ data: profilesAll }, { data: subsAll }, { data: articlesAll }] = await Promise.all([
+        supabase.from('profiles').select('id, full_name, email, created_at, is_indian, country').limit(10000),
         supabase
           .from('user_subscriptions')
           .select('user_id, plan_type, is_active, expires_at')
-          .in('user_id', authorIds)
-          .eq('is_active', true),
-        supabase.from('articles').select('author_id, created_at, status').in('author_id', authorIds),
+          .eq('is_active', true)
+          .limit(10000),
+        supabase.from('articles').select('author_id, created_at, status').limit(20000),
       ]);
 
-      return { profiles: profiles || [], subs: subs || [], articles: articles || [] };
+      const profiles = (profilesAll || []).filter((p) => authorIds.has(p.id));
+      const subs = (subsAll || []).filter((s) => authorIds.has(s.user_id));
+      const articles = (articlesAll || []).filter((a) => authorIds.has(a.author_id));
+
+      return { profiles, subs, articles };
     },
   });
 
