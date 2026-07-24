@@ -48,7 +48,14 @@ export default function AdminNotifications() {
   const [scheduleEnabled, setScheduleEnabled] = useState(false);
   const [scheduleAt, setScheduleAt] = useState<string>(''); // datetime-local value
   const [sending, setSending] = useState(false);
-  const [result, setResult] = useState<{ notifications: number; emailsSent: number; emailsFailed: number; scheduled?: boolean; scheduledFor?: string } | null>(null);
+  const [result, setResult] = useState<{
+    notifications: number;
+    emailsSent: number;
+    emailsFailed: number;
+    scheduled?: boolean;
+    scheduledFor?: string;
+    results?: Array<{ email: string; name?: string | null; kind: 'recipient' | 'coauthor' | 'extra'; status: 'sent' | 'failed'; error?: string }>;
+  } | null>(null);
 
   // Prefill from "Reuse" navigation state.
   useEffect(() => {
@@ -169,6 +176,41 @@ export default function AdminNotifications() {
         name: p.full_name,
       }));
   }, [authorsData, targetIds]);
+
+  // Fetch co-author emails for the selected target authors (only when needed).
+  const coAuthorsEnabled = sendMethod === 'notification_and_email' && includeCoAuthors && targetIds.length > 0;
+  const { data: coAuthorEmails } = useQuery({
+    queryKey: ['admin-notif-coauthors', targetIds.sort().join(',')],
+    enabled: coAuthorsEnabled,
+    queryFn: async () => {
+      const { data: articles } = await supabase.from('articles').select('id, author_id').limit(20000);
+      const idSet = new Set(targetIds);
+      const articleIds = (articles || []).filter((a: any) => idSet.has(a.author_id)).map((a: any) => a.id);
+      if (articleIds.length === 0) return [] as Array<{ email: string; name: string | null }>;
+      // co_authors table has RLS scoped to article author/admin — as an admin, this returns all rows.
+      const { data: cas } = await supabase.from('co_authors').select('email, name').in('article_id', articleIds).limit(20000);
+      const recipientEmails = new Set(
+        targetRecipients.map((r) => (r.email || '').trim().toLowerCase()).filter(Boolean),
+      );
+      const map = new Map<string, { email: string; name: string | null }>();
+      for (const ca of cas || []) {
+        const e = (ca.email || '').trim().toLowerCase();
+        if (!e || !/.+@.+\..+/.test(e)) continue;
+        if (recipientEmails.has(e)) continue;
+        if (!map.has(e)) map.set(e, { email: ca.email, name: ca.name || null });
+      }
+      return Array.from(map.values());
+    },
+  });
+
+  const extraEmailList = useMemo(() => {
+    if (sendMethod !== 'notification_and_email') return [] as string[];
+    return extraEmails
+      .split(/[\s,;]+/)
+      .map((s) => s.trim())
+      .filter((s) => /.+@.+\..+/.test(s));
+  }, [extraEmails, sendMethod]);
+
 
   const handleSendNotification = async () => {
     if (!title.trim() || !message.trim()) {
@@ -304,6 +346,7 @@ export default function AdminNotifications() {
         notifications: data.notifications_sent || 0,
         emailsSent: data.emails_sent || 0,
         emailsFailed: data.emails_failed || 0,
+        results: Array.isArray(data.results) ? data.results : [],
       });
 
       setTitle('');
@@ -724,14 +767,21 @@ export default function AdminNotifications() {
             )}
           </div>
 
-          <div className="flex items-center justify-between pt-2">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Users className="w-4 h-4" />
-              {loadingAuthors ? (
-                <span>Loading audience...</span>
-              ) : (
-                <span>{targetIds.length} recipient{targetIds.length === 1 ? '' : 's'} match</span>
-              )}
+          <div className="flex items-center justify-between pt-2 gap-3 flex-wrap">
+            <div className="flex flex-col gap-1 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4" />
+                {loadingAuthors ? (
+                  <span>Loading audience...</span>
+                ) : (
+                  <span>
+                    {targetIds.length} author{targetIds.length === 1 ? '' : 's'}
+                    {coAuthorsEnabled && coAuthorEmails ? ` + ${coAuthorEmails.length} co-author${coAuthorEmails.length === 1 ? '' : 's'}` : ''}
+                    {extraEmailList.length > 0 ? ` + ${extraEmailList.length} extra` : ''}
+                    {' '}· {targetIds.length + (coAuthorsEnabled ? (coAuthorEmails?.length || 0) : 0) + extraEmailList.length} email{(targetIds.length + (coAuthorsEnabled ? (coAuthorEmails?.length || 0) : 0) + extraEmailList.length) === 1 ? '' : 's'} total
+                  </span>
+                )}
+              </div>
             </div>
 
             <Button onClick={handleSendNotification} disabled={sending || loadingAuthors || targetIds.length === 0}>
@@ -759,22 +809,69 @@ export default function AdminNotifications() {
             <motion.div
               initial={{ opacity: 0, y: 5 }}
               animate={{ opacity: 1, y: 0 }}
-              className="space-y-2"
+              className="space-y-3"
             >
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/10 text-primary text-sm">
-                <CheckCircle className="w-4 h-4 shrink-0" />
-                <span>
-                  {result.scheduled
-                    ? `Scheduled ${result.notifications} broadcast${result.notifications === 1 ? '' : 's'} for ${result.scheduledFor ? new Date(result.scheduledFor).toLocaleString() : 'later'}.`
-                    : `Sent ${result.notifications} notification${result.notifications === 1 ? '' : 's'}${result.emailsSent >= 1 ? ` and ${result.emailsSent} email${result.emailsSent === 1 ? '' : 's'}` : ''}`}
-                </span>
-              </div>
-
-              {result.emailsFailed >= 1 && (
-                <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span>{result.emailsFailed} email{result.emailsFailed === 1 ? '' : 's'} failed to send</span>
+              {result.scheduled ? (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/10 text-primary text-sm">
+                  <CheckCircle className="w-4 h-4 shrink-0" />
+                  <span>
+                    Queued {result.notifications} broadcast{result.notifications === 1 ? '' : 's'} for{' '}
+                    {result.scheduledFor ? new Date(result.scheduledFor).toLocaleString() : 'later'}.
+                  </span>
                 </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <div className="p-3 rounded-lg bg-primary/10">
+                      <p className="text-xs text-muted-foreground">Notifications</p>
+                      <p className="text-xl font-semibold text-primary">{result.notifications}</p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-emerald-500/10">
+                      <p className="text-xs text-muted-foreground">Emails sent</p>
+                      <p className="text-xl font-semibold text-emerald-500">{result.emailsSent}</p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-destructive/10">
+                      <p className="text-xs text-muted-foreground">Failed</p>
+                      <p className="text-xl font-semibold text-destructive">{result.emailsFailed}</p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-amber-500/10">
+                      <p className="text-xs text-muted-foreground">Queued (pending)</p>
+                      <p className="text-xl font-semibold text-amber-500">0</p>
+                    </div>
+                  </div>
+
+                  {result.results && result.results.length > 0 && (
+                    <details className="rounded-lg border border-border/40 bg-muted/20" open>
+                      <summary className="cursor-pointer px-3 py-2 text-sm font-medium">
+                        Recipient list ({result.results.length})
+                      </summary>
+                      <div className="max-h-72 overflow-y-auto divide-y divide-border/40">
+                        {result.results.map((r, i) => (
+                          <div key={i} className="flex items-center justify-between gap-2 px-3 py-2 text-xs">
+                            <div className="min-w-0">
+                              <p className="font-medium truncate">{r.name || r.email}</p>
+                              <p className="text-muted-foreground truncate">
+                                {r.email} · {r.kind === 'coauthor' ? 'Co-author' : r.kind === 'extra' ? 'Extra' : 'Author'}
+                              </p>
+                              {r.error && (
+                                <p className="text-destructive text-[10px] mt-0.5 truncate" title={r.error}>{r.error}</p>
+                              )}
+                            </div>
+                            <span
+                              className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                                r.status === 'sent'
+                                  ? 'bg-emerald-500/15 text-emerald-500'
+                                  : 'bg-destructive/15 text-destructive'
+                              }`}
+                            >
+                              {r.status === 'sent' ? 'Sent' : 'Failed'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  )}
+                </>
               )}
             </motion.div>
           )}
