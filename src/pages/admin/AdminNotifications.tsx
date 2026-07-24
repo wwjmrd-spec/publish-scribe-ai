@@ -767,14 +767,21 @@ export default function AdminNotifications() {
             )}
           </div>
 
-          <div className="flex items-center justify-between pt-2">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Users className="w-4 h-4" />
-              {loadingAuthors ? (
-                <span>Loading audience...</span>
-              ) : (
-                <span>{targetIds.length} recipient{targetIds.length === 1 ? '' : 's'} match</span>
-              )}
+          <div className="flex items-center justify-between pt-2 gap-3 flex-wrap">
+            <div className="flex flex-col gap-1 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4" />
+                {loadingAuthors ? (
+                  <span>Loading audience...</span>
+                ) : (
+                  <span>
+                    {targetIds.length} author{targetIds.length === 1 ? '' : 's'}
+                    {coAuthorsEnabled && coAuthorEmails ? ` + ${coAuthorEmails.length} co-author${coAuthorEmails.length === 1 ? '' : 's'}` : ''}
+                    {extraEmailList.length > 0 ? ` + ${extraEmailList.length} extra` : ''}
+                    {' '}· {targetIds.length + (coAuthorsEnabled ? (coAuthorEmails?.length || 0) : 0) + extraEmailList.length} email{(targetIds.length + (coAuthorsEnabled ? (coAuthorEmails?.length || 0) : 0) + extraEmailList.length) === 1 ? '' : 's'} total
+                  </span>
+                )}
+              </div>
             </div>
 
             <Button onClick={handleSendNotification} disabled={sending || loadingAuthors || targetIds.length === 0}>
