@@ -809,22 +809,69 @@ export default function AdminNotifications() {
             <motion.div
               initial={{ opacity: 0, y: 5 }}
               animate={{ opacity: 1, y: 0 }}
-              className="space-y-2"
+              className="space-y-3"
             >
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/10 text-primary text-sm">
-                <CheckCircle className="w-4 h-4 shrink-0" />
-                <span>
-                  {result.scheduled
-                    ? `Scheduled ${result.notifications} broadcast${result.notifications === 1 ? '' : 's'} for ${result.scheduledFor ? new Date(result.scheduledFor).toLocaleString() : 'later'}.`
-                    : `Sent ${result.notifications} notification${result.notifications === 1 ? '' : 's'}${result.emailsSent >= 1 ? ` and ${result.emailsSent} email${result.emailsSent === 1 ? '' : 's'}` : ''}`}
-                </span>
-              </div>
-
-              {result.emailsFailed >= 1 && (
-                <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span>{result.emailsFailed} email{result.emailsFailed === 1 ? '' : 's'} failed to send</span>
+              {result.scheduled ? (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/10 text-primary text-sm">
+                  <CheckCircle className="w-4 h-4 shrink-0" />
+                  <span>
+                    Queued {result.notifications} broadcast{result.notifications === 1 ? '' : 's'} for{' '}
+                    {result.scheduledFor ? new Date(result.scheduledFor).toLocaleString() : 'later'}.
+                  </span>
                 </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <div className="p-3 rounded-lg bg-primary/10">
+                      <p className="text-xs text-muted-foreground">Notifications</p>
+                      <p className="text-xl font-semibold text-primary">{result.notifications}</p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-emerald-500/10">
+                      <p className="text-xs text-muted-foreground">Emails sent</p>
+                      <p className="text-xl font-semibold text-emerald-500">{result.emailsSent}</p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-destructive/10">
+                      <p className="text-xs text-muted-foreground">Failed</p>
+                      <p className="text-xl font-semibold text-destructive">{result.emailsFailed}</p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-amber-500/10">
+                      <p className="text-xs text-muted-foreground">Queued (pending)</p>
+                      <p className="text-xl font-semibold text-amber-500">0</p>
+                    </div>
+                  </div>
+
+                  {result.results && result.results.length > 0 && (
+                    <details className="rounded-lg border border-border/40 bg-muted/20" open>
+                      <summary className="cursor-pointer px-3 py-2 text-sm font-medium">
+                        Recipient list ({result.results.length})
+                      </summary>
+                      <div className="max-h-72 overflow-y-auto divide-y divide-border/40">
+                        {result.results.map((r, i) => (
+                          <div key={i} className="flex items-center justify-between gap-2 px-3 py-2 text-xs">
+                            <div className="min-w-0">
+                              <p className="font-medium truncate">{r.name || r.email}</p>
+                              <p className="text-muted-foreground truncate">
+                                {r.email} · {r.kind === 'coauthor' ? 'Co-author' : r.kind === 'extra' ? 'Extra' : 'Author'}
+                              </p>
+                              {r.error && (
+                                <p className="text-destructive text-[10px] mt-0.5 truncate" title={r.error}>{r.error}</p>
+                              )}
+                            </div>
+                            <span
+                              className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                                r.status === 'sent'
+                                  ? 'bg-emerald-500/15 text-emerald-500'
+                                  : 'bg-destructive/15 text-destructive'
+                              }`}
+                            >
+                              {r.status === 'sent' ? 'Sent' : 'Failed'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  )}
+                </>
               )}
             </motion.div>
           )}
