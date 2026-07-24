@@ -140,6 +140,28 @@ const handler = async (req: Request): Promise<Response> => {
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const adminClient = createClient(supabaseUrl, serviceKey);
 
+    // Invoke send-email directly with a service-role Authorization header.
+    // adminClient.functions.invoke does not forward the service-role JWT, so
+    // send-email would reject with "No Authorization header provided".
+    const sendEmailDirect = async (payload: Record<string, unknown>) => {
+      const resp = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${serviceKey}`,
+          apikey: serviceKey,
+        },
+        body: JSON.stringify(payload),
+      });
+      const text = await resp.text();
+      let data: any = null;
+      try { data = text ? JSON.parse(text) : null; } catch { data = { raw: text }; }
+      if (!resp.ok) throw new Error(data?.error || `send-email ${resp.status}`);
+      if (data?.error) throw new Error(data.error);
+      return data;
+    };
+
+
     // Allow scheduled/internal calls using the service role key directly.
     const internalHeader = req.headers.get("x-internal-secret");
     const isInternal = !!internalHeader && internalHeader === serviceKey;
@@ -293,19 +315,17 @@ const handler = async (req: Request): Promise<Response> => {
         const emailHtml = buildBroadcastHtml(renderedTitle, renderedMessage, renderedLink);
 
         try {
-          const { data: sendData, error: sendErr } = await adminClient.functions.invoke("send-email", {
-            body: {
-              to: sendTo,
-              template: "custom",
-              subject: renderedTitle,
-              html: emailHtml,
-              providerOverride: email_provider_override || undefined,
-              from: email_from || undefined,
-            },
+          await sendEmailDirect({
+            to: sendTo,
+            template: "custom",
+            subject: renderedTitle,
+            html: emailHtml,
+            providerOverride: email_provider_override || undefined,
+            from: email_from || undefined,
           });
-          if (sendErr || (sendData as any)?.error) throw new Error(sendErr?.message || (sendData as any)?.error || "send-email failed");
           emailCount.sent++;
           emailResults.push({ email: sendTo, name: recipient.name || null, kind: "recipient", status: "sent" });
+
 
           try {
             await adminClient.from("email_log").insert({
@@ -374,19 +394,17 @@ const handler = async (req: Request): Promise<Response> => {
         const renderedLink = linkRaw || undefined;
         const emailHtml = buildBroadcastHtml(renderedTitle, renderedMessage, renderedLink);
         try {
-          const { data: sendData, error: sendErr } = await adminClient.functions.invoke("send-email", {
-            body: {
-              to: addr,
-              template: "custom",
-              subject: renderedTitle,
-              html: emailHtml,
-              providerOverride: email_provider_override || undefined,
-              from: email_from || undefined,
-            },
+          await sendEmailDirect({
+            to: addr,
+            template: "custom",
+            subject: renderedTitle,
+            html: emailHtml,
+            providerOverride: email_provider_override || undefined,
+            from: email_from || undefined,
           });
-          if (sendErr || (sendData as any)?.error) throw new Error(sendErr?.message || (sendData as any)?.error || "send-email failed");
           emailCount.sent++;
           emailResults.push({ email: addr, name: info.name, kind: info.kind, status: "sent" });
+
           try {
             await adminClient.from("email_log").insert({
               recipient_email: addr,
