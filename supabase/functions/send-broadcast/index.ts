@@ -339,7 +339,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       // Email-only sends (no notification row): co-authors of recipient authors + admin-provided extras.
-      const extraTargets = new Set<string>();
+      const extraTargets = new Map<string, { name: string | null; kind: "coauthor" | "extra" }>();
       if (include_coauthors) {
         const authorIds = recipients.map((r) => r.user_id).filter(Boolean);
         if (authorIds.length > 0) {
@@ -348,23 +348,26 @@ const handler = async (req: Request): Promise<Response> => {
           const articleIds = (authorArticles || []).map((a: any) => a.id);
           if (articleIds.length > 0) {
             const { data: cas } = await adminClient
-              .from("co_authors").select("email").in("article_id", articleIds);
+              .from("co_authors").select("email, name").in("article_id", articleIds);
             for (const ca of cas || []) {
               const e = (ca as any).email?.trim();
-              if (e && /.+@.+\..+/.test(e)) extraTargets.add(e.toLowerCase());
+              if (e && /.+@.+\..+/.test(e)) {
+                const key = e.toLowerCase();
+                if (!extraTargets.has(key)) extraTargets.set(key, { name: (ca as any).name || null, kind: "coauthor" });
+              }
             }
           }
         }
       }
       for (const e of extra_emails || []) {
         const v = (e || "").trim().toLowerCase();
-        if (v && /.+@.+\..+/.test(v)) extraTargets.add(v);
+        if (v && /.+@.+\..+/.test(v) && !extraTargets.has(v)) extraTargets.set(v, { name: null, kind: "extra" });
       }
       // Don't double-send to addresses already emailed above.
       const alreadyEmailed = new Set(recipients.map((r) => (r.email || "").trim().toLowerCase()).filter(Boolean));
       for (const addr of alreadyEmailed) extraTargets.delete(addr);
 
-      for (const addr of extraTargets) {
+      for (const [addr, info] of extraTargets) {
         const renderedTitle = titleRaw;
         const renderedMessage = messageRaw;
         const renderedLink = linkRaw || undefined;
@@ -382,19 +385,22 @@ const handler = async (req: Request): Promise<Response> => {
           });
           if (sendErr || (sendData as any)?.error) throw new Error(sendErr?.message || (sendData as any)?.error || "send-email failed");
           emailCount.sent++;
+          emailResults.push({ email: addr, name: info.name, kind: info.kind, status: "sent" });
           try {
             await adminClient.from("email_log").insert({
               recipient_email: addr,
+              recipient_name: info.name,
               subject: renderedTitle,
               template_name: "broadcast",
-              email_type: "broadcast_extra",
+              email_type: info.kind === "coauthor" ? "broadcast_coauthor" : "broadcast_extra",
               status: "sent",
-              metadata: { message: renderedMessage, link: renderedLink || null, source: "broadcast_extra" },
+              metadata: { message: renderedMessage, link: renderedLink || null, source: info.kind === "coauthor" ? "broadcast_coauthor" : "broadcast_extra" },
             });
           } catch (_) { /* ignore */ }
         } catch (err: any) {
           console.error(`Email send failed for ${addr}:`, err?.message);
           emailCount.failed++;
+          emailResults.push({ email: addr, name: info.name, kind: info.kind, status: "failed", error: err?.message });
         }
       }
     }
