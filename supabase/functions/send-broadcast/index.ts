@@ -405,8 +405,6 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    }
-
 
     return new Response(
       JSON.stringify({
@@ -414,6 +412,7 @@ const handler = async (req: Request): Promise<Response> => {
         notifications_sent: insertedNotifications,
         emails_sent: emailCount.sent,
         emails_failed: emailCount.failed,
+        results: emailResults,
       }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
