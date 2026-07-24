@@ -177,6 +177,41 @@ export default function AdminNotifications() {
       }));
   }, [authorsData, targetIds]);
 
+  // Fetch co-author emails for the selected target authors (only when needed).
+  const coAuthorsEnabled = sendMethod === 'notification_and_email' && includeCoAuthors && targetIds.length > 0;
+  const { data: coAuthorEmails } = useQuery({
+    queryKey: ['admin-notif-coauthors', targetIds.sort().join(',')],
+    enabled: coAuthorsEnabled,
+    queryFn: async () => {
+      const { data: articles } = await supabase.from('articles').select('id, author_id').limit(20000);
+      const idSet = new Set(targetIds);
+      const articleIds = (articles || []).filter((a: any) => idSet.has(a.author_id)).map((a: any) => a.id);
+      if (articleIds.length === 0) return [] as Array<{ email: string; name: string | null }>;
+      // co_authors table has RLS scoped to article author/admin — as an admin, this returns all rows.
+      const { data: cas } = await supabase.from('co_authors').select('email, name').in('article_id', articleIds).limit(20000);
+      const recipientEmails = new Set(
+        targetRecipients.map((r) => (r.email || '').trim().toLowerCase()).filter(Boolean),
+      );
+      const map = new Map<string, { email: string; name: string | null }>();
+      for (const ca of cas || []) {
+        const e = (ca.email || '').trim().toLowerCase();
+        if (!e || !/.+@.+\..+/.test(e)) continue;
+        if (recipientEmails.has(e)) continue;
+        if (!map.has(e)) map.set(e, { email: ca.email, name: ca.name || null });
+      }
+      return Array.from(map.values());
+    },
+  });
+
+  const extraEmailList = useMemo(() => {
+    if (sendMethod !== 'notification_and_email') return [] as string[];
+    return extraEmails
+      .split(/[\s,;]+/)
+      .map((s) => s.trim())
+      .filter((s) => /.+@.+\..+/.test(s));
+  }, [extraEmails, sendMethod]);
+
+
   const handleSendNotification = async () => {
     if (!title.trim() || !message.trim()) {
       toast({ title: 'Missing fields', description: 'Please fill in title and message.', variant: 'destructive' });
