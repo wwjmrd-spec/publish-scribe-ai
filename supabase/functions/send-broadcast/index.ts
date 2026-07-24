@@ -394,19 +394,17 @@ const handler = async (req: Request): Promise<Response> => {
         const renderedLink = linkRaw || undefined;
         const emailHtml = buildBroadcastHtml(renderedTitle, renderedMessage, renderedLink);
         try {
-          const { data: sendData, error: sendErr } = await adminClient.functions.invoke("send-email", {
-            body: {
-              to: addr,
-              template: "custom",
-              subject: renderedTitle,
-              html: emailHtml,
-              providerOverride: email_provider_override || undefined,
-              from: email_from || undefined,
-            },
+          await sendEmailDirect({
+            to: addr,
+            template: "custom",
+            subject: renderedTitle,
+            html: emailHtml,
+            providerOverride: email_provider_override || undefined,
+            from: email_from || undefined,
           });
-          if (sendErr || (sendData as any)?.error) throw new Error(sendErr?.message || (sendData as any)?.error || "send-email failed");
           emailCount.sent++;
           emailResults.push({ email: addr, name: info.name, kind: info.kind, status: "sent" });
+
           try {
             await adminClient.from("email_log").insert({
               recipient_email: addr,
