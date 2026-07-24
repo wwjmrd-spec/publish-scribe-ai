@@ -346,6 +346,7 @@ export default function AdminNotifications() {
         notifications: data.notifications_sent || 0,
         emailsSent: data.emails_sent || 0,
         emailsFailed: data.emails_failed || 0,
+        results: Array.isArray(data.results) ? data.results : [],
       });
 
       setTitle('');
