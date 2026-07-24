@@ -305,6 +305,7 @@ const handler = async (req: Request): Promise<Response> => {
           });
           if (sendErr || (sendData as any)?.error) throw new Error(sendErr?.message || (sendData as any)?.error || "send-email failed");
           emailCount.sent++;
+          emailResults.push({ email: sendTo, name: recipient.name || null, kind: "recipient", status: "sent" });
 
           try {
             await adminClient.from("email_log").insert({
