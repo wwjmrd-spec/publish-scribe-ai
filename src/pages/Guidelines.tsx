@@ -93,6 +93,28 @@ function GuidelinesBody() {
           enters the publishing queue.
         </p>
       </section>
+
+      <section>
+        <h2 className="font-display text-2xl font-semibold mb-3">Publication Card &amp; QR Sharing</h2>
+        <p className="text-muted-foreground mb-2">
+          Once your article is published, WWJMRD automatically generates a <strong>Publication Card</strong> — a
+          shareable image that includes your article title, authors, journal metadata, your profile picture, your
+          country flag, and a <strong>QR code</strong> that opens the article's public page instantly.
+        </p>
+        <ul className="list-disc pl-6 space-y-1 text-muted-foreground">
+          <li>Open <em>My Articles</em> in your dashboard and expand the <em>Publication Card</em> panel.</li>
+          <li>Click <em>Download Card</em> to save a high-resolution PNG.</li>
+          <li>Use the one-click buttons for WhatsApp, LinkedIn, X, Facebook, Instagram or Telegram — the caption is
+            copied and the image is ready to paste and post.</li>
+          <li>Colleagues and friends can scan the QR code to read your article directly — a proven way to grow readership
+            and citations.</li>
+        </ul>
+        <p className="text-muted-foreground mt-3">
+          For a full animated walkthrough of every new feature (Publication Card, AI Writer, Review Reports, Pro Plan,
+          Email Preferences and more), see the{" "}
+          <Link to="/features-guide" className="text-primary underline">Features Guide</Link>.
+        </p>
+      </section>
     </div>
   );
 }

@@ -61,6 +61,7 @@ import PublicPublications from "./pages/PublicPublications";
 import PublicArticleAbstract from "./pages/PublicArticleAbstract";
 import Guidelines from "./pages/Guidelines";
 import Contact from "./pages/Contact";
+import FeaturesGuide from "./pages/FeaturesGuide";
 import { ReferralPopup } from "./components/referral/ReferralPopup";
 import { CookieConsent } from "./components/CookieConsent";
 import { CountryCollectionModal } from "./components/auth/CountryCollectionModal";
@@ -99,6 +100,7 @@ const App = () => (
             <Route path="/publications" element={<PublicPublications />} />
             <Route path="/articles/:reference" element={<PublicArticleAbstract />} />
             <Route path="/guidelines" element={<Guidelines />} />
+            <Route path="/features-guide" element={<FeaturesGuide />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/reset-password" element={<ResetPassword />} />

@@ -33,6 +33,7 @@ import {
   MessageCircle,
   ListOrdered,
   Share2,
+  Sparkles,
 } from 'lucide-react';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { GuidedTour } from '@/components/onboarding/GuidedTour';
@@ -61,6 +62,7 @@ const authorNavItems: NavItem[] = [
   { label: 'Certificates', href: '/author/certificates', icon: Award, tourId: 'certificates' },
   { label: 'Subscription', href: '/author/subscription', icon: Crown, tourId: 'subscription' },
   { label: 'Rewards', href: '/author/rewards', icon: Gift, tourId: 'rewards' },
+  { label: 'Features Guide', href: '/features-guide', icon: Sparkles },
   { label: 'Guidelines', href: '/guidelines', icon: BookOpen },
   { label: 'Contact Us', href: '/contact', icon: MessageCircle },
   { label: 'Email Preferences', href: '/author/email-preferences', icon: Mail },
