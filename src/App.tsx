@@ -61,6 +61,7 @@ import PublicPublications from "./pages/PublicPublications";
 import PublicArticleAbstract from "./pages/PublicArticleAbstract";
 import Guidelines from "./pages/Guidelines";
 import Contact from "./pages/Contact";
+import FeaturesGuide from "./pages/FeaturesGuide";
 import { ReferralPopup } from "./components/referral/ReferralPopup";
 import { CookieConsent } from "./components/CookieConsent";
 import { CountryCollectionModal } from "./components/auth/CountryCollectionModal";
