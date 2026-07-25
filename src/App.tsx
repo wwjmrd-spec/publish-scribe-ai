@@ -100,6 +100,7 @@ const App = () => (
             <Route path="/publications" element={<PublicPublications />} />
             <Route path="/articles/:reference" element={<PublicArticleAbstract />} />
             <Route path="/guidelines" element={<Guidelines />} />
+            <Route path="/features-guide" element={<FeaturesGuide />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/reset-password" element={<ResetPassword />} />
