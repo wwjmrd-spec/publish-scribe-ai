@@ -829,11 +829,20 @@ const getArticlePublishedTemplate = (data: EmailRequest["data"], isAdmin: boolea
       </table>
     ` : ""}
     ${emailP(`Your publication certificate has been generated and is available for download from your dashboard.`)}
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#0d2233" style="background-color:rgba(0,212,255,0.10); border-radius:8px; margin:20px 0; border:1px solid rgba(0,212,255,0.25);">
+      <tr><td style="padding:20px;">
+        <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:16px; font-weight:700; color:#00d4ff; margin:0 0 10px;">📣 Share Your Publication Card</p>
+        <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:14px; color:#e5e7eb; line-height:1.6; margin:0 0 10px;">We've generated a beautiful <strong>Publication Card</strong> for your article — a shareable image featuring your title, authors, journal details and a scannable <strong>QR code</strong> that opens your article instantly.</p>
+        <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:14px; color:#e5e7eb; line-height:1.6; margin:0 0 10px;">Post it on <strong>WhatsApp, LinkedIn, X, Facebook, Instagram or Telegram</strong> — your colleagues and friends can read your paper by simply scanning the QR code. It's the fastest way to grow readership and citations.</p>
+        <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:13px; color:#94a3b8; margin:0;">Open <em>My Articles → Publication Card</em> in your dashboard to download or share it in one click.</p>
+      </td></tr>
+    </table>
+    ${emailButton("https://wwjmrdai.online/author/articles", "Get My Publication Card")}
     <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#1a2340" style="background-color:#1a2340; border-radius:8px; margin:20px 0;">
       <tr><td style="padding:20px;">
         <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; font-size:16px; font-weight:600; color:#ffffff; margin:0 0 12px;">What's Next:</p>
         ${emailFeatureItem("📜 Download your publication certificate from your dashboard")}
-        ${emailFeatureItem("🔗 Share your published article with your network")}
+        ${emailFeatureItem("🔗 Share your Publication Card + QR code on social media")}
         ${emailFeatureItem("👥 Co-author certificates can be requested from your article page")}
         ${emailFeatureItem("🌟 Refer colleagues and earn discount rewards")}
       </td></tr>
