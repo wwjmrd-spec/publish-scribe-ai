@@ -33,6 +33,7 @@ import {
   MessageCircle,
   ListOrdered,
   Share2,
+  Sparkles,
 } from 'lucide-react';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { GuidedTour } from '@/components/onboarding/GuidedTour';
