@@ -228,7 +228,6 @@ serve(async (req) => {
         published_to_wwjmrd_at: isUpdate
           ? ((article as any).published_to_wwjmrd_at || publishedAt)
           : publishedAt,
-        wwjmrd_updated_at: publishedAt,
         status: "published_to_wwjmrd",
         in_publish_queue: false,
         automation_paused: true,
