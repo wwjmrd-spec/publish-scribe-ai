@@ -905,7 +905,7 @@ export default function AdminArticleDetail() {
                   className="text-green-400 hover:text-green-300 border-green-500/30"
                   onClick={() => {
                     if (!confirm('Publish this article to WWJMRD now? This will POST article data to wwjmrd.com.')) return;
-                    publishToWwjmrdMutation.mutate();
+                    publishToWwjmrdMutation.mutate(undefined);
                   }}
                   disabled={
                     publishToWwjmrdMutation.isPending ||
@@ -919,6 +919,22 @@ export default function AdminArticleDetail() {
                       ? `Published to WWJMRD (ID ${(article as any).wwjmrd_article_id ?? ''})`
                       : 'Publish to WWJMRD'}
                 </Button>
+                {(article as any).wwjmrd_article_id && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-blue-400 hover:text-blue-300 border-blue-500/30"
+                    onClick={() => {
+                      if (!confirm('Update this article on WWJMRD? The existing published article will be updated with the latest PDF and details.')) return;
+                      publishToWwjmrdMutation.mutate('update');
+                    }}
+                    disabled={publishToWwjmrdMutation.isPending}
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    {publishToWwjmrdMutation.isPending ? 'Updating…' : 'Update on WWJMRD'}
+                  </Button>
+                )}
+
                 <Button
                   variant="outline"
                   size="sm"
