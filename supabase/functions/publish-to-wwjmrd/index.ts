@@ -201,7 +201,14 @@ serve(async (req) => {
     let body: any = null;
     try { body = JSON.parse(text); } catch { /* not JSON */ }
 
-    if (!res.ok || !body || body.success !== true || typeof body.article_id !== "number") {
+    const remoteId =
+      typeof body?.article_id === "number"
+        ? body.article_id
+        : isUpdate
+          ? Number((article as any).wwjmrd_article_id)
+          : NaN;
+
+    if (!res.ok || !body || body.success !== true || !Number.isFinite(remoteId)) {
       return json(
         {
           error: body?.message || body?.error || `WWJMRD returned HTTP ${res.status}`,
@@ -212,13 +219,16 @@ serve(async (req) => {
       );
     }
 
-    // Mark as published on our side
+    // Mark as published (or refresh the publish timestamp on update) on our side
     const publishedAt = new Date().toISOString();
     const { error: updErr } = await admin
       .from("articles")
       .update({
-        wwjmrd_article_id: body.article_id,
-        published_to_wwjmrd_at: publishedAt,
+        wwjmrd_article_id: remoteId,
+        published_to_wwjmrd_at: isUpdate
+          ? ((article as any).published_to_wwjmrd_at || publishedAt)
+          : publishedAt,
+        wwjmrd_updated_at: publishedAt,
         status: "published_to_wwjmrd",
         in_publish_queue: false,
         automation_paused: true,
@@ -229,7 +239,7 @@ serve(async (req) => {
       return json(
         {
           error: "Published to WWJMRD but failed to update local record: " + updErr.message,
-          wwjmrd_article_id: body.article_id,
+          wwjmrd_article_id: remoteId,
         },
         500,
       );
@@ -237,9 +247,14 @@ serve(async (req) => {
 
     return json({
       success: true,
-      wwjmrd_article_id: body.article_id,
+      updated: isUpdate,
+      order_number: orderNumber,
+      month,
+      year,
+      wwjmrd_article_id: remoteId,
       published_to_wwjmrd_at: publishedAt,
     });
+
   } catch (e: any) {
     console.error("publish-to-wwjmrd error:", e?.message || e);
     return json({ error: e?.message || "Unexpected error" }, 500);
