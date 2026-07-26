@@ -106,9 +106,9 @@ export default function AdminPublishQueue() {
   });
 
   const publishToWwjmrdMutation = useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async ({ id, mode }: { id: string; mode?: 'update' }) => {
       const { data, error } = await supabase.functions.invoke('publish-to-wwjmrd', {
-        body: { articleId: id },
+        body: { articleId: id, ...(mode ? { mode } : {}) },
       });
       console.log('publish-to-wwjmrd response:', { data, error });
       if (error) throw new Error(error.message);
@@ -116,11 +116,14 @@ export default function AdminPublishQueue() {
       return data;
     },
     onSuccess: (data) => {
-      toast.success(`Article successfully published to WWJMRD (ID ${data.wwjmrd_article_id}).`);
+      toast.success(
+        `${data.updated ? 'Updated on' : 'Published to'} WWJMRD (ID ${data.wwjmrd_article_id}, ${data.month} ${data.year}, #${data.order_number}).`
+      );
       qc.invalidateQueries({ queryKey: ['publish-queue'] });
     },
     onError: (e: any) => toast.error('Publish to WWJMRD failed: ' + e.message),
   });
+
 
   return (
     <DashboardLayout type="admin">
