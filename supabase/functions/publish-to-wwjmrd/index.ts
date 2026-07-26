@@ -282,12 +282,18 @@ serve(async (req) => {
     return json({
       success: true,
       updated: isUpdate,
+      duplicated,
+      previous_wwjmrd_article_id: Number.isFinite(previousId) ? previousId : null,
+      warning: duplicated
+        ? `WWJMRD created a new entry (ID ${remoteId}) instead of updating ID ${previousId}. The remote API ignored the update request — the old entry ${previousId} must be removed on wwjmrd.com.`
+        : undefined,
       order_number: orderNumber,
       month,
       year,
       wwjmrd_article_id: remoteId,
       published_to_wwjmrd_at: publishedAt,
     });
+
 
   } catch (e: any) {
     console.error("publish-to-wwjmrd error:", e?.message || e);
