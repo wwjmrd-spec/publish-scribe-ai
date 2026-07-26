@@ -134,19 +134,34 @@ serve(async (req) => {
       orderNumber = isUpdate && existingIdx >= 0 ? existingIdx + 1 : list.length + 1;
     }
 
-    // Build the public PDF URL: prefer published_link; otherwise sign the final PDF path
-    let pdfUrl = article.published_link || "";
+    // Build the public PDF URL. NOTE: published_link points at the WWJMRD abstract
+    // page (not a PDF), so it must never be used as pdf_url — always sign the file.
+    let pdfUrl = "";
     const pdfPath =
       pubForm?.final_pdf_url ||
       (article as any).galley_proof_pdf_url ||
       (article as any).formatted_document_url ||
       "";
+    const existingLink = String(article.published_link || "");
+    if (/\.pdf(\?|$)/i.test(existingLink)) pdfUrl = existingLink;
     if (!pdfUrl && pdfPath) {
-      const { data: signed } = await admin.storage
+      const { data: signed, error: signErr } = await admin.storage
         .from("formatted-articles")
-        .createSignedUrl(pdfPath, 60 * 60 * 24 * 365);
+        .createSignedUrl(pdfPath, 60 * 60 * 24 * 365 * 5);
+      if (signErr) console.error("Failed to sign PDF path", pdfPath, signErr.message);
       pdfUrl = signed?.signedUrl || "";
     }
+    if (!pdfUrl) {
+      return json(
+        { error: "No final PDF found for this article. Generate the galley proof / formatted PDF first." },
+        400,
+      );
+    }
+
+    const monthNumber = String(
+      Math.max(1, Math.min(12, issueNum >= 1 && issueNum <= 12 ? issueNum : new Date(`${month} 1, ${year}`).getMonth() + 1)),
+    );
+    const issueValue = issueRaw || monthNumber;
 
     const payload: Record<string, string> = {
       secret: wwjmrdSecret,
@@ -160,19 +175,34 @@ serve(async (req) => {
       keyword: keywords,
       year,
       month,
+      month_number: monthNumber,
+      publication_month: monthNumber,
       volume: String(article.volume ?? ""),
-      issue: issueRaw,
+      volume_number: String(article.volume ?? ""),
+      issue: issueValue,
+      issue_number: issueValue,
       order_number: String(orderNumber),
       article_order: String(orderNumber),
       doi: pubForm?.doi || "",
       pdf_url: pdfUrl,
+      pdf: pdfUrl,
+      file_url: pdfUrl,
     };
 
     if (isUpdate) {
+      const remoteRef = String((article as any).wwjmrd_article_id);
+      // The remote endpoint's update parameter name is not documented, so send the
+      // common aliases; whichever it reads makes it update instead of insert.
       payload.mode = "update";
       payload.action = "update";
-      payload.article_id = String((article as any).wwjmrd_article_id);
+      payload.is_update = "1";
+      payload.update = "1";
+      payload.id = remoteRef;
+      payload.article_id = remoteRef;
+      payload.aid = remoteRef;
+      payload.wwjmrd_article_id = remoteRef;
     }
+
 
 
     // Log payload WITHOUT the secret
@@ -201,12 +231,17 @@ serve(async (req) => {
     let body: any = null;
     try { body = JSON.parse(text); } catch { /* not JSON */ }
 
-    const remoteId =
-      typeof body?.article_id === "number"
-        ? body.article_id
-        : isUpdate
-          ? Number((article as any).wwjmrd_article_id)
-          : NaN;
+    const previousId = Number((article as any).wwjmrd_article_id);
+    const returnedId = Number(body?.article_id);
+    const remoteId = Number.isFinite(returnedId)
+      ? returnedId
+      : isUpdate
+        ? previousId
+        : NaN;
+    // On update the remote must reuse the same record. If it hands back a new id it
+    // created a duplicate instead — surface that clearly rather than silently repointing.
+    const duplicated = isUpdate && Number.isFinite(previousId) && remoteId !== previousId;
+
 
     if (!res.ok || !body || body.success !== true || !Number.isFinite(remoteId)) {
       return json(
@@ -224,7 +259,10 @@ serve(async (req) => {
     const { error: updErr } = await admin
       .from("articles")
       .update({
-        wwjmrd_article_id: remoteId,
+        // Keep the original remote id when the remote ignored the update and handed
+        // back a throwaway id — the live entry on WWJMRD is still the original one.
+        wwjmrd_article_id: duplicated ? previousId : remoteId,
+
         published_to_wwjmrd_at: isUpdate
           ? ((article as any).published_to_wwjmrd_at || publishedAt)
           : publishedAt,
@@ -247,12 +285,18 @@ serve(async (req) => {
     return json({
       success: true,
       updated: isUpdate,
+      duplicated,
+      previous_wwjmrd_article_id: Number.isFinite(previousId) ? previousId : null,
+      warning: duplicated
+        ? `WWJMRD created a new entry (ID ${remoteId}) instead of updating ID ${previousId}. The remote API ignored the update request — the old entry ${previousId} must be removed on wwjmrd.com.`
+        : undefined,
       order_number: orderNumber,
       month,
       year,
       wwjmrd_article_id: remoteId,
       published_to_wwjmrd_at: publishedAt,
     });
+
 
   } catch (e: any) {
     console.error("publish-to-wwjmrd error:", e?.message || e);
