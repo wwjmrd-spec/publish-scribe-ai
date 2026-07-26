@@ -26,7 +26,9 @@ import {
   RotateCcw,
   Pencil,
   Globe,
+  RefreshCw,
 } from 'lucide-react';
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
