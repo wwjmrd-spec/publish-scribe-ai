@@ -399,9 +399,9 @@ export default function AdminArticleDetail() {
   });
 
   const publishToWwjmrdMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (mode?: 'update') => {
       const { data, error } = await supabase.functions.invoke('publish-to-wwjmrd', {
-        body: { articleId: article!.id },
+        body: { articleId: article!.id, ...(mode ? { mode } : {}) },
       });
       console.log('publish-to-wwjmrd response:', { data, error });
       if (error) throw new Error(error.message);
@@ -409,13 +409,18 @@ export default function AdminArticleDetail() {
       return data;
     },
     onSuccess: (data) => {
-      toast.success(`Article successfully published to WWJMRD (ID ${data.wwjmrd_article_id}).`);
+      toast.success(
+        data.updated
+          ? `Article updated on WWJMRD (ID ${data.wwjmrd_article_id}, ${data.month} ${data.year}, #${data.order_number}).`
+          : `Article successfully published to WWJMRD (ID ${data.wwjmrd_article_id}, ${data.month} ${data.year}, #${data.order_number}).`
+      );
       queryClient.invalidateQueries({ queryKey: ['admin-article-detail', articleId] });
       queryClient.invalidateQueries({ queryKey: ['admin-articles'] });
       queryClient.invalidateQueries({ queryKey: ['publish-queue'] });
     },
     onError: (err: any) => toast.error('Publish to WWJMRD failed: ' + err.message),
   });
+
 
   const getStatusBadge = (status: string) => getArticleStatusBadgeClass(status);
   const formatStatus = (status: string) => formatArticleStatus(status);
