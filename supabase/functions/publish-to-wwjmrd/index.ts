@@ -231,12 +231,17 @@ serve(async (req) => {
     let body: any = null;
     try { body = JSON.parse(text); } catch { /* not JSON */ }
 
-    const remoteId =
-      typeof body?.article_id === "number"
-        ? body.article_id
-        : isUpdate
-          ? Number((article as any).wwjmrd_article_id)
-          : NaN;
+    const previousId = Number((article as any).wwjmrd_article_id);
+    const returnedId = Number(body?.article_id);
+    const remoteId = Number.isFinite(returnedId)
+      ? returnedId
+      : isUpdate
+        ? previousId
+        : NaN;
+    // On update the remote must reuse the same record. If it hands back a new id it
+    // created a duplicate instead — surface that clearly rather than silently repointing.
+    const duplicated = isUpdate && Number.isFinite(previousId) && remoteId !== previousId;
+
 
     if (!res.ok || !body || body.success !== true || !Number.isFinite(remoteId)) {
       return json(
