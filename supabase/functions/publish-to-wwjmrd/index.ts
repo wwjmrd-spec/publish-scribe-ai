@@ -259,7 +259,10 @@ serve(async (req) => {
     const { error: updErr } = await admin
       .from("articles")
       .update({
-        wwjmrd_article_id: remoteId,
+        // Keep the original remote id when the remote ignored the update and handed
+        // back a throwaway id — the live entry on WWJMRD is still the original one.
+        wwjmrd_article_id: duplicated ? previousId : remoteId,
+
         published_to_wwjmrd_at: isUpdate
           ? ((article as any).published_to_wwjmrd_at || publishedAt)
           : publishedAt,
