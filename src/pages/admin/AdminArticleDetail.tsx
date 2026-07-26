@@ -26,7 +26,9 @@ import {
   RotateCcw,
   Pencil,
   Globe,
+  RefreshCw,
 } from 'lucide-react';
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
@@ -399,9 +401,9 @@ export default function AdminArticleDetail() {
   });
 
   const publishToWwjmrdMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (mode?: 'update') => {
       const { data, error } = await supabase.functions.invoke('publish-to-wwjmrd', {
-        body: { articleId: article!.id },
+        body: { articleId: article!.id, ...(mode ? { mode } : {}) },
       });
       console.log('publish-to-wwjmrd response:', { data, error });
       if (error) throw new Error(error.message);
@@ -409,13 +411,18 @@ export default function AdminArticleDetail() {
       return data;
     },
     onSuccess: (data) => {
-      toast.success(`Article successfully published to WWJMRD (ID ${data.wwjmrd_article_id}).`);
+      toast.success(
+        data.updated
+          ? `Article updated on WWJMRD (ID ${data.wwjmrd_article_id}, ${data.month} ${data.year}, #${data.order_number}).`
+          : `Article successfully published to WWJMRD (ID ${data.wwjmrd_article_id}, ${data.month} ${data.year}, #${data.order_number}).`
+      );
       queryClient.invalidateQueries({ queryKey: ['admin-article-detail', articleId] });
       queryClient.invalidateQueries({ queryKey: ['admin-articles'] });
       queryClient.invalidateQueries({ queryKey: ['publish-queue'] });
     },
     onError: (err: any) => toast.error('Publish to WWJMRD failed: ' + err.message),
   });
+
 
   const getStatusBadge = (status: string) => getArticleStatusBadgeClass(status);
   const formatStatus = (status: string) => formatArticleStatus(status);
@@ -900,7 +907,7 @@ export default function AdminArticleDetail() {
                   className="text-green-400 hover:text-green-300 border-green-500/30"
                   onClick={() => {
                     if (!confirm('Publish this article to WWJMRD now? This will POST article data to wwjmrd.com.')) return;
-                    publishToWwjmrdMutation.mutate();
+                    publishToWwjmrdMutation.mutate(undefined);
                   }}
                   disabled={
                     publishToWwjmrdMutation.isPending ||
@@ -914,6 +921,22 @@ export default function AdminArticleDetail() {
                       ? `Published to WWJMRD (ID ${(article as any).wwjmrd_article_id ?? ''})`
                       : 'Publish to WWJMRD'}
                 </Button>
+                {(article as any).wwjmrd_article_id && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-blue-400 hover:text-blue-300 border-blue-500/30"
+                    onClick={() => {
+                      if (!confirm('Update this article on WWJMRD? The existing published article will be updated with the latest PDF and details.')) return;
+                      publishToWwjmrdMutation.mutate('update');
+                    }}
+                    disabled={publishToWwjmrdMutation.isPending}
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    {publishToWwjmrdMutation.isPending ? 'Updating…' : 'Update on WWJMRD'}
+                  </Button>
+                )}
+
                 <Button
                   variant="outline"
                   size="sm"

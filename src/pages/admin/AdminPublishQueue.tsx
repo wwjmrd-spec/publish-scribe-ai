@@ -15,7 +15,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
-import { Plus, Trash2, CheckCircle, Search, FileText, ClipboardList, Globe } from 'lucide-react';
+import { Plus, Trash2, CheckCircle, Search, FileText, ClipboardList, Globe, RefreshCw } from 'lucide-react';
 
 export default function AdminPublishQueue() {
   const qc = useQueryClient();
@@ -106,9 +106,9 @@ export default function AdminPublishQueue() {
   });
 
   const publishToWwjmrdMutation = useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async ({ id, mode }: { id: string; mode?: 'update' }) => {
       const { data, error } = await supabase.functions.invoke('publish-to-wwjmrd', {
-        body: { articleId: id },
+        body: { articleId: id, ...(mode ? { mode } : {}) },
       });
       console.log('publish-to-wwjmrd response:', { data, error });
       if (error) throw new Error(error.message);
@@ -116,11 +116,14 @@ export default function AdminPublishQueue() {
       return data;
     },
     onSuccess: (data) => {
-      toast.success(`Article successfully published to WWJMRD (ID ${data.wwjmrd_article_id}).`);
+      toast.success(
+        `${data.updated ? 'Updated on' : 'Published to'} WWJMRD (ID ${data.wwjmrd_article_id}, ${data.month} ${data.year}, #${data.order_number}).`
+      );
       qc.invalidateQueries({ queryKey: ['publish-queue'] });
     },
     onError: (e: any) => toast.error('Publish to WWJMRD failed: ' + e.message),
   });
+
 
   return (
     <DashboardLayout type="admin">
@@ -229,12 +232,27 @@ export default function AdminPublishQueue() {
                       className="gap-1 text-green-400 border-green-500/30 hover:text-green-300"
                       onClick={() => {
                         if (confirm('Publish this article to WWJMRD now? This will POST article data to wwjmrd.com.'))
-                          publishToWwjmrdMutation.mutate(a.id);
+                          publishToWwjmrdMutation.mutate({ id: a.id });
                       }}
                       disabled={publishToWwjmrdMutation.isPending}
                     >
                       <Globe className="w-4 h-4" /> Publish to WWJMRD
                     </Button>
+                    {a.wwjmrd_article_id && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1 text-blue-400 border-blue-500/30 hover:text-blue-300"
+                        onClick={() => {
+                          if (confirm('Update this article on WWJMRD with the latest PDF and details?'))
+                            publishToWwjmrdMutation.mutate({ id: a.id, mode: 'update' });
+                        }}
+                        disabled={publishToWwjmrdMutation.isPending}
+                      >
+                        <RefreshCw className="w-4 h-4" /> Update on WWJMRD
+                      </Button>
+                    )}
+
                     <Button
                       size="sm"
                       onClick={() => publishMutation.mutate(a.id)}

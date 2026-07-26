@@ -54,18 +54,23 @@ serve(async (req) => {
       .maybeSingle();
     if (role?.role !== "admin") return json({ error: "Forbidden" }, 403);
 
-    const { articleId } = await req.json().catch(() => ({}));
+    const { articleId, mode } = await req.json().catch(() => ({}));
     if (!articleId) return json({ error: "articleId is required" }, 400);
+    const isUpdate = mode === "update";
 
     // Load article + co-authors
     const { data: article, error: artErr } = await admin
       .from("articles")
       .select(
-        "id, title, author_name, country, subject, abstract, reason_of_research, keywords, publication_year, volume, issue, page_number, published_link, galley_proof_pdf_url, formatted_document_url, status, co_authors(name)"
+        "id, title, author_name, country, subject, abstract, reason_of_research, keywords, publication_year, volume, issue, page_number, published_link, galley_proof_pdf_url, formatted_document_url, status, wwjmrd_article_id, published_to_wwjmrd_at, co_authors(name)"
       )
       .eq("id", articleId)
       .maybeSingle();
     if (artErr || !article) return json({ error: "Article not found" }, 404);
+
+    if (isUpdate && !(article as any).wwjmrd_article_id) {
+      return json({ error: "This article has not been published to WWJMRD yet, so it cannot be updated." }, 400);
+    }
 
     // Optional admin-curated publication form overrides
     const { data: pubForm } = await admin
@@ -87,7 +92,7 @@ serve(async (req) => {
       (Array.isArray(article.keywords) ? article.keywords.join(", ") : "");
 
     const now = new Date();
-    let year = (pubForm?.publication_year_month || article.publication_year || "").trim();
+    let year = (article.publication_year || "").trim();
     let month = "";
     // publication_year_month may be "2026", "2026-06", "June 2026"
     const ym = (pubForm?.publication_year_month || "").trim();
@@ -98,11 +103,36 @@ serve(async (req) => {
     } else if (/^\d{4}$/.test(ym)) {
       year = ym;
     } else if (ym) {
-      // free-form, send as-is for month, year stays from article
-      month = ym;
+      // free-form like "June 2026"
+      const yMatch = ym.match(/\d{4}/);
+      if (yMatch) year = yMatch[0];
+      const mMatch = ym.replace(/\d{4}/, "").trim();
+      if (mMatch) month = mMatch;
+    }
+
+    // Month must come from the article's issue number (issue 06 => June), not "now".
+    const issueRaw = String(article.issue ?? "").trim();
+    const issueNum = parseInt(issueRaw, 10);
+    if (!month && issueNum >= 1 && issueNum <= 12) {
+      month = monthName(issueNum);
     }
     if (!year) year = String(now.getFullYear());
     if (!month) month = monthName(now.getMonth() + 1);
+
+    // Order number = position of this article within its volume/issue on WWJMRD.
+    let orderNumber = 1;
+    if (issueRaw) {
+      const { data: siblings } = await admin
+        .from("articles")
+        .select("id, published_to_wwjmrd_at, wwjmrd_article_id")
+        .eq("issue", issueRaw)
+        .eq("publication_year", article.publication_year)
+        .not("wwjmrd_article_id", "is", null)
+        .order("published_to_wwjmrd_at", { ascending: true });
+      const list = (siblings ?? []).filter((s: any) => s.id !== articleId);
+      const existingIdx = (siblings ?? []).findIndex((s: any) => s.id === articleId);
+      orderNumber = isUpdate && existingIdx >= 0 ? existingIdx + 1 : list.length + 1;
+    }
 
     // Build the public PDF URL: prefer published_link; otherwise sign the final PDF path
     let pdfUrl = article.published_link || "";
@@ -130,9 +160,20 @@ serve(async (req) => {
       keyword: keywords,
       year,
       month,
+      volume: String(article.volume ?? ""),
+      issue: issueRaw,
+      order_number: String(orderNumber),
+      article_order: String(orderNumber),
       doi: pubForm?.doi || "",
       pdf_url: pdfUrl,
     };
+
+    if (isUpdate) {
+      payload.mode = "update";
+      payload.action = "update";
+      payload.article_id = String((article as any).wwjmrd_article_id);
+    }
+
 
     // Log payload WITHOUT the secret
     const { secret: _omit, ...loggable } = payload;
@@ -160,7 +201,14 @@ serve(async (req) => {
     let body: any = null;
     try { body = JSON.parse(text); } catch { /* not JSON */ }
 
-    if (!res.ok || !body || body.success !== true || typeof body.article_id !== "number") {
+    const remoteId =
+      typeof body?.article_id === "number"
+        ? body.article_id
+        : isUpdate
+          ? Number((article as any).wwjmrd_article_id)
+          : NaN;
+
+    if (!res.ok || !body || body.success !== true || !Number.isFinite(remoteId)) {
       return json(
         {
           error: body?.message || body?.error || `WWJMRD returned HTTP ${res.status}`,
@@ -171,13 +219,15 @@ serve(async (req) => {
       );
     }
 
-    // Mark as published on our side
+    // Mark as published (or refresh the publish timestamp on update) on our side
     const publishedAt = new Date().toISOString();
     const { error: updErr } = await admin
       .from("articles")
       .update({
-        wwjmrd_article_id: body.article_id,
-        published_to_wwjmrd_at: publishedAt,
+        wwjmrd_article_id: remoteId,
+        published_to_wwjmrd_at: isUpdate
+          ? ((article as any).published_to_wwjmrd_at || publishedAt)
+          : publishedAt,
         status: "published_to_wwjmrd",
         in_publish_queue: false,
         automation_paused: true,
@@ -188,7 +238,7 @@ serve(async (req) => {
       return json(
         {
           error: "Published to WWJMRD but failed to update local record: " + updErr.message,
-          wwjmrd_article_id: body.article_id,
+          wwjmrd_article_id: remoteId,
         },
         500,
       );
@@ -196,9 +246,14 @@ serve(async (req) => {
 
     return json({
       success: true,
-      wwjmrd_article_id: body.article_id,
+      updated: isUpdate,
+      order_number: orderNumber,
+      month,
+      year,
+      wwjmrd_article_id: remoteId,
       published_to_wwjmrd_at: publishedAt,
     });
+
   } catch (e: any) {
     console.error("publish-to-wwjmrd error:", e?.message || e);
     return json({ error: e?.message || "Unexpected error" }, 500);
