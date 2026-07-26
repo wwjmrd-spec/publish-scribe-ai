@@ -411,11 +411,16 @@ export default function AdminArticleDetail() {
       return data;
     },
     onSuccess: (data) => {
-      toast.success(
-        data.updated
-          ? `Article updated on WWJMRD (ID ${data.wwjmrd_article_id}, ${data.month} ${data.year}, #${data.order_number}).`
-          : `Article successfully published to WWJMRD (ID ${data.wwjmrd_article_id}, ${data.month} ${data.year}, #${data.order_number}).`
-      );
+      if (data.warning) {
+        toast.warning(data.warning, { duration: 12000 });
+      } else {
+        toast.success(
+          data.updated
+            ? `Article updated on WWJMRD (ID ${data.wwjmrd_article_id}, ${data.month} ${data.year}, #${data.order_number}).`
+            : `Article successfully published to WWJMRD (ID ${data.wwjmrd_article_id}, ${data.month} ${data.year}, #${data.order_number}).`
+        );
+      }
+
       queryClient.invalidateQueries({ queryKey: ['admin-article-detail', articleId] });
       queryClient.invalidateQueries({ queryKey: ['admin-articles'] });
       queryClient.invalidateQueries({ queryKey: ['publish-queue'] });
