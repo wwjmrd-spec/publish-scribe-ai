@@ -116,11 +116,16 @@ export default function AdminPublishQueue() {
       return data;
     },
     onSuccess: (data) => {
-      toast.success(
-        `${data.updated ? 'Updated on' : 'Published to'} WWJMRD (ID ${data.wwjmrd_article_id}, ${data.month} ${data.year}, #${data.order_number}).`
-      );
+      if (data.warning) {
+        toast.warning(data.warning, { duration: 12000 });
+      } else {
+        toast.success(
+          `${data.updated ? 'Updated on' : 'Published to'} WWJMRD (ID ${data.wwjmrd_article_id}, ${data.month} ${data.year}, #${data.order_number}).`
+        );
+      }
       qc.invalidateQueries({ queryKey: ['publish-queue'] });
     },
+
     onError: (e: any) => toast.error('Publish to WWJMRD failed: ' + e.message),
   });
 
