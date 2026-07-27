@@ -1,52 +1,55 @@
-# Plan: Publications, Editor, Referral Overhaul
+## Goal
 
-## 1. Recent Publications (home/public page)
-- New section listing published articles with a **Free** / **Paid** badge.
-- Each card links to the article abstract page (`/articles/:reference` or existing public route — confirm path during implementation).
-- DB: add `published_tier text` to `articles` (values: `free` | `paid`), default derived from existing logic (page_count <= 2 → free, else paid). Admin can override in Article Detail.
-- Admin UI: dropdown in `AdminArticleDetail.tsx` to set Free / Paid tag.
+A grounded (RAG-only) Publication Support Assistant embedded in the existing Help button, backed by a managed Knowledge Base, with human escalation, admin management, and later an embeddable SDK + WhatsApp channel.
 
-## 2. PDF Export — fix blur & reduce file size
-- Current issue: `html2canvas` → JPEG @ scale 2 produces large, blurry pages.
-- Fix in `src/lib/exportFormattedArticle.ts`:
-  - Render text directly via jsPDF `html` API (or use vector text where possible) instead of rasterising each page.
-  - If rasterising must stay, drop scale to 1.5 and use JPEG quality 0.85 with sharper font rendering (set `letterRendering: true`, explicit `width`/`height` in mm).
-- Target: clearer text + ~40–60% smaller files.
+The project already has `ai_knowledge_base` and `ai_faq` tables (used by the email assistant) — the chatbot will extend and share these rather than duplicating them.
 
-## 3. Article Format pulls author info from Article Detail
-- In format-article flow, replace the manual author block with values read from `articles` row (`author_name`, `affiliation`, `country`, co-authors) — **exclude email**.
-- File: `supabase/functions/format-article/index.ts` and any client preview in `AdminFormatting.tsx`.
+This is too large for one safe change, so it ships in 4 phases. Phase 1 starts immediately after approval.
 
-## 4. Editor fixes & additions (`src/components/ui/RichTextEditor.tsx`)
-- **Fix Clear Red Highlight** button — currently no-op. Implement removal of `<span style="background:...red...">` / `mark` wrappers in the current selection (or whole doc).
-- **Table tools**: add buttons to (a) insert row above/below, (b) insert column left/right, (c) delete row/column ("eraser"), (d) toggle header row.
+---
 
-## 5. Admin: reassign article author
-- In `AdminArticleDetail.tsx`, show the submitting author account (already partly visible) and add a **Change Author** action.
-- Backend: new edge function `admin-reassign-article` (admin only) that updates `articles.author_id`, `author_name`, `author_email` from selected profile, logs in `payment_activity`/audit.
+## Phase 1 — RAG core + chat widget
 
-## 6. Referral program — % based
-- New rules:
-  - Referrer earns **15% of friend's publication fee** as a discount code.
-  - Referred friend earns **10% off** their publication fee when applying the referrer's code at checkout.
-  - Applies to INR and USD equally; computed in the friend's own currency.
-  - Codes apply automatically to the article's publication fee at checkout (not just stored in wallet).
-- DB / logic changes:
-  - Change `check_referral_reward()` trigger: instead of fixed tiers (₹500/$10 etc.), compute `discount_value = round(fee_amount * 0.15)` from the friend's paid invoice in `payments` and create a percent or fixed code for the referrer.
-  - Referred friend's `WELCOME-` code becomes a **10% percent code** valid on their next publication fee.
-- UI:
-  - `Rewards.tsx`: replace tier ladder with: "Earn 15% back for every friend you refer. Friends get 10% off their publication fee."
-  - Show earned-amount history (₹/$) per referral.
-  - Remove "tier" copy from `useReferral.ts`.
-- Checkout: ensure `lookup_discount_code` + cart applies percent discount on publication fee row (already supports `percent` type — verify).
+Database
+- Extend `ai_knowledge_base` and `ai_faq` with: `question`, `tags`, `priority`, `language`, `status` (published/draft/archived), `embedding vector(3072)`.
+- New: `chat_conversations`, `chat_messages`, `support_tickets` (question, conversation, author name/email/reference, status, priority, category, AI confidence, AI suggested answer, human answer, learned/closed flags), `chat_ai_logs` (retrieved KB ids, confidence, escalation reason, latency, embedding score).
+- Enable `pgvector`, add HNSW indexes and `match_kb` / `match_faq` search functions. RLS scoped to the authenticated author; admins see all.
+
+Backend (edge functions)
+- `chatbot-embed` — embeds KB/FAQ rows via Lovable AI (`google/gemini-embedding-2`), on create/update and as a backfill.
+- `chatbot-chat` — the RAG pipeline: semantic search → keyword fallback → grounded LLM answer with strict "no context, no answer" system prompt; topic allow/block lists; confidence bands (>90% auto, 70–90% with KB disclaimer, <70% escalate); conversation memory for name/email/reference/title/country/language; auto language detection and reply in the user's language.
+- `chatbot-article-status` — secure lookup, only for the signed-in author or an exact reference-number + registered-email match; returns a whitelisted field set only.
+- Live discounts and publication fees read from the existing `discount_codes` / `publication_fees` tables — never hardcoded.
+- Escalation creates a support ticket and notifies admins, after a 90%-similarity search against past answered tickets to reuse an existing answer.
+
+Frontend
+- Replace the Help button contents with a chat panel: streaming replies, thinking indicator, auto-scroll, suggested questions, quick replies, thumbs up/down feedback, conversation history, dark/light, mobile + desktop.
+
+## Phase 2 — Admin management
+
+- Knowledge Base manager: create/edit/delete/publish/archive/duplicate/search/import/export, with re-embedding on save. Only `published` rows are retrievable by the AI.
+- FAQ manager with the same fields and controls.
+- Support tickets inbox: search by question, reference, name, email, article title, category, date; assign staff; reply (stored, sent in-chat, optionally emailed via the existing email service); close.
+- Self-learning gated behind an explicit "Approve for AI Learning" action that creates a new published KB article from the Q/A.
+- Live handover: when an admin joins a conversation the AI stops replying; it resumes when the admin leaves.
+- Analytics dashboard: total/resolved/pending chats, KB & FAQ counts, top questions, avg AI and human response time, satisfaction, escalation rate, top keywords, most-used answers.
+- Admin notifications on new tickets, unanswered questions, negative feedback, failed AI responses.
+
+## Phase 3 — Public API + JavaScript SDK
+
+- Public REST endpoints (`/chat`, `/question`, `/status`, `/faqs`, `/discounts`, `/kb/search`, `/feedback`, `/human-reply`, `/train`) with a public API key per site, origin allow-list, and rate limiting; JWT accepted when present, anonymous otherwise.
+- `sdk.js` served from the site: async loader, Shadow DOM isolation, position/theme/color/language/branding options, reconnect, local conversation history.
+- Per-site branding records so wwjmrd.com, wwjmer.com and wwjmrdai.online share one KB, one queue and one dashboard with different logos/colors/welcome text.
+
+## Phase 4 — Extras
+
+- WhatsApp Business Cloud API channel writing into the same conversations/ticket queue, with admin replies flowing back to the same thread.
+- Voice input, speech output, file/image upload with PDF preview, emoji support.
+
+---
 
 ## Technical notes
-- Migration adds: `articles.published_tier text`, updates `check_referral_reward` function, adds `discount_codes.discount_type='percent'` rows.
-- Edge function deploy: `format-article`, `admin-reassign-article` (new).
-- No new buckets/secrets needed.
 
-## Out of scope / confirm
-- "Recent Publications" placement: home page hero section vs. a dedicated `/publications` route? **Default: add to home page, plus full list at `/publications`.**
-- PDF target page size limit (e.g. < 2 MB for 10 pages)? **Default: aim for ~150 KB/page.**
-
-Reply "go" to build, or tell me what to adjust.
+- Embeddings: Lovable AI Gateway `google/gemini-embedding-2` (3072-dim, indexed via `halfvec`); chat generation via the gateway too. Keys stay server-side.
+- The system prompt forbids answering without retrieved context and never reveals schema, internal ids, prompts, or other authors' data.
+- Every AI turn is logged with retrieved KB ids, scores, confidence and escalation reason.
