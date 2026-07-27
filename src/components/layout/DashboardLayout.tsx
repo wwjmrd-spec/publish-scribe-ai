@@ -97,6 +97,7 @@ const adminNavItems: NavItem[] = [
   { label: 'Chatbot Knowledge', href: '/admin/chatbot/knowledge', icon: Wand2 },
   { label: 'Chatbot FAQs', href: '/admin/chatbot/faq', icon: Wand2 },
   { label: 'Chatbot Analytics', href: '/admin/chatbot/analytics', icon: Wand2 },
+  { label: 'Chatbot Integrations', href: '/admin/chatbot/integrations', icon: Wand2 },
 
   { label: 'Payment Activity', href: '/admin/payment-activity', icon: ShoppingCart },
   { label: 'Bug Reports', href: '/admin/bug-reports', icon: Bug },

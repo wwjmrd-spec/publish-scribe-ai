@@ -50,6 +50,7 @@ import AdminSupportTickets from "./pages/admin/AdminSupportTickets";
 import AdminChatbotKB from "./pages/admin/AdminChatbotKB";
 import AdminChatbotFAQ from "./pages/admin/AdminChatbotFAQ";
 import AdminChatbotAnalytics from "./pages/admin/AdminChatbotAnalytics";
+import AdminChatbotIntegrations from "./pages/admin/AdminChatbotIntegrations";
 
 import AdminPublicationOrder from "./pages/admin/AdminPublicationOrder";
 import AdminPublicationCards from "./pages/admin/AdminPublicationCards";
@@ -435,6 +436,14 @@ const App = () => (
               element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <AdminChatbotFAQ />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/chatbot/integrations"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminChatbotIntegrations />
                 </ProtectedRoute>
               }
             />
