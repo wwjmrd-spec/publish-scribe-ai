@@ -5,6 +5,8 @@ const TABS = [
   { to: "/admin/chatbot/knowledge", label: "Knowledge Base" },
   { to: "/admin/chatbot/faq", label: "FAQs" },
   { to: "/admin/chatbot/analytics", label: "Analytics" },
+  { to: "/admin/chatbot/integrations", label: "Integrations" },
+
 ];
 
 export function ChatbotNav() {
