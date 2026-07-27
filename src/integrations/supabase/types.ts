@@ -913,6 +913,54 @@ export type Database = {
           },
         ]
       }
+      chatbot_sites: {
+        Row: {
+          allowed_origins: string[]
+          created_at: string
+          id: string
+          is_active: boolean
+          language: string
+          logo_url: string | null
+          name: string
+          primary_color: string
+          public_key: string
+          slug: string
+          theme: string
+          updated_at: string
+          welcome_message: string
+        }
+        Insert: {
+          allowed_origins?: string[]
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          language?: string
+          logo_url?: string | null
+          name: string
+          primary_color?: string
+          public_key: string
+          slug: string
+          theme?: string
+          updated_at?: string
+          welcome_message?: string
+        }
+        Update: {
+          allowed_origins?: string[]
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          language?: string
+          logo_url?: string | null
+          name?: string
+          primary_color?: string
+          public_key?: string
+          slug?: string
+          theme?: string
+          updated_at?: string
+          welcome_message?: string
+        }
+        Relationships: []
+      }
       co_author_certificates: {
         Row: {
           amount_paid: number | null
