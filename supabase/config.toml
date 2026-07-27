@@ -96,11 +96,5 @@ verify_jwt = false
 [functions.chatbot-embed]
 verify_jwt = false
 
-[functions.chatbot-chat]
-verify_jwt = false
-
-[functions.chatbot-embed]
-verify_jwt = false
-
 [functions.chatbot-public]
 verify_jwt = false
