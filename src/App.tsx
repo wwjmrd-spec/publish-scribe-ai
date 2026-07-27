@@ -46,6 +46,11 @@ import AdminPublishQueue from "./pages/admin/AdminPublishQueue";
 import AdminPublicationForm from "./pages/admin/AdminPublicationForm";
 import AdminSubmitForAuthor from "./pages/admin/AdminSubmitForAuthor";
 import AdminQuestions from "./pages/admin/AdminQuestions";
+import AdminSupportTickets from "./pages/admin/AdminSupportTickets";
+import AdminChatbotKB from "./pages/admin/AdminChatbotKB";
+import AdminChatbotFAQ from "./pages/admin/AdminChatbotFAQ";
+import AdminChatbotAnalytics from "./pages/admin/AdminChatbotAnalytics";
+
 import AdminPublicationOrder from "./pages/admin/AdminPublicationOrder";
 import AdminPublicationCards from "./pages/admin/AdminPublicationCards";
 import AdminEmailAssistant from "./pages/admin/AdminEmailAssistant";
@@ -409,6 +414,39 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/admin/chatbot/tickets"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminSupportTickets />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/chatbot/knowledge"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminChatbotKB />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/chatbot/faq"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminChatbotFAQ />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/chatbot/analytics"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminChatbotAnalytics />
+                </ProtectedRoute>
+              }
+            />
+
             <Route
               path="/admin/publication-order"
               element={

@@ -285,10 +285,15 @@ export type Database = {
           category: string | null
           created_at: string
           created_by: string | null
+          embedding: string | null
           id: string
           is_active: boolean
           keywords: string[]
+          language: string
+          priority: number
           question: string
+          status: string
+          tags: string[]
           updated_at: string
         }
         Insert: {
@@ -296,10 +301,15 @@ export type Database = {
           category?: string | null
           created_at?: string
           created_by?: string | null
+          embedding?: string | null
           id?: string
           is_active?: boolean
           keywords?: string[]
+          language?: string
+          priority?: number
           question: string
+          status?: string
+          tags?: string[]
           updated_at?: string
         }
         Update: {
@@ -307,10 +317,15 @@ export type Database = {
           category?: string | null
           created_at?: string
           created_by?: string | null
+          embedding?: string | null
           id?: string
           is_active?: boolean
           keywords?: string[]
+          language?: string
+          priority?: number
           question?: string
+          status?: string
+          tags?: string[]
           updated_at?: string
         }
         Relationships: []
@@ -321,9 +336,15 @@ export type Database = {
           content: string
           created_at: string
           created_by: string | null
+          embedding: string | null
           id: string
           is_active: boolean
           keywords: string[]
+          language: string
+          priority: number
+          question: string | null
+          status: string
+          tags: string[]
           title: string
           updated_at: string
         }
@@ -332,9 +353,15 @@ export type Database = {
           content: string
           created_at?: string
           created_by?: string | null
+          embedding?: string | null
           id?: string
           is_active?: boolean
           keywords?: string[]
+          language?: string
+          priority?: number
+          question?: string | null
+          status?: string
+          tags?: string[]
           title: string
           updated_at?: string
         }
@@ -343,9 +370,15 @@ export type Database = {
           content?: string
           created_at?: string
           created_by?: string | null
+          embedding?: string | null
           id?: string
           is_active?: boolean
           keywords?: string[]
+          language?: string
+          priority?: number
+          question?: string | null
+          status?: string
+          tags?: string[]
           title?: string
           updated_at?: string
         }
@@ -727,6 +760,155 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_ai_logs: {
+        Row: {
+          confidence: number | null
+          conversation_id: string | null
+          created_at: string
+          escalated: boolean
+          escalation_reason: string | null
+          id: string
+          latency_ms: number | null
+          message_id: string | null
+          model: string | null
+          question: string | null
+          retrieved_ids: Json
+          top_score: number | null
+        }
+        Insert: {
+          confidence?: number | null
+          conversation_id?: string | null
+          created_at?: string
+          escalated?: boolean
+          escalation_reason?: string | null
+          id?: string
+          latency_ms?: number | null
+          message_id?: string | null
+          model?: string | null
+          question?: string | null
+          retrieved_ids?: Json
+          top_score?: number | null
+        }
+        Update: {
+          confidence?: number | null
+          conversation_id?: string | null
+          created_at?: string
+          escalated?: boolean
+          escalation_reason?: string | null
+          id?: string
+          latency_ms?: number | null
+          message_id?: string | null
+          model?: string | null
+          question?: string | null
+          retrieved_ids?: Json
+          top_score?: number | null
+        }
+        Relationships: []
+      }
+      chat_conversations: {
+        Row: {
+          article_title: string | null
+          assigned_admin: string | null
+          author_email: string | null
+          author_name: string | null
+          channel: string
+          country: string | null
+          created_at: string
+          human_takeover: boolean
+          id: string
+          language: string
+          reference_number: string | null
+          satisfaction: number | null
+          session_id: string
+          site: string
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          article_title?: string | null
+          assigned_admin?: string | null
+          author_email?: string | null
+          author_name?: string | null
+          channel?: string
+          country?: string | null
+          created_at?: string
+          human_takeover?: boolean
+          id?: string
+          language?: string
+          reference_number?: string | null
+          satisfaction?: number | null
+          session_id: string
+          site?: string
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          article_title?: string | null
+          assigned_admin?: string | null
+          author_email?: string | null
+          author_name?: string | null
+          channel?: string
+          country?: string | null
+          created_at?: string
+          human_takeover?: boolean
+          id?: string
+          language?: string
+          reference_number?: string | null
+          satisfaction?: number | null
+          session_id?: string
+          site?: string
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      chat_messages: {
+        Row: {
+          confidence: number | null
+          content: string
+          conversation_id: string
+          created_at: string
+          escalated: boolean
+          feedback: number | null
+          id: string
+          role: string
+          sources: Json
+        }
+        Insert: {
+          confidence?: number | null
+          content: string
+          conversation_id: string
+          created_at?: string
+          escalated?: boolean
+          feedback?: number | null
+          id?: string
+          role: string
+          sources?: Json
+        }
+        Update: {
+          confidence?: number | null
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          escalated?: boolean
+          feedback?: number | null
+          id?: string
+          role?: string
+          sources?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "chat_conversations"
             referencedColumns: ["id"]
           },
         ]
@@ -1801,6 +1983,89 @@ export type Database = {
         }
         Relationships: []
       }
+      support_tickets: {
+        Row: {
+          ai_confidence: number | null
+          ai_suggested_answer: string | null
+          answered_at: string | null
+          answered_by: string | null
+          assigned_to: string | null
+          author_email: string | null
+          author_name: string | null
+          category: string | null
+          conversation_id: string | null
+          created_at: string
+          human_answer: string | null
+          id: string
+          learned: boolean
+          priority: string
+          question: string
+          question_embedding: string | null
+          reference_number: string | null
+          status: string
+          tags: string[]
+          transcript: Json
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          ai_confidence?: number | null
+          ai_suggested_answer?: string | null
+          answered_at?: string | null
+          answered_by?: string | null
+          assigned_to?: string | null
+          author_email?: string | null
+          author_name?: string | null
+          category?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          human_answer?: string | null
+          id?: string
+          learned?: boolean
+          priority?: string
+          question: string
+          question_embedding?: string | null
+          reference_number?: string | null
+          status?: string
+          tags?: string[]
+          transcript?: Json
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          ai_confidence?: number | null
+          ai_suggested_answer?: string | null
+          answered_at?: string | null
+          answered_by?: string | null
+          assigned_to?: string | null
+          author_email?: string | null
+          author_name?: string | null
+          category?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          human_answer?: string | null
+          id?: string
+          learned?: boolean
+          priority?: string
+          question?: string
+          question_embedding?: string | null
+          reference_number?: string | null
+          status?: string
+          tags?: string[]
+          transcript?: Json
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_tickets_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string
@@ -2079,6 +2344,36 @@ export type Database = {
           start_date: string
           usage_limit: number
           used_count: number
+        }[]
+      }
+      match_faq: {
+        Args: { match_count?: number; query_embedding: string }
+        Returns: {
+          answer: string
+          category: string
+          id: string
+          question: string
+          similarity: number
+        }[]
+      }
+      match_knowledge_base: {
+        Args: { match_count?: number; query_embedding: string }
+        Returns: {
+          category: string
+          content: string
+          id: string
+          question: string
+          similarity: number
+          title: string
+        }[]
+      }
+      match_support_tickets: {
+        Args: { match_count?: number; query_embedding: string }
+        Returns: {
+          human_answer: string
+          id: string
+          question: string
+          similarity: number
         }[]
       }
     }

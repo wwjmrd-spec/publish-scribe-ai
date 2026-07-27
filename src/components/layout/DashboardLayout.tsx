@@ -93,6 +93,11 @@ const adminNavItems: NavItem[] = [
   { label: 'Publication Order', href: '/admin/publication-order', icon: ListOrdered },
   { label: 'Publication Cards', href: '/admin/publication-cards', icon: Share2 },
   { label: 'Questions', href: '/admin/questions', icon: MessageCircle },
+  { label: 'Support Tickets', href: '/admin/chatbot/tickets', icon: MessageCircle },
+  { label: 'Chatbot Knowledge', href: '/admin/chatbot/knowledge', icon: Wand2 },
+  { label: 'Chatbot FAQs', href: '/admin/chatbot/faq', icon: Wand2 },
+  { label: 'Chatbot Analytics', href: '/admin/chatbot/analytics', icon: Wand2 },
+
   { label: 'Payment Activity', href: '/admin/payment-activity', icon: ShoppingCart },
   { label: 'Bug Reports', href: '/admin/bug-reports', icon: Bug },
   { label: 'Profile', href: '/admin/profile', icon: UserCircle },
