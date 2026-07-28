@@ -823,6 +823,12 @@ export default function AdminArticleDetail() {
               </GlassCard>
             )}
 
+            {/* Author-requested update review */}
+            <AuthorUpdateReviewSection
+              article={article}
+              invalidateKeys={[['admin-article-detail', articleId], ['admin-articles']]}
+            />
+
             {/* AI Review */}
             <AIReviewSection articleId={article.id} />
 
