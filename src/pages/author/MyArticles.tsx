@@ -521,304 +521,48 @@ export default function MyArticles() {
             </Button>
           </GlassCard>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {articles?.map((article, index) => (
               <motion.div
                 key={article.id}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
+                transition={{ delay: Math.min(index, 10) * 0.03 }}
               >
-                <GlassCard className="hover-glow-cyan">
-                  <div className="flex flex-col gap-4">
-                    {/* Top: Icon + Title + Status */}
-                    <div className="flex flex-col sm:flex-row sm:items-start gap-3">
-                      <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center flex-shrink-0">
-                        {getStatusIcon(article.status)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold truncate">{article.title}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {article.reference_number}
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2 sm:flex-shrink-0">
-                        {article.status === 'pending_fee' && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                            ✅ Manuscript Accepted
-                          </span>
-                        )}
-                        {(article as any).allow_author_edit === false && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-slate-500/20 text-slate-300 border border-slate-500/30">
-                            <Lock className="w-3 h-3" /> Locked
-                          </span>
-                        )}
-                        <span className={getStatusBadge(article.status)}>
-                          {formatStatus(article.status)}
-                        </span>
-                      </div>
+                <GlassCard
+                  className="hover-glow-cyan cursor-pointer"
+                  onClick={() => navigate(`/author/articles/${article.id}`)}
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center flex-shrink-0">
+                      {getStatusIcon(article.status)}
                     </div>
-
-                    {(article as any).allow_author_edit === false && (
-                      <div className="text-xs text-muted-foreground p-2 rounded-md bg-slate-500/10 border border-slate-500/20">
-                        🔒 This article is locked. Contact the admin if you need to make changes.
-                      </div>
-                    )}
-
-
-                    {/* Abstract */}
-                    {article.abstract && (
-                      <p className="text-sm text-muted-foreground line-clamp-2">
-                        {article.abstract}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold truncate">{article.title}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {article.reference_number} · {new Date(article.created_at).toLocaleString()}
                       </p>
-                    )}
-
-                    {/* Meta row */}
-                    <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-                      <span>Submitted: {formatDate(article.created_at)}</span>
-                      {article.publication_type === 'fast_track' && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-500/20 text-purple-400 border border-purple-500/30">
-                          ⚡ Fast Track (24hr)
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {(article as any).allow_author_edit === false && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-slate-500/20 text-slate-300 border border-slate-500/30">
+                          <Lock className="w-3 h-3" /> Locked
                         </span>
                       )}
-                      {article.co_authors && article.co_authors.length > 0 && (
-                        <span className="inline-flex items-center gap-2">
-                          Co-authors: {article.co_authors.length}
-                          {subscription.plan === 'pro' && (article as any).allow_author_edit !== false && (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              className="h-6 px-2 text-xs"
-                              onClick={() => setManageCoAuthorsFor(article)}
-                            >
-                              Edit
-                            </Button>
-                          )}
-
-                        </span>
-                      )}
-                      {(article as any).page_count && (
-                        <span>📄 {(article as any).page_count} pages</span>
-                      )}
-                      {article.keywords && article.keywords.length > 0 && (
-                        <div className="flex gap-1 flex-wrap">
-                          {article.keywords.slice(0, 3).map((kw: string, i: number) => (
-                            <span
-                              key={i}
-                              className="px-2 py-0.5 rounded-full bg-[hsl(var(--glass-bg-strong))] text-xs"
-                            >
-                              {kw}
-                            </span>
-                          ))}
-                          {article.keywords.length > 3 && (
-                            <span className="text-xs">
-                              +{article.keywords.length - 3} more
-                            </span>
-                          )}
-                        </div>
-                      )}
+                      <span className={getStatusBadge(article.status)}>
+                        {formatStatus(article.status)}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/author/articles/${article.id}`);
+                        }}
+                      >
+                        <Eye className="w-4 h-4 mr-1" /> View
+                      </Button>
                     </div>
-
-                    {/* Actions */}
-                    <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border/50">
-                      {article.document_url && (
-                        <DownloadButton
-                          size="sm"
-                          variant="outline"
-                          onDownload={async () => {
-                            const tid = toast.loading('Preparing article…');
-                            try {
-                              const response = await supabase.functions.invoke('get-document-url', {
-                                body: { articleId: article.id, fileType: 'document' },
-                              });
-                              if (response.error || !response.data?.url) {
-                                toast.error('Failed to get download link', { id: tid });
-                                throw new Error('no url');
-                              }
-                              toast.success('Article ready', { id: tid });
-                              downloadFromUrl(response.data.url, `${article.reference_number || article.id}.docx`);
-                            } catch (e) {
-                              toast.error('Failed to download article', { id: tid });
-                              throw e;
-                            }
-                          }}
-                        >
-                          Article
-                        </DownloadButton>
-                      )}
-                      {article.review_report_url && (
-                        <DownloadButton
-                          size="sm"
-                          onDownload={async () => {
-                            await handleDownloadReport(article.id, {
-                              title: article.title,
-                              refNum: article.reference_number,
-                            });
-                          }}
-                        >
-                          Report
-                          {(article as any).review_report_download_count > 0 && (
-                            <span className="ml-1.5 text-xs opacity-80">
-                              ({(article as any).review_report_download_count})
-                            </span>
-                          )}
-                        </DownloadButton>
-                      )}
-                      {article.certificate_url && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => navigate('/author/certificates')}
-                        >
-                          <Award className="w-4 h-4 mr-1" />
-                          Certificate
-                        </Button>
-                      )}
-
-                      {/* AI Auto-Correct (Pro feature, requires review report) */}
-                      {article.review_report_url &&
-                        (article as any).allow_author_edit !== false &&
-                        !['manuscript_accepted', 'rejected', 'withdrawn', 'galley_proof_sent', 'published'].includes(article.status) && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-primary border-primary/40"
-                          onClick={() => {
-                            if (subscription.plan !== 'pro' || !subscription.isActive) {
-                              toast(
-                                <div className="flex flex-col gap-2">
-                                  <p className="font-semibold flex items-center gap-1">
-                                    <Crown className="w-4 h-4" /> Pro feature
-                                  </p>
-                                  <p className="text-sm text-muted-foreground">
-                                    Let AI auto-correct your manuscript using the review report. Available on Pro.
-                                  </p>
-                                  <Button size="sm" className="gradient-primary mt-1 w-fit" onClick={() => navigate('/author/subscription')}>
-                                    <Crown className="w-4 h-4 mr-1" /> Upgrade to Pro
-                                  </Button>
-                                </div>
-                              );
-                              return;
-                            }
-                            navigate(`/author/ai-correct/${article.id}`);
-                          }}
-                        >
-                          <Sparkles className="w-4 h-4 mr-1" />
-                          AI Auto-Correct
-                          {(subscription.plan !== 'pro' || !subscription.isActive) && (
-                            <Lock className="w-3 h-3 ml-1" />
-                          )}
-                        </Button>
-                      )}
-
-                      {/* Update Manuscript - before review */}
-                      {canUpdateManuscript(article) && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-primary"
-                          disabled={updatingManuscript === article.id}
-                          onClick={() => {
-                            const input = document.createElement('input');
-                            input.type = 'file';
-                            input.accept = '.docx,.doc';
-                            input.onchange = (e) => {
-                              const file = (e.target as HTMLInputElement).files?.[0];
-                              if (file) handleUpdateManuscript(article.id, file);
-                            };
-                            input.click();
-                          }}
-                        >
-                          {updatingManuscript === article.id ? (
-                            <GlassSpinner size="sm" />
-                          ) : (
-                            <>
-                              <RefreshCw className="w-4 h-4 mr-1" />
-                              Update Manuscript
-                            </>
-                          )}
-                        </Button>
-                      )}
-
-                      {article.status === 'pending_fee' && (
-                        <Button
-                          size="sm"
-                          className="gradient-primary ml-auto"
-                          onClick={() => navigate('/author/cart')}
-                        >
-                          Pay Now
-                        </Button>
-                      )}
-                      {article.status === 'rejected' && (article as any).allow_author_edit !== false && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => navigate('/author/resubmit', { state: { resubmit: article } })}
-                        >
-                          <Upload className="w-4 h-4 mr-1" />
-                          Resubmit
-                        </Button>
-                      )}
-                      {article.status && !['withdrawn', 'rejected', 'published'].includes(article.status) && (article as any).allow_withdrawal && (article as any).allow_author_edit !== false && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="text-destructive hover:text-destructive ml-auto"
-                          onClick={() => setWithdrawArticle(article)}
-                        >
-                          <Ban className="w-4 h-4 mr-1" />
-                          Withdraw
-                        </Button>
-                      )}
-
-                    </div>
-
-                    {/* Galley Proof Review */}
-                    {(article as any).galley_proof_status && (
-                      <GalleyProofReviewSection article={article} />
-                    )}
-
-                    {/* Copyright Form Upload */}
-                    <CopyrightFormSection article={article} />
-
-                    {/* Shareable Publication Card (published or ready-to-publish articles) */}
-                    {['published', 'galley_proof_sent', 'manuscript_accepted'].includes(article.status) && (
-                      <Collapsible>
-                        <CollapsibleTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="w-full justify-between border-primary/30 text-primary hover:bg-primary/10"
-                          >
-                            <span className="flex items-center gap-2">
-                              <Share2 className="w-4 h-4" />
-                              Publication Card & Share
-                            </span>
-                            <ChevronDown className="w-4 h-4 transition-transform data-[state=open]:rotate-180" />
-                          </Button>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent className="pt-4">
-                          <PublicationCard
-                            article={{
-                              id: article.id,
-                              reference_number: article.reference_number,
-                              title: article.title,
-                              author_id: (article as any).author_id || user?.id || null,
-                              author_name: article.author_name,
-                              country: (user?.user_metadata as any)?.country || null,
-                              publication_year: (article as any).publication_year,
-                              volume: (article as any).volume,
-                              issue: (article as any).issue,
-                              page_number: (article as any).page_number,
-                              published_link: (article as any).published_link,
-                              keywords: article.keywords,
-                              abstract: article.abstract,
-                            }}
-                          />
-                        </CollapsibleContent>
-                      </Collapsible>
-                    )}
                   </div>
                 </GlassCard>
               </motion.div>

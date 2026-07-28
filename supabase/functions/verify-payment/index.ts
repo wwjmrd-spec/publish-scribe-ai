@@ -350,6 +350,27 @@ serve(async (req) => {
           .single();
         if (art) itemDescriptions.push(`Review Report: ${art.title}`);
       }
+
+      // Process paid article-detail edit unlocks: credit 2 saves per purchase.
+      const editItems = paymentItems.filter((i: any) => i.type === 'article_edit');
+      for (const it of editItems) {
+        if (!it.articleId) continue;
+        const { data: art } = await serviceClient
+          .from('articles')
+          .select('title, author_edits_remaining')
+          .eq('id', it.articleId)
+          .single();
+        await serviceClient
+          .from('articles')
+          .update({
+            author_edits_remaining: ((art as any)?.author_edits_remaining || 0) + 2,
+            allow_author_edit: true,
+            edit_lock_reason: 'Paid edit unlock (2 saves)',
+            edit_lock_updated_at: new Date().toISOString(),
+          })
+          .eq('id', it.articleId);
+        if (art) itemDescriptions.push(`Article Detail Edit: ${art.title}`);
+      }
     } else {
       // Legacy flow - article-only payments
       if (payment.article_ids && payment.article_ids.length > 0) {

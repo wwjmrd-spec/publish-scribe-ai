@@ -49,6 +49,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AIReviewSection } from '@/components/admin/AIReviewSection';
 import { FormattingSection } from '@/components/admin/FormattingSection';
 import { EditCoAuthorDialog } from '@/components/admin/EditCoAuthorDialog';
+import { AuthorUpdateReviewSection } from '@/components/admin/AuthorUpdateReviewSection';
 
 
 type ArticleStatus = Database['public']['Enums']['article_status'];
@@ -822,6 +823,12 @@ export default function AdminArticleDetail() {
                 </div>
               </GlassCard>
             )}
+
+            {/* Author-requested update review */}
+            <AuthorUpdateReviewSection
+              article={article}
+              invalidateKeys={[['admin-article-detail', articleId], ['admin-articles']]}
+            />
 
             {/* AI Review */}
             <AIReviewSection articleId={article.id} />

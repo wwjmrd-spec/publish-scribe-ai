@@ -503,10 +503,16 @@ export type Database = {
           ai_autocorrected_at: string | null
           allow_author_edit: boolean
           allow_withdrawal: boolean
+          author_details_changed_once: boolean
+          author_edits_remaining: number
           author_id: string
           author_name: string | null
           author_revision_html: string | null
           author_revision_submitted_at: string | null
+          author_update_html: string | null
+          author_update_notes: string | null
+          author_update_status: string
+          author_update_submitted_at: string | null
           automation_paused: boolean
           certificate_url: string | null
           copyright_form_url: string | null
@@ -571,10 +577,16 @@ export type Database = {
           ai_autocorrected_at?: string | null
           allow_author_edit?: boolean
           allow_withdrawal?: boolean
+          author_details_changed_once?: boolean
+          author_edits_remaining?: number
           author_id: string
           author_name?: string | null
           author_revision_html?: string | null
           author_revision_submitted_at?: string | null
+          author_update_html?: string | null
+          author_update_notes?: string | null
+          author_update_status?: string
+          author_update_submitted_at?: string | null
           automation_paused?: boolean
           certificate_url?: string | null
           copyright_form_url?: string | null
@@ -639,10 +651,16 @@ export type Database = {
           ai_autocorrected_at?: string | null
           allow_author_edit?: boolean
           allow_withdrawal?: boolean
+          author_details_changed_once?: boolean
+          author_edits_remaining?: number
           author_id?: string
           author_name?: string | null
           author_revision_html?: string | null
           author_revision_submitted_at?: string | null
+          author_update_html?: string | null
+          author_update_notes?: string | null
+          author_update_status?: string
+          author_update_submitted_at?: string | null
           automation_paused?: boolean
           certificate_url?: string | null
           copyright_form_url?: string | null
@@ -2447,6 +2465,8 @@ export type Database = {
         | "galley_proof_revised"
         | "free"
         | "published_to_wwjmrd"
+        | "update_under_process"
+        | "updated_published"
       coauthor_payment_status: "pending" | "paid" | "failed"
       currency_type: "INR" | "USD" | "USDT"
       discount_currency: "INR" | "USD" | "BOTH" | "USDT"
@@ -2602,6 +2622,8 @@ export const Constants = {
         "galley_proof_revised",
         "free",
         "published_to_wwjmrd",
+        "update_under_process",
+        "updated_published",
       ],
       coauthor_payment_status: ["pending", "paid", "failed"],
       currency_type: ["INR", "USD", "USDT"],

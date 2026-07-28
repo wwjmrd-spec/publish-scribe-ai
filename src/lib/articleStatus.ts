@@ -21,6 +21,8 @@ export const ARTICLE_STATUS_LABELS: Record<string, string> = {
   galley_proof_approved: 'Galley Proof Approved',
   galley_proof_revised: 'Revised Galley Proof Submitted',
   published_to_wwjmrd: 'Published to WWJMRD',
+  update_under_process: 'Update Under Process',
+  updated_published: 'Updated & Published',
 };
 
 
@@ -46,6 +48,8 @@ export const ARTICLE_STATUS_BADGES: Record<string, string> = {
   galley_proof_approved: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
   galley_proof_revised: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
   published_to_wwjmrd: 'bg-green-500/20 text-green-400 border-green-500/30',
+  update_under_process: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+  updated_published: 'bg-green-500/20 text-green-400 border-green-500/30',
 };
 
 export function formatArticleStatus(status: string | null | undefined): string {
@@ -81,6 +85,8 @@ export const MANUAL_ADMIN_STATUSES: { value: string; label: string }[] = [
   { value: 'galley_proof_revised', label: 'Revised Galley Proof Submitted' },
   { value: 'published', label: 'Published' },
   { value: 'published_to_wwjmrd', label: 'Published to WWJMRD' },
+  { value: 'update_under_process', label: 'Update Under Process' },
+  { value: 'updated_published', label: 'Updated & Published' },
   { value: 'rejected', label: 'Rejected' },
   { value: 'withdrawn', label: 'Withdrawn' },
 ];
