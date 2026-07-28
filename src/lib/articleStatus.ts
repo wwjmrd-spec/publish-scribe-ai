@@ -48,6 +48,8 @@ export const ARTICLE_STATUS_BADGES: Record<string, string> = {
   galley_proof_approved: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
   galley_proof_revised: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
   published_to_wwjmrd: 'bg-green-500/20 text-green-400 border-green-500/30',
+  update_under_process: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+  updated_published: 'bg-green-500/20 text-green-400 border-green-500/30',
 };
 
 export function formatArticleStatus(status: string | null | undefined): string {
