@@ -21,6 +21,8 @@ export const ARTICLE_STATUS_LABELS: Record<string, string> = {
   galley_proof_approved: 'Galley Proof Approved',
   galley_proof_revised: 'Revised Galley Proof Submitted',
   published_to_wwjmrd: 'Published to WWJMRD',
+  update_under_process: 'Update Under Process',
+  updated_published: 'Updated & Published',
 };
 
 
