@@ -162,6 +162,19 @@ serve(async (req) => {
         if (artErr || !art) throw new Error('Article not found or not yours');
         if (!art.review_report_url) throw new Error('No review report available for this article');
       }
+
+      // Validate article-edit unlock items
+      const editItems = items.filter((i: any) => i.type === 'article_edit');
+      for (const it of editItems) {
+        if (!it.articleId) throw new Error('Invalid article-edit item');
+        const { data: art, error: artErr } = await serviceClient
+          .from('articles')
+          .select('id, author_id')
+          .eq('id', it.articleId)
+          .eq('author_id', userId)
+          .maybeSingle();
+        if (artErr || !art) throw new Error('Article not found or not yours');
+      }
     } else if (body.articleIds && Array.isArray(body.articleIds)) {
       // Legacy flow
       articleIds = body.articleIds;
