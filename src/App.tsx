@@ -146,6 +146,14 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
+            <Route
+              path="/author/articles/:articleId"
+              element={
+                <ProtectedRoute allowedRoles={['author']}>
+                  <AuthorArticleDetail />
+                </ProtectedRoute>
+              }
+            />
             <Route 
               path="/author/ai-correct/:articleId" 
               element={
