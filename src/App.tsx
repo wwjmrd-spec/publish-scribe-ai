@@ -16,6 +16,7 @@ import ResubmitArticle from "./pages/author/ResubmitArticle";
 import AICorrectManuscript from "./pages/author/AICorrectManuscript";
 import AIWriteArticle from "./pages/author/AIWriteArticle";
 import MyArticles from "./pages/author/MyArticles";
+import AuthorArticleDetail from "./pages/author/ArticleDetail";
 import Cart from "./pages/author/Cart";
 import Certificates from "./pages/author/Certificates";
 import Profile from "./pages/author/Profile";
