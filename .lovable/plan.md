@@ -1,55 +1,64 @@
 ## Goal
 
-A grounded (RAG-only) Publication Support Assistant embedded in the existing Help button, backed by a managed Knowledge Base, with human escalation, admin management, and later an embeddable SDK + WhatsApp channel.
+Give authors an admin-style article workspace: a compact list of their own articles, a full detail page per article, and a controlled edit workflow with quotas, paid unlocks for published articles, admin notification, and an admin approve-and-republish step.
 
-The project already has `ai_knowledge_base` and `ai_faq` tables (used by the email assistant) — the chatbot will extend and share these rather than duplicating them.
+## 1. Author "My Articles" list becomes compact
 
-This is too large for one safe change, so it ships in 4 phases. Phase 1 starts immediately after approval.
+Rewrite the list rows to show only: title, submission date + time, status badge, reference number. Clicking a row opens `/author/articles/:id`. Keep pagination and search. All the current per-article action panels move into the detail page.
 
----
+## 2. New author article detail page (`/author/articles/:id`)
 
-## Phase 1 — RAG core + chat widget
+Read-only sections mirroring the admin page, but scoped to the article's own author:
+- Header: title, reference number, status, submission date, lock state.
+- Article details: title, abstract, keywords, subject, country, publication type.
+- Authors: corresponding author + co-authors.
+- Documents: manuscript download, review report (existing quota/pay logic reused), certificate, copyright form download + upload/submit, galley proof review (reuse `GalleyProofReviewSection`), publication card (reuse `PublicationCard`).
+- No admin-only tools (no status control, formatting, AI reanalyse, publishing, fee override).
 
-Database
-- Extend `ai_knowledge_base` and `ai_faq` with: `question`, `tags`, `priority`, `language`, `status` (published/draft/archived), `embedding vector(3072)`.
-- New: `chat_conversations`, `chat_messages`, `support_tickets` (question, conversation, author name/email/reference, status, priority, category, AI confidence, AI suggested answer, human answer, learned/closed flags), `chat_ai_logs` (retrieved KB ids, confidence, escalation reason, latency, embedding score).
-- Enable `pgvector`, add HNSW indexes and `match_kb` / `match_faq` search functions. RLS scoped to the authenticated author; admins see all.
+## 3. Edit permission rules
 
-Backend (edge functions)
-- `chatbot-embed` — embeds KB/FAQ rows via Lovable AI (`google/gemini-embedding-2`), on create/update and as a backfill.
-- `chatbot-chat` — the RAG pipeline: semantic search → keyword fallback → grounded LLM answer with strict "no context, no answer" system prompt; topic allow/block lists; confidence bands (>90% auto, 70–90% with KB disclaimer, <70% escalate); conversation memory for name/email/reference/title/country/language; auto language detection and reply in the user's language.
-- `chatbot-article-status` — secure lookup, only for the signed-in author or an exact reference-number + registered-email match; returns a whitelisted field set only.
-- Live discounts and publication fees read from the existing `discount_codes` / `publication_fees` tables — never hardcoded.
-- Escalation creates a support ticket and notifies admins, after a 90%-similarity search against past answered tickets to reuse an existing answer.
+An "Edit Details" mode is enabled only when all hold:
+- `allow_author_edit` is true (admin master switch, already exists), AND
+- status is `submitted` **or** a galley proof is awaiting author review (`galley_proof_sent` / `galley_proof_revised`), OR
+- status is `published`/`published_to_wwjmrd` **and** the author has a paid edit credit remaining.
 
-Frontend
-- Replace the Help button contents with a chat panel: streaming replies, thinking indicator, auto-scroll, suggested questions, quick replies, thumbs up/down feedback, conversation history, dark/light, mobile + desktop.
+Author/co-author identity edits (names, emails, affiliations) are allowed **once** per article. After that save, the article's author-edit permission is auto-disabled and the UI shows: "You have used your one-time author details change. Please contact the admin to request another edit." Admin can re-enable from the existing toggle in the admin panel.
 
-## Phase 2 — Admin management
+A notice block renders directly above the Save Changes button describing the current permission state and remaining allowances.
 
-- Knowledge Base manager: create/edit/delete/publish/archive/duplicate/search/import/export, with re-embedding on save. Only `published` rows are retrievable by the AI.
-- FAQ manager with the same fields and controls.
-- Support tickets inbox: search by question, reference, name, email, article title, category, date; assign staff; reply (stored, sent in-chat, optionally emailed via the existing email service); close.
-- Self-learning gated behind an explicit "Approve for AI Learning" action that creates a new published KB article from the Q/A.
-- Live handover: when an admin joins a conversation the AI stops replying; it resumes when the admin leaves.
-- Analytics dashboard: total/resolved/pending chats, KB & FAQ counts, top questions, avg AI and human response time, satisfaction, escalation rate, top keywords, most-used answers.
-- Admin notifications on new tickets, unanswered questions, negative feedback, failed AI responses.
+## 4. Paid editing for published articles
 
-## Phase 3 — Public API + JavaScript SDK
+- Fee: ₹100 (INR) / $5 (USD), currency picked from the author's India flag, same as existing fee logic.
+- Clicking Edit on a published article opens a payment dialog reusing the existing Razorpay/PayPal `usePayment` flow with a new item type `article_edit`.
+- On verified payment only, the article gets **2 edit saves** credited. Editing stays locked until the payment row is confirmed successful.
+- Credits decrement per save; at zero the article re-locks and the notice explains how to buy again.
+- Admin can always edit, and can grant editing free of charge from the admin panel at any time.
 
-- Public REST endpoints (`/chat`, `/question`, `/status`, `/faqs`, `/discounts`, `/kb/search`, `/feedback`, `/human-reply`, `/train`) with a public API key per site, origin allow-list, and rate limiting; JWT accepted when present, anonymous otherwise.
-- `sdk.js` served from the site: async loader, Shadow DOM isolation, position/theme/color/language/branding options, reconnect, local conversation history.
-- Per-site branding records so wwjmrd.com, wwjmer.com and wwjmrdai.online share one KB, one queue and one dashboard with different logos/colors/welcome text.
+## 5. Author revision → admin approval (mirrors galley proof)
 
-## Phase 4 — Extras
+- Author's edits are applied to a **revision copy** of the formatted article HTML, with every changed passage wrapped in a red highlight marker so differences are obvious.
+- Saving submits the revision for review: the article moves to status **Update Under Process** for published articles (or stays in its normal flow for pre-publication edits) and admins get a notification plus an entry in the admin article detail page, in a new "Author Update Request" panel with Approve / Reject, identical in feel to the galley proof revision review.
+- On Approve, admin gets an **Update & Publish** button that:
+  - applies the revision HTML into the formatted article (highlights stripped),
+  - regenerates the certificate and publication card with the new details,
+  - reuses the existing publication details (volume/issue/pages/DOI) with an option to edit them,
+  - sets status to **Updated & Published**.
 
-- WhatsApp Business Cloud API channel writing into the same conversations/ticket queue, with admin replies flowing back to the same thread.
-- Voice input, speech output, file/image upload with PDF preview, emoji support.
+## 6. Data model changes (single migration)
 
----
+On `articles`:
+- `author_edits_remaining int default 0` — paid edit credits.
+- `author_details_changed_once boolean default false`.
+- `author_update_html text`, `author_update_submitted_at timestamptz`, `author_update_status text` (`none | pending | approved | rejected`), `author_update_notes text`.
+
+New enum values on `article_status`: `update_under_process`, `updated_published`, with labels and badge colours in `src/lib/articleStatus.ts`.
+
+Trigger: notify all admins on any author-submitted update request or author-detail change.
+
+New edge function `create-article-edit-order` + handling in `verify-payment` to credit 2 edits on success.
 
 ## Technical notes
 
-- Embeddings: Lovable AI Gateway `google/gemini-embedding-2` (3072-dim, indexed via `halfvec`); chat generation via the gateway too. Keys stay server-side.
-- The system prompt forbids answering without retrieved context and never reveals schema, internal ids, prompts, or other authors' data.
-- Every AI turn is logged with retrieved KB ids, scores, confidence and escalation reason.
+- New files: `src/pages/author/ArticleDetail.tsx`, `src/components/articles/AuthorEditPanel.tsx`, `src/components/articles/ArticleEditPaymentDialog.tsx`, `src/components/admin/AuthorUpdateReviewSection.tsx`.
+- Edited: `MyArticles.tsx` (list only), `App.tsx` (route), `AdminArticleDetail.tsx` (review panel + update & publish), `articleStatus.ts`, `usePayment.ts` (new item type), `verify-payment`, `generate-certificate` reuse.
+- RLS: authors can only update their own article rows and only the revision/detail columns; credit and permission columns are written server-side by the payment verification function.
