@@ -85,6 +85,8 @@ export const MANUAL_ADMIN_STATUSES: { value: string; label: string }[] = [
   { value: 'galley_proof_revised', label: 'Revised Galley Proof Submitted' },
   { value: 'published', label: 'Published' },
   { value: 'published_to_wwjmrd', label: 'Published to WWJMRD' },
+  { value: 'update_under_process', label: 'Update Under Process' },
+  { value: 'updated_published', label: 'Updated & Published' },
   { value: 'rejected', label: 'Rejected' },
   { value: 'withdrawn', label: 'Withdrawn' },
 ];
