@@ -450,58 +450,92 @@ export default function AuthorArticleDetail() {
         <CopyrightFormSection article={article} />
 
         {['published', 'published_to_wwjmrd', 'updated_published', 'galley_proof_sent', 'manuscript_accepted'].includes(article.status) && (
-          <Collapsible>
-            <CollapsibleTrigger asChild>
-              <Button variant="outline" size="sm" className="w-full justify-between border-primary/30 text-primary hover:bg-primary/10">
-                <span className="flex items-center gap-2"><Share2 className="w-4 h-4" /> Publication Card & Share</span>
-                <ChevronDown className="w-4 h-4" />
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="pt-4">
-              <PublicationCard
-                article={{
-                  id: article.id,
-                  reference_number: article.reference_number,
-                  title: article.title,
-                  author_id: article.author_id,
-                  author_name: article.author_name,
-                  country: article.country,
-                  publication_year: article.publication_year,
-                  volume: article.volume,
-                  issue: article.issue,
-                  page_number: article.page_number,
-                  published_link: article.published_link,
-                  keywords: article.keywords,
-                  abstract: article.abstract,
-                }}
-              />
-            </CollapsibleContent>
-          </Collapsible>
+          <div className="space-y-3">
+            <h2 className="font-semibold flex items-center gap-2 text-primary">
+              <Share2 className="w-4 h-4" /> Publication Card & Share
+            </h2>
+            <PublicationCard
+              article={{
+                id: article.id,
+                reference_number: article.reference_number,
+                title: article.title,
+                author_id: article.author_id,
+                author_name: article.author_name,
+                country: article.country,
+                publication_year: article.publication_year,
+                volume: article.volume,
+                issue: article.issue,
+                page_number: article.page_number,
+                published_link: article.published_link,
+                keywords: article.keywords,
+                abstract: article.abstract,
+              }}
+            />
+          </div>
         )}
       </motion.div>
 
-      <AlertDialog open={payOpen} onOpenChange={(o) => !o && setPayOpen(false)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Pay to edit a published article</AlertDialogTitle>
-            <AlertDialogDescription>
-              This article is already published. Corrections require a fee of{' '}
-              <span className="font-semibold text-foreground">{currency === 'INR' ? '₹100' : '$5'}</span>, which unlocks{' '}
-              <span className="font-semibold text-foreground">2 saves</span> for this article. Editing becomes available only
-              after the payment is received successfully, and your changes still need admin approval before republishing.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={paying}
-              onClick={(e) => { e.preventDefault(); payForEdit(); }}
-            >
-              {paying ? <><GlassSpinner size="sm" className="mr-2" />Processing…</> : `Pay ${currency === 'INR' ? '₹100' : '$5'}`}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <PayOptionsDialog
+        open={payOpen}
+        onOpenChange={setPayOpen}
+        title="Pay to edit a published article"
+        description={
+          <>
+            This article is already published. Corrections require a fee of{' '}
+            <span className="font-semibold text-foreground">{currency === 'INR' ? '₹100' : '$5'}</span>, which unlocks{' '}
+            <span className="font-semibold text-foreground">2 saves</span>. Editing opens only after the payment is
+            received, and your changes still need admin approval before republishing.
+          </>
+        }
+        items={[{ type: 'article_edit', articleId: article.id }]}
+        inrAmount={100}
+        usdAmount={5}
+        cartItem={{
+          id: `article_edit-${article.id}`,
+          type: 'article_edit',
+          label: `Article edit credits — ${article.reference_number}`,
+          articleId: article.id,
+          priceInr: 100,
+          priceUsd: 5,
+        }}
+        onPaid={() => {
+          queryClient.invalidateQueries({ queryKey: ['author-article', articleId] });
+          toast.success('Editing unlocked for 2 saves.');
+          setEditing(true);
+        }}
+      />
+
+      <PayOptionsDialog
+        open={reportPayOpen}
+        onOpenChange={setReportPayOpen}
+        title="Review report download"
+        description={
+          <>
+            You have used your <span className="font-semibold text-foreground">2 free lifetime</span> review-report
+            downloads. Pay {currency === 'INR' ? '₹100' : '$5'} to download this report, or upgrade to Pro for 10
+            downloads every month.
+          </>
+        }
+        items={[{ type: 'review_report', articleId: article.id }]}
+        inrAmount={100}
+        usdAmount={5}
+        cartItem={{
+          id: `review_report-${article.id}`,
+          type: 'review_report',
+          label: `Review report — ${article.reference_number}`,
+          articleId: article.id,
+          priceInr: 100,
+          priceUsd: 5,
+        }}
+        onPaid={() => {
+          queryClient.invalidateQueries({ queryKey: ['author-article', articleId] });
+          downloadDoc('review_report', `review-report-${article.reference_number}.pdf`).catch(() => {});
+        }}
+        extraAction={
+          <Button variant="outline" onClick={() => navigate('/author/subscription')}>Upgrade to Pro</Button>
+        }
+      />
+
     </DashboardLayout>
   );
 }
