@@ -11,11 +11,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { DownloadButton } from '@/components/ui/DownloadButton';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { PayOptionsDialog } from '@/components/articles/PayOptionsDialog';
+
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { downloadFromUrl } from '@/lib/downloadFile';
@@ -39,11 +36,12 @@ export default function AuthorArticleDetail() {
   const [editing, setEditing] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [payOpen, setPayOpen] = React.useState(false);
-  const [paying, setPaying] = React.useState(false);
+  const [reportPayOpen, setReportPayOpen] = React.useState(false);
   const [form, setForm] = React.useState<any>(null);
 
   const currency: 'INR' | 'USD' = isIndian ? 'INR' : 'USD';
   const editFee = currency === 'INR' ? 100 : 5;
+
 
   const { data: article, isLoading } = useQuery({
     queryKey: ['author-article', articleId],
@@ -190,96 +188,26 @@ export default function AuthorArticleDetail() {
     }
   };
 
-  const payForEdit = async () => {
-    if (!article || !user) return;
-    setPaying(true);
-    try {
-      if (currency === 'INR') {
-        if (!(window as any).Razorpay) {
-          await new Promise<void>((resolve, reject) => {
-            const s = document.createElement('script');
-            s.src = 'https://checkout.razorpay.com/v1/checkout.js';
-            s.onload = () => resolve();
-            s.onerror = () => reject(new Error('Razorpay SDK failed to load'));
-            document.body.appendChild(s);
-          });
-        }
-        const orderRes = await supabase.functions.invoke('create-razorpay-order', {
-          body: { items: [{ type: 'article_edit', articleId: article.id }], amount: editFee, currency: 'INR' },
-        });
-        if (orderRes.error || (orderRes.data as any)?.error) {
-          throw new Error(orderRes.error?.message || (orderRes.data as any)?.error || 'Order failed');
-        }
-        const orderData: any = orderRes.data;
-        const rzp = new (window as any).Razorpay({
-          key: orderData.keyId,
-          amount: orderData.amount,
-          currency: orderData.currency,
-          name: 'WWJMRD',
-          description: `Article Detail Edit — ${article.reference_number}`,
-          order_id: orderData.orderId,
-          prefill: { email: user.email, name: article.author_name || '' },
-          theme: { color: '#00d4ff' },
-          handler: async (resp: any) => {
-            try {
-              const v = await supabase.functions.invoke('verify-payment', {
-                body: {
-                  gateway: 'razorpay',
-                  paymentId: orderData.paymentId,
-                  razorpayOrderId: resp.razorpay_order_id,
-                  razorpayPaymentId: resp.razorpay_payment_id,
-                  razorpaySignature: resp.razorpay_signature,
-                },
-              });
-              if (v.error || (v.data as any)?.error) throw new Error(v.error?.message || (v.data as any)?.error);
-              toast.success('Payment successful — you can now save changes twice.');
-              setPayOpen(false);
-              setEditing(true);
-              queryClient.invalidateQueries({ queryKey: ['author-article', articleId] });
-            } catch (e: any) {
-              toast.error('Payment verification failed: ' + (e.message || 'unknown'));
-            } finally {
-              setPaying(false);
-            }
-          },
-          modal: { ondismiss: () => setPaying(false) },
-        });
-        rzp.open();
-      } else {
-        const orderRes = await supabase.functions.invoke('create-paypal-order', {
-          body: {
-            items: [{ type: 'article_edit', articleId: article.id }],
-            amount: editFee,
-            currency: 'USD',
-            returnUrl: window.location.href,
-          },
-        });
-        if (orderRes.error || (orderRes.data as any)?.error) {
-          throw new Error(orderRes.error?.message || (orderRes.data as any)?.error || 'Order failed');
-        }
-        const d: any = orderRes.data;
-        localStorage.setItem('wwjmrd-paypal-payment-id', d.paymentId);
-        localStorage.setItem('wwjmrd-paypal-order-id', d.orderId);
-        window.location.href = d.approvalUrl;
-      }
-    } catch (e: any) {
-      toast.error('Failed to start payment: ' + (e.message || 'unknown'));
-      setPaying(false);
-    }
-  };
-
   const downloadDoc = async (fileType: string, name: string) => {
     const tid = toast.loading('Preparing file…');
     const res = await supabase.functions.invoke('get-document-url', {
       body: { articleId: article.id, fileType },
     });
+    if ((res.data as any)?.paymentRequired) {
+      toast.dismiss(tid);
+      setReportPayOpen(true);
+      return;
+    }
     if (res.error || !(res.data as any)?.url) {
       toast.error((res.data as any)?.error || 'Failed to get download link', { id: tid });
       throw new Error('no url');
     }
     toast.success('File ready', { id: tid });
     downloadFromUrl((res.data as any).url, name);
+    queryClient.invalidateQueries({ queryKey: ['review-downloads-count', user?.id] });
+    queryClient.invalidateQueries({ queryKey: ['author-article', articleId] });
   };
+
 
   if (isLoading || !article || !form) {
     return (
@@ -326,16 +254,33 @@ export default function AuthorArticleDetail() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-semibold flex items-center gap-2">Article Details</h2>
             {!editing && (
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={pendingUpdate}
-                onClick={() => (canEdit ? setEditing(true) : needsPayment ? setPayOpen(true) : toast.error('Editing is not available for this article right now. Please contact the admin.'))}
-              >
-                <Pencil className="w-4 h-4 mr-1" /> Edit Details
-              </Button>
+              canEdit ? (
+                <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
+                  <Pencil className="w-4 h-4 mr-1" /> Edit Details
+                </Button>
+              ) : needsPayment ? (
+                <Button size="sm" className="gradient-primary" onClick={() => setPayOpen(true)}>
+                  <Lock className="w-4 h-4 mr-1" /> Edit — {currency === 'INR' ? '₹100' : '$5'}
+                </Button>
+              ) : (
+                <Button size="sm" variant="outline" disabled className="opacity-70">
+                  <Lock className="w-4 h-4 mr-1" /> Edit
+                </Button>
+              )
             )}
           </div>
+
+          {!editing && !canEdit && !needsPayment && (
+            <div className="mb-4 flex gap-2 p-3 rounded-lg border border-sky-500/40 bg-sky-500/10 text-sm">
+              <AlertCircle className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" />
+              <p>
+                {pendingUpdate
+                  ? 'Your requested changes have been submitted and are waiting for admin approval. Editing will re-open once the review is completed.'
+                  : 'Your article is in the review process, so it cannot be edited right now. Editing will be available again once the review stage is completed (or after your article is published, where corrections can be unlocked for a small fee).'}
+              </p>
+            </div>
+          )}
+
 
           <div className="space-y-4">
             <div>
