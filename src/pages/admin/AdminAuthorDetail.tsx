@@ -111,11 +111,31 @@ export default function AdminAuthorDetail() {
     enabled: !!authorId,
   });
 
+
+  // Authoritative download audit trail (every issued signed URL is logged here)
+  const { data: downloadRows } = useQuery({
+    queryKey: ['admin-author-report-downloads', authorId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('review_report_downloads')
+        .select('id, download_type, created_at')
+        .eq('author_id', authorId!);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!authorId,
+  });
+
+  const auditTotalReports = (downloadRows || []).length;
+  const auditFreeUsed = (downloadRows || []).filter(d => d.download_type === 'free').length;
+  const auditPaidReports = (downloadRows || []).filter(d => d.download_type === 'paid').length;
+
   const lifetimeReports = (usageRows || []).reduce((s, r) => s + (r.review_reports_used || 0), 0);
   const lifetimeCerts = (usageRows || []).reduce((s, r) => s + (r.coauthor_certs_used || 0), 0);
   const currentMonthRow = (usageRows || []).find(r => r.usage_month === currentMonth);
   const monthReports = currentMonthRow?.review_reports_used || 0;
   const monthCerts = currentMonthRow?.coauthor_certs_used || 0;
+
 
   // Free plan period (anchored to author signup day-of-month)
   const freePeriodKey = React.useMemo(() => {
@@ -472,7 +492,7 @@ export default function AdminAuthorDetail() {
                       <FileText className="w-3.5 h-3.5" /> Review Reports
                     </span>
                     <span className="font-medium">
-                      <span className="text-primary">{freePeriodReports}</span> / 2
+                      <span className="text-primary">{auditFreeUsed}</span> / 2
                     </span>
                   </div>
                   <Button
@@ -489,7 +509,7 @@ export default function AdminAuthorDetail() {
                     <RotateCcw className="w-3 h-3 mr-1" /> Reset Free Review Reports
                   </Button>
                   <p className="text-[10px] text-muted-foreground mt-1">
-                    Lifetime total: {lifetimeReports}
+                    Lifetime total: {auditTotalReports} ({auditFreeUsed} free, {auditPaidReports} paid)
                   </p>
                 </div>
 
@@ -533,7 +553,7 @@ export default function AdminAuthorDetail() {
                       <FileText className="w-3.5 h-3.5" /> Review Reports
                     </span>
                     <span className="font-medium">
-                      <span className="text-primary">{monthReports}</span> / 5
+                      <span className="text-primary">{monthReports}</span> / 10
                     </span>
                   </div>
                   <Button
@@ -581,13 +601,14 @@ export default function AdminAuthorDetail() {
                 Downloads &amp; Submission Quota
               </h3>
               {(() => {
-                const totalTracked = lifetimeReports + lifetimeCerts;
+                const totalTracked = auditTotalReports + lifetimeCerts;
                 const isPro = plan === 'pro';
-                const freeLimit = 1;   // 1 free review report per article
+                const freeLimit = 2;   // 2 free review-report downloads per author (lifetime)
                 const proLimit = 10;   // Pro: 10 review reports per month
                 const reviewLimit = isPro ? proLimit : freeLimit;
-                const reviewUsed = isPro ? monthReports : freePeriodReports;
+                const reviewUsed = isPro ? monthReports : auditFreeUsed;
                 const reviewExhausted = reviewUsed >= reviewLimit;
+
                 const submissionExhausted = !isPro && reviewExhausted;
                 return (
                   <div className="space-y-3 text-sm">

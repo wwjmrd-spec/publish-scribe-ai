@@ -246,11 +246,7 @@ export function GalleyProofReviewSection({ article }: GalleyProofReviewSectionPr
           <DownloadButton size="sm" onDownload={() => handleDownload('galley_proof_pdf')}>
             PDF File
           </DownloadButton>
-          {(article as any).galley_proof_word_url && (
-            <DownloadButton size="sm" onDownload={() => handleDownload('galley_proof_word')}>
-              Word (legacy)
-            </DownloadButton>
-          )}
+
           {(galleyStatus === 'sent' || galleyStatus === 'revision_submitted') && (
             <Button variant="outline" size="sm" onClick={openEditor} className="text-primary">
               <Edit3 className="w-4 h-4 mr-1" />
