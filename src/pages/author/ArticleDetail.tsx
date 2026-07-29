@@ -494,10 +494,11 @@ export default function AuthorArticleDetail() {
           id: `article_edit-${article.id}`,
           type: 'article_edit',
           label: `Article edit credits — ${article.reference_number}`,
+          description: 'Unlocks 2 saves for corrections on a published article',
+          amount: editFee,
           articleId: article.id,
-          priceInr: 100,
-          priceUsd: 5,
         }}
+
         onPaid={() => {
           queryClient.invalidateQueries({ queryKey: ['author-article', articleId] });
           toast.success('Editing unlocked for 2 saves.');
@@ -523,10 +524,11 @@ export default function AuthorArticleDetail() {
           id: `review_report-${article.id}`,
           type: 'review_report',
           label: `Review report — ${article.reference_number}`,
+          description: 'One review-report download for this article',
+          amount: editFee,
           articleId: article.id,
-          priceInr: 100,
-          priceUsd: 5,
         }}
+
         onPaid={() => {
           queryClient.invalidateQueries({ queryKey: ['author-article', articleId] });
           downloadDoc('review_report', `review-report-${article.reference_number}.pdf`).catch(() => {});
