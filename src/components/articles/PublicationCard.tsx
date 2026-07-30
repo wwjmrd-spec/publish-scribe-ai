@@ -293,6 +293,7 @@ async function createPublicationCanvas(
   publishedLink: string,
   avatarUrl: string | null,
   country: string | null,
+  coAuthorNames: string[] = [],
 ) {
   const publishedOn = publishedOnLabel(article);
   const volume = article.volume || '';
@@ -434,6 +435,15 @@ async function createPublicationCanvas(
     ctx.fillStyle = '#475569';
     ctx.font = '700 20px Arial, Helvetica, sans-serif';
     ctx.fillText(country, countryX, countryLineY);
+  }
+
+  if (coAuthorNames.length) {
+    ctx.fillStyle = '#64748b';
+    ctx.font = '700 18px Arial, Helvetica, sans-serif';
+    ctx.fillText('Co-authors:', 56, countryLineY + 40);
+    ctx.fillStyle = '#334155';
+    ctx.font = '600 18px Arial, Helvetica, sans-serif';
+    drawWrappedText(ctx, coAuthorNames.join(', '), 160, countryLineY + 40, 560, 24, 2);
   }
 
   const chipY = 770;
