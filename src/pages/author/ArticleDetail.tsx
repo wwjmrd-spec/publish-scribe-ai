@@ -398,48 +398,97 @@ export default function AuthorArticleDetail() {
         <GlassCard>
           <h2 className="font-semibold flex items-center gap-2 mb-4"><Users className="w-4 h-4" /> Authors</h2>
           <div className="space-y-3">
-            <div>
-              <Label>Corresponding Author</Label>
-              {editing && !detailsChangedOnce ? (
-                <Input value={form.author_name} onChange={(e) => setForm({ ...form, author_name: e.target.value })} />
-              ) : (
-                <p className="text-sm mt-1">{article.author_name || '—'}</p>
-              )}
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div>
+                <Label>Corresponding Author</Label>
+                {editing && !detailsChangedOnce ? (
+                  <Input value={form.author_name} onChange={(e) => setForm({ ...form, author_name: e.target.value })} />
+                ) : (
+                  <p className="text-sm mt-1">{article.author_name || '—'}</p>
+                )}
+              </div>
+              <div>
+                <Label>Affiliation</Label>
+                {editing && !detailsChangedOnce ? (
+                  <Input
+                    value={form.author_affiliation}
+                    placeholder="University / Institute"
+                    onChange={(e) => setForm({ ...form, author_affiliation: e.target.value })}
+                  />
+                ) : (
+                  <p className="text-sm mt-1 text-muted-foreground">{profile?.affiliation || '—'}</p>
+                )}
+              </div>
             </div>
-            {(article.co_authors || []).length > 0 && (
+
+            {((form.co_authors || []).length > 0 || (editing && !detailsChangedOnce)) && (
               <div className="space-y-2">
-                <Label>Co-Authors</Label>
+                <div className="flex items-center justify-between">
+                  <Label>Co-Authors ({(form.co_authors || []).length})</Label>
+                  {editing && !detailsChangedOnce && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        setForm({
+                          ...form,
+                          co_authors: [...(form.co_authors || []), { name: '', email: '', affiliation: '' }],
+                        })
+                      }
+                    >
+                      <Plus className="w-4 h-4 mr-1" /> Add Co-Author
+                    </Button>
+                  )}
+                </div>
+                {(form.co_authors || []).length === 0 && (
+                  <p className="text-sm text-muted-foreground">No co-authors on this article.</p>
+                )}
                 {form.co_authors.map((c: any, i: number) => (
-                  <div key={c.id} className="p-3 rounded-lg bg-[hsl(var(--glass-bg))] space-y-2">
+                  <div key={c.id || `new-${i}`} className="p-3 rounded-lg bg-[hsl(var(--glass-bg))] space-y-2">
                     {editing && !detailsChangedOnce ? (
-                      <div className="grid sm:grid-cols-3 gap-2">
-                        <Input
-                          value={c.name}
-                          placeholder="Name"
-                          onChange={(e) => {
-                            const next = [...form.co_authors];
-                            next[i] = { ...c, name: e.target.value };
-                            setForm({ ...form, co_authors: next });
-                          }}
-                        />
-                        <Input
-                          value={c.email}
-                          placeholder="Email"
-                          onChange={(e) => {
-                            const next = [...form.co_authors];
-                            next[i] = { ...c, email: e.target.value };
-                            setForm({ ...form, co_authors: next });
-                          }}
-                        />
-                        <Input
-                          value={c.affiliation || ''}
-                          placeholder="Affiliation"
-                          onChange={(e) => {
-                            const next = [...form.co_authors];
-                            next[i] = { ...c, affiliation: e.target.value };
-                            setForm({ ...form, co_authors: next });
-                          }}
-                        />
+                      <div className="flex items-start gap-2">
+                        <div className="grid sm:grid-cols-3 gap-2 flex-1">
+                          <Input
+                            value={c.name}
+                            placeholder="Name"
+                            onChange={(e) => {
+                              const next = [...form.co_authors];
+                              next[i] = { ...c, name: e.target.value };
+                              setForm({ ...form, co_authors: next });
+                            }}
+                          />
+                          <Input
+                            value={c.email}
+                            placeholder="Email"
+                            onChange={(e) => {
+                              const next = [...form.co_authors];
+                              next[i] = { ...c, email: e.target.value };
+                              setForm({ ...form, co_authors: next });
+                            }}
+                          />
+                          <Input
+                            value={c.affiliation || ''}
+                            placeholder="Affiliation"
+                            onChange={(e) => {
+                              const next = [...form.co_authors];
+                              next[i] = { ...c, affiliation: e.target.value };
+                              setForm({ ...form, co_authors: next });
+                            }}
+                          />
+                        </div>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          aria-label="Remove co-author"
+                          onClick={() =>
+                            setForm({
+                              ...form,
+                              co_authors: form.co_authors.filter((_: any, idx: number) => idx !== i),
+                            })
+                          }
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
                       </div>
                     ) : (
                       <div className="text-sm">
@@ -453,6 +502,7 @@ export default function AuthorArticleDetail() {
               </div>
             )}
           </div>
+
 
           {/* Permission notice + save */}
           {editing && (
