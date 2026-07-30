@@ -36,6 +36,7 @@ export interface PublicationCardData {
   published_link?: string | null;
   keywords?: string[] | null;
   abstract?: string | null;
+  co_author_names?: string[] | null;
 }
 
 const CARD_SIZE = 1200;
@@ -528,6 +529,7 @@ export function PublicationCard({ article }: { article: PublicationCardData }) {
   const [previewUrl, setPreviewUrl] = React.useState<string>('');
   const [avatarUrl, setAvatarUrl] = React.useState<string | null>(article.author_avatar_url || null);
   const [country, setCountry] = React.useState<string | null>(article.country || null);
+  const [coAuthorNames, setCoAuthorNames] = React.useState<string[]>(article.co_author_names || []);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const isOwner = !!user && !!article.author_id && user.id === article.author_id;
@@ -556,6 +558,28 @@ export function PublicationCard({ article }: { article: PublicationCardData }) {
     };
   }, [article.author_id, article.author_avatar_url, article.country]);
 
+  // Co-authors shown on the card (fetched when not supplied by the parent)
+  React.useEffect(() => {
+    let cancelled = false;
+    if (article.co_author_names?.length) {
+      setCoAuthorNames(article.co_author_names);
+      return;
+    }
+    if (!article.id) return;
+    (async () => {
+      const { data } = await supabase
+        .from('co_authors')
+        .select('name, created_at')
+        .eq('article_id', article.id)
+        .order('created_at', { ascending: true });
+      if (cancelled || !data) return;
+      setCoAuthorNames(data.map((c: any) => c.name).filter(Boolean));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [article.id, article.co_author_names]);
+
   const publishedLink =
     article.published_link ||
     `${window.location.origin}/articles/${encodeURIComponent(article.reference_number || article.id)}`;
@@ -565,14 +589,14 @@ export function PublicationCard({ article }: { article: PublicationCardData }) {
   const pages = article.page_number || '';
 
   const caption = React.useMemo(
-    () => makeCaption(article, publishedOn, volume, issue, pages, publishedLink),
-    [article, publishedOn, volume, issue, pages, publishedLink],
+    () => makeCaption(article, publishedOn, volume, issue, pages, publishedLink, coAuthorNames),
+    [article, publishedOn, volume, issue, pages, publishedLink, coAuthorNames],
   );
 
   const fileName = `WWJMRD-${safeFileName(article.reference_number || article.id)}.png`;
 
   const getCardFile = async (): Promise<{ blob: Blob; file: File; url: string }> => {
-    const canvas = await createPublicationCanvas(article, publishedLink, avatarUrl, country);
+    const canvas = await createPublicationCanvas(article, publishedLink, avatarUrl, country, coAuthorNames);
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png', 1));
     if (!blob) throw new Error('Failed to create card image');
     const file = new File([blob], fileName, { type: 'image/png' });
@@ -581,7 +605,7 @@ export function PublicationCard({ article }: { article: PublicationCardData }) {
 
   React.useEffect(() => {
     let cancelled = false;
-    createPublicationCanvas(article, publishedLink, avatarUrl, country)
+    createPublicationCanvas(article, publishedLink, avatarUrl, country, coAuthorNames)
       .then((canvas) => {
         if (!cancelled) setPreviewUrl(canvas.toDataURL('image/png', 1));
       })
@@ -591,7 +615,7 @@ export function PublicationCard({ article }: { article: PublicationCardData }) {
     return () => {
       cancelled = true;
     };
-  }, [article, publishedLink, avatarUrl, country]);
+  }, [article, publishedLink, avatarUrl, country, coAuthorNames]);
 
   const handleAvatarUpload = async (file: File) => {
     if (!user) return;
