@@ -21,7 +21,7 @@ import { GalleyProofReviewSection } from '@/components/articles/GalleyProofRevie
 import { CopyrightFormSection } from '@/components/articles/CopyrightFormSection';
 import { PublicationCard } from '@/components/articles/PublicationCard';
 import {
-  ArrowLeft, Award, ChevronDown, Lock, Pencil, Save, Share2, Users, AlertCircle,
+  ArrowLeft, Award, ChevronDown, Lock, Pencil, Plus, Save, Share2, Users, AlertCircle, X,
 } from 'lucide-react';
 
 const PUBLISHED_STATUSES = ['published', 'published_to_wwjmrd', 'updated_published'];
