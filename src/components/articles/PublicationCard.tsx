@@ -265,12 +265,14 @@ function makeCaption(
   issue: string,
   pages: string,
   publishedLink: string,
+  coAuthorNames: string[] = [],
 ) {
   return [
     '🎉 Congratulations! Published in WWJMRD',
     '',
     `📄 ${article.title}`,
     article.author_name ? `✍️ ${article.author_name}${article.country ? `, ${article.country}` : ''}` : '',
+    coAuthorNames.length ? `👥 Co-authors: ${coAuthorNames.join(', ')}` : '',
     publishedOn ? `🗓️ ${publishedOn}` : '',
     volume || issue ? `📚 Vol. ${volume || '—'} · Issue ${issue || '—'}${pages ? ` · Pages ${pages}` : ''}` : '',
     '',
