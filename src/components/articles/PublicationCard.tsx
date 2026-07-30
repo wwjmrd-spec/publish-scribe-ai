@@ -75,13 +75,29 @@ function countryToIso2(name?: string | null): string | null {
   return COUNTRY_ISO2[k] || null;
 }
 
-function monthYearFromYearField(y?: string | null) {
-  if (!y) return '';
-  const d = new Date(y);
-  if (!Number.isNaN(d.getTime())) {
-    return d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+/**
+ * Publication month comes from the issue number (issue 7 → July) and the year
+ * from publication_year, falling back to the volume (Vol. 12 → 2026).
+ */
+function publishedOnLabel(article: PublicationCardData) {
+  const issueNum = parseInt(String(article.issue ?? '').trim(), 10);
+  const month = issueNum >= 1 && issueNum <= 12 ? MONTH_NAMES[issueNum - 1] : '';
+
+  let year = '';
+  const yMatch = String(article.publication_year ?? '').match(/\d{4}/);
+  if (yMatch) {
+    year = yMatch[0];
+  } else {
+    const volNum = parseInt(String(article.volume ?? '').trim(), 10);
+    if (volNum >= 1) year = String(2014 + volNum);
   }
-  return y;
+
+  return [month, year].filter(Boolean).join(' ');
 }
 
 function safeFileName(value: string) {
@@ -278,7 +294,7 @@ async function createPublicationCanvas(
   avatarUrl: string | null,
   country: string | null,
 ) {
-  const publishedOn = monthYearFromYearField(article.publication_year);
+  const publishedOn = publishedOnLabel(article);
   const volume = article.volume || '';
   const issue = article.issue || '';
   const pages = article.page_number || '';
@@ -531,7 +547,7 @@ export function PublicationCard({ article }: { article: PublicationCardData }) {
   const publishedLink =
     article.published_link ||
     `${window.location.origin}/articles/${encodeURIComponent(article.reference_number || article.id)}`;
-  const publishedOn = monthYearFromYearField(article.publication_year);
+  const publishedOn = publishedOnLabel(article);
   const volume = article.volume || '';
   const issue = article.issue || '';
   const pages = article.page_number || '';

@@ -36,8 +36,8 @@ interface PayOptionsDialogProps {
 }
 
 const methods: { id: PayMethod; label: string; hint: string; icon: React.ElementType }[] = [
-  { id: 'razorpay', label: 'Razorpay', hint: 'Cards, UPI, Netbanking (INR)', icon: CreditCard },
-  { id: 'paypal', label: 'PayPal', hint: 'International cards (USD)', icon: Wallet },
+  { id: 'razorpay', label: 'Razorpay', hint: 'Cards, UPI, Netbanking', icon: CreditCard },
+  { id: 'paypal', label: 'PayPal', hint: 'International cards', icon: Wallet },
   { id: 'cart', label: 'Add to Cart', hint: 'Pay later — also enables USDT / discount codes', icon: ShoppingCart },
 ];
 
@@ -47,16 +47,23 @@ export function PayOptionsDialog({
   const { user, isIndian } = useAuth();
   const navigate = useNavigate();
   const { addItem, hasItem } = useCart();
-  const [method, setMethod] = React.useState<PayMethod>(isIndian ? 'razorpay' : 'paypal');
+  const [method, setMethod] = React.useState<PayMethod | null>(null);
   const [busy, setBusy] = React.useState(false);
 
   React.useEffect(() => {
-    if (open) setMethod(isIndian ? 'razorpay' : 'paypal');
-  }, [open, isIndian]);
+    if (open) setMethod(null);
+  }, [open]);
 
-  const amount = method === 'razorpay' ? inrAmount : usdAmount;
-  const currency: 'INR' | 'USD' = method === 'razorpay' ? 'INR' : 'USD';
-  const priceLabel = method === 'razorpay' ? `₹${inrAmount}` : `$${usdAmount}`;
+  // PayPal is not offered to Indian authors; everyone else may use either gateway.
+  const availableMethods = React.useMemo(
+    () => methods.filter((m) => !(isIndian && m.id === 'paypal')),
+    [isIndian],
+  );
+
+  // Currency follows the author's location, not the gateway.
+  const currency: 'INR' | 'USD' = isIndian ? 'INR' : 'USD';
+  const amount = isIndian ? inrAmount : usdAmount;
+  const priceLabel = isIndian ? `₹${inrAmount}` : `$${usdAmount}`;
 
   const goToCart = () => {
     if (!hasItem(cartItem.id)) addItem(cartItem);
@@ -65,7 +72,7 @@ export function PayOptionsDialog({
   };
 
   const pay = async () => {
-    if (!user) return;
+    if (!user || !method) return;
     if (method === 'cart') return goToCart();
 
     setBusy(true);
@@ -148,7 +155,7 @@ export function PayOptionsDialog({
 
         <div className="space-y-2">
           <p className="text-sm font-medium">Choose how you want to pay</p>
-          {methods.map((m) => {
+          {availableMethods.map((m) => {
             const Icon = m.icon;
             const active = method === m.id;
             return (
@@ -167,22 +174,26 @@ export function PayOptionsDialog({
                   <span className="block text-sm font-medium">{m.label}</span>
                   <span className="block text-xs text-muted-foreground">{m.hint}</span>
                 </span>
-                {m.id !== 'cart' && (
-                  <span className="text-sm font-semibold">
-                    {m.id === 'razorpay' ? `₹${inrAmount}` : `$${usdAmount}`}
-                  </span>
+                {active && m.id !== 'cart' && (
+                  <span className="text-sm font-semibold">{priceLabel}</span>
                 )}
               </button>
             );
           })}
+          {method && method !== 'cart' && (
+            <p className="text-xs text-muted-foreground">
+              Amount payable: <span className="font-semibold text-foreground">{priceLabel}</span> ({currency})
+            </p>
+          )}
         </div>
 
         <DialogFooter className="flex-col sm:flex-row gap-2">
           {extraAction}
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button>
-          <Button className="gradient-primary" onClick={pay} disabled={busy}>
+          <Button className="gradient-primary" onClick={pay} disabled={busy || !method}>
             {busy ? <><GlassSpinner size="sm" className="mr-2" />Processing…</>
               : method === 'cart' ? <><ShoppingCart className="w-4 h-4 mr-1" />Add to Cart</>
+              : !method ? 'Select a payment method'
               : `Pay ${priceLabel}`}
           </Button>
         </DialogFooter>

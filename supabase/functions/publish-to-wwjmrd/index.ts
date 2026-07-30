@@ -110,12 +110,15 @@ serve(async (req) => {
       if (mMatch) month = mMatch;
     }
 
-    // Month must come from the article's issue number (issue 06 => June), not "now".
+    // The article's own issue/volume are authoritative: issue 07 => July,
+    // volume 12 => 2026. They override any publication-form value.
     const issueRaw = String(article.issue ?? "").trim();
     const issueNum = parseInt(issueRaw, 10);
-    if (!month && issueNum >= 1 && issueNum <= 12) {
+    if (issueNum >= 1 && issueNum <= 12) {
       month = monthName(issueNum);
     }
+    const volNum = parseInt(String(article.volume ?? "").trim(), 10);
+    if (!year && volNum >= 1) year = String(2014 + volNum);
     if (!year) year = String(now.getFullYear());
     if (!month) month = monthName(now.getMonth() + 1);
 
