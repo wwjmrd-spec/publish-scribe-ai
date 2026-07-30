@@ -21,7 +21,7 @@ import { GalleyProofReviewSection } from '@/components/articles/GalleyProofRevie
 import { CopyrightFormSection } from '@/components/articles/CopyrightFormSection';
 import { PublicationCard } from '@/components/articles/PublicationCard';
 import {
-  ArrowLeft, Award, ChevronDown, Lock, Pencil, Save, Share2, Users, AlertCircle,
+  ArrowLeft, Award, ChevronDown, Lock, Pencil, Plus, Save, Share2, Users, AlertCircle, X,
 } from 'lucide-react';
 
 const PUBLISHED_STATUSES = ['published', 'published_to_wwjmrd', 'updated_published'];
@@ -61,6 +61,19 @@ export default function AuthorArticleDetail() {
     enabled: !!articleId,
   });
 
+  const { data: profile } = useQuery({
+    queryKey: ['author-profile-affiliation', user?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('affiliation')
+        .eq('id', user!.id)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
   React.useEffect(() => {
     if (article && !form) {
       setForm({
@@ -69,10 +82,11 @@ export default function AuthorArticleDetail() {
         keywords: (article.keywords || []).join(', '),
         subject: article.subject || '',
         author_name: article.author_name || '',
+        author_affiliation: profile?.affiliation || '',
         co_authors: (article.co_authors || []).map((c: any) => ({ ...c })),
       });
     }
-  }, [article, form]);
+  }, [article, form, profile]);
 
   const status = article?.status as string | undefined;
   const isPublished = !!status && PUBLISHED_STATUSES.includes(status);
@@ -101,12 +115,35 @@ export default function AuthorArticleDetail() {
     add('Keywords', (article.keywords || []).join(', '), form.keywords);
     add('Subject', article.subject, form.subject);
     add('Corresponding Author', article.author_name, form.author_name);
-    (form.co_authors || []).forEach((c: any) => {
-      const orig = (article.co_authors || []).find((o: any) => o.id === c.id) || {};
+    add('Corresponding Author Affiliation', profile?.affiliation || '', form.author_affiliation);
+    (form.co_authors || []).forEach((c: any, i: number) => {
+      const orig = (article.co_authors || []).find((o: any) => o.id === c.id);
+      if (!orig) {
+        add(
+          `New co-author #${i + 1}`,
+          '',
+          [c.name, c.email, c.affiliation].filter(Boolean).join(' · '),
+        );
+        return;
+      }
       add(`Co-author name (${orig.name || ''})`, orig.name, c.name);
       add(`Co-author email (${orig.name || ''})`, orig.email, c.email);
       add(`Co-author affiliation (${orig.name || ''})`, orig.affiliation, c.affiliation);
     });
+    (article.co_authors || []).forEach((o: any) => {
+      if (!(form.co_authors || []).some((c: any) => c.id === o.id)) {
+        add('Removed co-author', [o.name, o.email].filter(Boolean).join(' · '), 'Removed');
+      }
+    });
+    if (
+      (article.co_authors || []).length !== (form.co_authors || []).length
+    ) {
+      add(
+        'Number of co-authors',
+        String((article.co_authors || []).length),
+        String((form.co_authors || []).length),
+      );
+    }
     if (!rows.length) return null;
     return (
       `<div class="author-update-diff"><h3 style="color:#d00">Author-requested changes</h3>` +
@@ -121,15 +158,24 @@ export default function AuthorArticleDetail() {
   const detailsTouched = () => {
     if (!article || !form) return false;
     if ((article.author_name || '') !== form.author_name) return true;
+    if ((profile?.affiliation || '') !== (form.author_affiliation || '')) return true;
+    if ((article.co_authors || []).length !== (form.co_authors || []).length) return true;
+    if ((article.co_authors || []).some((o: any) => !(form.co_authors || []).some((c: any) => c.id === o.id)))
+      return true;
     return (form.co_authors || []).some((c: any) => {
       const o = (article.co_authors || []).find((x: any) => x.id === c.id);
-      if (!o) return false;
+      if (!o) return true;
       return o.name !== c.name || o.email !== c.email || (o.affiliation || '') !== (c.affiliation || '');
     });
   };
 
   const handleSave = async () => {
     if (!article || !form) return;
+    const newCoAuthors = (form.co_authors || []).filter((c: any) => !c.id);
+    if (newCoAuthors.some((c: any) => !c.name?.trim() || !c.email?.trim())) {
+      toast.error('Every new co-author needs a name and an email.');
+      return;
+    }
     const diffHtml = buildUpdateHtml();
     if (!diffHtml) {
       toast.info('No changes to submit.');
@@ -168,11 +214,34 @@ export default function AuthorArticleDetail() {
       if (error) throw error;
 
       if (changedPeople) {
-        for (const c of form.co_authors) {
+        // Affiliation of the corresponding author lives on the profile
+        if ((profile?.affiliation || '') !== (form.author_affiliation || '')) {
           await supabase
-            .from('co_authors')
-            .update({ name: c.name, email: c.email, affiliation: c.affiliation })
-            .eq('id', c.id);
+            .from('profiles')
+            .update({ affiliation: (form.author_affiliation || '').slice(0, 200) })
+            .eq('id', user!.id);
+        }
+
+        const removed = (article.co_authors || []).filter(
+          (o: any) => !(form.co_authors || []).some((c: any) => c.id === o.id),
+        );
+        for (const o of removed) {
+          await supabase.from('co_authors').delete().eq('id', o.id);
+        }
+        for (const c of form.co_authors) {
+          if (c.id) {
+            await supabase
+              .from('co_authors')
+              .update({ name: c.name, email: c.email, affiliation: c.affiliation })
+              .eq('id', c.id);
+          } else {
+            await supabase.from('co_authors').insert({
+              article_id: article.id,
+              name: c.name.trim(),
+              email: c.email.trim(),
+              affiliation: (c.affiliation || '').trim() || null,
+            });
+          }
         }
       }
 
@@ -180,6 +249,7 @@ export default function AuthorArticleDetail() {
       setEditing(false);
       setForm(null);
       queryClient.invalidateQueries({ queryKey: ['author-article', articleId] });
+      queryClient.invalidateQueries({ queryKey: ['author-profile-affiliation', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['my-articles', user?.id] });
     } catch (e: any) {
       toast.error('Failed to save changes: ' + (e.message || 'unknown error'));
@@ -328,48 +398,97 @@ export default function AuthorArticleDetail() {
         <GlassCard>
           <h2 className="font-semibold flex items-center gap-2 mb-4"><Users className="w-4 h-4" /> Authors</h2>
           <div className="space-y-3">
-            <div>
-              <Label>Corresponding Author</Label>
-              {editing && !detailsChangedOnce ? (
-                <Input value={form.author_name} onChange={(e) => setForm({ ...form, author_name: e.target.value })} />
-              ) : (
-                <p className="text-sm mt-1">{article.author_name || '—'}</p>
-              )}
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div>
+                <Label>Corresponding Author</Label>
+                {editing && !detailsChangedOnce ? (
+                  <Input value={form.author_name} onChange={(e) => setForm({ ...form, author_name: e.target.value })} />
+                ) : (
+                  <p className="text-sm mt-1">{article.author_name || '—'}</p>
+                )}
+              </div>
+              <div>
+                <Label>Affiliation</Label>
+                {editing && !detailsChangedOnce ? (
+                  <Input
+                    value={form.author_affiliation}
+                    placeholder="University / Institute"
+                    onChange={(e) => setForm({ ...form, author_affiliation: e.target.value })}
+                  />
+                ) : (
+                  <p className="text-sm mt-1 text-muted-foreground">{profile?.affiliation || '—'}</p>
+                )}
+              </div>
             </div>
-            {(article.co_authors || []).length > 0 && (
+
+            {((form.co_authors || []).length > 0 || (editing && !detailsChangedOnce)) && (
               <div className="space-y-2">
-                <Label>Co-Authors</Label>
+                <div className="flex items-center justify-between">
+                  <Label>Co-Authors ({(form.co_authors || []).length})</Label>
+                  {editing && !detailsChangedOnce && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        setForm({
+                          ...form,
+                          co_authors: [...(form.co_authors || []), { name: '', email: '', affiliation: '' }],
+                        })
+                      }
+                    >
+                      <Plus className="w-4 h-4 mr-1" /> Add Co-Author
+                    </Button>
+                  )}
+                </div>
+                {(form.co_authors || []).length === 0 && (
+                  <p className="text-sm text-muted-foreground">No co-authors on this article.</p>
+                )}
                 {form.co_authors.map((c: any, i: number) => (
-                  <div key={c.id} className="p-3 rounded-lg bg-[hsl(var(--glass-bg))] space-y-2">
+                  <div key={c.id || `new-${i}`} className="p-3 rounded-lg bg-[hsl(var(--glass-bg))] space-y-2">
                     {editing && !detailsChangedOnce ? (
-                      <div className="grid sm:grid-cols-3 gap-2">
-                        <Input
-                          value={c.name}
-                          placeholder="Name"
-                          onChange={(e) => {
-                            const next = [...form.co_authors];
-                            next[i] = { ...c, name: e.target.value };
-                            setForm({ ...form, co_authors: next });
-                          }}
-                        />
-                        <Input
-                          value={c.email}
-                          placeholder="Email"
-                          onChange={(e) => {
-                            const next = [...form.co_authors];
-                            next[i] = { ...c, email: e.target.value };
-                            setForm({ ...form, co_authors: next });
-                          }}
-                        />
-                        <Input
-                          value={c.affiliation || ''}
-                          placeholder="Affiliation"
-                          onChange={(e) => {
-                            const next = [...form.co_authors];
-                            next[i] = { ...c, affiliation: e.target.value };
-                            setForm({ ...form, co_authors: next });
-                          }}
-                        />
+                      <div className="flex items-start gap-2">
+                        <div className="grid sm:grid-cols-3 gap-2 flex-1">
+                          <Input
+                            value={c.name}
+                            placeholder="Name"
+                            onChange={(e) => {
+                              const next = [...form.co_authors];
+                              next[i] = { ...c, name: e.target.value };
+                              setForm({ ...form, co_authors: next });
+                            }}
+                          />
+                          <Input
+                            value={c.email}
+                            placeholder="Email"
+                            onChange={(e) => {
+                              const next = [...form.co_authors];
+                              next[i] = { ...c, email: e.target.value };
+                              setForm({ ...form, co_authors: next });
+                            }}
+                          />
+                          <Input
+                            value={c.affiliation || ''}
+                            placeholder="Affiliation"
+                            onChange={(e) => {
+                              const next = [...form.co_authors];
+                              next[i] = { ...c, affiliation: e.target.value };
+                              setForm({ ...form, co_authors: next });
+                            }}
+                          />
+                        </div>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          aria-label="Remove co-author"
+                          onClick={() =>
+                            setForm({
+                              ...form,
+                              co_authors: form.co_authors.filter((_: any, idx: number) => idx !== i),
+                            })
+                          }
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
                       </div>
                     ) : (
                       <div className="text-sm">
@@ -383,6 +502,7 @@ export default function AuthorArticleDetail() {
               </div>
             )}
           </div>
+
 
           {/* Permission notice + save */}
           {editing && (
