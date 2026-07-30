@@ -294,7 +294,7 @@ async function createPublicationCanvas(
   avatarUrl: string | null,
   country: string | null,
 ) {
-  const publishedOn = monthYearFromYearField(article.publication_year);
+  const publishedOn = publishedOnLabel(article);
   const volume = article.volume || '';
   const issue = article.issue || '';
   const pages = article.page_number || '';
@@ -547,7 +547,7 @@ export function PublicationCard({ article }: { article: PublicationCardData }) {
   const publishedLink =
     article.published_link ||
     `${window.location.origin}/articles/${encodeURIComponent(article.reference_number || article.id)}`;
-  const publishedOn = monthYearFromYearField(article.publication_year);
+  const publishedOn = publishedOnLabel(article);
   const volume = article.volume || '';
   const issue = article.issue || '';
   const pages = article.page_number || '';
