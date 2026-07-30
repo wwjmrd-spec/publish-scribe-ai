@@ -61,6 +61,19 @@ export default function AuthorArticleDetail() {
     enabled: !!articleId,
   });
 
+  const { data: profile } = useQuery({
+    queryKey: ['author-profile-affiliation', user?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('affiliation')
+        .eq('id', user!.id)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
   React.useEffect(() => {
     if (article && !form) {
       setForm({
@@ -69,10 +82,11 @@ export default function AuthorArticleDetail() {
         keywords: (article.keywords || []).join(', '),
         subject: article.subject || '',
         author_name: article.author_name || '',
+        author_affiliation: profile?.affiliation || '',
         co_authors: (article.co_authors || []).map((c: any) => ({ ...c })),
       });
     }
-  }, [article, form]);
+  }, [article, form, profile]);
 
   const status = article?.status as string | undefined;
   const isPublished = !!status && PUBLISHED_STATUSES.includes(status);
