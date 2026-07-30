@@ -36,8 +36,8 @@ interface PayOptionsDialogProps {
 }
 
 const methods: { id: PayMethod; label: string; hint: string; icon: React.ElementType }[] = [
-  { id: 'razorpay', label: 'Razorpay', hint: 'Cards, UPI, Netbanking (INR)', icon: CreditCard },
-  { id: 'paypal', label: 'PayPal', hint: 'International cards (USD)', icon: Wallet },
+  { id: 'razorpay', label: 'Razorpay', hint: 'Cards, UPI, Netbanking', icon: CreditCard },
+  { id: 'paypal', label: 'PayPal', hint: 'International cards', icon: Wallet },
   { id: 'cart', label: 'Add to Cart', hint: 'Pay later — also enables USDT / discount codes', icon: ShoppingCart },
 ];
 
