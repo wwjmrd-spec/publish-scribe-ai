@@ -155,7 +155,7 @@ export function PayOptionsDialog({
 
         <div className="space-y-2">
           <p className="text-sm font-medium">Choose how you want to pay</p>
-          {methods.map((m) => {
+          {availableMethods.map((m) => {
             const Icon = m.icon;
             const active = method === m.id;
             return (
@@ -174,22 +174,26 @@ export function PayOptionsDialog({
                   <span className="block text-sm font-medium">{m.label}</span>
                   <span className="block text-xs text-muted-foreground">{m.hint}</span>
                 </span>
-                {m.id !== 'cart' && (
-                  <span className="text-sm font-semibold">
-                    {m.id === 'razorpay' ? `₹${inrAmount}` : `$${usdAmount}`}
-                  </span>
+                {active && m.id !== 'cart' && (
+                  <span className="text-sm font-semibold">{priceLabel}</span>
                 )}
               </button>
             );
           })}
+          {method && method !== 'cart' && (
+            <p className="text-xs text-muted-foreground">
+              Amount payable: <span className="font-semibold text-foreground">{priceLabel}</span> ({currency})
+            </p>
+          )}
         </div>
 
         <DialogFooter className="flex-col sm:flex-row gap-2">
           {extraAction}
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button>
-          <Button className="gradient-primary" onClick={pay} disabled={busy}>
+          <Button className="gradient-primary" onClick={pay} disabled={busy || !method}>
             {busy ? <><GlassSpinner size="sm" className="mr-2" />Processing…</>
               : method === 'cart' ? <><ShoppingCart className="w-4 h-4 mr-1" />Add to Cart</>
+              : !method ? 'Select a payment method'
               : `Pay ${priceLabel}`}
           </Button>
         </DialogFooter>
