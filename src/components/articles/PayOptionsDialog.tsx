@@ -47,16 +47,23 @@ export function PayOptionsDialog({
   const { user, isIndian } = useAuth();
   const navigate = useNavigate();
   const { addItem, hasItem } = useCart();
-  const [method, setMethod] = React.useState<PayMethod>(isIndian ? 'razorpay' : 'paypal');
+  const [method, setMethod] = React.useState<PayMethod | null>(null);
   const [busy, setBusy] = React.useState(false);
 
   React.useEffect(() => {
-    if (open) setMethod(isIndian ? 'razorpay' : 'paypal');
-  }, [open, isIndian]);
+    if (open) setMethod(null);
+  }, [open]);
 
-  const amount = method === 'razorpay' ? inrAmount : usdAmount;
-  const currency: 'INR' | 'USD' = method === 'razorpay' ? 'INR' : 'USD';
-  const priceLabel = method === 'razorpay' ? `₹${inrAmount}` : `$${usdAmount}`;
+  // PayPal is not offered to Indian authors; everyone else may use either gateway.
+  const availableMethods = React.useMemo(
+    () => methods.filter((m) => !(isIndian && m.id === 'paypal')),
+    [isIndian],
+  );
+
+  // Currency follows the author's location, not the gateway.
+  const currency: 'INR' | 'USD' = isIndian ? 'INR' : 'USD';
+  const amount = isIndian ? inrAmount : usdAmount;
+  const priceLabel = isIndian ? `₹${inrAmount}` : `$${usdAmount}`;
 
   const goToCart = () => {
     if (!hasItem(cartItem.id)) addItem(cartItem);
