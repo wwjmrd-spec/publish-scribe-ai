@@ -115,12 +115,35 @@ export default function AuthorArticleDetail() {
     add('Keywords', (article.keywords || []).join(', '), form.keywords);
     add('Subject', article.subject, form.subject);
     add('Corresponding Author', article.author_name, form.author_name);
-    (form.co_authors || []).forEach((c: any) => {
-      const orig = (article.co_authors || []).find((o: any) => o.id === c.id) || {};
+    add('Corresponding Author Affiliation', profile?.affiliation || '', form.author_affiliation);
+    (form.co_authors || []).forEach((c: any, i: number) => {
+      const orig = (article.co_authors || []).find((o: any) => o.id === c.id);
+      if (!orig) {
+        add(
+          `New co-author #${i + 1}`,
+          '',
+          [c.name, c.email, c.affiliation].filter(Boolean).join(' · '),
+        );
+        return;
+      }
       add(`Co-author name (${orig.name || ''})`, orig.name, c.name);
       add(`Co-author email (${orig.name || ''})`, orig.email, c.email);
       add(`Co-author affiliation (${orig.name || ''})`, orig.affiliation, c.affiliation);
     });
+    (article.co_authors || []).forEach((o: any) => {
+      if (!(form.co_authors || []).some((c: any) => c.id === o.id)) {
+        add('Removed co-author', [o.name, o.email].filter(Boolean).join(' · '), 'Removed');
+      }
+    });
+    if (
+      (article.co_authors || []).length !== (form.co_authors || []).length
+    ) {
+      add(
+        'Number of co-authors',
+        String((article.co_authors || []).length),
+        String((form.co_authors || []).length),
+      );
+    }
     if (!rows.length) return null;
     return (
       `<div class="author-update-diff"><h3 style="color:#d00">Author-requested changes</h3>` +
@@ -135,15 +158,24 @@ export default function AuthorArticleDetail() {
   const detailsTouched = () => {
     if (!article || !form) return false;
     if ((article.author_name || '') !== form.author_name) return true;
+    if ((profile?.affiliation || '') !== (form.author_affiliation || '')) return true;
+    if ((article.co_authors || []).length !== (form.co_authors || []).length) return true;
+    if ((article.co_authors || []).some((o: any) => !(form.co_authors || []).some((c: any) => c.id === o.id)))
+      return true;
     return (form.co_authors || []).some((c: any) => {
       const o = (article.co_authors || []).find((x: any) => x.id === c.id);
-      if (!o) return false;
+      if (!o) return true;
       return o.name !== c.name || o.email !== c.email || (o.affiliation || '') !== (c.affiliation || '');
     });
   };
 
   const handleSave = async () => {
     if (!article || !form) return;
+    const newCoAuthors = (form.co_authors || []).filter((c: any) => !c.id);
+    if (newCoAuthors.some((c: any) => !c.name?.trim() || !c.email?.trim())) {
+      toast.error('Every new co-author needs a name and an email.');
+      return;
+    }
     const diffHtml = buildUpdateHtml();
     if (!diffHtml) {
       toast.info('No changes to submit.');
@@ -182,11 +214,34 @@ export default function AuthorArticleDetail() {
       if (error) throw error;
 
       if (changedPeople) {
-        for (const c of form.co_authors) {
+        // Affiliation of the corresponding author lives on the profile
+        if ((profile?.affiliation || '') !== (form.author_affiliation || '')) {
           await supabase
-            .from('co_authors')
-            .update({ name: c.name, email: c.email, affiliation: c.affiliation })
-            .eq('id', c.id);
+            .from('profiles')
+            .update({ affiliation: (form.author_affiliation || '').slice(0, 200) })
+            .eq('id', user!.id);
+        }
+
+        const removed = (article.co_authors || []).filter(
+          (o: any) => !(form.co_authors || []).some((c: any) => c.id === o.id),
+        );
+        for (const o of removed) {
+          await supabase.from('co_authors').delete().eq('id', o.id);
+        }
+        for (const c of form.co_authors) {
+          if (c.id) {
+            await supabase
+              .from('co_authors')
+              .update({ name: c.name, email: c.email, affiliation: c.affiliation })
+              .eq('id', c.id);
+          } else {
+            await supabase.from('co_authors').insert({
+              article_id: article.id,
+              name: c.name.trim(),
+              email: c.email.trim(),
+              affiliation: (c.affiliation || '').trim() || null,
+            });
+          }
         }
       }
 
@@ -194,6 +249,7 @@ export default function AuthorArticleDetail() {
       setEditing(false);
       setForm(null);
       queryClient.invalidateQueries({ queryKey: ['author-article', articleId] });
+      queryClient.invalidateQueries({ queryKey: ['author-profile-affiliation', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['my-articles', user?.id] });
     } catch (e: any) {
       toast.error('Failed to save changes: ' + (e.message || 'unknown error'));
