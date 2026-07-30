@@ -72,7 +72,7 @@ export function PayOptionsDialog({
   };
 
   const pay = async () => {
-    if (!user) return;
+    if (!user || !method) return;
     if (method === 'cart') return goToCart();
 
     setBusy(true);
