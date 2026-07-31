@@ -133,6 +133,7 @@ export function ArticleContentEditor({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [saving, setSaving] = useState(false);
   const [approving, setApproving] = useState(false);
+  const [sending, setSending] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [previewHtml, setPreviewHtml] = useState<string>('');
   const [previewBuilding, setPreviewBuilding] = useState(false);
@@ -145,6 +146,11 @@ export function ArticleContentEditor({
   const [autoFilledStart, setAutoFilledStart] = useState<boolean>(false);
   const [currentIssue, setCurrentIssue] = useState<string>(() => String(new Date().getMonth() + 1));
   const [selectedImg, setSelectedImg] = useState<HTMLImageElement | null>(null);
+  /** Page range explicitly saved by the admin. Once set, it is FINAL and is
+   *  reused verbatim on approve/send — never recomputed. Cleared only when the
+   *  admin edits the Page # input again. */
+  const [savedPageRange, setSavedPageRange] = useState<string | null>(null);
+  const [formattingApproved, setFormattingApproved] = useState<boolean>(false);
   const queryClient = useQueryClient();
 
   // Keep a ref to startPage so the resize handler always reads the latest value
@@ -163,7 +169,7 @@ export function ArticleContentEditor({
         // 1. Find which issue this article belongs to. Fall back to current month.
         const { data: thisArticle } = await supabase
           .from('articles')
-          .select('issue')
+          .select('issue,page_number,formatting_status')
           .eq('id', articleId)
           .maybeSingle();
         const issue =
@@ -171,6 +177,19 @@ export function ArticleContentEditor({
           String(new Date().getMonth() + 1);
         if (cancelled) return;
         setCurrentIssue(issue);
+        setFormattingApproved(((thisArticle as any)?.formatting_status || '') === 'approved');
+
+        // If this article already has a saved page range, that value is FINAL.
+        const ownRange = ((thisArticle as any)?.page_number || '').toString().trim();
+        if (ownRange) {
+          const nums = ownRange.match(/\d+/g);
+          if (nums?.length) {
+            setStartPage(Math.max(1, parseInt(nums[0], 10) || 1));
+            setSavedPageRange(ownRange);
+            setAutoFilledStart(true);
+            return;
+          }
+        }
 
         // 2. Look only at previously published articles in the SAME issue.
         const { data } = await supabase
@@ -513,25 +532,28 @@ export function ArticleContentEditor({
     }
   }, [getContent, articleId, queryClient, onClose]);
 
-  // Build the canonical page range string (e.g. "12-18" or "12") from
-  // current startPage + measured pageCount. Stored on the article so the
-  // NEXT article auto-continues numbering from this one.
+  // Build the canonical page range string (e.g. "12-18" or "12").
+  // If the admin has already saved a page range, that saved value is FINAL and
+  // is returned as-is so approving/sending never re-numbers the article.
   const computedPageRange = useCallback(() => {
+    if (savedPageRange) return savedPageRange;
     const start = Math.max(1, startPage || 1);
     const end = start + Math.max(1, pageCount) - 1;
     return end > start ? `${start}-${end}` : `${start}`;
-  }, [startPage, pageCount]);
+  }, [savedPageRange, startPage, pageCount]);
 
   const handleSave = async () => {
     setSaving(true);
     try {
       const content = getContent();
+      const range = computedPageRange();
       const { error } = await supabase
         .from('articles')
-        .update({ formatted_content: content, page_number: computedPageRange(), issue: currentIssue } as any)
+        .update({ formatted_content: content, page_number: range, issue: currentIssue } as any)
         .eq('id', articleId);
       if (error) throw error;
-      toast.success(`Saved (pages ${computedPageRange()})`);
+      setSavedPageRange(range);
+      toast.success(`Saved (pages ${range})`);
       queryClient.invalidateQueries({ queryKey: ['admin-formatting-articles'] });
     } catch (err: any) {
       toast.error('Failed to save: ' + err.message);
@@ -540,15 +562,14 @@ export function ArticleContentEditor({
     }
   };
 
-  const handleApproveAndSendGalleyProof = async () => {
+  /** Step 1 — approve the final formatted version. Does NOT notify the author. */
+  const handleApproveFinalVersion = async () => {
     setApproving(true);
-    const tid = toast.loading('Building galley proof PDF…');
+    const tid = toast.loading('Approving final version…');
     try {
       const content = getContent();
       const pageRange = computedPageRange();
-
-      // 1. Save current edits + mark formatting approved + persist page range
-      const { error: saveError } = await supabase
+      const { error } = await supabase
         .from('articles')
         .update({
           formatted_content: content,
@@ -558,9 +579,36 @@ export function ArticleContentEditor({
           issue: currentIssue,
         } as any)
         .eq('id', articleId);
-      if (saveError) throw saveError;
+      if (error) throw error;
+      setSavedPageRange(pageRange);
+      setFormattingApproved(true);
+      toast.success(`Final version approved (pages ${pageRange}). You can now send the galley proof.`, { id: tid });
+      queryClient.invalidateQueries({ queryKey: ['admin-formatting-articles'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-article-detail'] });
+    } catch (err: any) {
+      toast.error('Approve failed: ' + (err?.message || 'Unknown error'), { id: tid });
+    } finally {
+      setApproving(false);
+    }
+  };
 
-      // 2. Generate PDF using the admin's chosen starting page number
+  /** Step 2 — build the PDF and send the galley proof to the author. */
+  const handleSendGalleyProof = async () => {
+    setSending(true);
+    const tid = toast.loading('Building galley proof PDF…');
+    try {
+      const content = getContent();
+      const pageRange = computedPageRange();
+
+      // Persist the exact content/page range being sent (no re-numbering).
+      const { error: saveError } = await supabase
+        .from('articles')
+        .update({ formatted_content: content, page_number: pageRange, issue: currentIssue } as any)
+        .eq('id', articleId);
+      if (saveError) throw saveError;
+      setSavedPageRange(pageRange);
+
+      // 2. Generate PDF using the saved starting page number
       const pdfBlob = await buildFormattedPdfBlob(content, { startPage, showFirstPageNumber: true });
 
       // 3. Ask the backend for a secure one-time upload target, then upload PDF.
@@ -604,10 +652,10 @@ export function ArticleContentEditor({
       queryClient.invalidateQueries({ queryKey: ['admin-galley-proofs'] });
       onClose();
     } catch (err: any) {
-      console.error('Approve & send galley proof failed:', err);
+      console.error('Send galley proof failed:', err);
       toast.error('Failed to send galley proof: ' + (err.message || 'Unknown error'), { id: tid });
     } finally {
-      setApproving(false);
+      setSending(false);
     }
   };
 
@@ -738,6 +786,7 @@ export function ArticleContentEditor({
                 value={startPage}
                 onChange={(e) => {
                   setAutoFilledStart(true); // treat any manual edit as an override
+                  setSavedPageRange(null); // manual edit → recompute until saved again
                   setStartPage(Math.max(1, Number(e.target.value) || 1));
                 }}
                 className="h-7 w-[55px] text-xs rounded border border-input bg-background px-2"
@@ -990,9 +1039,21 @@ export function ArticleContentEditor({
                 {saving ? <GlassSpinner size="sm" className="mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                 Save Draft
               </Button>
-              <Button onClick={handleApproveAndSendGalleyProof} disabled={approving}>
+              <Button
+                variant={formattingApproved ? 'outline' : 'default'}
+                onClick={handleApproveFinalVersion}
+                disabled={approving || sending}
+              >
                 {approving ? <GlassSpinner size="sm" className="mr-2" /> : <CheckCircle className="w-4 h-4 mr-2" />}
-                Approve & Send Galley Proof
+                {formattingApproved ? 'Re-approve Final Version' : 'Approve Final Version'}
+              </Button>
+              <Button
+                onClick={handleSendGalleyProof}
+                disabled={sending || approving || !formattingApproved}
+                title={formattingApproved ? 'Send galley proof to author' : 'Approve the final version first'}
+              >
+                {sending ? <GlassSpinner size="sm" className="mr-2" /> : <Send className="w-4 h-4 mr-2" />}
+                Send Galley Proof
               </Button>
             </>
           )}
