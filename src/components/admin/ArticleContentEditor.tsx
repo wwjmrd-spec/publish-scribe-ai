@@ -1038,9 +1038,21 @@ export function ArticleContentEditor({
                 {saving ? <GlassSpinner size="sm" className="mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                 Save Draft
               </Button>
-              <Button onClick={handleApproveAndSendGalleyProof} disabled={approving}>
+              <Button
+                variant={formattingApproved ? 'outline' : 'default'}
+                onClick={handleApproveFinalVersion}
+                disabled={approving || sending}
+              >
                 {approving ? <GlassSpinner size="sm" className="mr-2" /> : <CheckCircle className="w-4 h-4 mr-2" />}
-                Approve & Send Galley Proof
+                {formattingApproved ? 'Re-approve Final Version' : 'Approve Final Version'}
+              </Button>
+              <Button
+                onClick={handleSendGalleyProof}
+                disabled={sending || approving || !formattingApproved}
+                title={formattingApproved ? 'Send galley proof to author' : 'Approve the final version first'}
+              >
+                {sending ? <GlassSpinner size="sm" className="mr-2" /> : <Send className="w-4 h-4 mr-2" />}
+                Send Galley Proof
               </Button>
             </>
           )}
