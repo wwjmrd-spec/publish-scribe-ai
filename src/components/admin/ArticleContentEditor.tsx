@@ -531,25 +531,28 @@ export function ArticleContentEditor({
     }
   }, [getContent, articleId, queryClient, onClose]);
 
-  // Build the canonical page range string (e.g. "12-18" or "12") from
-  // current startPage + measured pageCount. Stored on the article so the
-  // NEXT article auto-continues numbering from this one.
+  // Build the canonical page range string (e.g. "12-18" or "12").
+  // If the admin has already saved a page range, that saved value is FINAL and
+  // is returned as-is so approving/sending never re-numbers the article.
   const computedPageRange = useCallback(() => {
+    if (savedPageRange) return savedPageRange;
     const start = Math.max(1, startPage || 1);
     const end = start + Math.max(1, pageCount) - 1;
     return end > start ? `${start}-${end}` : `${start}`;
-  }, [startPage, pageCount]);
+  }, [savedPageRange, startPage, pageCount]);
 
   const handleSave = async () => {
     setSaving(true);
     try {
       const content = getContent();
+      const range = computedPageRange();
       const { error } = await supabase
         .from('articles')
-        .update({ formatted_content: content, page_number: computedPageRange(), issue: currentIssue } as any)
+        .update({ formatted_content: content, page_number: range, issue: currentIssue } as any)
         .eq('id', articleId);
       if (error) throw error;
-      toast.success(`Saved (pages ${computedPageRange()})`);
+      setSavedPageRange(range);
+      toast.success(`Saved (pages ${range})`);
       queryClient.invalidateQueries({ queryKey: ['admin-formatting-articles'] });
     } catch (err: any) {
       toast.error('Failed to save: ' + err.message);
@@ -558,15 +561,14 @@ export function ArticleContentEditor({
     }
   };
 
-  const handleApproveAndSendGalleyProof = async () => {
+  /** Step 1 — approve the final formatted version. Does NOT notify the author. */
+  const handleApproveFinalVersion = async () => {
     setApproving(true);
-    const tid = toast.loading('Building galley proof PDF…');
+    const tid = toast.loading('Approving final version…');
     try {
       const content = getContent();
       const pageRange = computedPageRange();
-
-      // 1. Save current edits + mark formatting approved + persist page range
-      const { error: saveError } = await supabase
+      const { error } = await supabase
         .from('articles')
         .update({
           formatted_content: content,
@@ -576,9 +578,36 @@ export function ArticleContentEditor({
           issue: currentIssue,
         } as any)
         .eq('id', articleId);
-      if (saveError) throw saveError;
+      if (error) throw error;
+      setSavedPageRange(pageRange);
+      setFormattingApproved(true);
+      toast.success(`Final version approved (pages ${pageRange}). You can now send the galley proof.`, { id: tid });
+      queryClient.invalidateQueries({ queryKey: ['admin-formatting-articles'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-article-detail'] });
+    } catch (err: any) {
+      toast.error('Approve failed: ' + (err?.message || 'Unknown error'), { id: tid });
+    } finally {
+      setApproving(false);
+    }
+  };
 
-      // 2. Generate PDF using the admin's chosen starting page number
+  /** Step 2 — build the PDF and send the galley proof to the author. */
+  const handleSendGalleyProof = async () => {
+    setSending(true);
+    const tid = toast.loading('Building galley proof PDF…');
+    try {
+      const content = getContent();
+      const pageRange = computedPageRange();
+
+      // Persist the exact content/page range being sent (no re-numbering).
+      const { error: saveError } = await supabase
+        .from('articles')
+        .update({ formatted_content: content, page_number: pageRange, issue: currentIssue } as any)
+        .eq('id', articleId);
+      if (saveError) throw saveError;
+      setSavedPageRange(pageRange);
+
+      // 2. Generate PDF using the saved starting page number
       const pdfBlob = await buildFormattedPdfBlob(content, { startPage, showFirstPageNumber: true });
 
       // 3. Ask the backend for a secure one-time upload target, then upload PDF.
@@ -622,10 +651,10 @@ export function ArticleContentEditor({
       queryClient.invalidateQueries({ queryKey: ['admin-galley-proofs'] });
       onClose();
     } catch (err: any) {
-      console.error('Approve & send galley proof failed:', err);
+      console.error('Send galley proof failed:', err);
       toast.error('Failed to send galley proof: ' + (err.message || 'Unknown error'), { id: tid });
     } finally {
-      setApproving(false);
+      setSending(false);
     }
   };
 
