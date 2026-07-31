@@ -181,7 +181,7 @@ export default function AdminFormatting() {
           <div className="min-w-0">
             <h1 className="font-display text-2xl sm:text-3xl font-bold">Article Formatting</h1>
             <p className="text-muted-foreground text-sm sm:text-base truncate">
-              AI-powered formatting → Edit like Word → Approve & Send Galley Proof
+              AI-powered formatting → Edit like Word → Approve Final Version → Send Galley Proof
             </p>
           </div>
         </div>
