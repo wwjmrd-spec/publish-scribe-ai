@@ -133,6 +133,7 @@ export function ArticleContentEditor({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [saving, setSaving] = useState(false);
   const [approving, setApproving] = useState(false);
+  const [sending, setSending] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [previewHtml, setPreviewHtml] = useState<string>('');
   const [previewBuilding, setPreviewBuilding] = useState(false);
