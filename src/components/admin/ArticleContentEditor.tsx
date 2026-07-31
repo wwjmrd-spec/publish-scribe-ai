@@ -786,6 +786,7 @@ export function ArticleContentEditor({
                 value={startPage}
                 onChange={(e) => {
                   setAutoFilledStart(true); // treat any manual edit as an override
+                  setSavedPageRange(null); // manual edit → recompute until saved again
                   setStartPage(Math.max(1, Number(e.target.value) || 1));
                 }}
                 className="h-7 w-[55px] text-xs rounded border border-input bg-background px-2"
