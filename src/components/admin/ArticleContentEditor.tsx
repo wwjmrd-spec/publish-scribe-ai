@@ -168,7 +168,7 @@ export function ArticleContentEditor({
         // 1. Find which issue this article belongs to. Fall back to current month.
         const { data: thisArticle } = await supabase
           .from('articles')
-          .select('issue')
+          .select('issue,page_number,formatting_status')
           .eq('id', articleId)
           .maybeSingle();
         const issue =
@@ -176,6 +176,19 @@ export function ArticleContentEditor({
           String(new Date().getMonth() + 1);
         if (cancelled) return;
         setCurrentIssue(issue);
+        setFormattingApproved(((thisArticle as any)?.formatting_status || '') === 'approved');
+
+        // If this article already has a saved page range, that value is FINAL.
+        const ownRange = ((thisArticle as any)?.page_number || '').toString().trim();
+        if (ownRange) {
+          const nums = ownRange.match(/\d+/g);
+          if (nums?.length) {
+            setStartPage(Math.max(1, parseInt(nums[0], 10) || 1));
+            setSavedPageRange(ownRange);
+            setAutoFilledStart(true);
+            return;
+          }
+        }
 
         // 2. Look only at previously published articles in the SAME issue.
         const { data } = await supabase
