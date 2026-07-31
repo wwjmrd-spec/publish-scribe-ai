@@ -145,6 +145,11 @@ export function ArticleContentEditor({
   const [autoFilledStart, setAutoFilledStart] = useState<boolean>(false);
   const [currentIssue, setCurrentIssue] = useState<string>(() => String(new Date().getMonth() + 1));
   const [selectedImg, setSelectedImg] = useState<HTMLImageElement | null>(null);
+  /** Page range explicitly saved by the admin. Once set, it is FINAL and is
+   *  reused verbatim on approve/send — never recomputed. Cleared only when the
+   *  admin edits the Page # input again. */
+  const [savedPageRange, setSavedPageRange] = useState<string | null>(null);
+  const [formattingApproved, setFormattingApproved] = useState<boolean>(false);
   const queryClient = useQueryClient();
 
   // Keep a ref to startPage so the resize handler always reads the latest value
