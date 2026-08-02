@@ -287,6 +287,29 @@ export default function AdminSettings() {
 
         <MauticBackfillCard />
 
+        <GlassCard className="p-6 space-y-4">
+          <div>
+            <h2 className="font-semibold">Author Dashboard Banners</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Show or hide the top banners in the author dashboard. Both stay hidden until you enable them.
+            </p>
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <Label htmlFor="banner-pro">Upgrade to Pro banner</Label>
+            <Switch id="banner-pro" checked={upgradeBanner} onCheckedChange={setUpgradeBanner} />
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <Label htmlFor="banner-refer">Refer &amp; Earn banner</Label>
+            <Switch id="banner-refer" checked={referBanner} onCheckedChange={setReferBanner} />
+          </div>
+          <Button onClick={saveBanners} disabled={savingBanners}>
+            {savingBanners && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+            Save banner settings
+          </Button>
+        </GlassCard>
+
+
+
 
         <Tabs defaultValue="ai" className="space-y-6">
           <TabsList className="grid w-full grid-cols-4">
