@@ -102,7 +102,9 @@ export default function AdminSettings() {
           "auto_accept_threshold", "auto_revision_threshold",
           "email_provider", "email_from_address", "mailgun_domain", "email_backup_chain",
           "aws_access_key_id", "aws_secret_access_key", "aws_ses_region",
+          "banner_upgrade_pro_enabled", "banner_refer_earn_enabled",
         ]);
+
       const map: Record<string, string> = {};
       (data ?? []).forEach((r: any) => (map[r.setting_key] = r.setting_value ?? ""));
       if (map.ai_api_key) setApiKey(map.ai_api_key);
