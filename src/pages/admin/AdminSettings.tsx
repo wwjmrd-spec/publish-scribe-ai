@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Brain, Mail, SendHorizonal, AlertTriangle, CheckCircle2, Plus, Trash2, RefreshCw, Activity } from "lucide-react";
 import { MauticBackfillCard } from "@/components/admin/MauticBackfillCard";
