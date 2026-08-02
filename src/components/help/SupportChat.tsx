@@ -56,6 +56,30 @@ export function SupportChat() {
     setTimeout(() => inputRef.current?.focus(), 100);
   }, []);
 
+  // If an admin deleted this chat for the author, clear it locally.
+  useEffect(() => {
+    if (!conversationId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await (supabase as any)
+        .from('chat_conversations')
+        .select('deleted_for')
+        .eq('id', conversationId)
+        .maybeSingle();
+      if (cancelled) return;
+      if (data?.deleted_for === 'all' || data?.deleted_for === 'author') {
+        setMessages([]);
+        setConversationId(null);
+        setMemory({});
+        sessionId.current = crypto.randomUUID();
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [conversationId]);
+
+
   useEffect(() => {
     if (!sessionId.current) return;
     window.localStorage.setItem(

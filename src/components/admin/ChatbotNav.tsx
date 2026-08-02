@@ -2,6 +2,7 @@ import { NavLink } from "react-router-dom";
 
 const TABS = [
   { to: "/admin/chatbot/tickets", label: "Support Tickets" },
+  { to: "/admin/chatbot/history", label: "Chat History" },
   { to: "/admin/chatbot/knowledge", label: "Knowledge Base" },
   { to: "/admin/chatbot/faq", label: "FAQs" },
   { to: "/admin/chatbot/analytics", label: "Analytics" },

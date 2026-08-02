@@ -51,6 +51,7 @@ import AdminSupportTickets from "./pages/admin/AdminSupportTickets";
 import AdminChatbotKB from "./pages/admin/AdminChatbotKB";
 import AdminChatbotFAQ from "./pages/admin/AdminChatbotFAQ";
 import AdminChatbotAnalytics from "./pages/admin/AdminChatbotAnalytics";
+import AdminChatHistory from "./pages/admin/AdminChatHistory";
 import AdminChatbotIntegrations from "./pages/admin/AdminChatbotIntegrations";
 
 import AdminPublicationOrder from "./pages/admin/AdminPublicationOrder";
@@ -432,6 +433,15 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/admin/chatbot/history"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminChatHistory />
+                </ProtectedRoute>
+              }
+            />
+
             <Route
               path="/admin/chatbot/knowledge"
               element={

@@ -836,6 +836,9 @@ export type Database = {
           channel: string
           country: string | null
           created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
+          deleted_for: string
           human_takeover: boolean
           id: string
           language: string
@@ -855,6 +858,9 @@ export type Database = {
           channel?: string
           country?: string | null
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deleted_for?: string
           human_takeover?: boolean
           id?: string
           language?: string
@@ -874,6 +880,9 @@ export type Database = {
           channel?: string
           country?: string | null
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deleted_for?: string
           human_takeover?: boolean
           id?: string
           language?: string
