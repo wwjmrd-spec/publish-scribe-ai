@@ -123,7 +123,10 @@ export default function AdminSettings() {
       if (map.aws_access_key_id) setAwsKey(map.aws_access_key_id);
       if (map.aws_secret_access_key) setAwsSecret(map.aws_secret_access_key);
       if (map.aws_ses_region) setAwsRegion(map.aws_ses_region);
+      setUpgradeBanner(map.banner_upgrade_pro_enabled === "true");
+      setReferBanner(map.banner_refer_earn_enabled === "true");
       setLoading(false);
+
     })();
   }, []);
 
