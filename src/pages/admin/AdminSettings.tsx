@@ -80,10 +80,17 @@ export default function AdminSettings() {
   const [savingSes, setSavingSes] = useState(false);
 
   // Test
+  // Test
   const [testTo, setTestTo] = useState("");
   const [testProvider, setTestProvider] = useState("default");
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
+
+  // Author dashboard banners
+  const [upgradeBanner, setUpgradeBanner] = useState(false);
+  const [referBanner, setReferBanner] = useState(false);
+  const [savingBanners, setSavingBanners] = useState(false);
+
 
   useEffect(() => {
     (async () => {
