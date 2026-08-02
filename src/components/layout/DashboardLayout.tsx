@@ -123,7 +123,28 @@ export function DashboardLayout({ children, type }: DashboardLayoutProps) {
   });
 
   const { subscription } = useSubscription();
-  const showUpgradeBanner = type === 'author' && !subscription.canDownloadReport && subscription.plan === 'free';
+
+  // Admin-controlled banner toggles (disabled by default).
+  const { data: bannerToggles } = useQuery({
+    queryKey: ['banner-toggles'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('admin_settings')
+        .select('setting_key, setting_value')
+        .in('setting_key', ['banner_upgrade_pro_enabled', 'banner_refer_earn_enabled']);
+      const map: Record<string, string> = {};
+      (data ?? []).forEach((r: any) => (map[r.setting_key] = r.setting_value ?? ''));
+      return map;
+    },
+    staleTime: 60_000,
+  });
+
+  const upgradeBannerEnabled = bannerToggles?.banner_upgrade_pro_enabled === 'true';
+  const referBannerEnabled = bannerToggles?.banner_refer_earn_enabled === 'true';
+
+  const showUpgradeBanner =
+    upgradeBannerEnabled && type === 'author' && !subscription.canDownloadReport && subscription.plan === 'free';
+
 
   const { data: profileData } = useQuery({
     queryKey: ['profile-is-indian', user?.id],
@@ -319,7 +340,7 @@ export function DashboardLayout({ children, type }: DashboardLayoutProps) {
           </motion.div>
         )}
         {/* Refer & Earn Banner */}
-        {type === 'author' && showReferBanner && location.pathname !== '/author/rewards' && (
+        {referBannerEnabled && type === 'author' && showReferBanner && location.pathname !== '/author/rewards' && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}

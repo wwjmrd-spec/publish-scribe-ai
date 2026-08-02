@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Brain, Mail, SendHorizonal, AlertTriangle, CheckCircle2, Plus, Trash2, RefreshCw, Activity } from "lucide-react";
 import { MauticBackfillCard } from "@/components/admin/MauticBackfillCard";
@@ -78,10 +80,17 @@ export default function AdminSettings() {
   const [savingSes, setSavingSes] = useState(false);
 
   // Test
+  // Test
   const [testTo, setTestTo] = useState("");
   const [testProvider, setTestProvider] = useState("default");
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
+
+  // Author dashboard banners
+  const [upgradeBanner, setUpgradeBanner] = useState(false);
+  const [referBanner, setReferBanner] = useState(false);
+  const [savingBanners, setSavingBanners] = useState(false);
+
 
   useEffect(() => {
     (async () => {
@@ -93,7 +102,9 @@ export default function AdminSettings() {
           "auto_accept_threshold", "auto_revision_threshold",
           "email_provider", "email_from_address", "mailgun_domain", "email_backup_chain",
           "aws_access_key_id", "aws_secret_access_key", "aws_ses_region",
+          "banner_upgrade_pro_enabled", "banner_refer_earn_enabled",
         ]);
+
       const map: Record<string, string> = {};
       (data ?? []).forEach((r: any) => (map[r.setting_key] = r.setting_value ?? ""));
       if (map.ai_api_key) setApiKey(map.ai_api_key);
@@ -112,7 +123,10 @@ export default function AdminSettings() {
       if (map.aws_access_key_id) setAwsKey(map.aws_access_key_id);
       if (map.aws_secret_access_key) setAwsSecret(map.aws_secret_access_key);
       if (map.aws_ses_region) setAwsRegion(map.aws_ses_region);
+      setUpgradeBanner(map.banner_upgrade_pro_enabled === "true");
+      setReferBanner(map.banner_refer_earn_enabled === "true");
       setLoading(false);
+
     })();
   }, []);
 
@@ -151,6 +165,21 @@ export default function AdminSettings() {
       await supabase.from("admin_settings").insert({ setting_key: key, setting_value: value });
     }
   };
+
+  const saveBanners = async () => {
+    setSavingBanners(true);
+    try {
+      await saveSetting("banner_upgrade_pro_enabled", upgradeBanner ? "true" : "false");
+      await saveSetting("banner_refer_earn_enabled", referBanner ? "true" : "false");
+      toast({ title: "Banner settings saved" });
+    } catch (e: any) {
+      toast({ title: "Save failed", description: e.message, variant: "destructive" });
+    } finally {
+      setSavingBanners(false);
+    }
+  };
+
+
 
   const saveAi = async () => {
     setSavingAi(true);
@@ -286,6 +315,29 @@ export default function AdminSettings() {
         </div>
 
         <MauticBackfillCard />
+
+        <GlassCard className="p-6 space-y-4">
+          <div>
+            <h2 className="font-semibold">Author Dashboard Banners</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Show or hide the top banners in the author dashboard. Both stay hidden until you enable them.
+            </p>
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <Label htmlFor="banner-pro">Upgrade to Pro banner</Label>
+            <Switch id="banner-pro" checked={upgradeBanner} onCheckedChange={setUpgradeBanner} />
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <Label htmlFor="banner-refer">Refer &amp; Earn banner</Label>
+            <Switch id="banner-refer" checked={referBanner} onCheckedChange={setReferBanner} />
+          </div>
+          <Button onClick={saveBanners} disabled={savingBanners}>
+            {savingBanners && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+            Save banner settings
+          </Button>
+        </GlassCard>
+
+
 
 
         <Tabs defaultValue="ai" className="space-y-6">
