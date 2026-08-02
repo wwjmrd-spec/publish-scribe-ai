@@ -340,7 +340,7 @@ export function DashboardLayout({ children, type }: DashboardLayoutProps) {
           </motion.div>
         )}
         {/* Refer & Earn Banner */}
-        {type === 'author' && showReferBanner && location.pathname !== '/author/rewards' && (
+        {referBannerEnabled && type === 'author' && showReferBanner && location.pathname !== '/author/rewards' && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
