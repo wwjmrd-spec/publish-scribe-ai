@@ -166,6 +166,21 @@ export default function AdminSettings() {
     }
   };
 
+  const saveBanners = async () => {
+    setSavingBanners(true);
+    try {
+      await saveSetting("banner_upgrade_pro_enabled", upgradeBanner ? "true" : "false");
+      await saveSetting("banner_refer_earn_enabled", referBanner ? "true" : "false");
+      toast({ title: "Banner settings saved" });
+    } catch (e: any) {
+      toast({ title: "Save failed", description: e.message, variant: "destructive" });
+    } finally {
+      setSavingBanners(false);
+    }
+  };
+
+
+
   const saveAi = async () => {
     setSavingAi(true);
     try {
