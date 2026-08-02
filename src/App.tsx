@@ -434,6 +434,15 @@ const App = () => (
               }
             />
             <Route
+              path="/admin/chatbot/history"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminChatHistory />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
               path="/admin/chatbot/knowledge"
               element={
                 <ProtectedRoute allowedRoles={['admin']}>
