@@ -57,6 +57,8 @@ export default function MyArticles() {
   const [payReportDialog, setPayReportDialog] = React.useState<{ articleId: string; title: string; refNum: string; amount: number; currency: 'INR' | 'USD' } | null>(null);
   const [payingNow, setPayingNow] = React.useState(false);
   const [hasAvatar, setHasAvatar] = React.useState<boolean | null>(null);
+  const [showGuide, setShowGuide] = React.useState(() => !hasSeenPublicationCardGuide());
+
 
   React.useEffect(() => {
     if (!user?.id) return;
