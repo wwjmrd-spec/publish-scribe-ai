@@ -5,6 +5,12 @@ import {
   X, ArrowRight, ArrowLeft, FileText, MousePointerClick, Download,
   Share2, Smartphone, QrCode, CheckCircle2,
 } from 'lucide-react';
+import step1Img from '@/assets/guide/step1.jpg';
+import step2Img from '@/assets/guide/step2.jpg';
+import step3Img from '@/assets/guide/step3.jpg';
+import step4Img from '@/assets/guide/step4.jpg';
+import step5Img from '@/assets/guide/step5.jpg';
+import step6Img from '@/assets/guide/step6.jpg';
 
 const STORAGE_KEY = 'pubcard-guide-completed-v1';
 
@@ -19,41 +25,48 @@ export function hasSeenPublicationCardGuide() {
 const steps = [
   {
     icon: FileText,
+    image: step1Img,
     step: 'Step 1',
     title: 'Open My Articles',
     description: 'Everything starts here — your submissions and published papers live in this page.',
   },
   {
     icon: MousePointerClick,
+    image: step2Img,
     step: 'Step 2',
     title: 'Expand Publication Card',
     description: 'Find your published article and click Publication Card to expand your personalised card.',
   },
   {
     icon: Download,
+    image: step3Img,
     step: 'Step 3',
     title: 'Download Card',
     description: 'Tap Download Card to save a high-resolution PNG with your article details and QR code.',
   },
   {
     icon: Share2,
+    image: step4Img,
     step: 'Step 4',
     title: 'Share Card',
     description: 'Tap Share Card — on mobile it opens the native share sheet with the image and caption attached.',
   },
   {
     icon: Smartphone,
+    image: step5Img,
     step: 'Step 5',
     title: 'One-click social buttons',
     description: 'Use WhatsApp, LinkedIn, X, Facebook, Instagram or Telegram — the card downloads and the caption is copied automatically.',
   },
   {
     icon: QrCode,
+    image: step6Img,
     step: 'Step 6',
     title: 'More reads & citations',
     description: 'Friends and colleagues scan the QR code and instantly read your article — driving more reads, citations and impact.',
   },
 ];
+
 
 export function PublicationCardGuide({ onClose }: { onClose: () => void }) {
   const [index, setIndex] = React.useState(0);
