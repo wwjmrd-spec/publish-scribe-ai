@@ -92,7 +92,7 @@ export function PublicationCardGuide({ onClose }: { onClose: () => void }) {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.3 }}
-        className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+        className="fixed inset-0 z-[9999] flex items-center justify-center sm:justify-end p-4 sm:pr-6"
       >
         <div
           className="absolute inset-0 bg-background/50 backdrop-blur-xl"
@@ -100,11 +100,11 @@ export function PublicationCardGuide({ onClose }: { onClose: () => void }) {
         />
 
         <motion.div
-          initial={{ opacity: 0, y: 24, scale: 0.96 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 24, scale: 0.96 }}
+          initial={{ opacity: 0, x: 40, scale: 0.96 }}
+          animate={{ opacity: 1, x: 0, scale: 1 }}
+          exit={{ opacity: 0, x: 40, scale: 0.96 }}
           transition={{ type: 'spring', stiffness: 260, damping: 24 }}
-          className="relative w-full max-w-md rounded-2xl border border-border/60 bg-card/70 backdrop-blur-2xl shadow-2xl p-6"
+          className="relative w-full max-w-sm rounded-2xl border border-border/60 bg-card/70 backdrop-blur-2xl shadow-2xl p-6"
         >
           <button
             onClick={() => finish(false)}
@@ -127,21 +127,34 @@ export function PublicationCardGuide({ onClose }: { onClose: () => void }) {
               transition={{ duration: 0.28, ease: 'easeOut' }}
             >
               <motion.div
-                initial={{ scale: 0.8, opacity: 0 }}
+                initial={{ scale: 0.94, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: 0.05, type: 'spring', stiffness: 300, damping: 18 }}
-                className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center mb-4"
+                transition={{ delay: 0.05, type: 'spring', stiffness: 300, damping: 22 }}
+                className="mx-auto mb-4 w-full overflow-hidden rounded-xl border border-border/50 bg-background/40"
               >
-                <Icon className="w-6 h-6 text-primary-foreground" />
+                <img
+                  src={current.image}
+                  alt={`${current.step}: ${current.title}`}
+                  loading="lazy"
+                  width={768}
+                  height={512}
+                  className="block w-full h-auto object-cover"
+                />
               </motion.div>
 
-              <h3 className="font-display font-bold text-lg mb-2 text-foreground">
-                {current.title}
-              </h3>
-              <p className="text-sm text-muted-foreground leading-relaxed mb-6">
-                {current.description}
-              </p>
+              <div className="flex flex-col items-center text-center">
+                <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center mb-3">
+                  <Icon className="w-5 h-5 text-primary-foreground" />
+                </div>
+                <h3 className="font-display font-bold text-lg mb-2 text-foreground">
+                  {current.title}
+                </h3>
+                <p className="text-sm text-muted-foreground leading-relaxed mb-6">
+                  {current.description}
+                </p>
+              </div>
             </motion.div>
+
           </AnimatePresence>
 
           <div className="flex items-center gap-1.5 mb-5">
