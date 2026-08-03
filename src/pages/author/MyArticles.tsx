@@ -575,7 +575,10 @@ export default function MyArticles() {
         )}
       </motion.div>
 
+      {showGuide && <PublicationCardGuide onClose={() => setShowGuide(false)} />}
+
       {withdrawArticle && (
+
         <WithdrawArticleDialog
           open={!!withdrawArticle}
           onOpenChange={(open) => !open && setWithdrawArticle(null)}
