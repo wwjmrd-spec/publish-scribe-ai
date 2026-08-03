@@ -5,6 +5,12 @@ import {
   X, ArrowRight, ArrowLeft, FileText, MousePointerClick, Download,
   Share2, Smartphone, QrCode, CheckCircle2,
 } from 'lucide-react';
+import step1Img from '@/assets/guide/step1.jpg';
+import step2Img from '@/assets/guide/step2.jpg';
+import step3Img from '@/assets/guide/step3.jpg';
+import step4Img from '@/assets/guide/step4.jpg';
+import step5Img from '@/assets/guide/step5.jpg';
+import step6Img from '@/assets/guide/step6.jpg';
 
 const STORAGE_KEY = 'pubcard-guide-completed-v1';
 
@@ -19,41 +25,48 @@ export function hasSeenPublicationCardGuide() {
 const steps = [
   {
     icon: FileText,
+    image: step1Img,
     step: 'Step 1',
     title: 'Open My Articles',
     description: 'Everything starts here — your submissions and published papers live in this page.',
   },
   {
     icon: MousePointerClick,
+    image: step2Img,
     step: 'Step 2',
     title: 'Expand Publication Card',
     description: 'Find your published article and click Publication Card to expand your personalised card.',
   },
   {
     icon: Download,
+    image: step3Img,
     step: 'Step 3',
     title: 'Download Card',
     description: 'Tap Download Card to save a high-resolution PNG with your article details and QR code.',
   },
   {
     icon: Share2,
+    image: step4Img,
     step: 'Step 4',
     title: 'Share Card',
     description: 'Tap Share Card — on mobile it opens the native share sheet with the image and caption attached.',
   },
   {
     icon: Smartphone,
+    image: step5Img,
     step: 'Step 5',
     title: 'One-click social buttons',
     description: 'Use WhatsApp, LinkedIn, X, Facebook, Instagram or Telegram — the card downloads and the caption is copied automatically.',
   },
   {
     icon: QrCode,
+    image: step6Img,
     step: 'Step 6',
     title: 'More reads & citations',
     description: 'Friends and colleagues scan the QR code and instantly read your article — driving more reads, citations and impact.',
   },
 ];
+
 
 export function PublicationCardGuide({ onClose }: { onClose: () => void }) {
   const [index, setIndex] = React.useState(0);
@@ -79,7 +92,7 @@ export function PublicationCardGuide({ onClose }: { onClose: () => void }) {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.3 }}
-        className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+        className="fixed inset-0 z-[9999] flex items-center justify-center sm:justify-end p-4 sm:pr-6"
       >
         <div
           className="absolute inset-0 bg-background/50 backdrop-blur-xl"
@@ -87,11 +100,11 @@ export function PublicationCardGuide({ onClose }: { onClose: () => void }) {
         />
 
         <motion.div
-          initial={{ opacity: 0, y: 24, scale: 0.96 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 24, scale: 0.96 }}
+          initial={{ opacity: 0, x: 40, scale: 0.96 }}
+          animate={{ opacity: 1, x: 0, scale: 1 }}
+          exit={{ opacity: 0, x: 40, scale: 0.96 }}
           transition={{ type: 'spring', stiffness: 260, damping: 24 }}
-          className="relative w-full max-w-md rounded-2xl border border-border/60 bg-card/70 backdrop-blur-2xl shadow-2xl p-6"
+          className="relative w-full max-w-sm rounded-2xl border border-border/60 bg-card/70 backdrop-blur-2xl shadow-2xl p-6"
         >
           <button
             onClick={() => finish(false)}
@@ -114,21 +127,34 @@ export function PublicationCardGuide({ onClose }: { onClose: () => void }) {
               transition={{ duration: 0.28, ease: 'easeOut' }}
             >
               <motion.div
-                initial={{ scale: 0.8, opacity: 0 }}
+                initial={{ scale: 0.94, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: 0.05, type: 'spring', stiffness: 300, damping: 18 }}
-                className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center mb-4"
+                transition={{ delay: 0.05, type: 'spring', stiffness: 300, damping: 22 }}
+                className="mx-auto mb-4 w-full overflow-hidden rounded-xl border border-border/50 bg-background/40"
               >
-                <Icon className="w-6 h-6 text-primary-foreground" />
+                <img
+                  src={current.image}
+                  alt={`${current.step}: ${current.title}`}
+                  loading="lazy"
+                  width={768}
+                  height={512}
+                  className="block w-full h-auto object-cover"
+                />
               </motion.div>
 
-              <h3 className="font-display font-bold text-lg mb-2 text-foreground">
-                {current.title}
-              </h3>
-              <p className="text-sm text-muted-foreground leading-relaxed mb-6">
-                {current.description}
-              </p>
+              <div className="flex flex-col items-center text-center">
+                <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center mb-3">
+                  <Icon className="w-5 h-5 text-primary-foreground" />
+                </div>
+                <h3 className="font-display font-bold text-lg mb-2 text-foreground">
+                  {current.title}
+                </h3>
+                <p className="text-sm text-muted-foreground leading-relaxed mb-6">
+                  {current.description}
+                </p>
+              </div>
             </motion.div>
+
           </AnimatePresence>
 
           <div className="flex items-center gap-1.5 mb-5">
