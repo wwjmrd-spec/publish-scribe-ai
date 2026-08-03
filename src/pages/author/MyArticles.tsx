@@ -40,6 +40,8 @@ import { GalleyProofReviewSection } from '@/components/articles/GalleyProofRevie
 import { CopyrightFormSection } from '@/components/articles/CopyrightFormSection';
 import { ManageCoAuthorsDialog } from '@/components/articles/ManageCoAuthorsDialog';
 import { PublicationCard } from '@/components/articles/PublicationCard';
+import { PublicationCardGuide, hasSeenPublicationCardGuide } from '@/components/articles/PublicationCardGuide';
+
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ChevronDown, Share2 } from 'lucide-react';
 
