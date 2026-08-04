@@ -255,37 +255,14 @@ serve(async (req: Request) => {
                 });
               }
 
-              // If article requires fee (>2 pages OR free disabled), move to pending_fee
+              // Article stays "Manuscript Accepted" for 24 hours before the
+              // pending-fee transition (handled in STEP 2b below).
               const requiresFee = pageCount > 2 || !twoPageFreeEnabled;
-              if (requiresFee) {
-                await supabase.from("articles").update({
-                  status: "pending_fee",
-                  fee_reminder_email_sent_at: new Date().toISOString(),
-                  automation_paused: true,
-                }).eq("id", article.id);
-                results.step2_pendingFee++;
-
-                await supabase.from("notifications").insert({
-                  user_id: article.author_id,
-                  title: "Publication Fee Pending 💳",
-                  message: `Your article "${article.title}" (${pageCount} pages) requires a publication fee.`,
-                  type: "warning", link: "/author/cart",
-                });
-                await notifyAdmins("Article Pending Fee 💳",
-                  `Article "${article.title}" (${article.reference_number}) is pending fee. Automation paused.`,
-                  `/admin/articles/${article.id}`);
-                if (authorEmail) {
-                  await sendEmail(authorEmail, "status-update", {
-                    authorName, articleTitle: article.title,
-                    referenceNumber: article.reference_number,
-                    newStatus: "Pending Fee",
-                    message: `Your article has ${pageCount} pages and requires a publication fee to proceed. Please pay your publication fee to continue.`,
-                  });
-                }
-              } else {
+              if (!requiresFee) {
                 // Free tier — pause automation now
                 await supabase.from("articles").update({ automation_paused: true }).eq("id", article.id);
               }
+
             } else if (meetsRevision) {
               // Mid score — request manuscript revision and pause
               await supabase.from("articles").update({
