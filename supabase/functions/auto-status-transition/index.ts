@@ -247,11 +247,10 @@ serve(async (req: Request) => {
                 `Article "${article.title}" (${article.reference_number}) auto-accepted (score ${overall}% ≥ ${acceptThreshold}%).`,
                 `/admin/articles/${article.id}`);
               if (authorEmail) {
-                await sendEmail(authorEmail, "status-update", {
+                await sendEmail(authorEmail, "article-status-change", {
                   authorName, articleTitle: article.title,
                   referenceNumber: article.reference_number,
-                  newStatus: "Manuscript Accepted",
-                  message: "Congratulations! Your manuscript has been accepted for publication.",
+                  status: "manuscript_accepted",
                 });
               }
 
@@ -305,10 +304,10 @@ serve(async (req: Request) => {
                 `Article "${article.title}" (${article.reference_number}) auto-rejected (score ${overall}% < ${revisionThreshold}%). Automation paused.`,
                 `/admin/articles/${article.id}`);
               if (authorEmail) {
-                await sendEmail(authorEmail, "status-update", {
+                await sendEmail(authorEmail, "article-status-change", {
                   authorName, articleTitle: article.title,
                   referenceNumber: article.reference_number,
-                  newStatus: "Rejected",
+                  status: "rejected",
                   message: `Unfortunately, your manuscript scored ${overall}% in AI review, which is below our minimum threshold of ${revisionThreshold}%. The submission has been rejected.`,
                 });
               }
@@ -372,10 +371,10 @@ serve(async (req: Request) => {
               `Article "${article.title}" (${article.reference_number}) is pending fee. Automation paused.`,
               `/admin/articles/${article.id}`);
             if (authorEmail) {
-              await sendEmail(authorEmail, "status-update", {
+              await sendEmail(authorEmail, "article-status-change", {
                 authorName, articleTitle: article.title,
                 referenceNumber: article.reference_number,
-                newStatus: "Pending Fee",
+                status: "pending_fee",
                 message: `Your article has ${pageCount} pages and requires a publication fee to proceed. Please pay your publication fee to continue.`,
               });
             }
