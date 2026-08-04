@@ -255,37 +255,14 @@ serve(async (req: Request) => {
                 });
               }
 
-              // If article requires fee (>2 pages OR free disabled), move to pending_fee
+              // Article stays "Manuscript Accepted" for 24 hours before the
+              // pending-fee transition (handled in STEP 2b below).
               const requiresFee = pageCount > 2 || !twoPageFreeEnabled;
-              if (requiresFee) {
-                await supabase.from("articles").update({
-                  status: "pending_fee",
-                  fee_reminder_email_sent_at: new Date().toISOString(),
-                  automation_paused: true,
-                }).eq("id", article.id);
-                results.step2_pendingFee++;
-
-                await supabase.from("notifications").insert({
-                  user_id: article.author_id,
-                  title: "Publication Fee Pending 💳",
-                  message: `Your article "${article.title}" (${pageCount} pages) requires a publication fee.`,
-                  type: "warning", link: "/author/cart",
-                });
-                await notifyAdmins("Article Pending Fee 💳",
-                  `Article "${article.title}" (${article.reference_number}) is pending fee. Automation paused.`,
-                  `/admin/articles/${article.id}`);
-                if (authorEmail) {
-                  await sendEmail(authorEmail, "status-update", {
-                    authorName, articleTitle: article.title,
-                    referenceNumber: article.reference_number,
-                    newStatus: "Pending Fee",
-                    message: `Your article has ${pageCount} pages and requires a publication fee to proceed. Please pay your publication fee to continue.`,
-                  });
-                }
-              } else {
+              if (!requiresFee) {
                 // Free tier — pause automation now
                 await supabase.from("articles").update({ automation_paused: true }).eq("id", article.id);
               }
+
             } else if (meetsRevision) {
               // Mid score — request manuscript revision and pause
               await supabase.from("articles").update({
@@ -342,6 +319,73 @@ serve(async (req: Request) => {
         }
       }
     }
+
+    // ===== STEP 2b: Manuscript accepted for 24h+ => pending fee =====
+    {
+      const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+      const { data: accepted, error } = await supabase
+        .from("articles")
+        .select("id, title, reference_number, author_id, page_count, manuscript_accepted_email_sent_at, profiles:author_id (full_name, email)")
+        .eq("status", "manuscript_accepted")
+        .eq("automation_paused", false)
+        .not("manuscript_accepted_email_sent_at", "is", null)
+        .lte("manuscript_accepted_email_sent_at", dayAgo)
+        .limit(50);
+
+      if (error) {
+        results.errors.push(`Step2b fetch: ${error.message}`);
+      } else if (accepted?.length) {
+        for (const article of accepted as any[]) {
+          try {
+            const pageCount = article.page_count || 0;
+            const requiresFee = pageCount > 2 || !twoPageFreeEnabled;
+            if (!requiresFee) {
+              await supabase.from("articles").update({ automation_paused: true }).eq("id", article.id);
+              continue;
+            }
+
+            const { data: claimed } = await supabase
+              .from("articles")
+              .update({
+                status: "pending_fee",
+                fee_reminder_email_sent_at: new Date().toISOString(),
+                automation_paused: true,
+              })
+              .eq("id", article.id)
+              .eq("status", "manuscript_accepted")
+              .select("id").maybeSingle();
+            if (!claimed) continue;
+
+            results.step2_pendingFee++;
+
+            const profile = article.profiles;
+            const authorEmail = profile?.email as string | undefined;
+            const authorName = (profile?.full_name as string) || "Author";
+
+            await supabase.from("notifications").insert({
+              user_id: article.author_id,
+              title: "Publication Fee Pending 💳",
+              message: `Your article "${article.title}" (${pageCount} pages) requires a publication fee.`,
+              type: "warning", link: "/author/cart",
+            });
+            await notifyAdmins("Article Pending Fee 💳",
+              `Article "${article.title}" (${article.reference_number}) is pending fee. Automation paused.`,
+              `/admin/articles/${article.id}`);
+            if (authorEmail) {
+              await sendEmail(authorEmail, "status-update", {
+                authorName, articleTitle: article.title,
+                referenceNumber: article.reference_number,
+                newStatus: "Pending Fee",
+                message: `Your article has ${pageCount} pages and requires a publication fee to proceed. Please pay your publication fee to continue.`,
+              });
+            }
+          } catch (e: any) {
+            results.errors.push(`Step2b ${article.id}: ${e?.message || e}`);
+          }
+        }
+      }
+    }
+
 
     // ===== STEP 3: Referral reward emails =====
     {
