@@ -92,7 +92,7 @@ export function PublicationCardGuide({ onClose }: { onClose: () => void }) {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.3 }}
-        className="fixed inset-0 lg:left-64 z-[9999] flex items-center justify-center sm:justify-end p-4 sm:pr-6"
+        className="fixed inset-0 lg:left-64 z-[9999] flex items-center justify-center p-4 sm:justify-end sm:pr-[6vw] lg:pr-[10vw]"
       >
         <div
           className="absolute inset-0 bg-background/50 backdrop-blur-xl"
