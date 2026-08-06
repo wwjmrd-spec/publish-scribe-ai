@@ -83,7 +83,8 @@ export default function Cart() {
         .from('articles')
         .select('id, title, reference_number, created_at, status, publication_type, page_count')
         .eq('author_id', user?.id)
-        .eq('status', 'pending_fee')
+        // Authors may pay the publication fee at any pre-payment stage.
+        .in('status', ['submitted', 'under_review', 'ai_review_generated', 'revision_requested', 'revised_submitted', 'revised_review_generated', 'manuscript_accepted', 'pending_fee'])
         .order('created_at', { ascending: false })
         .limit(100)
         .abortSignal(queryTimeout());
