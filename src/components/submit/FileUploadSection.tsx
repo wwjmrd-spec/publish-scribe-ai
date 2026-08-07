@@ -9,6 +9,8 @@ interface FileUploadSectionProps {
   setFile: (f: File | null) => void;
 }
 
+const isAllowed = (name: string) => /\.(docx|doc)$/i.test(name);
+
 export function FileUploadSection({ file, setFile }: FileUploadSectionProps) {
   const { toast } = useToast();
   const [dragActive, setDragActive] = useState(false);
@@ -31,12 +33,12 @@ export function FileUploadSection({ file, setFile }: FileUploadSectionProps) {
 
       if (e.dataTransfer.files && e.dataTransfer.files[0]) {
         const droppedFile = e.dataTransfer.files[0];
-        if (droppedFile.name.endsWith('.docx')) {
+        if (isAllowed(droppedFile.name)) {
           setFile(droppedFile);
         } else {
           toast({
             title: 'Invalid file type',
-            description: 'Please upload a .docx file',
+            description: 'Please upload a .doc or .docx file',
             variant: 'destructive',
           });
         }
@@ -48,12 +50,12 @@ export function FileUploadSection({ file, setFile }: FileUploadSectionProps) {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
-      if (selectedFile.name.endsWith('.docx')) {
+      if (isAllowed(selectedFile.name)) {
         setFile(selectedFile);
       } else {
         toast({
           title: 'Invalid file type',
-          description: 'Please upload a .docx file',
+          description: 'Please upload a .doc or .docx file',
           variant: 'destructive',
         });
       }
@@ -107,12 +109,12 @@ export function FileUploadSection({ file, setFile }: FileUploadSectionProps) {
               <Upload className="w-8 h-8 text-muted-foreground" />
             </div>
             <p className="text-lg font-medium mb-2">
-              Drag and drop your .docx file
+              Drag and drop your .doc or .docx file
             </p>
             <p className="text-sm text-muted-foreground mb-4">or click to browse</p>
             <input
               type="file"
-              accept=".docx"
+              accept=".docx,.doc"
               onChange={handleFileChange}
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
             />

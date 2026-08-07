@@ -238,7 +238,7 @@ export function GalleyProofReviewSection({ article }: GalleyProofReviewSectionPr
             <p>• Open the article in the editor and use the <span className="text-red-400 font-semibold">RED text colour</span> to highlight every change you need</p>
             <p>• When done, click <em>Send Corrections to Admin</em></p>
             <p>• Or, if everything looks perfect, click <em>Approve Galley Proof</em> below</p>
-            <p>• Alternative: upload a revised Word file</p>
+            
           </div>
         )}
 
