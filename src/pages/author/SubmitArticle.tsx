@@ -214,11 +214,21 @@ export default function SubmitArticle() {
 
     try {
       setScanProgress(20);
+      const isLegacyDoc = /\.doc$/i.test(file.name);
+      if (isLegacyDoc) {
+        toast({
+          title: 'Legacy .doc file uploaded',
+          description: 'Automatic text extraction only works for .docx. Please fill in the details manually.',
+        });
+        setStep(2);
+        return;
+      }
       const fileBuffer = await file.arrayBuffer();
       const [extractedText, detectedDocxPageCount] = await Promise.all([
         extractTextFromDocx(fileBuffer),
         extractDocxPageCountFromArrayBuffer(fileBuffer),
       ]);
+
       setScanProgress(40);
 
       if (extractedText.length < 50) {
