@@ -141,11 +141,12 @@ export default function AdminSubmitForAuthor() {
     if (!file) { toast.error('Upload a manuscript file'); return; }
     const isDocx = file.name.toLowerCase().endsWith('.docx');
     if (!isDocx) {
-      // PDFs can't be scanned client-side here — skip to step 2
-      toast.message('PDF detected — skipping AI scan. Fill details manually.');
+      // .doc / PDF can't be scanned client-side here — skip to step 2
+      toast.message('Automatic scan only supports .docx — fill details manually.');
       setStep(2);
       return;
     }
+
     setScanning(true); setScanProgress(15);
     try {
       const buf = await file.arrayBuffer();
