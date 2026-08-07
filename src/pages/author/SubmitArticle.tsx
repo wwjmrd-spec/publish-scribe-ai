@@ -214,11 +214,21 @@ export default function SubmitArticle() {
 
     try {
       setScanProgress(20);
+      const isLegacyDoc = /\.doc$/i.test(file.name);
+      if (isLegacyDoc) {
+        toast({
+          title: 'Legacy .doc file uploaded',
+          description: 'Automatic text extraction only works for .docx. Please fill in the details manually.',
+        });
+        setStep(2);
+        return;
+      }
       const fileBuffer = await file.arrayBuffer();
       const [extractedText, detectedDocxPageCount] = await Promise.all([
         extractTextFromDocx(fileBuffer),
         extractDocxPageCountFromArrayBuffer(fileBuffer),
       ]);
+
       setScanProgress(40);
 
       if (extractedText.length < 50) {
@@ -573,7 +583,7 @@ export default function SubmitArticle() {
     setShowDuplicateDialog(false);
     setLoading(true);
     try {
-      const filePath = `${user.id}/${crypto.randomUUID()}.docx`;
+      const filePath = `${user.id}/${crypto.randomUUID()}.${/\.doc$/i.test(file!.name) ? "doc" : "docx"}`;
       const { error: uploadError } = await supabase.storage
         .from('documents')
         .upload(filePath, file);
@@ -641,7 +651,7 @@ export default function SubmitArticle() {
     // Normal submission flow
     setLoading(true);
     try {
-      const filePath = `${user!.id}/${crypto.randomUUID()}.docx`;
+      const filePath = `${user!.id}/${crypto.randomUUID()}.${/\.doc$/i.test(file!.name) ? "doc" : "docx"}`;
       const { error: uploadError } = await supabase.storage
         .from('documents')
         .upload(filePath, file!);
@@ -689,7 +699,7 @@ export default function SubmitArticle() {
     setLoading(true);
     try {
       // 1. Upload file first
-      const filePath = `${user!.id}/${crypto.randomUUID()}.docx`;
+      const filePath = `${user!.id}/${crypto.randomUUID()}.${/\.doc$/i.test(file!.name) ? "doc" : "docx"}`;
       const { error: uploadError } = await supabase.storage
         .from('documents')
         .upload(filePath, file!);

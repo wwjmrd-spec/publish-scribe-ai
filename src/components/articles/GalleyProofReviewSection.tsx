@@ -238,7 +238,7 @@ export function GalleyProofReviewSection({ article }: GalleyProofReviewSectionPr
             <p>• Open the article in the editor and use the <span className="text-red-400 font-semibold">RED text colour</span> to highlight every change you need</p>
             <p>• When done, click <em>Send Corrections to Admin</em></p>
             <p>• Or, if everything looks perfect, click <em>Approve Galley Proof</em> below</p>
-            <p>• Alternative: upload a revised Word file</p>
+            
           </div>
         )}
 
@@ -256,52 +256,11 @@ export function GalleyProofReviewSection({ article }: GalleyProofReviewSectionPr
         </div>
 
         {galleyStatus === 'sent' && (
-          <>
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">Or upload revised galley proof (Word):</p>
-              <div
-                className={`border-2 border-dashed rounded-lg p-3 text-center cursor-pointer transition-colors ${
-                  file ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
-                }`}
-                onClick={() => document.getElementById('galley-revision-input')?.click()}
-              >
-                {file ? (
-                  <div className="flex items-center justify-center gap-2 text-sm">
-                    <FileText className="w-4 h-4 text-primary" />
-                    <span className="truncate">{file.name}</span>
-                  </div>
-                ) : (
-                  <div className="text-muted-foreground text-sm">
-                    <Upload className="w-4 h-4 mx-auto mb-1" />
-                    Click to upload revised file
-                  </div>
-                )}
-                <input
-                  id="galley-revision-input"
-                  type="file"
-                  accept=".docx,.doc"
-                  className="hidden"
-                  onChange={(e) => setFile(e.target.files?.[0] || null)}
-                />
-              </div>
-              {file && (
-                <Button size="sm" onClick={handleUploadRevision} disabled={uploading} className="w-full">
-                  {uploading ? <GlassSpinner size="sm" /> : <><Upload className="w-4 h-4 mr-1" />Submit Revision</>}
-                </Button>
-              )}
-            </div>
-
-            <div className="relative flex items-center gap-3">
-              <div className="flex-1 border-t border-border/50" />
-              <span className="text-xs text-muted-foreground">OR</span>
-              <div className="flex-1 border-t border-border/50" />
-            </div>
-
-            <Button className="w-full gradient-primary" onClick={handleApprove} disabled={approving}>
-              {approving ? <GlassSpinner size="sm" /> : <><CheckCircle className="w-4 h-4 mr-2" />Approve Galley Proof</>}
-            </Button>
-          </>
+          <Button className="w-full gradient-primary" onClick={handleApprove} disabled={approving}>
+            {approving ? <GlassSpinner size="sm" /> : <><CheckCircle className="w-4 h-4 mr-2" />Approve Galley Proof</>}
+          </Button>
         )}
+
       </div>
 
       {/* Full-screen author editor */}
