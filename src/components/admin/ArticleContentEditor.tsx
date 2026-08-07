@@ -1030,9 +1030,12 @@ export function ArticleContentEditor({
           <DownloadButton onDownload={() => Promise.resolve(handleDownloadPdf())}>
             Download PDF
           </DownloadButton>
-          <DownloadButton onDownload={() => Promise.resolve(handleDownloadDocx())}>
-            Download Word
-          </DownloadButton>
+          {mode === 'admin' && (
+            <DownloadButton onDownload={() => Promise.resolve(handleDownloadDocx())}>
+              Download Word
+            </DownloadButton>
+          )}
+
           {mode === 'admin' && (
             <>
               <Button variant="outline" onClick={handleSave} disabled={saving}>
