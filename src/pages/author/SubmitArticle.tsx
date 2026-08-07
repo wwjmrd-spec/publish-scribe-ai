@@ -583,7 +583,7 @@ export default function SubmitArticle() {
     setShowDuplicateDialog(false);
     setLoading(true);
     try {
-      const filePath = `${user.id}/${crypto.randomUUID()}.docx`;
+      const filePath = `${user.id}/${crypto.randomUUID()}.${/\.doc$/i.test(file!.name) ? "doc" : "docx"}`;
       const { error: uploadError } = await supabase.storage
         .from('documents')
         .upload(filePath, file);
@@ -651,7 +651,7 @@ export default function SubmitArticle() {
     // Normal submission flow
     setLoading(true);
     try {
-      const filePath = `${user!.id}/${crypto.randomUUID()}.docx`;
+      const filePath = `${user!.id}/${crypto.randomUUID()}.${/\.doc$/i.test(file!.name) ? "doc" : "docx"}`;
       const { error: uploadError } = await supabase.storage
         .from('documents')
         .upload(filePath, file!);
@@ -699,7 +699,7 @@ export default function SubmitArticle() {
     setLoading(true);
     try {
       // 1. Upload file first
-      const filePath = `${user!.id}/${crypto.randomUUID()}.docx`;
+      const filePath = `${user!.id}/${crypto.randomUUID()}.${/\.doc$/i.test(file!.name) ? "doc" : "docx"}`;
       const { error: uploadError } = await supabase.storage
         .from('documents')
         .upload(filePath, file!);
