@@ -362,7 +362,7 @@ export default function AdminSubmitForAuthor() {
                 </div>
 
                 <div>
-                  <Label>Manuscript File (.docx recommended, .pdf supported)</Label>
+                  <Label>Manuscript File (.docx recommended; .doc and .pdf supported)</Label>
                   <div className="mt-2 border-2 border-dashed border-[hsl(var(--glass-border))] rounded-xl p-6 text-center hover:border-primary/50 transition-colors relative">
                     {file ? (
                       <div className="flex items-center justify-center gap-3">
@@ -374,10 +374,10 @@ export default function AdminSubmitForAuthor() {
                     ) : (
                       <>
                         <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                        <p className="text-sm">Click or drop a .docx / .pdf file</p>
+                        <p className="text-sm">Click or drop a .docx / .doc / .pdf file</p>
                         <input
                           type="file"
-                          accept=".docx,.pdf"
+                          accept=".docx,.doc,.pdf"
                           onChange={(e) => setFile(e.target.files?.[0] || null)}
                           className="absolute inset-0 opacity-0 cursor-pointer"
                         />
