@@ -1378,7 +1378,11 @@ serve(async (req) => {
           formatting_status: "ready_for_review",
           formatting_suggestions: meta.suggestions || [],
           formatted_content: htmlContent,
+          // A fresh format is rebuilt from the author's original submitted DOCX,
+          // so any earlier galley-proof/author revision HTML must not override it.
+          author_revision_html: null,
         } as any).eq("id", articleId);
+
 
         const { data: admins } = await supabase.from("user_roles").select("user_id").eq("role", "admin");
         if (admins) {
