@@ -82,6 +82,12 @@ export default function SubmitArticle() {
   const [honeypot, setHoneypot] = useState('');
   const [formLoadTime] = useState(Date.now());
   const [discoverySource, setDiscoverySource] = useState('');
+  const [socialPlatform, setSocialPlatform] = useState('');
+  const [socialPlatformOther, setSocialPlatformOther] = useState('');
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [referrerName, setReferrerName] = useState('');
+  const [referrerEmail, setReferrerEmail] = useState('');
+  const [discoveryEmailSubject, setDiscoveryEmailSubject] = useState('');
   const [pageCount, setPageCount] = useState<number | null>(null);
   const [createdVia, setCreatedVia] = useState<string>('manual');
   const [validationWarnings, setValidationWarnings] = useState<{ missing: string[]; samples: Record<string, string> } | null>(null);
