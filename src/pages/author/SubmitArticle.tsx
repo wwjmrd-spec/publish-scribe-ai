@@ -1385,6 +1385,12 @@ export default function SubmitArticle() {
                       setPublicationType('normal');
                       setSubmittedRef('');
                       setDiscoverySource('');
+                      setSocialPlatform('');
+                      setSocialPlatformOther('');
+                      setSearchKeyword('');
+                      setReferrerName('');
+                      setReferrerEmail('');
+                      setDiscoveryEmailSubject('');
                     }}
                   >
                     Submit Another
