@@ -20,6 +20,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useSubscription } from '@/hooks/useSubscription';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { ArrowRight, ArrowLeft, Upload, FileText, CheckCircle, Sparkles, Bot, CreditCard, IndianRupee, DollarSign, AlertTriangle, XCircle } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import mammoth from 'mammoth';
@@ -82,6 +83,12 @@ export default function SubmitArticle() {
   const [honeypot, setHoneypot] = useState('');
   const [formLoadTime] = useState(Date.now());
   const [discoverySource, setDiscoverySource] = useState('');
+  const [socialPlatform, setSocialPlatform] = useState('');
+  const [socialPlatformOther, setSocialPlatformOther] = useState('');
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [referrerName, setReferrerName] = useState('');
+  const [referrerEmail, setReferrerEmail] = useState('');
+  const [discoveryEmailSubject, setDiscoveryEmailSubject] = useState('');
   const [pageCount, setPageCount] = useState<number | null>(null);
   const [createdVia, setCreatedVia] = useState<string>('manual');
   const [validationWarnings, setValidationWarnings] = useState<{ missing: string[]; samples: Record<string, string> } | null>(null);
@@ -380,6 +387,16 @@ export default function SubmitArticle() {
         publication_type: articlePublicationType,
         page_count: pageCount,
         discovery_source: discoverySource || null,
+        discovery_details:
+          discoverySource === 'social_media'
+            ? { platform: socialPlatform === 'other' ? socialPlatformOther.trim() : socialPlatform }
+            : discoverySource === 'google_search'
+            ? { keyword: searchKeyword.trim() }
+            : discoverySource === 'friend_colleague'
+            ? { referrer_name: referrerName.trim(), referrer_email: referrerEmail.trim() }
+            : discoverySource === 'email'
+            ? { email_subject: discoveryEmailSubject.trim() }
+            : null,
         created_via: createdVia,
         missing_sections: validationWarnings?.missing?.length ? validationWarnings.missing : null,
         missing_section_samples: validationWarnings?.samples && Object.keys(validationWarnings.samples).length ? validationWarnings.samples : null,
@@ -471,6 +488,38 @@ export default function SubmitArticle() {
     }
     if (!user?.id) {
       toast({ title: 'You must be logged in', variant: 'destructive' });
+      return false;
+    }
+    if (!discoverySource) {
+      toast({ title: 'Please tell us how you heard about us', variant: 'destructive' });
+      return false;
+    }
+    if (discoverySource === 'social_media') {
+      if (!socialPlatform) {
+        toast({ title: 'Please select the social media platform', variant: 'destructive' });
+        return false;
+      }
+      if (socialPlatform === 'other' && !socialPlatformOther.trim()) {
+        toast({ title: 'Please type the social media platform', variant: 'destructive' });
+        return false;
+      }
+    }
+    if (discoverySource === 'google_search' && !searchKeyword.trim()) {
+      toast({ title: 'Please enter the keyword you searched', variant: 'destructive' });
+      return false;
+    }
+    if (discoverySource === 'friend_colleague') {
+      if (!referrerName.trim()) {
+        toast({ title: "Please enter your friend's / colleague's name", variant: 'destructive' });
+        return false;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(referrerEmail.trim())) {
+        toast({ title: 'Please enter a valid referrer email address', variant: 'destructive' });
+        return false;
+      }
+    }
+    if (discoverySource === 'email' && !discoveryEmailSubject.trim()) {
+      toast({ title: 'Please enter the email subject', variant: 'destructive' });
       return false;
     }
 
@@ -1138,7 +1187,7 @@ export default function SubmitArticle() {
               <GlassCard>
                 <h2 className="font-display text-xl font-semibold mb-4 flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-primary" />
-                  How did you hear about us?
+                  How did you hear about us? *
                 </h2>
                 <RadioGroup
                   value={discoverySource}
@@ -1165,7 +1214,98 @@ export default function SubmitArticle() {
                     </label>
                   ))}
                 </RadioGroup>
+
+                {discoverySource === 'social_media' && (
+                  <div className="mt-4 space-y-3">
+                    <Label>Which platform? *</Label>
+                    <RadioGroup value={socialPlatform} onValueChange={setSocialPlatform} className="grid sm:grid-cols-2 gap-2">
+                      {[
+                        { value: 'facebook', label: 'Facebook' },
+                        { value: 'instagram', label: 'Instagram' },
+                        { value: 'linkedin', label: 'LinkedIn' },
+                        { value: 'other', label: 'Other' },
+                      ].map((p) => (
+                        <label
+                          key={p.value}
+                          htmlFor={`platform-${p.value}`}
+                          className={`flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer text-sm ${
+                            socialPlatform === p.value ? 'border-primary bg-primary/5' : 'border-border hover:border-muted-foreground/30'
+                          }`}
+                        >
+                          <RadioGroupItem value={p.value} id={`platform-${p.value}`} />
+                          {p.label}
+                        </label>
+                      ))}
+                    </RadioGroup>
+                    {socialPlatform === 'other' && (
+                      <Input
+                        value={socialPlatformOther}
+                        onChange={(e) => setSocialPlatformOther(e.target.value)}
+                        placeholder="Type the platform name"
+                        maxLength={100}
+                        className="glass-input"
+                      />
+                    )}
+                  </div>
+                )}
+
+                {discoverySource === 'google_search' && (
+                  <div className="mt-4 space-y-2">
+                    <Label htmlFor="searchKeyword">Which keyword did you search? *</Label>
+                    <Input
+                      id="searchKeyword"
+                      value={searchKeyword}
+                      onChange={(e) => setSearchKeyword(e.target.value)}
+                      placeholder="e.g., publish research paper free"
+                      maxLength={200}
+                      className="glass-input"
+                    />
+                  </div>
+                )}
+
+                {discoverySource === 'friend_colleague' && (
+                  <div className="mt-4 grid sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="referrerName">Their name *</Label>
+                      <Input
+                        id="referrerName"
+                        value={referrerName}
+                        onChange={(e) => setReferrerName(e.target.value)}
+                        placeholder="Full name"
+                        maxLength={200}
+                        className="glass-input"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="referrerEmail">Their email *</Label>
+                      <Input
+                        id="referrerEmail"
+                        type="email"
+                        value={referrerEmail}
+                        onChange={(e) => setReferrerEmail(e.target.value)}
+                        placeholder="name@example.com"
+                        maxLength={254}
+                        className="glass-input"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {discoverySource === 'email' && (
+                  <div className="mt-4 space-y-2">
+                    <Label htmlFor="discoveryEmailSubject">Email subject *</Label>
+                    <Input
+                      id="discoveryEmailSubject"
+                      value={discoveryEmailSubject}
+                      onChange={(e) => setDiscoveryEmailSubject(e.target.value)}
+                      placeholder="Subject line of the email you received"
+                      maxLength={200}
+                      className="glass-input"
+                    />
+                  </div>
+                )}
               </GlassCard>
+
 
               {pageCount && pageCount > 2 && (
                 <div className="flex items-center gap-2 p-3 rounded-lg bg-yellow-100 border border-yellow-400 text-sm text-yellow-800 dark:bg-yellow-900/30 dark:border-yellow-600 dark:text-yellow-300">
@@ -1245,6 +1385,12 @@ export default function SubmitArticle() {
                       setPublicationType('normal');
                       setSubmittedRef('');
                       setDiscoverySource('');
+                      setSocialPlatform('');
+                      setSocialPlatformOther('');
+                      setSearchKeyword('');
+                      setReferrerName('');
+                      setReferrerEmail('');
+                      setDiscoveryEmailSubject('');
                     }}
                   >
                     Submit Another

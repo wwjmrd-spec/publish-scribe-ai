@@ -519,6 +519,7 @@ export type Database = {
           country: string | null
           created_at: string | null
           created_via: string
+          discovery_details: Json | null
           discovery_source: string | null
           display_order: number | null
           document_url: string | null
@@ -593,6 +594,7 @@ export type Database = {
           country?: string | null
           created_at?: string | null
           created_via?: string
+          discovery_details?: Json | null
           discovery_source?: string | null
           display_order?: number | null
           document_url?: string | null
@@ -667,6 +669,7 @@ export type Database = {
           country?: string | null
           created_at?: string | null
           created_via?: string
+          discovery_details?: Json | null
           discovery_source?: string | null
           display_order?: number | null
           document_url?: string | null
