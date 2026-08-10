@@ -1186,7 +1186,7 @@ export default function SubmitArticle() {
               <GlassCard>
                 <h2 className="font-display text-xl font-semibold mb-4 flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-primary" />
-                  How did you hear about us?
+                  How did you hear about us? *
                 </h2>
                 <RadioGroup
                   value={discoverySource}
@@ -1213,7 +1213,98 @@ export default function SubmitArticle() {
                     </label>
                   ))}
                 </RadioGroup>
+
+                {discoverySource === 'social_media' && (
+                  <div className="mt-4 space-y-3">
+                    <Label>Which platform? *</Label>
+                    <RadioGroup value={socialPlatform} onValueChange={setSocialPlatform} className="grid sm:grid-cols-2 gap-2">
+                      {[
+                        { value: 'facebook', label: 'Facebook' },
+                        { value: 'instagram', label: 'Instagram' },
+                        { value: 'linkedin', label: 'LinkedIn' },
+                        { value: 'other', label: 'Other' },
+                      ].map((p) => (
+                        <label
+                          key={p.value}
+                          htmlFor={`platform-${p.value}`}
+                          className={`flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer text-sm ${
+                            socialPlatform === p.value ? 'border-primary bg-primary/5' : 'border-border hover:border-muted-foreground/30'
+                          }`}
+                        >
+                          <RadioGroupItem value={p.value} id={`platform-${p.value}`} />
+                          {p.label}
+                        </label>
+                      ))}
+                    </RadioGroup>
+                    {socialPlatform === 'other' && (
+                      <Input
+                        value={socialPlatformOther}
+                        onChange={(e) => setSocialPlatformOther(e.target.value)}
+                        placeholder="Type the platform name"
+                        maxLength={100}
+                        className="glass-input"
+                      />
+                    )}
+                  </div>
+                )}
+
+                {discoverySource === 'google_search' && (
+                  <div className="mt-4 space-y-2">
+                    <Label htmlFor="searchKeyword">Which keyword did you search? *</Label>
+                    <Input
+                      id="searchKeyword"
+                      value={searchKeyword}
+                      onChange={(e) => setSearchKeyword(e.target.value)}
+                      placeholder="e.g., publish research paper free"
+                      maxLength={200}
+                      className="glass-input"
+                    />
+                  </div>
+                )}
+
+                {discoverySource === 'friend_colleague' && (
+                  <div className="mt-4 grid sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="referrerName">Their name *</Label>
+                      <Input
+                        id="referrerName"
+                        value={referrerName}
+                        onChange={(e) => setReferrerName(e.target.value)}
+                        placeholder="Full name"
+                        maxLength={200}
+                        className="glass-input"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="referrerEmail">Their email *</Label>
+                      <Input
+                        id="referrerEmail"
+                        type="email"
+                        value={referrerEmail}
+                        onChange={(e) => setReferrerEmail(e.target.value)}
+                        placeholder="name@example.com"
+                        maxLength={254}
+                        className="glass-input"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {discoverySource === 'email' && (
+                  <div className="mt-4 space-y-2">
+                    <Label htmlFor="discoveryEmailSubject">Email subject *</Label>
+                    <Input
+                      id="discoveryEmailSubject"
+                      value={discoveryEmailSubject}
+                      onChange={(e) => setDiscoveryEmailSubject(e.target.value)}
+                      placeholder="Subject line of the email you received"
+                      maxLength={200}
+                      className="glass-input"
+                    />
+                  </div>
+                )}
               </GlassCard>
+
 
               {pageCount && pageCount > 2 && (
                 <div className="flex items-center gap-2 p-3 rounded-lg bg-yellow-100 border border-yellow-400 text-sm text-yellow-800 dark:bg-yellow-900/30 dark:border-yellow-600 dark:text-yellow-300">
