@@ -580,6 +580,19 @@ export default function MyArticles() {
 
       {showGuide && <PublicationCardGuide onClose={() => setShowGuide(false)} />}
 
+      {(() => {
+        const target = feePromiseClosed || showGuide ? null : findFeePromiseTarget(articles as any[]);
+        if (!target) return null;
+        return (
+          <FeePromiseDialog
+            article={target}
+            open
+            onClose={() => setFeePromiseClosed(true)}
+            onSaved={() => queryClient.invalidateQueries({ queryKey: ['my-articles'] })}
+          />
+        );
+      })()}
+
       {withdrawArticle && (
 
         <WithdrawArticleDialog
