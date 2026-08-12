@@ -122,8 +122,14 @@ export function FeePromiseDialog({ article, open, onClose, onSaved }: Props) {
           <DialogDescription>
             Your manuscript <span className="font-medium text-foreground">{article.title}</span>{' '}
             ({article.reference_number}) is accepted. Pick the date you plan to submit the
-            publication fee. Reminder emails will start from that date. The last fee submission
-            date for this month is {format(deadline, 'PPP')}.
+            publication fee. Reminder emails will start from that date.
+            {existing && (
+              <>
+                {' '}Currently set to{' '}
+                <span className="font-medium text-foreground">{format(existing, 'PPP')}</span>.
+              </>
+            )}{' '}
+            The last fee submission date available is {format(deadline, 'PPP')}.
           </DialogDescription>
         </DialogHeader>
 
@@ -132,13 +138,14 @@ export function FeePromiseDialog({ article, open, onClose, onSaved }: Props) {
             mode="single"
             selected={date}
             onSelect={setDate}
-            month={today}
+            defaultMonth={today}
             fromDate={today}
             toDate={deadline}
             disabled={{ before: today, after: deadline }}
             className={cn('p-3 pointer-events-auto')}
           />
         </div>
+
 
         <DialogFooter className="flex-col sm:flex-row gap-2">
           <Button variant="ghost" onClick={onClose} disabled={saving} className="sm:mr-auto">
