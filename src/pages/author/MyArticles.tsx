@@ -59,6 +59,7 @@ export default function MyArticles() {
   const [payingNow, setPayingNow] = React.useState(false);
   const [hasAvatar, setHasAvatar] = React.useState<boolean | null>(null);
   const [showGuide, setShowGuide] = React.useState(() => !hasSeenPublicationCardGuide());
+  const [feePromiseClosed, setFeePromiseClosed] = React.useState(false);
 
 
   React.useEffect(() => {
