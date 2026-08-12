@@ -526,6 +526,8 @@ export type Database = {
           edit_lock_reason: string | null
           edit_lock_updated_at: string | null
           edit_lock_updated_by: string | null
+          fee_promise_date: string | null
+          fee_promise_status: string
           fee_reminder_email_sent_at: string | null
           formatted_content: string | null
           formatted_document_url: string | null
@@ -601,6 +603,8 @@ export type Database = {
           edit_lock_reason?: string | null
           edit_lock_updated_at?: string | null
           edit_lock_updated_by?: string | null
+          fee_promise_date?: string | null
+          fee_promise_status?: string
           fee_reminder_email_sent_at?: string | null
           formatted_content?: string | null
           formatted_document_url?: string | null
@@ -676,6 +680,8 @@ export type Database = {
           edit_lock_reason?: string | null
           edit_lock_updated_at?: string | null
           edit_lock_updated_by?: string | null
+          fee_promise_date?: string | null
+          fee_promise_status?: string
           fee_reminder_email_sent_at?: string | null
           formatted_content?: string | null
           formatted_document_url?: string | null
