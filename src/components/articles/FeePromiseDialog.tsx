@@ -28,18 +28,37 @@ const startOfToday = () => {
   return d;
 };
 
-/** Latest date an author may promise: the 25th of the current month. */
+/**
+ * Latest date an author may promise: the 25th of the current month.
+ * After the 25th has passed, the 25th of the next month is offered instead.
+ */
 export const feePromiseDeadline = (now: Date = new Date()) =>
-  new Date(now.getFullYear(), now.getMonth(), LAST_FEE_DAY);
+  now.getDate() <= LAST_FEE_DAY
+    ? new Date(now.getFullYear(), now.getMonth(), LAST_FEE_DAY)
+    : new Date(now.getFullYear(), now.getMonth() + 1, LAST_FEE_DAY);
+
+/** Statuses where the fee promise still matters (fee not paid yet). */
+export function feePromiseApplies(article: FeePromiseArticle): boolean {
+  return ['manuscript_accepted', 'pending_fee'].includes(article.status);
+}
 
 /**
- * The prompt is only offered while there is still room in the current month:
- * today must be on or before the 25th.
+ * Auto-prompt rules:
+ * - only while the fee is unpaid (accepted / pending fee)
+ * - never before the 26th of the month if no room is left this month
+ * - once a date is chosen, stay quiet until that date arrives
  */
 export function canAskFeePromise(article: FeePromiseArticle, now: Date = new Date()): boolean {
-  if (!['manuscript_accepted', 'pending_fee'].includes(article.status)) return false;
+  if (!feePromiseApplies(article)) return false;
+
+  if (article.fee_promise_date) {
+    const promised = new Date(article.fee_promise_date + 'T00:00:00');
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    // Stay silent until the promised date arrives.
+    return promised.getTime() <= today.getTime();
+  }
+
   if (article.fee_promise_status && article.fee_promise_status !== 'unasked') return false;
-  if (article.fee_promise_date) return false;
   return now.getDate() <= LAST_FEE_DAY;
 }
 
@@ -56,6 +75,7 @@ interface Props {
   onClose: () => void;
   onSaved?: () => void;
 }
+
 
 export function FeePromiseDialog({ article, open, onClose, onSaved }: Props) {
   const [date, setDate] = React.useState<Date | undefined>();
