@@ -2460,6 +2460,10 @@ export type Database = {
           similarity: number
         }[]
       }
+      set_fee_promise: {
+        Args: { p_article_id: string; p_date: string }
+        Returns: undefined
+      }
     }
     Enums: {
       article_status:
