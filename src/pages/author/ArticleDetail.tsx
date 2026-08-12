@@ -20,6 +20,7 @@ import { formatArticleStatus, getArticleStatusBadgeClass } from '@/lib/articleSt
 import { GalleyProofReviewSection } from '@/components/articles/GalleyProofReviewSection';
 import { CopyrightFormSection } from '@/components/articles/CopyrightFormSection';
 import { PublicationCard } from '@/components/articles/PublicationCard';
+import { FeePromiseBadge } from '@/components/articles/FeePromiseBadge';
 import {
   ArrowLeft, Award, ChevronDown, Lock, Pencil, Plus, Save, Share2, Users, AlertCircle, X,
 } from 'lucide-react';
@@ -314,6 +315,10 @@ export default function AuthorArticleDetail() {
                 <span className={`px-2 py-0.5 rounded-full text-xs border ${getArticleStatusBadgeClass(article.status)}`}>
                   {formatArticleStatus(article.status)}
                 </span>
+                <FeePromiseBadge
+                  article={article as any}
+                  onSaved={() => queryClient.invalidateQueries({ queryKey: ['author-article', articleId] })}
+                />
               </div>
             </div>
           </div>

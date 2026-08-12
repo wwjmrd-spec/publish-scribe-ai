@@ -42,6 +42,7 @@ import { ManageCoAuthorsDialog } from '@/components/articles/ManageCoAuthorsDial
 import { PublicationCard } from '@/components/articles/PublicationCard';
 import { PublicationCardGuide, hasSeenPublicationCardGuide } from '@/components/articles/PublicationCardGuide';
 import { FeePromiseDialog, findFeePromiseTarget } from '@/components/articles/FeePromiseDialog';
+import { FeePromiseBadge } from '@/components/articles/FeePromiseBadge';
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ChevronDown, Share2 } from 'lucide-react';
@@ -559,6 +560,11 @@ export default function MyArticles() {
                       <span className={getStatusBadge(article.status)}>
                         {formatStatus(article.status)}
                       </span>
+                      <FeePromiseBadge
+                        article={article as any}
+                        compact
+                        onSaved={() => queryClient.invalidateQueries({ queryKey: ['my-articles'] })}
+                      />
                       <Button
                         size="sm"
                         variant="outline"
