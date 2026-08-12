@@ -237,7 +237,7 @@ serve(async (req: Request) => {
     if (articleId) {
       const { data, error } = await supabase
         .from("articles")
-        .select("id, title, reference_number, author_id, status, updated_at, page_count, profiles:author_id (full_name, email)")
+        .select("id, title, reference_number, author_id, status, updated_at, page_count, fee_promise_date, profiles:author_id (full_name, email)")
         .eq("id", articleId)
         .in("status", ["pending_fee", "manuscript_accepted"])
         .single();
@@ -249,7 +249,7 @@ serve(async (req: Request) => {
     } else {
       let query = supabase
         .from("articles")
-        .select("id, title, reference_number, author_id, status, updated_at, page_count, profiles:author_id (full_name, email)")
+        .select("id, title, reference_number, author_id, status, updated_at, page_count, fee_promise_date, profiles:author_id (full_name, email)")
         .in("status", ["pending_fee", "manuscript_accepted"]);
 
       if (!(isAdminUser && all)) {
@@ -312,6 +312,17 @@ serve(async (req: Request) => {
       if (lastFeeDate) {
         daysUntilDeadline = Math.ceil((lastFeeDate.getTime() - now.getTime()) / 86400000);
         if (daysUntilDeadline <= 2) level = 3;
+      }
+
+      // Author promised a date to pay the fee: hold reminders until that date.
+      const promiseDate = (article as any).fee_promise_date
+        ? new Date(`${(article as any).fee_promise_date}T00:00:00Z`)
+        : null;
+      if (promiseDate && now.getTime() < promiseDate.getTime()) {
+        skipped.push(
+          `${article.reference_number}: author chose to pay by ${(article as any).fee_promise_date}`,
+        );
+        continue;
       }
 
       if (level < 1) {
@@ -384,7 +395,7 @@ serve(async (req: Request) => {
     if (!articleId) {
       const { data: revArticles } = await supabase
         .from("articles")
-        .select("id, title, reference_number, author_id, status, updated_at, page_count, profiles:author_id (full_name, email)")
+        .select("id, title, reference_number, author_id, status, updated_at, page_count, fee_promise_date, profiles:author_id (full_name, email)")
         .eq("status", "revision_requested");
 
       const frequencyMs = frequencyHours * 60 * 60 * 1000;

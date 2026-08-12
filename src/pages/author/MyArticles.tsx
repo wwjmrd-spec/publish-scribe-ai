@@ -41,6 +41,7 @@ import { CopyrightFormSection } from '@/components/articles/CopyrightFormSection
 import { ManageCoAuthorsDialog } from '@/components/articles/ManageCoAuthorsDialog';
 import { PublicationCard } from '@/components/articles/PublicationCard';
 import { PublicationCardGuide, hasSeenPublicationCardGuide } from '@/components/articles/PublicationCardGuide';
+import { FeePromiseDialog, findFeePromiseTarget } from '@/components/articles/FeePromiseDialog';
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ChevronDown, Share2 } from 'lucide-react';
@@ -58,6 +59,7 @@ export default function MyArticles() {
   const [payingNow, setPayingNow] = React.useState(false);
   const [hasAvatar, setHasAvatar] = React.useState<boolean | null>(null);
   const [showGuide, setShowGuide] = React.useState(() => !hasSeenPublicationCardGuide());
+  const [feePromiseClosed, setFeePromiseClosed] = React.useState(false);
 
 
   React.useEffect(() => {
@@ -318,7 +320,8 @@ export default function MyArticles() {
           allow_withdrawal, document_url, page_count, keywords,
           author_name, copyright_form_url, allow_author_edit,
           review_report_download_count, free_review_report_downloaded, review_report_paid,
-          publication_year, volume, issue, page_number, published_link
+          publication_year, volume, issue, page_number, published_link,
+          fee_promise_date, fee_promise_status
         `)
         .eq('author_id', user?.id)
         .order('created_at', { ascending: false })
@@ -576,6 +579,19 @@ export default function MyArticles() {
       </motion.div>
 
       {showGuide && <PublicationCardGuide onClose={() => setShowGuide(false)} />}
+
+      {(() => {
+        const target = feePromiseClosed || showGuide ? null : findFeePromiseTarget(articles as any[]);
+        if (!target) return null;
+        return (
+          <FeePromiseDialog
+            article={target}
+            open
+            onClose={() => setFeePromiseClosed(true)}
+            onSaved={() => queryClient.invalidateQueries({ queryKey: ['my-articles'] })}
+          />
+        );
+      })()}
 
       {withdrawArticle && (
 
