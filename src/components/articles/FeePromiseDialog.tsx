@@ -1,0 +1,139 @@
+import React from 'react';
+import { format } from 'date-fns';
+import { CalendarClock } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+
+// The journal's last fee submission day of every month.
+export const LAST_FEE_DAY = 25;
+
+export type FeePromiseArticle = {
+  id: string;
+  title: string;
+  reference_number: string;
+  status: string;
+  fee_promise_status?: string | null;
+  fee_promise_date?: string | null;
+};
+
+const startOfToday = () => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
+/** Latest date an author may promise: the 25th of the current month. */
+export const feePromiseDeadline = (now: Date = new Date()) =>
+  new Date(now.getFullYear(), now.getMonth(), LAST_FEE_DAY);
+
+/**
+ * The prompt is only offered while there is still room in the current month:
+ * today must be on or before the 25th.
+ */
+export function canAskFeePromise(article: FeePromiseArticle, now: Date = new Date()): boolean {
+  if (!['manuscript_accepted', 'pending_fee'].includes(article.status)) return false;
+  if (article.fee_promise_status && article.fee_promise_status !== 'unasked') return false;
+  if (article.fee_promise_date) return false;
+  return now.getDate() <= LAST_FEE_DAY;
+}
+
+/** Pick the first article that should trigger the prompt. */
+export function findFeePromiseTarget(articles: any[] | undefined): FeePromiseArticle | null {
+  if (!articles?.length) return null;
+  return (articles.find((a) => canAskFeePromise(a)) as FeePromiseArticle) || null;
+}
+
+interface Props {
+  article: FeePromiseArticle;
+  open: boolean;
+  /** Dismiss without recording anything — the prompt reappears next visit. */
+  onClose: () => void;
+  onSaved?: () => void;
+}
+
+export function FeePromiseDialog({ article, open, onClose, onSaved }: Props) {
+  const [date, setDate] = React.useState<Date | undefined>();
+  const [saving, setSaving] = React.useState(false);
+
+  const today = startOfToday();
+  const deadline = feePromiseDeadline();
+
+  const save = async (promise: Date | null) => {
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('articles')
+        .update({
+          fee_promise_date: promise ? format(promise, 'yyyy-MM-dd') : null,
+          fee_promise_status: promise ? 'set' : 'skipped',
+        } as any)
+        .eq('id', article.id);
+      if (error) throw error;
+      toast.success(
+        promise
+          ? `Thanks! We'll remind you from ${format(promise, 'PPP')}.`
+          : 'No problem — we will keep sending the usual fee reminders.',
+      );
+      onSaved?.();
+      onClose();
+    } catch (err: any) {
+      toast.error('Could not save your date: ' + (err?.message || 'Unknown error'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <CalendarClock className="w-5 h-5 text-primary" />
+            When do you plan to pay the fee?
+          </DialogTitle>
+          <DialogDescription>
+            Your manuscript <span className="font-medium text-foreground">{article.title}</span>{' '}
+            ({article.reference_number}) is accepted. Pick the date you plan to submit the
+            publication fee. Reminder emails will start from that date. The last fee submission
+            date for this month is {format(deadline, 'PPP')}.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex justify-center">
+          <Calendar
+            mode="single"
+            selected={date}
+            onSelect={setDate}
+            month={today}
+            fromDate={today}
+            toDate={deadline}
+            disabled={{ before: today, after: deadline }}
+            className={cn('p-3 pointer-events-auto')}
+          />
+        </div>
+
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          <Button variant="ghost" onClick={onClose} disabled={saving} className="sm:mr-auto">
+            Close
+          </Button>
+          <Button variant="outline" onClick={() => save(null)} disabled={saving}>
+            Skip
+          </Button>
+          <Button
+            onClick={() => date && save(date)}
+            disabled={saving || !date}
+            className="gradient-primary"
+          >
+            {saving ? 'Saving…' : 'Confirm date'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
