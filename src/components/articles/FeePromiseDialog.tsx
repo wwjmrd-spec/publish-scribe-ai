@@ -67,14 +67,12 @@ export function FeePromiseDialog({ article, open, onClose, onSaved }: Props) {
   const save = async (promise: Date | null) => {
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from('articles')
-        .update({
-          fee_promise_date: promise ? format(promise, 'yyyy-MM-dd') : null,
-          fee_promise_status: promise ? 'set' : 'skipped',
-        } as any)
-        .eq('id', article.id);
+      const { error } = await supabase.rpc('set_fee_promise' as any, {
+        p_article_id: article.id,
+        p_date: promise ? format(promise, 'yyyy-MM-dd') : null,
+      });
       if (error) throw error;
+
       toast.success(
         promise
           ? `Thanks! We'll remind you from ${format(promise, 'PPP')}.`
