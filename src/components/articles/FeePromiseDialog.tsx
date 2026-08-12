@@ -78,11 +78,15 @@ interface Props {
 
 
 export function FeePromiseDialog({ article, open, onClose, onSaved }: Props) {
-  const [date, setDate] = React.useState<Date | undefined>();
+  const existing = article.fee_promise_date
+    ? new Date(article.fee_promise_date + 'T00:00:00')
+    : undefined;
+  const [date, setDate] = React.useState<Date | undefined>(existing);
   const [saving, setSaving] = React.useState(false);
 
   const today = startOfToday();
   const deadline = feePromiseDeadline();
+
 
   const save = async (promise: Date | null) => {
     setSaving(true);
