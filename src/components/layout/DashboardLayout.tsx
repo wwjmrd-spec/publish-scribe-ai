@@ -183,6 +183,18 @@ export function DashboardLayout({ children, type }: DashboardLayoutProps) {
 
   const navItems = type === 'admin' ? adminNavItems : authorNavItems;
 
+  // Ask "How did you hear about us?" once per author, right after login.
+  const { answered, isLoading: discoveryLoading } = useDiscoveryAnswer();
+  const [showDiscovery, setShowDiscovery] = React.useState(false);
+  React.useEffect(() => {
+    if (type === 'author' && !discoveryLoading && !answered && !showTour) {
+      const timer = setTimeout(() => setShowDiscovery(true), 600);
+      return () => clearTimeout(timer);
+    }
+    if (answered) setShowDiscovery(false);
+  }, [type, discoveryLoading, answered, showTour]);
+
+
   const handleSignOut = async () => {
     await signOut();
     navigate('/auth');
