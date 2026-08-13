@@ -39,6 +39,9 @@ import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { GuidedTour } from '@/components/onboarding/GuidedTour';
 import { HelpButton } from '@/components/help/HelpButton';
 import { useSubscription } from '@/hooks/useSubscription';
+import { DiscoverySourceDialog } from '@/components/discovery/DiscoverySourceDialog';
+import { useDiscoveryAnswer } from '@/hooks/useDiscoveryAnswer';
+
 
 interface NavItem {
   label: string;
