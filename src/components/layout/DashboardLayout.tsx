@@ -390,6 +390,12 @@ export function DashboardLayout({ children, type }: DashboardLayoutProps) {
 
       {/* Floating help button for authors */}
       {type === 'author' && <HelpButton />}
+
+      {/* One-time discovery question */}
+      {type === 'author' && (
+        <DiscoverySourceDialog open={showDiscovery} onOpenChange={setShowDiscovery} />
+      )}
+
     </div>
   );
 }
