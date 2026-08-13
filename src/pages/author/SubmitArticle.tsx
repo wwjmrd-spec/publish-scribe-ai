@@ -18,6 +18,8 @@ import { CoAuthorsSection, type CoAuthor } from '@/components/submit/CoAuthorsSe
 import { PublicationTypeSection } from '@/components/submit/PublicationTypeSection';
 import { useQuery } from '@tanstack/react-query';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useDiscoveryAnswer } from '@/hooks/useDiscoveryAnswer';
+
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
