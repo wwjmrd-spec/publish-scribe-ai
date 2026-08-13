@@ -498,38 +498,41 @@ export default function SubmitArticle() {
       toast({ title: 'You must be logged in', variant: 'destructive' });
       return false;
     }
-    if (!discoverySource) {
-      toast({ title: 'Please tell us how you heard about us', variant: 'destructive' });
-      return false;
-    }
-    if (discoverySource === 'social_media') {
-      if (!socialPlatform) {
-        toast({ title: 'Please select the social media platform', variant: 'destructive' });
+    if (!discoveryAnswered) {
+      if (!discoverySource) {
+        toast({ title: 'Please tell us how you heard about us', variant: 'destructive' });
         return false;
       }
-      if (socialPlatform === 'other' && !socialPlatformOther.trim()) {
-        toast({ title: 'Please type the social media platform', variant: 'destructive' });
+      if (discoverySource === 'social_media') {
+        if (!socialPlatform) {
+          toast({ title: 'Please select the social media platform', variant: 'destructive' });
+          return false;
+        }
+        if (socialPlatform === 'other' && !socialPlatformOther.trim()) {
+          toast({ title: 'Please type the social media platform', variant: 'destructive' });
+          return false;
+        }
+      }
+      if (discoverySource === 'google_search' && !searchKeyword.trim()) {
+        toast({ title: 'Please enter the keyword you searched', variant: 'destructive' });
+        return false;
+      }
+      if (discoverySource === 'friend_colleague') {
+        if (!referrerName.trim()) {
+          toast({ title: "Please enter your friend's / colleague's name", variant: 'destructive' });
+          return false;
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(referrerEmail.trim())) {
+          toast({ title: 'Please enter a valid referrer email address', variant: 'destructive' });
+          return false;
+        }
+      }
+      if (discoverySource === 'email' && !discoveryEmailSubject.trim()) {
+        toast({ title: 'Please enter the email subject', variant: 'destructive' });
         return false;
       }
     }
-    if (discoverySource === 'google_search' && !searchKeyword.trim()) {
-      toast({ title: 'Please enter the keyword you searched', variant: 'destructive' });
-      return false;
-    }
-    if (discoverySource === 'friend_colleague') {
-      if (!referrerName.trim()) {
-        toast({ title: "Please enter your friend's / colleague's name", variant: 'destructive' });
-        return false;
-      }
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(referrerEmail.trim())) {
-        toast({ title: 'Please enter a valid referrer email address', variant: 'destructive' });
-        return false;
-      }
-    }
-    if (discoverySource === 'email' && !discoveryEmailSubject.trim()) {
-      toast({ title: 'Please enter the email subject', variant: 'destructive' });
-      return false;
-    }
+
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const filledCoAuthors = coAuthors.filter(
