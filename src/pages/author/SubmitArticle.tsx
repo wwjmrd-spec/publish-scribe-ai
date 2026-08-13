@@ -394,9 +394,10 @@ export default function SubmitArticle() {
         submission_target: articleSubmissionTarget.trim() || null,
         publication_type: articlePublicationType,
         page_count: pageCount,
-        discovery_source: discoverySource || null,
-        discovery_details:
-          discoverySource === 'social_media'
+        discovery_source: (discoveryAnswered ? savedDiscoverySource : discoverySource) || null,
+        discovery_details: discoveryAnswered
+          ? savedDiscoveryDetails ?? null
+          : discoverySource === 'social_media'
             ? { platform: socialPlatform === 'other' ? socialPlatformOther.trim() : socialPlatform }
             : discoverySource === 'google_search'
             ? { keyword: searchKeyword.trim() }
@@ -405,6 +406,7 @@ export default function SubmitArticle() {
             : discoverySource === 'email'
             ? { email_subject: discoveryEmailSubject.trim() }
             : null,
+
         created_via: createdVia,
         missing_sections: validationWarnings?.missing?.length ? validationWarnings.missing : null,
         missing_section_samples: validationWarnings?.samples && Object.keys(validationWarnings.samples).length ? validationWarnings.samples : null,
