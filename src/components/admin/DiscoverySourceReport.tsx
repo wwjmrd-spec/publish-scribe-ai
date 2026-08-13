@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { GlassCard } from '@/components/layout/GlassCard';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
-import { Search, Users, Share2, CalendarDays, Mail } from 'lucide-react';
+import { Search, Users, Share2, CalendarDays, Mail, HelpCircle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -46,6 +46,7 @@ export function DiscoverySourceReport() {
     { key: 'friend_colleague', label: 'Friend / Colleague', icon: <Users className="w-5 h-5" />, color: 'text-emerald-400', bar: 'bg-emerald-400' },
     { key: 'social_media', label: 'Social Media', icon: <Share2 className="w-5 h-5" />, color: 'text-purple-400', bar: 'bg-purple-400' },
     { key: 'email', label: 'Email', icon: <Mail className="w-5 h-5" />, color: 'text-pink-400', bar: 'bg-pink-400' },
+    { key: 'unknown', label: 'Not Specified', icon: <HelpCircle className="w-5 h-5" />, color: 'text-amber-400', bar: 'bg-amber-400' },
   ];
 
   if (isLoading) {
