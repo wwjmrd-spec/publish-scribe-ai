@@ -18,6 +18,8 @@ import { CoAuthorsSection, type CoAuthor } from '@/components/submit/CoAuthorsSe
 import { PublicationTypeSection } from '@/components/submit/PublicationTypeSection';
 import { useQuery } from '@tanstack/react-query';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useDiscoveryAnswer } from '@/hooks/useDiscoveryAnswer';
+
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -82,7 +84,13 @@ export default function SubmitArticle() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentGateway>('razorpay');
   const [honeypot, setHoneypot] = useState('');
   const [formLoadTime] = useState(Date.now());
+  const {
+    answered: discoveryAnswered,
+    source: savedDiscoverySource,
+    details: savedDiscoveryDetails,
+  } = useDiscoveryAnswer();
   const [discoverySource, setDiscoverySource] = useState('');
+
   const [socialPlatform, setSocialPlatform] = useState('');
   const [socialPlatformOther, setSocialPlatformOther] = useState('');
   const [searchKeyword, setSearchKeyword] = useState('');
@@ -386,9 +394,10 @@ export default function SubmitArticle() {
         submission_target: articleSubmissionTarget.trim() || null,
         publication_type: articlePublicationType,
         page_count: pageCount,
-        discovery_source: discoverySource || null,
-        discovery_details:
-          discoverySource === 'social_media'
+        discovery_source: (discoveryAnswered ? savedDiscoverySource : discoverySource) || null,
+        discovery_details: discoveryAnswered
+          ? savedDiscoveryDetails ?? null
+          : discoverySource === 'social_media'
             ? { platform: socialPlatform === 'other' ? socialPlatformOther.trim() : socialPlatform }
             : discoverySource === 'google_search'
             ? { keyword: searchKeyword.trim() }
@@ -397,6 +406,7 @@ export default function SubmitArticle() {
             : discoverySource === 'email'
             ? { email_subject: discoveryEmailSubject.trim() }
             : null,
+
         created_via: createdVia,
         missing_sections: validationWarnings?.missing?.length ? validationWarnings.missing : null,
         missing_section_samples: validationWarnings?.samples && Object.keys(validationWarnings.samples).length ? validationWarnings.samples : null,
@@ -490,38 +500,41 @@ export default function SubmitArticle() {
       toast({ title: 'You must be logged in', variant: 'destructive' });
       return false;
     }
-    if (!discoverySource) {
-      toast({ title: 'Please tell us how you heard about us', variant: 'destructive' });
-      return false;
-    }
-    if (discoverySource === 'social_media') {
-      if (!socialPlatform) {
-        toast({ title: 'Please select the social media platform', variant: 'destructive' });
+    if (!discoveryAnswered) {
+      if (!discoverySource) {
+        toast({ title: 'Please tell us how you heard about us', variant: 'destructive' });
         return false;
       }
-      if (socialPlatform === 'other' && !socialPlatformOther.trim()) {
-        toast({ title: 'Please type the social media platform', variant: 'destructive' });
+      if (discoverySource === 'social_media') {
+        if (!socialPlatform) {
+          toast({ title: 'Please select the social media platform', variant: 'destructive' });
+          return false;
+        }
+        if (socialPlatform === 'other' && !socialPlatformOther.trim()) {
+          toast({ title: 'Please type the social media platform', variant: 'destructive' });
+          return false;
+        }
+      }
+      if (discoverySource === 'google_search' && !searchKeyword.trim()) {
+        toast({ title: 'Please enter the keyword you searched', variant: 'destructive' });
+        return false;
+      }
+      if (discoverySource === 'friend_colleague') {
+        if (!referrerName.trim()) {
+          toast({ title: "Please enter your friend's / colleague's name", variant: 'destructive' });
+          return false;
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(referrerEmail.trim())) {
+          toast({ title: 'Please enter a valid referrer email address', variant: 'destructive' });
+          return false;
+        }
+      }
+      if (discoverySource === 'email' && !discoveryEmailSubject.trim()) {
+        toast({ title: 'Please enter the email subject', variant: 'destructive' });
         return false;
       }
     }
-    if (discoverySource === 'google_search' && !searchKeyword.trim()) {
-      toast({ title: 'Please enter the keyword you searched', variant: 'destructive' });
-      return false;
-    }
-    if (discoverySource === 'friend_colleague') {
-      if (!referrerName.trim()) {
-        toast({ title: "Please enter your friend's / colleague's name", variant: 'destructive' });
-        return false;
-      }
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(referrerEmail.trim())) {
-        toast({ title: 'Please enter a valid referrer email address', variant: 'destructive' });
-        return false;
-      }
-    }
-    if (discoverySource === 'email' && !discoveryEmailSubject.trim()) {
-      toast({ title: 'Please enter the email subject', variant: 'destructive' });
-      return false;
-    }
+
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const filledCoAuthors = coAuthors.filter(
@@ -1183,8 +1196,10 @@ export default function SubmitArticle() {
                 onUpdate={updateCoAuthor}
               />
 
-              {/* How did you hear about us */}
+              {/* How did you hear about us (only if not already answered) */}
+              {!discoveryAnswered && (
               <GlassCard>
+
                 <h2 className="font-display text-xl font-semibold mb-4 flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-primary" />
                   How did you hear about us? *
@@ -1305,6 +1320,8 @@ export default function SubmitArticle() {
                   </div>
                 )}
               </GlassCard>
+              )}
+
 
 
               {pageCount && pageCount > 2 && (

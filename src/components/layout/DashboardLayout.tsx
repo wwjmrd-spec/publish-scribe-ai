@@ -39,6 +39,9 @@ import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { GuidedTour } from '@/components/onboarding/GuidedTour';
 import { HelpButton } from '@/components/help/HelpButton';
 import { useSubscription } from '@/hooks/useSubscription';
+import { DiscoverySourceDialog } from '@/components/discovery/DiscoverySourceDialog';
+import { useDiscoveryAnswer } from '@/hooks/useDiscoveryAnswer';
+
 
 interface NavItem {
   label: string;
@@ -179,6 +182,18 @@ export function DashboardLayout({ children, type }: DashboardLayoutProps) {
   };
 
   const navItems = type === 'admin' ? adminNavItems : authorNavItems;
+
+  // Ask "How did you hear about us?" once per author, right after login.
+  const { answered, isLoading: discoveryLoading } = useDiscoveryAnswer();
+  const [showDiscovery, setShowDiscovery] = React.useState(false);
+  React.useEffect(() => {
+    if (type === 'author' && !discoveryLoading && !answered && !showTour) {
+      const timer = setTimeout(() => setShowDiscovery(true), 600);
+      return () => clearTimeout(timer);
+    }
+    if (answered) setShowDiscovery(false);
+  }, [type, discoveryLoading, answered, showTour]);
+
 
   const handleSignOut = async () => {
     await signOut();
@@ -375,6 +390,12 @@ export function DashboardLayout({ children, type }: DashboardLayoutProps) {
 
       {/* Floating help button for authors */}
       {type === 'author' && <HelpButton />}
+
+      {/* One-time discovery question */}
+      {type === 'author' && (
+        <DiscoverySourceDialog open={showDiscovery} onOpenChange={setShowDiscovery} />
+      )}
+
     </div>
   );
 }

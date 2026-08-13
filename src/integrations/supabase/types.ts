@@ -1685,6 +1685,8 @@ export type Database = {
           avatar_url: string | null
           country: string | null
           created_at: string | null
+          discovery_details: Json | null
+          discovery_source: string | null
           email: string
           full_name: string
           id: string
@@ -1696,6 +1698,8 @@ export type Database = {
           avatar_url?: string | null
           country?: string | null
           created_at?: string | null
+          discovery_details?: Json | null
+          discovery_source?: string | null
           email: string
           full_name: string
           id: string
@@ -1707,6 +1711,8 @@ export type Database = {
           avatar_url?: string | null
           country?: string | null
           created_at?: string | null
+          discovery_details?: Json | null
+          discovery_source?: string | null
           email?: string
           full_name?: string
           id?: string
