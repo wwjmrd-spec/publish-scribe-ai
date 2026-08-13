@@ -1183,8 +1183,10 @@ export default function SubmitArticle() {
                 onUpdate={updateCoAuthor}
               />
 
-              {/* How did you hear about us */}
+              {/* How did you hear about us (only if not already answered) */}
+              {!discoveryAnswered && (
               <GlassCard>
+
                 <h2 className="font-display text-xl font-semibold mb-4 flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-primary" />
                   How did you hear about us? *
