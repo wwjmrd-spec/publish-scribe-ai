@@ -82,7 +82,13 @@ export default function SubmitArticle() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentGateway>('razorpay');
   const [honeypot, setHoneypot] = useState('');
   const [formLoadTime] = useState(Date.now());
+  const {
+    answered: discoveryAnswered,
+    source: savedDiscoverySource,
+    details: savedDiscoveryDetails,
+  } = useDiscoveryAnswer();
   const [discoverySource, setDiscoverySource] = useState('');
+
   const [socialPlatform, setSocialPlatform] = useState('');
   const [socialPlatformOther, setSocialPlatformOther] = useState('');
   const [searchKeyword, setSearchKeyword] = useState('');
