@@ -629,11 +629,17 @@ export default function AdminArticleDetail() {
                     </div>
                   )}
                   {(article as any).discovery_source && (
-                    <div>
-                      <label className="text-xs text-muted-foreground">Discovery Source</label>
-                      <p className="text-sm">{(article as any).discovery_source === 'google_search' ? '🔍 Google Search' : (article as any).discovery_source === 'friend_colleague' ? '👥 Friend/Colleague' : (article as any).discovery_source === 'social_media' ? '📱 Social Media' : (article as any).discovery_source === 'email' ? '✉️ Email' : (article as any).discovery_source}</p>
+                    <div className="col-span-2">
+                      <label className="text-xs text-muted-foreground">How did they hear about us?</label>
+                      <p className="text-sm mt-1">{formatDiscoverySource((article as any).discovery_source)}</p>
+                      {formatDiscoveryDetails((article as any).discovery_details) && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {formatDiscoveryDetails((article as any).discovery_details)}
+                        </p>
+                      )}
                     </div>
                   )}
+
                 </div>
               </GlassCard>
 
