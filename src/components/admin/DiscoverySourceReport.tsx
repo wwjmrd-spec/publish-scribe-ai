@@ -103,7 +103,7 @@ export function DiscoverySourceReport() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
           {sources.map((source) => {
             const count = data?.counts[source.key as keyof typeof data.counts] || 0;
             const pct = data?.total ? Math.round((count / data.total) * 100) : 0;
@@ -125,11 +125,6 @@ export function DiscoverySourceReport() {
             );
           })}
         </div>
-        {data?.counts.unknown ? (
-          <p className="text-xs text-muted-foreground mt-3">
-            + {data.counts.unknown} submissions without source data
-          </p>
-        ) : null}
       </GlassCard>
     </motion.div>
   );
