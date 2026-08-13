@@ -1305,6 +1305,8 @@ export default function SubmitArticle() {
                   </div>
                 )}
               </GlassCard>
+              )}
+
 
 
               {pageCount && pageCount > 2 && (
