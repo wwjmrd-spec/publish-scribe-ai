@@ -4,13 +4,14 @@ import { GlassCard } from '@/components/layout/GlassCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { User, Mail, Building, Plus, X } from 'lucide-react';
+import { User, Mail, Building, Plus, X, Fingerprint } from 'lucide-react';
 
 export interface CoAuthor {
   id: string;
   name: string;
   email: string;
   affiliation: string;
+  orcid?: string;
 }
 
 interface CoAuthorsSectionProps {
@@ -95,6 +96,19 @@ export function CoAuthorsSection({ coAuthors, onAdd, onRemove, onUpdate }: CoAut
                       value={coAuthor.affiliation}
                       onChange={(e) => onUpdate(coAuthor.id, 'affiliation', e.target.value)}
                       placeholder="University/Institute"
+                      className="glass-input pl-10 h-9 text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs">ORCID iD</Label>
+                  <div className="relative">
+                    <Fingerprint className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      value={coAuthor.orcid || ''}
+                      onChange={(e) => onUpdate(coAuthor.id, 'orcid', e.target.value)}
+                      placeholder="0000-0002-1825-0097"
                       className="glass-input pl-10 h-9 text-sm"
                     />
                   </div>

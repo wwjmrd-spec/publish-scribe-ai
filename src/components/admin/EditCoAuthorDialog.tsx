@@ -16,7 +16,7 @@ interface Props {
 
 export function EditCoAuthorDialog({ open, onOpenChange, coAuthor, invalidateKeys = [] }: Props) {
   const qc = useQueryClient();
-  const [form, setForm] = useState({ name: '', email: '', affiliation: '' });
+  const [form, setForm] = useState({ name: '', email: '', affiliation: '', orcid: '' });
 
   useEffect(() => {
     if (coAuthor) {
@@ -24,6 +24,7 @@ export function EditCoAuthorDialog({ open, onOpenChange, coAuthor, invalidateKey
         name: coAuthor.name || '',
         email: coAuthor.email || '',
         affiliation: coAuthor.affiliation || '',
+        orcid: coAuthor.orcid || '',
       });
     }
   }, [coAuthor]);
@@ -36,6 +37,7 @@ export function EditCoAuthorDialog({ open, onOpenChange, coAuthor, invalidateKey
           name: form.name.trim().slice(0, 200),
           email: form.email.trim(),
           affiliation: form.affiliation.trim().slice(0, 200),
+          orcid: form.orcid.trim().slice(0, 50) || null,
         })
         .eq('id', coAuthor.id);
       if (error) throw error;
@@ -67,6 +69,10 @@ export function EditCoAuthorDialog({ open, onOpenChange, coAuthor, invalidateKey
           <div>
             <Label>Affiliation</Label>
             <Input className="glass-input" value={form.affiliation} onChange={(e) => setForm(f => ({ ...f, affiliation: e.target.value }))} />
+          </div>
+          <div>
+            <Label>ORCID iD</Label>
+            <Input className="glass-input" placeholder="0000-0002-1825-0097" value={form.orcid} onChange={(e) => setForm(f => ({ ...f, orcid: e.target.value }))} />
           </div>
         </div>
         <DialogFooter>

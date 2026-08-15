@@ -300,6 +300,7 @@ export default function SubmitArticle() {
           name: ca.name || '',
           email: ca.email || '',
           affiliation: ca.affiliation || '',
+          orcid: ca.orcid || '',
         }));
         setCoAuthors(newCoAuthors);
       }
@@ -337,7 +338,7 @@ export default function SubmitArticle() {
   const addCoAuthor = () => {
     setCoAuthors((prev) => [
       ...prev,
-      { id: crypto.randomUUID(), name: '', email: '', affiliation: '' },
+      { id: crypto.randomUUID(), name: '', email: '', affiliation: '', orcid: '' },
     ]);
   };
 
@@ -431,6 +432,7 @@ export default function SubmitArticle() {
             name: ca.name.trim(),
             email: ca.email.trim(),
             affiliation: ca.affiliation.trim() || null,
+            orcid: (ca.orcid || '').trim() || null,
           }))
         );
       if (coAuthorError) throw coAuthorError;
