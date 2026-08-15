@@ -4,7 +4,7 @@ import { GlassCard } from '@/components/layout/GlassCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { User, Mail, Building, Plus, X } from 'lucide-react';
+import { User, Mail, Building, Plus, X, Fingerprint } from 'lucide-react';
 
 export interface CoAuthor {
   id: string;
