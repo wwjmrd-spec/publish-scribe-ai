@@ -1076,6 +1076,7 @@ export type Database = {
           email: string
           id: string
           name: string
+          orcid: string | null
         }
         Insert: {
           affiliation?: string | null
@@ -1084,6 +1085,7 @@ export type Database = {
           email: string
           id?: string
           name: string
+          orcid?: string | null
         }
         Update: {
           affiliation?: string | null
@@ -1092,6 +1094,7 @@ export type Database = {
           email?: string
           id?: string
           name?: string
+          orcid?: string | null
         }
         Relationships: [
           {
@@ -1691,6 +1694,7 @@ export type Database = {
           full_name: string
           id: string
           is_indian: boolean | null
+          orcid: string | null
           referral_code: string | null
         }
         Insert: {
@@ -1704,6 +1708,7 @@ export type Database = {
           full_name: string
           id: string
           is_indian?: boolean | null
+          orcid?: string | null
           referral_code?: string | null
         }
         Update: {
@@ -1717,6 +1722,7 @@ export type Database = {
           full_name?: string
           id?: string
           is_indian?: boolean | null
+          orcid?: string | null
           referral_code?: string | null
         }
         Relationships: []
