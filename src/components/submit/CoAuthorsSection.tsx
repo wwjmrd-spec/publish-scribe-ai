@@ -11,6 +11,7 @@ export interface CoAuthor {
   name: string;
   email: string;
   affiliation: string;
+  orcid?: string;
 }
 
 interface CoAuthorsSectionProps {
