@@ -28,6 +28,7 @@ export default function Profile() {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [affiliation, setAffiliation] = useState('');
+  const [orcid, setOrcid] = useState('');
   const [country, setCountry] = useState('');
   const [currency, setCurrency] = useState<'INR' | 'USD'>('INR');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -59,7 +60,7 @@ export default function Profile() {
     setLoadingProfile(true);
     const { data, error } = await supabase
       .from('profiles')
-      .select('full_name, email, affiliation, country, avatar_url, is_indian')
+      .select('full_name, email, affiliation, country, avatar_url, is_indian, orcid')
       .eq('id', user.id)
       .maybeSingle();
 
@@ -67,6 +68,7 @@ export default function Profile() {
       setFullName(data.full_name || '');
       setEmail(data.email || '');
       setAffiliation(data.affiliation || '');
+      setOrcid((data as any).orcid || '');
       setCountry(data.country || '');
       setCurrency(data.is_indian ? 'INR' : 'USD');
       setAvatarUrl(data.avatar_url || null);
@@ -92,6 +94,7 @@ export default function Profile() {
       .update({
         full_name: fullName.trim(),
         affiliation: affiliation.trim() || null,
+        orcid: orcid.trim() || null,
         country: country.trim() || null,
         is_indian: currency === 'INR',
       })
@@ -286,6 +289,18 @@ export default function Profile() {
                     className="glass-input"
                     disabled={loadingProfile}
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="orcid">ORCID iD</Label>
+                  <Input
+                    id="orcid"
+                    value={orcid}
+                    onChange={(e) => setOrcid(e.target.value)}
+                    placeholder="0000-0002-1825-0097"
+                    className="glass-input"
+                    disabled={loadingProfile}
+                  />
+                  <p className="text-xs text-muted-foreground">Shown on your formatted article and sent to the journal on publication.</p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="country">Country</Label>

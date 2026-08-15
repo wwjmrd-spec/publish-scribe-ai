@@ -1266,7 +1266,7 @@ serve(async (req) => {
       try {
         const { data: article, error: articleError } = await supabase
           .from("articles")
-          .select("*, profiles:author_id (full_name, country, affiliation)")
+          .select("*, profiles:author_id (full_name, country, affiliation, orcid)")
           .eq("id", articleId)
           .single();
         if (articleError || !article) throw new Error("Article not found");
@@ -1274,7 +1274,7 @@ serve(async (req) => {
 
         const { data: coAuthorsRows } = await supabase
           .from("co_authors")
-          .select("name, affiliation")
+          .select("name, affiliation, orcid")
           .eq("article_id", articleId);
 
         // 1. Extract DOCX
@@ -1302,12 +1302,18 @@ serve(async (req) => {
 
         const profile: any = article.profiles || {};
         const primaryName = (article.author_name || profile.full_name || meta.authors?.[0]?.name || "Author").trim();
-        const primaryDesignation = [profile.affiliation, article.country || profile.country]
-          .filter(Boolean).join(", ");
+        const primaryDesignation = [
+          profile.affiliation,
+          article.country || profile.country,
+          profile.orcid ? `ORCID: ${profile.orcid}` : "",
+        ].filter(Boolean).join(", ");
         const overrideAuthors = [{ name: primaryName, designation: primaryDesignation }];
         for (const c of coAuthorsRows ?? []) {
           if (!c?.name) continue;
-          overrideAuthors.push({ name: c.name, designation: c.affiliation || "" });
+          overrideAuthors.push({
+            name: c.name,
+            designation: [c.affiliation, c.orcid ? `ORCID: ${c.orcid}` : ""].filter(Boolean).join(", "),
+          });
         }
         meta.authors = overrideAuthors;
         meta.correspondence = { name: primaryName, designation: primaryDesignation };

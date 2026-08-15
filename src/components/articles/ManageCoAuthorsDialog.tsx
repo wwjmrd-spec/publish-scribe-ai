@@ -38,6 +38,9 @@ export function ManageCoAuthorsDialog({ open, onOpenChange, articleTitle, coAuth
                     {ca.affiliation && (
                       <p className="text-xs text-muted-foreground truncate">{ca.affiliation}</p>
                     )}
+                    {ca.orcid && (
+                      <p className="text-xs text-muted-foreground truncate">ORCID: {ca.orcid}</p>
+                    )}
                   </div>
                   <Button size="sm" variant="outline" onClick={() => setEditing(ca)}>
                     <Pencil className="w-3.5 h-3.5 mr-1" /> Edit

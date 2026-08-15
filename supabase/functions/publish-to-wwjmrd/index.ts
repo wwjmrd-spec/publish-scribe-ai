@@ -62,7 +62,7 @@ serve(async (req) => {
     const { data: article, error: artErr } = await admin
       .from("articles")
       .select(
-        "id, title, author_name, country, subject, abstract, reason_of_research, keywords, publication_year, volume, issue, page_number, published_link, galley_proof_pdf_url, formatted_document_url, status, wwjmrd_article_id, published_to_wwjmrd_at, co_authors(name)"
+        "id, title, author_name, country, subject, abstract, reason_of_research, keywords, publication_year, volume, issue, page_number, published_link, galley_proof_pdf_url, formatted_document_url, status, wwjmrd_article_id, published_to_wwjmrd_at, author_id, co_authors(name, orcid)"
       )
       .eq("id", articleId)
       .maybeSingle();
@@ -80,6 +80,16 @@ serve(async (req) => {
       )
       .eq("article_id", articleId)
       .maybeSingle();
+
+    const { data: authorProfile } = await admin
+      .from("profiles")
+      .select("orcid")
+      .eq("id", (article as any).author_id)
+      .maybeSingle();
+
+    const coAuthorOrcids = Array.isArray((article as any).co_authors)
+      ? (article as any).co_authors.map((c: any) => c.orcid).filter(Boolean).join(", ")
+      : "";
 
     const coAuthorsStr =
       pubForm?.co_authors_names?.trim() ||
@@ -187,6 +197,9 @@ serve(async (req) => {
       order_number: String(orderNumber),
       article_order: String(orderNumber),
       doi: pubForm?.doi || "",
+      orcid: authorProfile?.orcid || "",
+      author_orcid: authorProfile?.orcid || "",
+      co_author_orcids: coAuthorOrcids,
       pdf_url: pdfUrl,
       pdf: pdfUrl,
       file_url: pdfUrl,

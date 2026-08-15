@@ -15,7 +15,7 @@ interface Props {
 
 export function EditAuthorDialog({ open, onOpenChange, author }: Props) {
   const qc = useQueryClient();
-  const [form, setForm] = useState({ full_name: '', email: '', affiliation: '', country: '' });
+  const [form, setForm] = useState({ full_name: '', email: '', affiliation: '', country: '', orcid: '' });
 
   useEffect(() => {
     if (author) {
@@ -24,6 +24,7 @@ export function EditAuthorDialog({ open, onOpenChange, author }: Props) {
         email: author.email || '',
         affiliation: author.affiliation || '',
         country: author.country || '',
+        orcid: author.orcid || '',
       });
     }
   }, [author]);
@@ -37,6 +38,7 @@ export function EditAuthorDialog({ open, onOpenChange, author }: Props) {
           email: form.email.trim(),
           affiliation: form.affiliation.trim().slice(0, 200),
           country: form.country.trim().slice(0, 100),
+          orcid: form.orcid.trim().slice(0, 50) || null,
           is_indian: form.country.trim().toLowerCase() === 'india',
         })
         .eq('id', author.id);
@@ -69,6 +71,10 @@ export function EditAuthorDialog({ open, onOpenChange, author }: Props) {
           <div>
             <Label>Affiliation</Label>
             <Input className="glass-input" value={form.affiliation} onChange={(e) => setForm(f => ({ ...f, affiliation: e.target.value }))} />
+          </div>
+          <div>
+            <Label>ORCID iD</Label>
+            <Input className="glass-input" placeholder="0000-0002-1825-0097" value={form.orcid} onChange={(e) => setForm(f => ({ ...f, orcid: e.target.value }))} />
           </div>
           <div>
             <Label>Country</Label>
