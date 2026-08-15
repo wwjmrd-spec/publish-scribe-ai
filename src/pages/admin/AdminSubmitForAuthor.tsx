@@ -25,6 +25,7 @@ interface AdminCoAuthor {
   name: string;
   email: string;
   affiliation: string;
+  orcid: string;
   verificationSent: boolean;
   skipVerification: boolean;
 }
@@ -181,6 +182,7 @@ export default function AdminSubmitForAuthor() {
           name: ca.name || '',
           email: ca.email || '',
           affiliation: ca.affiliation || '',
+          orcid: ca.orcid || '',
           verificationSent: false,
           skipVerification: false,
         })));
@@ -198,7 +200,7 @@ export default function AdminSubmitForAuthor() {
   };
 
   const addCoAuthor = () => setCoAuthors((p) => [
-    ...p, { id: crypto.randomUUID(), name: '', email: '', affiliation: '', verificationSent: false, skipVerification: false },
+    ...p, { id: crypto.randomUUID(), name: '', email: '', affiliation: '', orcid: '', verificationSent: false, skipVerification: false },
   ]);
   const removeCoAuthor = (id: string) => setCoAuthors((p) => p.filter((c) => c.id !== id));
   const updateCoAuthor = (id: string, field: keyof AdminCoAuthor, value: any) =>
@@ -267,7 +269,7 @@ export default function AdminSubmitForAuthor() {
         submission_target: target.trim(),
         publication_type: pubType,
         co_authors: filledCoAuthors.map((c) => ({
-          name: c.name.trim(), email: c.email.trim(), affiliation: c.affiliation.trim(),
+          name: c.name.trim(), email: c.email.trim(), affiliation: c.affiliation.trim(), orcid: (c.orcid || '').trim(),
         })),
         notification_email: notificationEmail.trim() || null,
       };
@@ -504,6 +506,14 @@ export default function AdminSubmitForAuthor() {
                               <Building className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                               <Input className="glass-input pl-9 h-9 text-sm" value={ca.affiliation}
                                 onChange={(e) => updateCoAuthor(ca.id, 'affiliation', e.target.value)} />
+                            </div>
+                          </div>
+                          <div>
+                            <Label className="text-xs">ORCID iD</Label>
+                            <div className="relative mt-1">
+                              <Input className="glass-input h-9 text-sm" value={ca.orcid || ''}
+                                placeholder="0000-0002-1825-0097"
+                                onChange={(e) => updateCoAuthor(ca.id, 'orcid', e.target.value)} />
                             </div>
                           </div>
                         </div>

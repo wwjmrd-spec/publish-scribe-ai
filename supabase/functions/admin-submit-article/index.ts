@@ -16,6 +16,7 @@ const CoAuthorSchema = z.object({
   name: z.string().min(1).max(200),
   email: z.string().email().max(254),
   affiliation: z.string().max(300).optional().default(""),
+  orcid: z.string().max(50).optional().default(""),
 });
 
 const PayloadSchema = z.object({
@@ -109,6 +110,7 @@ serve(async (req) => {
           name: ca.name.trim(),
           email: ca.email.trim(),
           affiliation: ca.affiliation?.trim() || null,
+          orcid: ca.orcid?.trim() || null,
         })),
       );
     }
