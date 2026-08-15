@@ -100,6 +100,19 @@ export function CoAuthorsSection({ coAuthors, onAdd, onRemove, onUpdate }: CoAut
                     />
                   </div>
                 </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs">ORCID iD</Label>
+                  <div className="relative">
+                    <Fingerprint className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      value={coAuthor.orcid || ''}
+                      onChange={(e) => onUpdate(coAuthor.id, 'orcid', e.target.value)}
+                      placeholder="0000-0002-1825-0097"
+                      className="glass-input pl-10 h-9 text-sm"
+                    />
+                  </div>
+                </div>
               </div>
             </motion.div>
           ))}
