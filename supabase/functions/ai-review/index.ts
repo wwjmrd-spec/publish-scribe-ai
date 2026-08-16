@@ -530,16 +530,31 @@ serve(async (req) => {
 
         // mammoth needs a Buffer, not raw ArrayBuffer
         const buffer = new Uint8Array(arrayBuffer);
-        const result = await mammoth.extractRawText({ buffer: buffer as any });
-        console.log(`Text extracted from ${source.label}, length:`, result.value.length, "chars");
-        
-        if (result.value.trim().length > 50) {
-          documentText = result.value;
+        let text = "";
+        const isLegacyDoc = /\.doc$/i.test(source.url as string);
+        if (!isLegacyDoc) {
+          try {
+            const result = await mammoth.extractRawText({ buffer: buffer as any });
+            text = result.value || "";
+          } catch (mErr) {
+            console.error(`Mammoth failed for ${source.label}:`, mErr);
+          }
+        }
+        // Fallback for legacy binary .doc (OLE) files mammoth cannot parse
+        if (text.trim().length <= 50) {
+          const legacy = extractLegacyDocText(buffer);
+          if (legacy.trim().length > text.trim().length) text = legacy;
+        }
+        console.log(`Text extracted from ${source.label}, length:`, text.length, "chars");
+
+        if (text.trim().length > 50) {
+          documentText = text;
           console.log(`Using ${source.label} for review`);
           break;
         } else {
-          console.error(`${source.label} text too short (${result.value.trim().length} chars), trying next`);
+          console.error(`${source.label} text too short (${text.trim().length} chars), trying next`);
         }
+
       } catch (err) {
         console.error(`Failed to extract ${source.label}:`, err);
         continue;
