@@ -48,6 +48,48 @@ function providerErrorMessage(status: number, provider: string, model: string, m
   return message ? `${providerName} error on ${model}: ${message}` : `${providerName} request failed on ${model}.`;
 }
 
+// Best-effort text extraction from legacy binary .doc (OLE2/Word 97-2003) files.
+// Scans for printable ASCII and UTF-16LE runs, which covers Word's WordDocument stream.
+function extractLegacyDocText(bytes: Uint8Array): string {
+  const collect = (chars: string[]) => {
+    const parts: string[] = [];
+    let run = "";
+    for (const ch of chars) {
+      if (ch) {
+        run += ch;
+      } else {
+        if (run.trim().length >= 8) parts.push(run.trim());
+        run = "";
+      }
+    }
+    if (run.trim().length >= 8) parts.push(run.trim());
+    return parts.join("\n");
+  };
+
+  const printable = (code: number) =>
+    code === 9 || code === 10 || code === 13 || (code >= 32 && code <= 126) || (code >= 160 && code <= 255);
+
+  // ASCII / latin1 pass
+  const asciiChars: string[] = [];
+  for (let i = 0; i < bytes.length; i++) {
+    const c = bytes[i];
+    asciiChars.push(printable(c) ? String.fromCharCode(c) : "");
+  }
+  const ascii = collect(asciiChars);
+
+  // UTF-16LE pass
+  const utf16Chars: string[] = [];
+  for (let i = 0; i + 1 < bytes.length; i += 2) {
+    const code = bytes[i] | (bytes[i + 1] << 8);
+    utf16Chars.push(printable(code) ? String.fromCharCode(code) : "");
+  }
+  const utf16 = collect(utf16Chars);
+
+  const best = utf16.length > ascii.length ? utf16 : ascii;
+  return best.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, " ").replace(/[ \t]{2,}/g, " ").trim();
+}
+
+
 async function extractDocxText(supabase: any, documentUrl: string): Promise<string> {
   console.log("Downloading document from storage:", documentUrl);
   const { data: fileData, error: downloadError } = await supabase.storage
