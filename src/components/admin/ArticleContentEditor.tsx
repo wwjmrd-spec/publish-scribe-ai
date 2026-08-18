@@ -295,8 +295,6 @@ export function ArticleContentEditor({
   useEffect(() => {
     const body = iframeRef.current?.contentDocument?.body;
     if (!body) return;
-    body.style.setProperty('--ww-line-height', lineHeight);
-    body.style.setProperty('--ww-para-spacing', `${paraSpacing}px`);
     renderPageNumbersRef.current?.();
 
     // Keep the banner "Pages NN-NN" baked into the formatted HTML in sync with
@@ -309,7 +307,8 @@ export function ArticleContentEditor({
     body.querySelectorAll<HTMLElement>('.ww-page-range').forEach((el) => {
       if (el.textContent !== rangeText) el.textContent = rangeText;
     });
-  }, [lineHeight, paraSpacing, ready, startPage, pageCount]);
+  }, [ready, startPage, pageCount]);
+
 
 
   const getContent = useCallback(() => {
