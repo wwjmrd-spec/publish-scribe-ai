@@ -804,26 +804,35 @@ export function ArticleContentEditor({
               </Select>
             </div>
 
-            {/* Line spacing */}
+            {/* Line spacing — applies to the SELECTED text only */}
             <div className="flex items-center gap-1.5">
               <Label className="text-xs text-muted-foreground flex items-center gap-1">
                 <MoveVertical className="w-3 h-3" /> Line:
               </Label>
-              <Select value={lineHeight} onValueChange={setLineHeight}>
-                <SelectTrigger className="h-7 w-[70px] text-xs"><SelectValue /></SelectTrigger>
+              <Select
+                value={lineHeight}
+                onValueChange={(v) => { setLineHeight(v); applyBlockStyleToSelection({ 'line-height': v }); }}
+              >
+                <SelectTrigger className="h-7 w-[70px] text-xs" title="Line spacing for the selected text"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {['1.15', '1.3', '1.5', '1.6', '1.8', '2.0', '2.5'].map(v => (
+                  {['1.0', '1.15', '1.3', '1.5', '1.6', '1.8', '2.0', '2.5'].map(v => (
                     <SelectItem key={v} value={v}>{v}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
-            {/* Paragraph spacing */}
+            {/* Paragraph spacing — applies to the SELECTED text only */}
             <div className="flex items-center gap-1.5">
               <Label className="text-xs text-muted-foreground">¶ Gap:</Label>
-              <Select value={paraSpacing} onValueChange={setParaSpacing}>
-                <SelectTrigger className="h-7 w-[70px] text-xs"><SelectValue /></SelectTrigger>
+              <Select
+                value={paraSpacing}
+                onValueChange={(v) => {
+                  setParaSpacing(v);
+                  applyBlockStyleToSelection({ 'margin-top': `${v}px`, 'margin-bottom': `${v}px` });
+                }}
+              >
+                <SelectTrigger className="h-7 w-[70px] text-xs" title="Space before/after the selected paragraphs"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {['0', '2', '4', '6', '8', '12', '16'].map(v => (
                     <SelectItem key={v} value={v}>{v}px</SelectItem>
@@ -831,6 +840,7 @@ export function ArticleContentEditor({
                 </SelectContent>
               </Select>
             </div>
+
 
             {/* Page number start — auto-continues from last published article; admin can override */}
             <div className="flex items-center gap-1.5">
