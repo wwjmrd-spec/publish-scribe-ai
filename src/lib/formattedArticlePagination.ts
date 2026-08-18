@@ -511,7 +511,6 @@ export async function buildPagedFormattedArticleHtml(
   }
 
   if (current.trim()) pages.push(current);
-  document.body.removeChild(measureHost);
 
   const totalPages = (firstPage ? 1 : 0) + pages.length;
   const lastPageNumber = startPage + totalPages - 1;
@@ -529,14 +528,78 @@ export async function buildPagedFormattedArticleHtml(
     });
   }
 
-  const firstPageHtml = firstPage
-    ? `<section class="formatted-a4-page formatted-cover-page" data-formatted-page="first">
-        <div class="formatted-page-content">${firstPage.innerHTML}</div>
+  let firstPageHtml = '';
+  if (firstPage) {
+    // Split the cover into the upper block and the fixed bottom block
+    // (Received/Revised/Accepted/Published + How to cite + black www bar) so the
+    // bottom block always sits at the bottom of page 1 and is never cut off.
+    const cover = firstPage.cloneNode(true) as HTMLElement;
+    let bottom = cover.querySelector('.ww-cover-bottom') as HTMLElement | null;
+    if (!bottom) {
+      // Legacy formatted HTML: locate the "HOW TO CITE THIS ARTICLE" block's
+      // top-level ancestor and group it with everything after it.
+      const cite = Array.from(cover.querySelectorAll<HTMLElement>('div')).find((el) =>
+        /HOW TO CITE THIS ARTICLE/i.test(el.textContent || ''),
+      );
+      let anchor: HTMLElement | null = null;
+      let node: HTMLElement | null = cite || null;
+      while (node && node.parentElement && node.parentElement !== cover) node = node.parentElement;
+      if (node && node.parentElement === cover) anchor = node;
+      if (anchor) {
+        bottom = cover.ownerDocument.createElement('div');
+        bottom.className = 'ww-cover-bottom';
+        const rest: ChildNode[] = [];
+        let seen = false;
+        Array.from(cover.childNodes).forEach((child) => {
+          if (child === anchor) seen = true;
+          if (seen) rest.push(child);
+        });
+        rest.forEach((child) => bottom!.appendChild(child));
+        cover.appendChild(bottom);
+      }
+    }
+
+    const bottomHtml = bottom ? bottom.innerHTML : '';
+    if (bottom) bottom.remove();
+    const mainHtml = cover.innerHTML;
+
+    // Measure both blocks at real A4 content width to decide whether the upper
+    // block needs a light down-scale to keep everything on one page.
+    const coverMeasure = document.createElement('div');
+    coverMeasure.style.cssText = `width:${CONTENT_WIDTH_MM}mm;`;
+    measureHost.appendChild(coverMeasure);
+    coverMeasure.innerHTML = bottomHtml;
+    const bottomHeightPx = bottomHtml ? coverMeasure.scrollHeight : 0;
+    coverMeasure.innerHTML = mainHtml;
+    const mainHeightPx = coverMeasure.scrollHeight;
+    coverMeasure.remove();
+
+    const availablePx =
+      CONTENT_HEIGHT_MM * MM_TO_PX
+      - bottomHeightPx
+      - (bottomHtml ? 3 * MM_TO_PX : 0)
+      - (showFirstPageNumber ? BODY_FOOTER_MM * MM_TO_PX : 0)
+      - 4;
+    const scale = mainHeightPx > availablePx && availablePx > 0
+      ? Math.max(0.62, availablePx / mainHeightPx)
+      : 1;
+    const scaledStyle = scale < 1
+      ? ` style="transform:scale(${scale.toFixed(4)});width:${(100 / scale).toFixed(3)}%;"`
+      : '';
+
+    firstPageHtml = `<section class="formatted-a4-page formatted-cover-page" data-formatted-page="first">
+        <div class="formatted-page-content formatted-cover-main">
+          <div class="formatted-cover-scale"${scaledStyle}>${mainHtml}</div>
+        </div>
+        ${bottomHtml ? `<div class="formatted-cover-bottom">${bottomHtml}</div>` : ''}
         ${showFirstPageNumber
           ? `<div class="formatted-page-footer">~ ${startPage} ~</div>`
           : ''}
-      </section>`
-    : '';
+      </section>`;
+  }
+
+  document.body.removeChild(measureHost);
+
 
   const bodyStart = startPage + (firstPage ? 1 : 0);
   const bodyPagesHtml = pages.map((content, index) => createBodyPage(content, bodyStart + index)).join('');
