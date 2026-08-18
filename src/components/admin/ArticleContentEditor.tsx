@@ -323,6 +323,67 @@ export function ArticleContentEditor({
     doc.execCommand(cmd, false, value);
   }, []);
 
+  /** Current selection inside the editor iframe, or null when nothing is selected. */
+  const getSelectionRange = useCallback((): Range | null => {
+    const doc = iframeRef.current?.contentDocument;
+    const win = iframeRef.current?.contentWindow;
+    if (!doc || !win) return null;
+    const sel = win.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return null;
+    const range = sel.getRangeAt(0);
+    if (!doc.body.contains(range.commonAncestorContainer)) return null;
+    return range;
+  }, []);
+
+  /** Wrap ONLY the selected text in a span carrying inline styles (font-size in pt, etc.). */
+  const applyInlineStyleToSelection = useCallback((styles: Record<string, string>) => {
+    const doc = iframeRef.current?.contentDocument;
+    const range = getSelectionRange();
+    if (!doc || !range) { toast.error('Select the text you want to change first'); return; }
+    const span = doc.createElement('span');
+    Object.entries(styles).forEach(([k, v]) => span.style.setProperty(k, v));
+    try {
+      span.appendChild(range.extractContents());
+      // Clear conflicting font-size from nested spans/font tags inside the selection.
+      span.querySelectorAll<HTMLElement>('[style*="font-size"], font[size]').forEach((el) => {
+        el.style.removeProperty('font-size');
+        el.removeAttribute('size');
+      });
+      range.insertNode(span);
+      const win = iframeRef.current?.contentWindow;
+      const sel = win?.getSelection();
+      if (sel) { sel.removeAllRanges(); const r = doc.createRange(); r.selectNodeContents(span); sel.addRange(r); }
+    } catch {
+      toast.error('Could not apply to this selection — try selecting inside a single paragraph');
+      return;
+    }
+    renderPageNumbersRef.current?.();
+  }, [getSelectionRange]);
+
+  /** Apply block-level styles (line height / paragraph gap) to the selected blocks only. */
+  const applyBlockStyleToSelection = useCallback((styles: Record<string, string>) => {
+    const doc = iframeRef.current?.contentDocument;
+    const range = getSelectionRange();
+    if (!doc || !range) { toast.error('Select the text you want to change first'); return; }
+    const blocks = Array.from(
+      doc.body.querySelectorAll<HTMLElement>('p, li, h1, h2, h3, h4, h5, h6, td, th, div'),
+    ).filter((el) => {
+      if (!range.intersectsNode(el)) return false;
+      // Only leaf-ish blocks, so we don't restyle whole wrappers.
+      return !el.querySelector('p, li, h1, h2, h3, h4, h5, h6');
+    });
+    const targets = blocks.length
+      ? blocks
+      : ([(range.commonAncestorContainer.nodeType === 1
+          ? range.commonAncestorContainer
+          : range.commonAncestorContainer.parentElement) as HTMLElement].filter(Boolean));
+    if (!targets.length) { toast.error('Select the text you want to change first'); return; }
+    targets.forEach((el) => Object.entries(styles).forEach(([k, v]) => el.style.setProperty(k, v)));
+    renderPageNumbersRef.current?.();
+  }, [getSelectionRange]);
+
+
+
   const insertHtmlAtCursor = useCallback((html: string) => {
     const doc = iframeRef.current?.contentDocument;
     if (!doc) return;
