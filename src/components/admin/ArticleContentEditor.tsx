@@ -109,15 +109,10 @@ const EDITOR_STYLES = `
   }
 `;
 
-const FONT_SIZES = [
-  { label: '8', value: '1' },
-  { label: '10', value: '2' },
-  { label: '12', value: '3' },
-  { label: '14', value: '4' },
-  { label: '18', value: '5' },
-  { label: '24', value: '6' },
-  { label: '32', value: '7' },
-];
+// Real point sizes — applied as inline `font-size: Npt` on the SELECTED text only,
+// so the same value carries into the A4 preview, PDF and galley proof.
+const FONT_SIZES = ['8', '9', '10', '10.5', '11', '12', '14', '16', '18', '20', '24', '28', '32'];
+
 
 // A4 dimensions in mm
 const A4_WIDTH_MM = 210;
@@ -141,6 +136,8 @@ export function ArticleContentEditor({
   const [columns, setColumns] = useState<1 | 2 | 3>(1);
   const [lineHeight, setLineHeight] = useState<string>('1.6');
   const [paraSpacing, setParaSpacing] = useState<string>('4');
+  const [fontPt, setFontPt] = useState<string>('11');
+
   const [startPage, setStartPage] = useState<number>(1);
   const [pageCount, setPageCount] = useState<number>(1);
   const [autoFilledStart, setAutoFilledStart] = useState<boolean>(false);
@@ -298,8 +295,6 @@ export function ArticleContentEditor({
   useEffect(() => {
     const body = iframeRef.current?.contentDocument?.body;
     if (!body) return;
-    body.style.setProperty('--ww-line-height', lineHeight);
-    body.style.setProperty('--ww-para-spacing', `${paraSpacing}px`);
     renderPageNumbersRef.current?.();
 
     // Keep the banner "Pages NN-NN" baked into the formatted HTML in sync with
@@ -312,7 +307,8 @@ export function ArticleContentEditor({
     body.querySelectorAll<HTMLElement>('.ww-page-range').forEach((el) => {
       if (el.textContent !== rangeText) el.textContent = rangeText;
     });
-  }, [lineHeight, paraSpacing, ready, startPage, pageCount]);
+  }, [ready, startPage, pageCount]);
+
 
 
   const getContent = useCallback(() => {
@@ -326,6 +322,67 @@ export function ArticleContentEditor({
     iframeRef.current?.contentWindow?.focus();
     doc.execCommand(cmd, false, value);
   }, []);
+
+  /** Current selection inside the editor iframe, or null when nothing is selected. */
+  const getSelectionRange = useCallback((): Range | null => {
+    const doc = iframeRef.current?.contentDocument;
+    const win = iframeRef.current?.contentWindow;
+    if (!doc || !win) return null;
+    const sel = win.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return null;
+    const range = sel.getRangeAt(0);
+    if (!doc.body.contains(range.commonAncestorContainer)) return null;
+    return range;
+  }, []);
+
+  /** Wrap ONLY the selected text in a span carrying inline styles (font-size in pt, etc.). */
+  const applyInlineStyleToSelection = useCallback((styles: Record<string, string>) => {
+    const doc = iframeRef.current?.contentDocument;
+    const range = getSelectionRange();
+    if (!doc || !range) { toast.error('Select the text you want to change first'); return; }
+    const span = doc.createElement('span');
+    Object.entries(styles).forEach(([k, v]) => span.style.setProperty(k, v));
+    try {
+      span.appendChild(range.extractContents());
+      // Clear conflicting font-size from nested spans/font tags inside the selection.
+      span.querySelectorAll<HTMLElement>('[style*="font-size"], font[size]').forEach((el) => {
+        el.style.removeProperty('font-size');
+        el.removeAttribute('size');
+      });
+      range.insertNode(span);
+      const win = iframeRef.current?.contentWindow;
+      const sel = win?.getSelection();
+      if (sel) { sel.removeAllRanges(); const r = doc.createRange(); r.selectNodeContents(span); sel.addRange(r); }
+    } catch {
+      toast.error('Could not apply to this selection — try selecting inside a single paragraph');
+      return;
+    }
+    renderPageNumbersRef.current?.();
+  }, [getSelectionRange]);
+
+  /** Apply block-level styles (line height / paragraph gap) to the selected blocks only. */
+  const applyBlockStyleToSelection = useCallback((styles: Record<string, string>) => {
+    const doc = iframeRef.current?.contentDocument;
+    const range = getSelectionRange();
+    if (!doc || !range) { toast.error('Select the text you want to change first'); return; }
+    const blocks = Array.from(
+      doc.body.querySelectorAll<HTMLElement>('p, li, h1, h2, h3, h4, h5, h6, td, th, div'),
+    ).filter((el) => {
+      if (!range.intersectsNode(el)) return false;
+      // Only leaf-ish blocks, so we don't restyle whole wrappers.
+      return !el.querySelector('p, li, h1, h2, h3, h4, h5, h6');
+    });
+    const targets = blocks.length
+      ? blocks
+      : ([(range.commonAncestorContainer.nodeType === 1
+          ? range.commonAncestorContainer
+          : range.commonAncestorContainer.parentElement) as HTMLElement].filter(Boolean));
+    if (!targets.length) { toast.error('Select the text you want to change first'); return; }
+    targets.forEach((el) => Object.entries(styles).forEach(([k, v]) => el.style.setProperty(k, v)));
+    renderPageNumbersRef.current?.();
+  }, [getSelectionRange]);
+
+
 
   const insertHtmlAtCursor = useCallback((html: string) => {
     const doc = iframeRef.current?.contentDocument;
@@ -747,26 +804,35 @@ export function ArticleContentEditor({
               </Select>
             </div>
 
-            {/* Line spacing */}
+            {/* Line spacing — applies to the SELECTED text only */}
             <div className="flex items-center gap-1.5">
               <Label className="text-xs text-muted-foreground flex items-center gap-1">
                 <MoveVertical className="w-3 h-3" /> Line:
               </Label>
-              <Select value={lineHeight} onValueChange={setLineHeight}>
-                <SelectTrigger className="h-7 w-[70px] text-xs"><SelectValue /></SelectTrigger>
+              <Select
+                value={lineHeight}
+                onValueChange={(v) => { setLineHeight(v); applyBlockStyleToSelection({ 'line-height': v }); }}
+              >
+                <SelectTrigger className="h-7 w-[70px] text-xs" title="Line spacing for the selected text"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {['1.15', '1.3', '1.5', '1.6', '1.8', '2.0', '2.5'].map(v => (
+                  {['1.0', '1.15', '1.3', '1.5', '1.6', '1.8', '2.0', '2.5'].map(v => (
                     <SelectItem key={v} value={v}>{v}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
-            {/* Paragraph spacing */}
+            {/* Paragraph spacing — applies to the SELECTED text only */}
             <div className="flex items-center gap-1.5">
               <Label className="text-xs text-muted-foreground">¶ Gap:</Label>
-              <Select value={paraSpacing} onValueChange={setParaSpacing}>
-                <SelectTrigger className="h-7 w-[70px] text-xs"><SelectValue /></SelectTrigger>
+              <Select
+                value={paraSpacing}
+                onValueChange={(v) => {
+                  setParaSpacing(v);
+                  applyBlockStyleToSelection({ 'margin-top': `${v}px`, 'margin-bottom': `${v}px` });
+                }}
+              >
+                <SelectTrigger className="h-7 w-[70px] text-xs" title="Space before/after the selected paragraphs"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {['0', '2', '4', '6', '8', '12', '16'].map(v => (
                     <SelectItem key={v} value={v}>{v}px</SelectItem>
@@ -774,6 +840,7 @@ export function ArticleContentEditor({
                 </SelectContent>
               </Select>
             </div>
+
 
             {/* Page number start — auto-continues from last published article; admin can override */}
             <div className="flex items-center gap-1.5">
@@ -867,14 +934,52 @@ export function ArticleContentEditor({
                   ))}
                 </SelectContent>
               </Select>
-              <Select defaultValue="3" onValueChange={(v) => execCmd('fontSize', v)}>
-                <SelectTrigger className="h-7 w-[55px] text-xs bg-white border-[#d1d5db] text-black">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {FONT_SIZES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}pt</SelectItem>)}
-                </SelectContent>
-              </Select>
+              {/* Font size in real points — pick or type manually, applied to the selection only */}
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] text-black/60 whitespace-nowrap">Font Size (pt):</span>
+                <input
+                  type="number"
+                  min={5}
+                  max={72}
+                  step={0.5}
+                  value={fontPt}
+                  onChange={(e) => setFontPt(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      const pt = parseFloat(fontPt);
+                      if (pt > 0) applyInlineStyleToSelection({ 'font-size': `${pt}pt` });
+                    }
+                  }}
+                  className="h-7 w-[58px] text-xs rounded border border-[#d1d5db] bg-white text-black px-2"
+                  title="Type a point size and press Enter (or click Apply) to change the selected text"
+                />
+                <Select
+                  value=""
+                  onValueChange={(v) => { setFontPt(v); applyInlineStyleToSelection({ 'font-size': `${v}pt` }); }}
+                >
+                  <SelectTrigger className="h-7 w-[52px] text-xs bg-white border-[#d1d5db] text-black">
+                    <SelectValue placeholder="pt" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FONT_SIZES.map(s => <SelectItem key={s} value={s}>{s} pt</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-[10px] text-black/70 hover:text-black hover:bg-black/5"
+                  onClick={() => {
+                    const pt = parseFloat(fontPt);
+                    if (pt > 0) applyInlineStyleToSelection({ 'font-size': `${pt}pt` });
+                  }}
+                  title="Apply this point size to the selected text"
+                >
+                  Apply
+                </Button>
+              </div>
+
 
               <div className="w-px h-5 bg-[#d1d5db] mx-1" />
 
