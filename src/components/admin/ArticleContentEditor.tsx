@@ -136,6 +136,8 @@ export function ArticleContentEditor({
   const [columns, setColumns] = useState<1 | 2 | 3>(1);
   const [lineHeight, setLineHeight] = useState<string>('1.6');
   const [paraSpacing, setParaSpacing] = useState<string>('4');
+  const [fontPt, setFontPt] = useState<string>('11');
+
   const [startPage, setStartPage] = useState<number>(1);
   const [pageCount, setPageCount] = useState<number>(1);
   const [autoFilledStart, setAutoFilledStart] = useState<boolean>(false);
