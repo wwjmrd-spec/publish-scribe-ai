@@ -109,15 +109,10 @@ const EDITOR_STYLES = `
   }
 `;
 
-const FONT_SIZES = [
-  { label: '8', value: '1' },
-  { label: '10', value: '2' },
-  { label: '12', value: '3' },
-  { label: '14', value: '4' },
-  { label: '18', value: '5' },
-  { label: '24', value: '6' },
-  { label: '32', value: '7' },
-];
+// Real point sizes — applied as inline `font-size: Npt` on the SELECTED text only,
+// so the same value carries into the A4 preview, PDF and galley proof.
+const FONT_SIZES = ['8', '9', '10', '10.5', '11', '12', '14', '16', '18', '20', '24', '28', '32'];
+
 
 // A4 dimensions in mm
 const A4_WIDTH_MM = 210;
