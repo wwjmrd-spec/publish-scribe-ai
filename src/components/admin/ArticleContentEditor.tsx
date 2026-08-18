@@ -934,14 +934,52 @@ export function ArticleContentEditor({
                   ))}
                 </SelectContent>
               </Select>
-              <Select defaultValue="3" onValueChange={(v) => execCmd('fontSize', v)}>
-                <SelectTrigger className="h-7 w-[55px] text-xs bg-white border-[#d1d5db] text-black">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {FONT_SIZES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}pt</SelectItem>)}
-                </SelectContent>
-              </Select>
+              {/* Font size in real points — pick or type manually, applied to the selection only */}
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] text-black/60 whitespace-nowrap">Font Size (pt):</span>
+                <input
+                  type="number"
+                  min={5}
+                  max={72}
+                  step={0.5}
+                  value={fontPt}
+                  onChange={(e) => setFontPt(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      const pt = parseFloat(fontPt);
+                      if (pt > 0) applyInlineStyleToSelection({ 'font-size': `${pt}pt` });
+                    }
+                  }}
+                  className="h-7 w-[58px] text-xs rounded border border-[#d1d5db] bg-white text-black px-2"
+                  title="Type a point size and press Enter (or click Apply) to change the selected text"
+                />
+                <Select
+                  value=""
+                  onValueChange={(v) => { setFontPt(v); applyInlineStyleToSelection({ 'font-size': `${v}pt` }); }}
+                >
+                  <SelectTrigger className="h-7 w-[52px] text-xs bg-white border-[#d1d5db] text-black">
+                    <SelectValue placeholder="pt" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FONT_SIZES.map(s => <SelectItem key={s} value={s}>{s} pt</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-[10px] text-black/70 hover:text-black hover:bg-black/5"
+                  onClick={() => {
+                    const pt = parseFloat(fontPt);
+                    if (pt > 0) applyInlineStyleToSelection({ 'font-size': `${pt}pt` });
+                  }}
+                  title="Apply this point size to the selected text"
+                >
+                  Apply
+                </Button>
+              </div>
+
 
               <div className="w-px h-5 bg-[#d1d5db] mx-1" />
 
