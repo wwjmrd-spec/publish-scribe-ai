@@ -22,7 +22,7 @@ import { CopyrightFormSection } from '@/components/articles/CopyrightFormSection
 import { PublicationCard } from '@/components/articles/PublicationCard';
 import { FeePromiseBadge } from '@/components/articles/FeePromiseBadge';
 import {
-  ArrowLeft, Award, ChevronDown, Lock, Pencil, Plus, Save, Share2, Users, AlertCircle, X,
+  ArrowLeft, Award, ChevronDown, Lock, Pencil, Plus, Save, Share2, Users, AlertCircle, X, Link2, CheckCircle2,
 } from 'lucide-react';
 
 const PUBLISHED_STATUSES = ['published', 'published_to_wwjmrd', 'updated_published'];
@@ -42,6 +42,24 @@ export default function AuthorArticleDetail() {
 
   const currency: 'INR' | 'USD' = isIndian ? 'INR' : 'USD';
   const editFee = currency === 'INR' ? 100 : 5;
+  const [doiPayOpen, setDoiPayOpen] = React.useState(false);
+
+  const { data: doiFees } = useQuery({
+    queryKey: ['doi-fees'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('publication_fees_public' as any)
+        .select('indian_doi_fee, international_doi_fee')
+        .maybeSingle();
+      return data as any;
+    },
+  });
+
+  const doiInr = Number(doiFees?.indian_doi_fee ?? 500);
+  const doiUsd = Number(doiFees?.international_doi_fee ?? 10);
+  const doiFee = currency === 'INR' ? doiInr : doiUsd;
+  const doiPriceLabel = currency === 'INR' ? `₹${doiInr}` : `$${doiUsd}`;
+
 
 
   const { data: article, isLoading } = useQuery({
@@ -598,6 +616,37 @@ export default function AuthorArticleDetail() {
             />
           </div>
         )}
+
+        {/* DOI */}
+        <GlassCard>
+          <h2 className="font-semibold mb-2 flex items-center gap-2">
+            <Link2 className="w-4 h-4 text-primary" /> DOI (Digital Object Identifier)
+          </h2>
+          {article.doi_number ? (
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">Your article has a registered DOI:</p>
+              <p className="font-mono text-sm text-primary break-all">{article.doi_number}</p>
+            </div>
+          ) : article.doi_paid ? (
+            <div className="flex items-start gap-2 text-sm">
+              <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" />
+              <p className="text-muted-foreground">
+                DOI fee received. Your DOI is being registered and will appear here shortly.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Get a permanent DOI link for this article for{' '}
+                <span className="font-semibold text-foreground">{doiPriceLabel}</span>. A DOI makes your work
+                easier to cite, index and discover.
+              </p>
+              <Button size="sm" className="gradient-primary" onClick={() => setDoiPayOpen(true)}>
+                <Link2 className="w-4 h-4 mr-1" /> Get DOI for this article — {doiPriceLabel}
+              </Button>
+            </div>
+          )}
+        </GlassCard>
       </motion.div>
 
       <PayOptionsDialog
@@ -662,6 +711,35 @@ export default function AuthorArticleDetail() {
           <Button variant="outline" onClick={() => navigate('/author/subscription')}>Upgrade to Pro</Button>
         }
       />
+
+      <PayOptionsDialog
+        open={doiPayOpen}
+        onOpenChange={setDoiPayOpen}
+        title="Get a DOI for this article"
+        description={
+          <>
+            A DOI is a permanent link to your published article. Fee:{' '}
+            <span className="font-semibold text-foreground">{doiPriceLabel}</span>. Once paid, our team registers the
+            DOI and it appears on this page and in your article record.
+          </>
+        }
+        items={[{ type: 'doi', articleId: article.id }]}
+        inrAmount={doiInr}
+        usdAmount={doiUsd}
+        cartItem={{
+          id: `doi-${article.id}`,
+          type: 'doi',
+          label: `DOI — ${article.reference_number}`,
+          description: 'DOI registration for this article',
+          amount: doiFee,
+          articleId: article.id,
+        }}
+        onPaid={() => {
+          queryClient.invalidateQueries({ queryKey: ['author-article', articleId] });
+          toast.success('DOI payment received. We will register your DOI shortly.');
+        }}
+      />
+
 
     </DashboardLayout>
   );

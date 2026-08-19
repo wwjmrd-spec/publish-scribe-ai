@@ -14,9 +14,10 @@ import { CreditCard, ShoppingCart, Wallet } from 'lucide-react';
 export type PayMethod = 'razorpay' | 'paypal' | 'cart';
 
 interface PayItem {
-  type: 'review_report' | 'article_edit' | 'coauthor_certificate' | 'article_fee' | 'pro_subscription';
+  type: 'review_report' | 'article_edit' | 'coauthor_certificate' | 'article_fee' | 'pro_subscription' | 'doi' | 'legacy_doi';
   articleId?: string;
   coAuthorId?: string;
+  requestId?: string;
 }
 
 interface PayOptionsDialogProps {

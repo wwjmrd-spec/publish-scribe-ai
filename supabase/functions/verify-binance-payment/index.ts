@@ -207,6 +207,31 @@ serve(async (req) => {
         }
       }
 
+      // Process DOI purchases
+      const doiItems = (paymentItems as any[]).filter((i: any) => i.type === 'doi' && i.articleId);
+      for (const it of doiItems) {
+        await serviceClient
+          .from('articles')
+          .update({ doi_requested: true, doi_paid: true, doi_paid_at: new Date().toISOString() })
+          .eq('id', it.articleId);
+      }
+
+      const legacyDoiItems = (paymentItems as any[]).filter((i: any) => i.type === 'legacy_doi' && i.requestId);
+      for (const it of legacyDoiItems) {
+        await serviceClient
+          .from('legacy_doi_requests')
+          .update({
+            status: 'paid',
+            payment_id: paymentId,
+            paid_at: new Date().toISOString(),
+            amount: payment.final_amount,
+            currency: payment.currency,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', it.requestId)
+          .eq('user_id', payment.user_id);
+      }
+
       // Update discount code usage
       if (payment.discount_code && payment.discount_code !== 'PRO_SUBSCRIPTION') {
         const { data: discountData } = await serviceClient

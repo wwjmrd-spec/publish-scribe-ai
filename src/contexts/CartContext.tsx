@@ -2,12 +2,13 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 
 export interface CartItem {
   id: string;
-  type: 'pro_subscription' | 'coauthor_certificate' | 'review_report' | 'article_edit';
+  type: 'pro_subscription' | 'coauthor_certificate' | 'review_report' | 'article_edit' | 'doi' | 'legacy_doi';
   label: string;
   description: string;
   amount: number;
   coAuthorId?: string;
   articleId?: string;
+  requestId?: string;
 }
 
 interface CartContextType {

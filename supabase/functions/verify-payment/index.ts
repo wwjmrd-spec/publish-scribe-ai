@@ -371,6 +371,92 @@ serve(async (req) => {
           .eq('id', it.articleId);
         if (art) itemDescriptions.push(`Article Detail Edit: ${art.title}`);
       }
+
+      // Process DOI purchases on existing articles
+      const doiItems = paymentItems.filter((i: any) => i.type === 'doi');
+      for (const it of doiItems) {
+        if (!it.articleId) continue;
+        await serviceClient
+          .from('articles')
+          .update({
+            doi_requested: true,
+            doi_paid: true,
+            doi_paid_at: new Date().toISOString(),
+          })
+          .eq('id', it.articleId);
+
+        const { data: art } = await serviceClient
+          .from('articles')
+          .select('title, reference_number')
+          .eq('id', it.articleId)
+          .maybeSingle();
+        if (art) itemDescriptions.push(`DOI: ${art.title} (${art.reference_number})`);
+
+        try {
+          const { data: admins } = await serviceClient
+            .from('user_roles')
+            .select('user_id')
+            .eq('role', 'admin');
+          if (admins?.length) {
+            await serviceClient.from('notifications').insert(
+              admins.map((a: any) => ({
+                user_id: a.user_id,
+                title: 'DOI Purchased 🔗',
+                message: `An author paid for a DOI on "${art?.title || 'an article'}" (${art?.reference_number || ''}). Please assign the DOI.`,
+                type: 'info',
+                link: `/admin/articles/${it.articleId}`,
+              })),
+            );
+          }
+        } catch (e) {
+          console.error('Failed to notify admins about DOI purchase:', e);
+        }
+      }
+
+      // Process DOI purchases for older (legacy) published articles
+      const legacyDoiItems = paymentItems.filter((i: any) => i.type === 'legacy_doi');
+      for (const it of legacyDoiItems) {
+        if (!it.requestId) continue;
+        await serviceClient
+          .from('legacy_doi_requests')
+          .update({
+            status: 'paid',
+            payment_id: paymentId,
+            paid_at: new Date().toISOString(),
+            amount: payment.final_amount,
+            currency: payment.currency,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', it.requestId)
+          .eq('user_id', userId);
+
+        const { data: reqRow } = await serviceClient
+          .from('legacy_doi_requests')
+          .select('article_title, reference_number')
+          .eq('id', it.requestId)
+          .maybeSingle();
+        if (reqRow) itemDescriptions.push(`DOI (past issue): ${reqRow.article_title}`);
+
+        try {
+          const { data: admins } = await serviceClient
+            .from('user_roles')
+            .select('user_id')
+            .eq('role', 'admin');
+          if (admins?.length) {
+            await serviceClient.from('notifications').insert(
+              admins.map((a: any) => ({
+                user_id: a.user_id,
+                title: 'DOI Purchased (Past Issue) 🔗',
+                message: `An author paid for a DOI on a previously published article: "${reqRow?.article_title || ''}" ${reqRow?.reference_number || ''}.`,
+                type: 'info',
+                link: '/admin/doi-requests',
+              })),
+            );
+          }
+        } catch (e) {
+          console.error('Failed to notify admins about legacy DOI purchase:', e);
+        }
+      }
     } else {
       // Legacy flow - article-only payments
       if (payment.article_ids && payment.article_ids.length > 0) {

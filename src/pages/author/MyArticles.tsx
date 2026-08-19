@@ -45,7 +45,8 @@ import { FeePromiseDialog, findFeePromiseTarget } from '@/components/articles/Fe
 import { FeePromiseBadge } from '@/components/articles/FeePromiseBadge';
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown, Share2 } from 'lucide-react';
+import { ChevronDown, Share2, Link2 } from 'lucide-react';
+import { LegacyDoiRequestDialog } from '@/components/articles/LegacyDoiRequestDialog';
 
 export default function MyArticles() {
   const { user } = useAuth();
@@ -53,6 +54,7 @@ export default function MyArticles() {
   const queryClient = useQueryClient();
   const { subscription, isLoading: subLoading } = useSubscription();
   const { addItem, hasItem } = useCart();
+  const [legacyDoiOpen, setLegacyDoiOpen] = React.useState(false);
   const [withdrawArticle, setWithdrawArticle] = React.useState<any>(null);
   const [updatingManuscript, setUpdatingManuscript] = React.useState<string | null>(null);
   const [manageCoAuthorsFor, setManageCoAuthorsFor] = React.useState<any>(null);
@@ -455,14 +457,22 @@ export default function MyArticles() {
               View and manage all your submitted articles
             </p>
           </div>
-          <Button
-            onClick={() => navigate('/author/submit')}
-            className="w-full sm:w-auto gradient-primary hover:shadow-[0_0_30px_hsl(var(--primary)/0.5)]"
-          >
-            <Upload className="w-4 h-4 mr-2" />
-            Submit New
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setLegacyDoiOpen(true)}>
+              <Link2 className="w-4 h-4 mr-2" />
+              Get DOI for a past article
+            </Button>
+            <Button
+              onClick={() => navigate('/author/submit')}
+              className="w-full sm:w-auto gradient-primary hover:shadow-[0_0_30px_hsl(var(--primary)/0.5)]"
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              Submit New
+            </Button>
+          </div>
         </div>
+
+        <LegacyDoiRequestDialog open={legacyDoiOpen} onOpenChange={setLegacyDoiOpen} />
 
         {hasAvatar === false && (
           <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3">
