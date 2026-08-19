@@ -97,6 +97,11 @@ export default function AdminRevenue() {
 
   const proPayments = dateFilteredPayments.filter(p => p.discount_code === 'PRO_SUBSCRIPTION');
 
+  const doiPayments = dateFilteredPayments.filter(p => {
+    const items = p.payment_items as any[];
+    return items?.some((item: any) => item.type === 'doi' || item.type === 'legacy_doi');
+  });
+
   const articlePayments = dateFilteredPayments.filter(p => {
     const items = p.payment_items as any[];
     const isCoAuthor = items?.some((item: any) => item.type === 'coauthor_certificate' || item.type === 'co_author_certificate');
@@ -104,7 +109,8 @@ export default function AdminRevenue() {
     return !isCoAuthor && !isPro;
   });
 
-  const filteredByTab = activeTab === 'coauthor' ? coAuthorPayments
+  const filteredByTab = activeTab === 'doi' ? doiPayments
+    : activeTab === 'coauthor' ? coAuthorPayments
     : activeTab === 'pro' ? proPayments
     : activeTab === 'articles' ? articlePayments
     : dateFilteredPayments;
@@ -131,7 +137,11 @@ export default function AdminRevenue() {
     if (payment.discount_code === 'PRO_SUBSCRIPTION') return 'Pro Plan';
     const items = payment.payment_items as any[];
     if (items?.some((i: any) => i.type === 'coauthor_certificate' || i.type === 'co_author_certificate')) return 'Co-Author Certificate';
-    if (items?.some((i: any) => i.type === 'article_fee')) return 'Article Fee';
+    const hasDoi = items?.some((i: any) => i.type === 'doi' || i.type === 'legacy_doi');
+    if (items?.some((i: any) => i.type === 'article_fee')) return hasDoi ? 'Article Fee + DOI' : 'Article Fee';
+    if (hasDoi) return items?.some((i: any) => i.type === 'legacy_doi') ? 'DOI (Past Issue)' : 'DOI';
+    if (items?.some((i: any) => i.type === 'review_report')) return 'Review Report';
+    if (items?.some((i: any) => i.type === 'article_edit')) return 'Article Edit';
     return 'Other';
   };
 
@@ -283,6 +293,9 @@ export default function AdminRevenue() {
             </TabsTrigger>
             <TabsTrigger value="coauthor" className="gap-2">
               <Award className="w-4 h-4" /> Co-Author Certs
+            </TabsTrigger>
+            <TabsTrigger value="doi" className="gap-2">
+              DOI ({doiPayments.length})
             </TabsTrigger>
             <TabsTrigger value="pro" className="gap-2">
               <Crown className="w-4 h-4" /> Pro Plan

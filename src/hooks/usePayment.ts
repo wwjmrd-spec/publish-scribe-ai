@@ -3,9 +3,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 export interface PaymentItem {
-  type: 'article_fee' | 'pro_subscription' | 'coauthor_certificate' | 'fast_track_fee' | 'review_report' | 'article_edit';
+  type: 'article_fee' | 'pro_subscription' | 'coauthor_certificate' | 'fast_track_fee' | 'review_report' | 'article_edit' | 'doi' | 'legacy_doi';
   articleId?: string;
   coAuthorId?: string;
+  requestId?: string;
 }
 
 export interface PaymentData {

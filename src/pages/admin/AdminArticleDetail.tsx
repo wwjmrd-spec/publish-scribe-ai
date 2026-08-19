@@ -89,6 +89,8 @@ export default function AdminArticleDetail() {
     reason_of_research: '',
     page_count: '',
   });
+  const [doiNumber, setDoiNumber] = React.useState('');
+
 
   const { data: article, isLoading } = useQuery({
     queryKey: ['admin-article-detail', articleId],
@@ -107,6 +109,11 @@ export default function AdminArticleDetail() {
     },
     enabled: !!articleId,
   });
+
+  React.useEffect(() => {
+    if (article) setDoiNumber(((article as any).doi_number as string) || '');
+  }, [article]);
+
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ status }: { status: ArticleStatus }) => {
@@ -643,6 +650,50 @@ export default function AdminArticleDetail() {
 
                 </div>
               </GlassCard>
+
+            {/* DOI */}
+            <GlassCard className={article.doi_paid ? 'border-primary/30' : undefined}>
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">DOI</h3>
+                <span
+                  className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                    article.doi_paid
+                      ? 'bg-emerald-500/20 text-emerald-500'
+                      : 'bg-muted text-muted-foreground'
+                  }`}
+                >
+                  {article.doi_number ? 'DOI assigned' : article.doi_paid ? 'Paid — awaiting DOI' : 'Without DOI'}
+                </span>
+              </div>
+              {article.doi_paid && (
+                <p className="text-xs text-muted-foreground mb-2">
+                  DOI fee paid{article.doi_paid_at ? ` on ${new Date(article.doi_paid_at).toLocaleDateString()}` : ''}.
+                </p>
+              )}
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Input
+                  className="glass-input font-mono text-sm"
+                  placeholder="10.xxxx/wwjmrd.xxxx"
+                  value={doiNumber}
+                  onChange={(e) => setDoiNumber(e.target.value)}
+                />
+                <Button
+                  size="sm"
+                  onClick={async () => {
+                    const { error } = await supabase
+                      .from('articles')
+                      .update({ doi_number: doiNumber.trim() || null } as any)
+                      .eq('id', articleId!);
+                    if (error) return toast.error('Could not save DOI: ' + error.message);
+                    toast.success('DOI saved');
+                    queryClient.invalidateQueries({ queryKey: ['admin-article-detail', articleId] });
+                  }}
+                >
+                  Save DOI
+                </Button>
+              </div>
+            </GlassCard>
+
 
             {/* Abstract */}
             {article.abstract && (

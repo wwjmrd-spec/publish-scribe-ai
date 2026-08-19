@@ -55,6 +55,7 @@ export default function Cart() {
   const [preferredCurrency, setPreferredCurrency] = useState<'INR' | 'USD' | 'USDT'>(isIndian ? 'INR' : 'USD');
 
   const [selectedArticles, setSelectedArticles] = useState<string[]>([]);
+  const [doiArticles, setDoiArticles] = useState<string[]>([]);
   const [discountCode, setDiscountCode] = useState('');
   const [appliedDiscount, setAppliedDiscount] = useState<{
     code: string;
@@ -81,7 +82,7 @@ export default function Cart() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('articles')
-        .select('id, title, reference_number, created_at, status, publication_type, page_count')
+        .select('id, title, reference_number, created_at, status, publication_type, page_count, doi_paid')
         .eq('author_id', user?.id)
         // Authors may pay the publication fee at any pre-payment stage.
         .in('status', ['submitted', 'under_review', 'ai_review_generated', 'revision_requested', 'revised_submitted', 'revised_review_generated', 'manuscript_accepted', 'pending_fee'])
@@ -219,6 +220,7 @@ export default function Cart() {
         queryClient.invalidateQueries({ queryKey: ['published-articles'] });
         queryClient.invalidateQueries({ queryKey: ['plan-usage'] });
         setSelectedArticles([]);
+        setDoiArticles([]);
         setAppliedDiscount(null);
         setDiscountCode('');
         clearCart();
@@ -238,6 +240,13 @@ export default function Cart() {
     return useIndianFees ? Number(fees.indian_fee) : Number(fees.international_fee);
   }, [fees, useIndianFees, preferredCurrency]);
 
+  const doiFee = useMemo(() => {
+    const f: any = fees;
+    if (!f) return useIndianFees ? 500 : 10;
+    if (preferredCurrency === 'USDT') return Number(f.usdt_doi_fee ?? f.international_doi_fee ?? 10);
+    return useIndianFees ? Number(f.indian_doi_fee ?? 500) : Number(f.international_doi_fee ?? 10);
+  }, [fees, useIndianFees, preferredCurrency]);
+
   // Filter out invalid cart items
   const validCartItems = useMemo(() => {
     return cartItems.filter(item => {
@@ -250,18 +259,29 @@ export default function Cart() {
     return selectedArticles.length * feePerArticle;
   }, [selectedArticles.length, feePerArticle]);
 
+  // DOI add-ons chosen for the pending articles selected above
+  const doiSubtotal = useMemo(() => {
+    const count = doiArticles.filter((id) => selectedArticles.includes(id)).length;
+    return count * doiFee;
+  }, [doiArticles, selectedArticles, doiFee]);
+
   const cartItemsSubtotal = useMemo(() => {
     if (preferredCurrency === 'USDT' && fees) {
       return validCartItems.reduce((sum, item) => {
         if (item.type === 'pro_subscription') return sum + Number(fees.usdt_pro_fee ?? fees.international_pro_fee);
         if (item.type === 'coauthor_certificate') return sum + Number(fees.usdt_coauthor_fee ?? fees.international_coauthor_fee);
+        if (item.type === 'doi' || item.type === 'legacy_doi') return sum + doiFee;
         return sum + item.amount;
       }, 0);
     }
-    return validCartItems.reduce((sum, item) => sum + item.amount, 0);
-  }, [validCartItems, preferredCurrency, fees]);
+    if (useIndianFees) return validCartItems.reduce((sum, item) => sum + item.amount, 0);
+    return validCartItems.reduce(
+      (sum, item) => sum + ((item.type === 'doi' || item.type === 'legacy_doi') ? doiFee : item.amount),
+      0,
+    );
+  }, [validCartItems, preferredCurrency, fees, doiFee, useIndianFees]);
 
-  const subtotal = articleSubtotal + cartItemsSubtotal;
+  const subtotal = articleSubtotal + doiSubtotal + cartItemsSubtotal;
 
   const discountAmountValue = useMemo(() => {
     if (!appliedDiscount) return 0;
@@ -286,6 +306,7 @@ export default function Cart() {
     if (pendingArticles) {
       if (selectedArticles.length === pendingArticles.length) {
         setSelectedArticles([]);
+        setDoiArticles([]);
       } else {
         setSelectedArticles(pendingArticles.map((a) => a.id));
       }
@@ -377,10 +398,14 @@ export default function Cart() {
 
     const items = [
       ...selectedArticles.map(id => ({ type: 'article_fee' as const, articleId: id })),
+      ...doiArticles
+        .filter(id => selectedArticles.includes(id))
+        .map(id => ({ type: 'doi' as const, articleId: id })),
       ...validCartItems.map(item => ({
-        type: item.type as 'pro_subscription' | 'coauthor_certificate' | 'review_report' | 'article_edit',
+        type: item.type as 'pro_subscription' | 'coauthor_certificate' | 'review_report' | 'article_edit' | 'doi' | 'legacy_doi',
         articleId: item.articleId,
         coAuthorId: item.coAuthorId,
+        requestId: item.requestId,
       })),
     ];
 
@@ -434,6 +459,7 @@ export default function Cart() {
       queryClient.invalidateQueries({ queryKey: ['published-articles'] });
       queryClient.invalidateQueries({ queryKey: ['plan-usage'] });
       setSelectedArticles([]);
+      setDoiArticles([]);
       setAppliedDiscount(null);
       setDiscountCode('');
       clearCart();
@@ -472,6 +498,7 @@ export default function Cart() {
       setTxHash('');
       queryClient.invalidateQueries({ queryKey: ['pending-articles'] });
       setSelectedArticles([]);
+      setDoiArticles([]);
       setAppliedDiscount(null);
       setDiscountCode('');
       clearCart();
@@ -728,6 +755,28 @@ export default function Cart() {
                               {currencySymbol}{feePerArticle.toLocaleString()}
                             </p>
                           </div>
+                          {!(article as any).doi_paid && (
+                            <label
+                              className="mt-2 flex items-center gap-2 text-xs sm:text-sm cursor-pointer"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Checkbox
+                                checked={doiArticles.includes(article.id)}
+                                onCheckedChange={(c) =>
+                                  setDoiArticles((prev) =>
+                                    c ? [...prev, article.id] : prev.filter((id) => id !== article.id),
+                                  )
+                                }
+                                className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                              />
+                              <span className="text-muted-foreground">
+                                Add DOI for this article
+                                <span className="ml-1 font-semibold text-foreground">
+                                  +{currencySymbol}{doiFee.toLocaleString()}
+                                </span>
+                              </span>
+                            </label>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -834,6 +883,14 @@ export default function Cart() {
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Articles ({selectedArticles.length})</span>
                         <span>{currencySymbol}{articleSubtotal.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {doiSubtotal > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">
+                          DOI ({doiArticles.filter((id) => selectedArticles.includes(id)).length})
+                        </span>
+                        <span>{currencySymbol}{doiSubtotal.toLocaleString()}</span>
                       </div>
                     )}
                     {validCartItems.map((item) => (

@@ -37,6 +37,9 @@ export default function AdminFees() {
     usdt_fast_track_fee: '',
     usdt_coauthor_fee: '',
     usdt_pro_fee: '',
+    indian_doi_fee: '',
+    international_doi_fee: '',
+    usdt_doi_fee: '',
     binance_wallet_address: '',
   });
 
@@ -114,6 +117,9 @@ export default function AdminFees() {
         usdt_fast_track_fee: (currentFees as any).usdt_fast_track_fee?.toString() || '',
         usdt_coauthor_fee: (currentFees as any).usdt_coauthor_fee?.toString() || '',
         usdt_pro_fee: (currentFees as any).usdt_pro_fee?.toString() || '',
+        indian_doi_fee: (currentFees as any).indian_doi_fee?.toString() || '',
+        international_doi_fee: (currentFees as any).international_doi_fee?.toString() || '',
+        usdt_doi_fee: (currentFees as any).usdt_doi_fee?.toString() || '',
         binance_wallet_address: (currentFees as any).binance_wallet_address?.toString() || '',
       });
     }
@@ -136,6 +142,9 @@ export default function AdminFees() {
         usdt_fast_track_fee: parseFloat(fees.usdt_fast_track_fee) || 0,
         usdt_coauthor_fee: parseFloat(fees.usdt_coauthor_fee) || 0,
         usdt_pro_fee: parseFloat(fees.usdt_pro_fee) || 0,
+        indian_doi_fee: parseFloat(fees.indian_doi_fee) || 0,
+        international_doi_fee: parseFloat(fees.international_doi_fee) || 0,
+        usdt_doi_fee: parseFloat(fees.usdt_doi_fee) || 0,
         binance_wallet_address: fees.binance_wallet_address || null,
         updated_by: user?.id,
         updated_at: new Date().toISOString(),
@@ -216,6 +225,14 @@ export default function AdminFees() {
                   <Input type="number" value={fees.indian_coauthor_fee} onChange={(e) => setFees({ ...fees, indian_coauthor_fee: e.target.value })} className="pl-10 glass-input" placeholder="500" />
                 </div>
               </div>
+              <div>
+                <Label>DOI Fee (₹)</Label>
+                <div className="relative mt-1">
+                  <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input type="number" value={fees.indian_doi_fee} onChange={(e) => setFees({ ...fees, indian_doi_fee: e.target.value })} className="pl-10 glass-input" placeholder="500" />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Charged per article when an author opts for a DOI.</p>
+              </div>
 
             </div>
           </GlassCard>
@@ -255,6 +272,14 @@ export default function AdminFees() {
                   <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input type="number" value={fees.international_coauthor_fee} onChange={(e) => setFees({ ...fees, international_coauthor_fee: e.target.value })} className="pl-10 glass-input" placeholder="10" />
                 </div>
+              </div>
+              <div>
+                <Label>DOI Fee ($)</Label>
+                <div className="relative mt-1">
+                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input type="number" value={fees.international_doi_fee} onChange={(e) => setFees({ ...fees, international_doi_fee: e.target.value })} className="pl-10 glass-input" placeholder="10" />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Charged per article when an author opts for a DOI.</p>
               </div>
 
             </div>
@@ -302,6 +327,13 @@ export default function AdminFees() {
               <div className="relative mt-1">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-medium">₮</span>
                 <Input type="number" value={fees.usdt_pro_fee} onChange={(e) => setFees({ ...fees, usdt_pro_fee: e.target.value })} className="pl-10 glass-input" placeholder="19" />
+              </div>
+            </div>
+            <div>
+              <Label>DOI Fee (USDT)</Label>
+              <div className="relative mt-1">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-medium">₮</span>
+                <Input type="number" value={fees.usdt_doi_fee} onChange={(e) => setFees({ ...fees, usdt_doi_fee: e.target.value })} className="pl-10 glass-input" placeholder="10" />
               </div>
             </div>
           </div>

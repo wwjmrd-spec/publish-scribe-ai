@@ -523,6 +523,10 @@ export type Database = {
           discovery_source: string | null
           display_order: number | null
           document_url: string | null
+          doi_number: string | null
+          doi_paid: boolean
+          doi_paid_at: string | null
+          doi_requested: boolean
           edit_lock_reason: string | null
           edit_lock_updated_at: string | null
           edit_lock_updated_by: string | null
@@ -600,6 +604,10 @@ export type Database = {
           discovery_source?: string | null
           display_order?: number | null
           document_url?: string | null
+          doi_number?: string | null
+          doi_paid?: boolean
+          doi_paid_at?: string | null
+          doi_requested?: boolean
           edit_lock_reason?: string | null
           edit_lock_updated_at?: string | null
           edit_lock_updated_by?: string | null
@@ -677,6 +685,10 @@ export type Database = {
           discovery_source?: string | null
           display_order?: number | null
           document_url?: string | null
+          doi_number?: string | null
+          doi_paid?: boolean
+          doi_paid_at?: string | null
+          doi_requested?: boolean
           edit_lock_reason?: string | null
           edit_lock_updated_at?: string | null
           edit_lock_updated_by?: string | null
@@ -1435,6 +1447,57 @@ export type Database = {
         }
         Relationships: []
       }
+      legacy_doi_requests: {
+        Row: {
+          amount: number | null
+          article_title: string
+          created_at: string
+          currency: string | null
+          doi_number: string | null
+          id: string
+          notes: string | null
+          paid_at: string | null
+          payment_id: string | null
+          published_link: string | null
+          reference_number: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount?: number | null
+          article_title: string
+          created_at?: string
+          currency?: string | null
+          doi_number?: string | null
+          id?: string
+          notes?: string | null
+          paid_at?: string | null
+          payment_id?: string | null
+          published_link?: string | null
+          reference_number?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number | null
+          article_title?: string
+          created_at?: string
+          currency?: string | null
+          doi_number?: string | null
+          id?: string
+          notes?: string | null
+          paid_at?: string | null
+          payment_id?: string | null
+          published_link?: string | null
+          reference_number?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string
@@ -1732,16 +1795,19 @@ export type Database = {
           binance_wallet_address: string | null
           id: string
           indian_coauthor_fee: number | null
+          indian_doi_fee: number | null
           indian_fast_track_fee: number | null
           indian_fee: number | null
           indian_pro_fee: number | null
           international_coauthor_fee: number | null
+          international_doi_fee: number | null
           international_fast_track_fee: number | null
           international_fee: number | null
           international_pro_fee: number | null
           updated_at: string | null
           updated_by: string | null
           usdt_coauthor_fee: number | null
+          usdt_doi_fee: number | null
           usdt_fast_track_fee: number | null
           usdt_fee: number | null
           usdt_pro_fee: number | null
@@ -1750,16 +1816,19 @@ export type Database = {
           binance_wallet_address?: string | null
           id?: string
           indian_coauthor_fee?: number | null
+          indian_doi_fee?: number | null
           indian_fast_track_fee?: number | null
           indian_fee?: number | null
           indian_pro_fee?: number | null
           international_coauthor_fee?: number | null
+          international_doi_fee?: number | null
           international_fast_track_fee?: number | null
           international_fee?: number | null
           international_pro_fee?: number | null
           updated_at?: string | null
           updated_by?: string | null
           usdt_coauthor_fee?: number | null
+          usdt_doi_fee?: number | null
           usdt_fast_track_fee?: number | null
           usdt_fee?: number | null
           usdt_pro_fee?: number | null
@@ -1768,16 +1837,19 @@ export type Database = {
           binance_wallet_address?: string | null
           id?: string
           indian_coauthor_fee?: number | null
+          indian_doi_fee?: number | null
           indian_fast_track_fee?: number | null
           indian_fee?: number | null
           indian_pro_fee?: number | null
           international_coauthor_fee?: number | null
+          international_doi_fee?: number | null
           international_fast_track_fee?: number | null
           international_fee?: number | null
           international_pro_fee?: number | null
           updated_at?: string | null
           updated_by?: string | null
           usdt_coauthor_fee?: number | null
+          usdt_doi_fee?: number | null
           usdt_fast_track_fee?: number | null
           usdt_fee?: number | null
           usdt_pro_fee?: number | null
@@ -2270,15 +2342,18 @@ export type Database = {
         Row: {
           id: string | null
           indian_coauthor_fee: number | null
+          indian_doi_fee: number | null
           indian_fast_track_fee: number | null
           indian_fee: number | null
           indian_pro_fee: number | null
           international_coauthor_fee: number | null
+          international_doi_fee: number | null
           international_fast_track_fee: number | null
           international_fee: number | null
           international_pro_fee: number | null
           updated_at: string | null
           usdt_coauthor_fee: number | null
+          usdt_doi_fee: number | null
           usdt_fast_track_fee: number | null
           usdt_fee: number | null
           usdt_pro_fee: number | null
@@ -2286,15 +2361,18 @@ export type Database = {
         Insert: {
           id?: string | null
           indian_coauthor_fee?: number | null
+          indian_doi_fee?: number | null
           indian_fast_track_fee?: number | null
           indian_fee?: number | null
           indian_pro_fee?: number | null
           international_coauthor_fee?: number | null
+          international_doi_fee?: number | null
           international_fast_track_fee?: number | null
           international_fee?: number | null
           international_pro_fee?: number | null
           updated_at?: string | null
           usdt_coauthor_fee?: number | null
+          usdt_doi_fee?: number | null
           usdt_fast_track_fee?: number | null
           usdt_fee?: number | null
           usdt_pro_fee?: number | null
@@ -2302,15 +2380,18 @@ export type Database = {
         Update: {
           id?: string | null
           indian_coauthor_fee?: number | null
+          indian_doi_fee?: number | null
           indian_fast_track_fee?: number | null
           indian_fee?: number | null
           indian_pro_fee?: number | null
           international_coauthor_fee?: number | null
+          international_doi_fee?: number | null
           international_fast_track_fee?: number | null
           international_fee?: number | null
           international_pro_fee?: number | null
           updated_at?: string | null
           usdt_coauthor_fee?: number | null
+          usdt_doi_fee?: number | null
           usdt_fast_track_fee?: number | null
           usdt_fee?: number | null
           usdt_pro_fee?: number | null
