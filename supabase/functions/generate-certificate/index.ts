@@ -378,7 +378,11 @@ serve(async (req) => {
       ?.map((ca: any) => ca.name)
       .join(", ") || "";
 
-    const authorName = (article.profiles as any)?.full_name || "Unknown Author";
+    // Prefer the main author name as entered on the article; fall back to account owner
+    const authorName =
+      (article.author_name && String(article.author_name).trim()) ||
+      (article.profiles as any)?.full_name ||
+      "Unknown Author";
     const authorAffiliation = (article.profiles as any)?.affiliation || "Unknown Affiliation";
 
     // Fetch publisher stamp image
