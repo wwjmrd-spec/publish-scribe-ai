@@ -58,6 +58,39 @@ export function FormattingSection({ articleId }: Props) {
     },
     onError: (e: any) => toast.error('Formatting failed: ' + e.message),
   });
+  const orcidMut = useMutation({
+    mutationFn: async () => {
+      const a: any = article;
+      if (!a) throw new Error('Article not loaded');
+      const sourceField = a.author_revision_html ? 'author_revision_html' : 'formatted_content';
+      const sourceHtml: string | null = a[sourceField];
+      if (!sourceHtml) throw new Error('Format the article first');
+
+      const [{ data: profile }, { data: cos }] = await Promise.all([
+        supabase.from('profiles').select('orcid').eq('id', a.author_id).maybeSingle(),
+        supabase.from('co_authors').select('name, orcid').eq('article_id', articleId).order('created_at', { ascending: true }),
+      ]);
+
+      const entries: OrcidAuthorEntry[] = [
+        { index: 1, name: a.author_name || '', orcid: (profile as any)?.orcid || '' },
+        ...((cos || []) as any[]).map((c, i) => ({ index: i + 2, name: c.name, orcid: c.orcid || '' })),
+      ];
+
+      const { html, added } = injectOrcidsIntoFormattedHtml(sourceHtml, entries);
+      if (!added) return { added: 0 };
+      const { error } = await supabase.from('articles').update({ [sourceField]: html }).eq('id', articleId);
+      if (error) throw error;
+      return { added };
+    },
+    onSuccess: (r: any) => {
+      qc.invalidateQueries({ queryKey: ['admin-article-formatting', articleId] });
+      qc.invalidateQueries({ queryKey: ['admin-article-detail', articleId] });
+      toast[r.added ? 'success' : 'info'](
+        r.added ? `Added ${r.added} ORCID iD${r.added > 1 ? 's' : ''} to the formatted article.` : 'No new ORCID iDs to add.',
+      );
+    },
+    onError: (e: any) => toast.error('Could not add ORCID iDs: ' + e.message),
+  });
 
 
 
