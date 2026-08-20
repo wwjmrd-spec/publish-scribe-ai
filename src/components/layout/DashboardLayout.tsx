@@ -85,6 +85,7 @@ const adminNavItems: NavItem[] = [
   { label: 'Pro Subscribers', href: '/admin/pro-subscribers', icon: Crown },
   { label: 'Discount Codes', href: '/admin/discounts', icon: Tag },
   { label: 'Revenue', href: '/admin/revenue', icon: BarChart3 },
+  { label: 'DOI Requests', href: '/admin/doi-requests', icon: Link2 },
   { label: 'Fee Settings', href: '/admin/fees', icon: Settings },
   { label: 'USDT Payments', href: '/admin/usdt-payments', icon: Settings },
   { label: 'Reminders', href: '/admin/reminders', icon: Bell },
