@@ -197,10 +197,11 @@ serve(async (req) => {
       order_number: String(orderNumber),
       article_order: String(orderNumber),
       doi: pubForm?.doi || "",
-      orcid: authorProfile?.orcid || "",
-      author_orcid: authorProfile?.orcid || "",
-      co_author_orcids: coAuthorOrcids,
       pdf_url: pdfUrl,
+      ...(authorProfile?.orcid?.trim()
+        ? { orcid: authorProfile.orcid.trim(), author_orcid: authorProfile.orcid.trim() }
+        : {}),
+      ...(coAuthorOrcids ? { co_author_orcids: coAuthorOrcids } : {}),
       pdf: pdfUrl,
       file_url: pdfUrl,
     };

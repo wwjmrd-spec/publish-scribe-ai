@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { DownloadButton } from '@/components/ui/DownloadButton';
 import { Badge } from '@/components/ui/badge';
 import {
-  Wand2, RefreshCw, Edit, CheckCircle, XCircle, Clock, AlertTriangle, Info,
+  Wand2, RefreshCw, Edit, CheckCircle, XCircle, Clock, AlertTriangle, Info, Fingerprint,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,6 +12,7 @@ import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import { toast } from 'sonner';
 import { ArticleContentEditor } from '@/components/admin/ArticleContentEditor';
 import { downloadFormattedAsPdf, downloadFormattedAsDocx } from '@/lib/exportFormattedArticle';
+import { injectOrcidsIntoFormattedHtml, type OrcidAuthorEntry } from '@/lib/orcid';
 
 interface Props { articleId: string }
 
@@ -57,6 +58,42 @@ export function FormattingSection({ articleId }: Props) {
       toast.success('Formatting started — this may take a minute.');
     },
     onError: (e: any) => toast.error('Formatting failed: ' + e.message),
+  });
+  const orcidMut = useMutation({
+    mutationFn: async () => {
+      const a: any = article;
+      if (!a) throw new Error('Article not loaded');
+      const sourceField = a.author_revision_html ? 'author_revision_html' : 'formatted_content';
+      const sourceHtml: string | null = a[sourceField];
+      if (!sourceHtml) throw new Error('Format the article first');
+
+      const [{ data: profile }, { data: cos }] = await Promise.all([
+        supabase.from('profiles').select('orcid').eq('id', a.author_id).maybeSingle(),
+        supabase.from('co_authors').select('name, orcid').eq('article_id', articleId).order('created_at', { ascending: true }),
+      ]);
+
+      const entries: OrcidAuthorEntry[] = [
+        { index: 1, name: a.author_name || '', orcid: (profile as any)?.orcid || '' },
+        ...((cos || []) as any[]).map((c, i) => ({ index: i + 2, name: c.name, orcid: c.orcid || '' })),
+      ];
+
+      const { html, added } = injectOrcidsIntoFormattedHtml(sourceHtml, entries);
+      if (!added) return { added: 0 };
+      const patch: any = sourceField === 'author_revision_html'
+        ? { author_revision_html: html }
+        : { formatted_content: html };
+      const { error } = await supabase.from('articles').update(patch).eq('id', articleId);
+      if (error) throw error;
+      return { added };
+    },
+    onSuccess: (r: any) => {
+      qc.invalidateQueries({ queryKey: ['admin-article-formatting', articleId] });
+      qc.invalidateQueries({ queryKey: ['admin-article-detail', articleId] });
+      toast[r.added ? 'success' : 'info'](
+        r.added ? `Added ${r.added} ORCID iD${r.added > 1 ? 's' : ''} to the formatted article.` : 'No new ORCID iDs to add.',
+      );
+    },
+    onError: (e: any) => toast.error('Could not add ORCID iDs: ' + e.message),
   });
 
 
@@ -110,6 +147,13 @@ export function FormattingSection({ articleId }: Props) {
           {formattedContent && (
             <Button variant={editorOpen ? 'default' : 'outline'} size="sm" onClick={() => setEditorOpen((v) => !v)}>
               <Edit className="w-4 h-4 mr-2" />{editorOpen ? 'Close Editor' : 'Edit Article'}
+            </Button>
+          )}
+          {formattedContent && (
+            <Button variant="outline" size="sm" onClick={() => orcidMut.mutate()} disabled={orcidMut.isPending}>
+              {orcidMut.isPending
+                ? <><GlassSpinner size="sm" className="mr-2" />Adding ORCID…</>
+                : <><Fingerprint className="w-4 h-4 mr-2" />Add ORCID iD</>}
             </Button>
           )}
           {formattedContent && (
