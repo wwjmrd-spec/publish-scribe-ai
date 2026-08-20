@@ -1137,9 +1137,18 @@ function generateEditorHtml(meta: ArticleMetadata, body: Block[], images: Map<st
     return `${esc(a.name)}${sup}`;
   }).join(", ");
 
+  const orcidBadge = (rawId: string) => {
+    const id = (rawId || "").trim();
+    if (!id) return "";
+    return `<span class="ww-orcid" data-orcid="${id}" style="display:inline-flex;align-items:center;gap:3px;white-space:nowrap;"><img src="https://orcid.org/sites/default/files/images/orcid_16x16.png" alt="ORCID iD" style="width:11px;height:11px;display:inline-block;vertical-align:middle;" /><a href="https://orcid.org/${id}" style="color:#a6ce39;text-decoration:none;font-size:9px;">${id}</a></span>`;
+  };
+  const withOrcidBadges = (text: string) =>
+    esc(text).replace(/ORCID:\s*([0-9Xx-]{9,25})/g, (_m, id) => orcidBadge(String(id).trim()));
+
   const affiliationsList = (meta.authors || [])
-    .filter(a => a.designation)
-    .map((a, i) => `<p><sup>${i + 1}</sup> ${esc(a.designation || "")}</p>`)
+    .map((a, i) => ({ a, i }))
+    .filter(({ a }) => a.designation)
+    .map(({ a, i }) => `<p class="ww-affil" data-author-index="${i + 1}"><sup>${i + 1}</sup> ${withOrcidBadges(a.designation || "")}</p>`)
     .join("");
 
   const today = new Date();
