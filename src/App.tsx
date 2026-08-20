@@ -27,6 +27,7 @@ import AdminArticles from "./pages/admin/AdminArticles";
 import AdminAuthors from "./pages/admin/AdminAuthors";
 import AdminDiscounts from "./pages/admin/AdminDiscounts";
 import AdminFees from "./pages/admin/AdminFees";
+import AdminDOIRequests from "./pages/admin/AdminDOIRequests";
 import AdminAIReview from "./pages/admin/AdminAIReview";
 import AdminArticleDetail from "./pages/admin/AdminArticleDetail";
 import AdminFormatting from "./pages/admin/AdminFormatting";
@@ -273,6 +274,15 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
+            <Route
+              path="/admin/doi-requests"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminDOIRequests />
+                </ProtectedRoute>
+              }
+            />
+
             <Route 
               path="/admin/ai-review" 
               element={
