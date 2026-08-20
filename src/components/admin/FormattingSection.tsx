@@ -12,6 +12,7 @@ import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import { toast } from 'sonner';
 import { ArticleContentEditor } from '@/components/admin/ArticleContentEditor';
 import { downloadFormattedAsPdf, downloadFormattedAsDocx } from '@/lib/exportFormattedArticle';
+import { injectOrcidsIntoFormattedHtml, type OrcidAuthorEntry } from '@/lib/orcid';
 
 interface Props { articleId: string }
 
