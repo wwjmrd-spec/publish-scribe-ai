@@ -38,7 +38,7 @@ export function GalleyProofReviewSection({ article }: GalleyProofReviewSectionPr
   const deadline = (article as any).galley_proof_deadline;
   const isExpired = deadline ? new Date(deadline) < new Date() : false;
 
-  if (!galleyStatus || galleyStatus === 'none') return null;
+  if (!galleyStatus || galleyStatus === 'none' || article.status === 'published') return null;
 
   const handleDownload = async (fileType: 'galley_proof_word' | 'galley_proof_pdf') => {
     try {
