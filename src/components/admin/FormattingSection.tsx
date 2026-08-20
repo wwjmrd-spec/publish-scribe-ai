@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { DownloadButton } from '@/components/ui/DownloadButton';
 import { Badge } from '@/components/ui/badge';
 import {
-  Wand2, RefreshCw, Edit, CheckCircle, XCircle, Clock, AlertTriangle, Info,
+  Wand2, RefreshCw, Edit, CheckCircle, XCircle, Clock, AlertTriangle, Info, Fingerprint,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
