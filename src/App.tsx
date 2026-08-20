@@ -273,6 +273,15 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
+            <Route
+              path="/admin/doi-requests"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminDOIRequests />
+                </ProtectedRoute>
+              }
+            />
+
             <Route 
               path="/admin/ai-review" 
               element={
