@@ -79,7 +79,10 @@ export function FormattingSection({ articleId }: Props) {
 
       const { html, added } = injectOrcidsIntoFormattedHtml(sourceHtml, entries);
       if (!added) return { added: 0 };
-      const { error } = await supabase.from('articles').update({ [sourceField]: html }).eq('id', articleId);
+      const patch: any = sourceField === 'author_revision_html'
+        ? { author_revision_html: html }
+        : { formatted_content: html };
+      const { error } = await supabase.from('articles').update(patch).eq('id', articleId);
       if (error) throw error;
       return { added };
     },
