@@ -150,6 +150,13 @@ export function FormattingSection({ articleId }: Props) {
             </Button>
           )}
           {formattedContent && (
+            <Button variant="outline" size="sm" onClick={() => orcidMut.mutate()} disabled={orcidMut.isPending}>
+              {orcidMut.isPending
+                ? <><GlassSpinner size="sm" className="mr-2" />Adding ORCID…</>
+                : <><Fingerprint className="w-4 h-4 mr-2" />Add ORCID iD</>}
+            </Button>
+          )}
+          {formattedContent && (
             <DownloadButton size="sm" onDownload={() => handleDownload('pdf')}>Download PDF</DownloadButton>
           )}
           {formattedContent && (
