@@ -25,6 +25,7 @@ import {
   Crown,
   Gift,
   Megaphone,
+  Link2,
   Bug,
   Send,
   Mail,
