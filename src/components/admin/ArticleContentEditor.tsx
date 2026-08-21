@@ -121,6 +121,19 @@ const MARGIN_MM = 15;
 const FOOTER_HEIGHT_MM = 10;
 const CONTENT_HEIGHT_MM = A4_HEIGHT_MM - (MARGIN_MM * 2) - FOOTER_HEIGHT_MM;
 
+/** Swatch palette for text colour (10 per row). */
+const TEXT_COLOR_PALETTE = [
+  '#000000', '#1f2937', '#374151', '#6b7280', '#9ca3af', '#d1d5db', '#ffffff', '#7f1d1d', '#dc2626', '#ef4444',
+  '#ea580c', '#f59e0b', '#eab308', '#65a30d', '#15803d', '#059669', '#0d9488', '#0891b2', '#1d4ed8', '#1e3a8a',
+  '#4f46e5', '#7c3aed', '#a21caf', '#c026d3', '#db2777', '#be123c', '#78350f', '#065f46', '#0f172a', '#3f3f46',
+];
+
+/** Swatch palette for highlight / background colour. */
+const HIGHLIGHT_PALETTE = [
+  '#fef08a', '#fde68a', '#fecaca', '#fbcfe8', '#e9d5ff', '#c7d2fe', '#bfdbfe', '#a7f3d0', '#d9f99d', '#e5e7eb',
+];
+
+
 export function ArticleContentEditor({
   articleId, initialContent, articleTitle, referenceNumber, onClose,
   mode = 'admin', articleMeta,
