@@ -518,6 +518,17 @@ export function ArticleContentEditor({
     iframeRef.current?.contentDocument?.execCommand('foreColor', false, color);
   }, []);
 
+  /** Apply a background/highlight colour to current selection. */
+  const applyHighlight = useCallback((color: string) => {
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc) return;
+    iframeRef.current?.contentWindow?.focus();
+    if (!doc.execCommand('hiliteColor', false, color)) {
+      doc.execCommand('backColor', false, color);
+    }
+  }, []);
+
+
   /** Strip every red-coloured run added by the author. Looks for span/font
    *  elements with red-ish foreground (style="color:red", color="red",
    *  rgb(255,0,0), or hex #ff0000/#f00) and unwraps them. Admin uses this to
