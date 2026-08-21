@@ -121,6 +121,19 @@ const MARGIN_MM = 15;
 const FOOTER_HEIGHT_MM = 10;
 const CONTENT_HEIGHT_MM = A4_HEIGHT_MM - (MARGIN_MM * 2) - FOOTER_HEIGHT_MM;
 
+/** Swatch palette for text colour (10 per row). */
+const TEXT_COLOR_PALETTE = [
+  '#000000', '#1f2937', '#374151', '#6b7280', '#9ca3af', '#d1d5db', '#ffffff', '#7f1d1d', '#dc2626', '#ef4444',
+  '#ea580c', '#f59e0b', '#eab308', '#65a30d', '#15803d', '#059669', '#0d9488', '#0891b2', '#1d4ed8', '#1e3a8a',
+  '#4f46e5', '#7c3aed', '#a21caf', '#c026d3', '#db2777', '#be123c', '#78350f', '#065f46', '#0f172a', '#3f3f46',
+];
+
+/** Swatch palette for highlight / background colour. */
+const HIGHLIGHT_PALETTE = [
+  '#fef08a', '#fde68a', '#fecaca', '#fbcfe8', '#e9d5ff', '#c7d2fe', '#bfdbfe', '#a7f3d0', '#d9f99d', '#e5e7eb',
+];
+
+
 export function ArticleContentEditor({
   articleId, initialContent, articleTitle, referenceNumber, onClose,
   mode = 'admin', articleMeta,
@@ -517,6 +530,17 @@ export function ArticleContentEditor({
     iframeRef.current?.contentWindow?.focus();
     iframeRef.current?.contentDocument?.execCommand('foreColor', false, color);
   }, []);
+
+  /** Apply a background/highlight colour to current selection. */
+  const applyHighlight = useCallback((color: string) => {
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc) return;
+    iframeRef.current?.contentWindow?.focus();
+    if (!doc.execCommand('hiliteColor', false, color)) {
+      doc.execCommand('backColor', false, color);
+    }
+  }, []);
+
 
   /** Strip every red-coloured run added by the author. Looks for span/font
    *  elements with red-ish foreground (style="color:red", color="red",
@@ -1072,7 +1096,7 @@ export function ArticleContentEditor({
 
               <div className="w-px h-5 bg-[#d1d5db] mx-1" />
 
-              {/* Text colour dropdown */}
+              {/* Text colour palette */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button type="button" variant="ghost" size="sm" className="h-7 px-1.5 gap-1 text-black/70 hover:text-black hover:bg-black/5" title="Text colour">
@@ -1080,28 +1104,66 @@ export function ArticleContentEditor({
                     <span className="text-[10px]">Colour</span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-44">
-                  <DropdownMenuLabel className="text-xs">Text colour</DropdownMenuLabel>
-                  {[
-                    { c: '#dc2626', label: 'Red (for corrections)' },
-                    { c: '#000000', label: 'Black' },
-                    { c: '#1d4ed8', label: 'Blue' },
-                    { c: '#15803d', label: 'Green' },
-                    { c: '#ea580c', label: 'Orange' },
-                    { c: '#7c3aed', label: 'Purple' },
-                    { c: '#6b7280', label: 'Grey' },
-                  ].map((opt) => (
-                    <DropdownMenuItem key={opt.c} onClick={() => applyColor(opt.c)}>
-                      <span style={{ background: opt.c }} className="inline-block w-3 h-3 rounded-sm mr-2 border border-black/10" />
-                      {opt.label}
-                    </DropdownMenuItem>
-                  ))}
+                <DropdownMenuContent align="start" className="w-[236px] p-2">
+                  <DropdownMenuLabel className="text-xs px-1 pb-1">Text colour</DropdownMenuLabel>
+                  <div className="grid grid-cols-10 gap-1 px-1">
+                    {TEXT_COLOR_PALETTE.map((c) => (
+                      <button
+                        key={`fg-${c}`}
+                        type="button"
+                        title={c}
+                        onClick={() => applyColor(c)}
+                        className="w-4 h-4 rounded-sm border border-black/15 hover:scale-125 transition-transform"
+                        style={{ background: c }}
+                      />
+                    ))}
+                  </div>
+
+                  <DropdownMenuLabel className="text-xs px-1 pt-2 pb-1">Highlight</DropdownMenuLabel>
+                  <div className="grid grid-cols-10 gap-1 px-1">
+                    {HIGHLIGHT_PALETTE.map((c) => (
+                      <button
+                        key={`bg-${c}`}
+                        type="button"
+                        title={c}
+                        onClick={() => applyHighlight(c)}
+                        className="w-4 h-4 rounded-sm border border-black/15 hover:scale-125 transition-transform"
+                        style={{ background: c }}
+                      />
+                    ))}
+                    <button
+                      type="button"
+                      title="No highlight"
+                      onClick={() => applyHighlight('transparent')}
+                      className="w-4 h-4 rounded-sm border border-black/25 bg-white text-[8px] leading-none text-black/60"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-2 px-1 pt-3">
+                    <span className="text-[10px] text-black/60">Custom</span>
+                    <input
+                      type="color"
+                      className="h-6 w-10 cursor-pointer rounded border border-black/15 bg-transparent p-0"
+                      onChange={(e) => applyColor(e.target.value)}
+                      title="Pick any text colour"
+                    />
+                    <input
+                      type="color"
+                      className="h-6 w-10 cursor-pointer rounded border border-black/15 bg-transparent p-0"
+                      onChange={(e) => applyHighlight(e.target.value)}
+                      title="Pick any highlight colour"
+                    />
+                  </div>
+
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={clearRedHighlights}>
                     <Eraser className="w-4 h-4 mr-2" /> Clear red highlights
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+
 
               <div className="w-px h-5 bg-[#d1d5db] mx-1" />
 
