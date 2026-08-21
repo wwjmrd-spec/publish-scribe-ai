@@ -1072,7 +1072,7 @@ export function ArticleContentEditor({
 
               <div className="w-px h-5 bg-[#d1d5db] mx-1" />
 
-              {/* Text colour dropdown */}
+              {/* Text colour palette */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button type="button" variant="ghost" size="sm" className="h-7 px-1.5 gap-1 text-black/70 hover:text-black hover:bg-black/5" title="Text colour">
@@ -1080,28 +1080,66 @@ export function ArticleContentEditor({
                     <span className="text-[10px]">Colour</span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-44">
-                  <DropdownMenuLabel className="text-xs">Text colour</DropdownMenuLabel>
-                  {[
-                    { c: '#dc2626', label: 'Red (for corrections)' },
-                    { c: '#000000', label: 'Black' },
-                    { c: '#1d4ed8', label: 'Blue' },
-                    { c: '#15803d', label: 'Green' },
-                    { c: '#ea580c', label: 'Orange' },
-                    { c: '#7c3aed', label: 'Purple' },
-                    { c: '#6b7280', label: 'Grey' },
-                  ].map((opt) => (
-                    <DropdownMenuItem key={opt.c} onClick={() => applyColor(opt.c)}>
-                      <span style={{ background: opt.c }} className="inline-block w-3 h-3 rounded-sm mr-2 border border-black/10" />
-                      {opt.label}
-                    </DropdownMenuItem>
-                  ))}
+                <DropdownMenuContent align="start" className="w-[236px] p-2">
+                  <DropdownMenuLabel className="text-xs px-1 pb-1">Text colour</DropdownMenuLabel>
+                  <div className="grid grid-cols-10 gap-1 px-1">
+                    {TEXT_COLOR_PALETTE.map((c) => (
+                      <button
+                        key={`fg-${c}`}
+                        type="button"
+                        title={c}
+                        onClick={() => applyColor(c)}
+                        className="w-4 h-4 rounded-sm border border-black/15 hover:scale-125 transition-transform"
+                        style={{ background: c }}
+                      />
+                    ))}
+                  </div>
+
+                  <DropdownMenuLabel className="text-xs px-1 pt-2 pb-1">Highlight</DropdownMenuLabel>
+                  <div className="grid grid-cols-10 gap-1 px-1">
+                    {HIGHLIGHT_PALETTE.map((c) => (
+                      <button
+                        key={`bg-${c}`}
+                        type="button"
+                        title={c}
+                        onClick={() => applyHighlight(c)}
+                        className="w-4 h-4 rounded-sm border border-black/15 hover:scale-125 transition-transform"
+                        style={{ background: c }}
+                      />
+                    ))}
+                    <button
+                      type="button"
+                      title="No highlight"
+                      onClick={() => applyHighlight('transparent')}
+                      className="w-4 h-4 rounded-sm border border-black/25 bg-white text-[8px] leading-none text-black/60"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-2 px-1 pt-3">
+                    <span className="text-[10px] text-black/60">Custom</span>
+                    <input
+                      type="color"
+                      className="h-6 w-10 cursor-pointer rounded border border-black/15 bg-transparent p-0"
+                      onChange={(e) => applyColor(e.target.value)}
+                      title="Pick any text colour"
+                    />
+                    <input
+                      type="color"
+                      className="h-6 w-10 cursor-pointer rounded border border-black/15 bg-transparent p-0"
+                      onChange={(e) => applyHighlight(e.target.value)}
+                      title="Pick any highlight colour"
+                    />
+                  </div>
+
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={clearRedHighlights}>
                     <Eraser className="w-4 h-4 mr-2" /> Clear red highlights
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+
 
               <div className="w-px h-5 bg-[#d1d5db] mx-1" />
 
