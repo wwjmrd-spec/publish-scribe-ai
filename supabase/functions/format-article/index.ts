@@ -1158,6 +1158,7 @@ function generateEditorHtml(meta: ArticleMetadata, body: Block[], images: Map<st
   const acceptedDate = fmtDate(new Date(today.getTime() - 10 * 24 * 60 * 60 * 1000));
   const publishedDate = fmtDate(today);
   const citationAuthors = (meta.authors || []).map(a => a.name).join(", ") || "Author";
+  const mainAuthorName = (meta.authors || [])[0]?.name || "Author";
 
   return `
 <style>
