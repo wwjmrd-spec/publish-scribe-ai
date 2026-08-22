@@ -105,10 +105,8 @@ export function FormattingSection({ articleId }: Props) {
       const sourceHtml: string | null = a[sourceField];
       if (!sourceHtml) throw new Error('Format the article first');
 
-      const { data: cos } = await supabase
-        .from('co_authors').select('name').eq('article_id', articleId).order('created_at', { ascending: true });
-      const authors = [a.author_name, ...((cos || []) as any[]).map((c) => c.name)]
-        .filter(Boolean).join(', ') || 'Author';
+      // Only the main (corresponding) author goes in the copyright line.
+      const authors = a.author_name || 'Author';
       const year = a.published_at ? new Date(a.published_at).getFullYear() : new Date().getFullYear();
 
       const { html, added } = injectCcLicenseIntoFormattedHtml(sourceHtml, year, authors);

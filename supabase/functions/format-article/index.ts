@@ -1158,6 +1158,7 @@ function generateEditorHtml(meta: ArticleMetadata, body: Block[], images: Map<st
   const acceptedDate = fmtDate(new Date(today.getTime() - 10 * 24 * 60 * 60 * 1000));
   const publishedDate = fmtDate(today);
   const citationAuthors = (meta.authors || []).map(a => a.name).join(", ") || "Author";
+  const mainAuthorName = (meta.authors || [])[0]?.name || "Author";
 
   return `
 <style>
@@ -1215,16 +1216,16 @@ function generateEditorHtml(meta: ArticleMetadata, body: Block[], images: Map<st
         <div style="border:1px solid #cbd5e1;border-radius:6px;padding:10px 12px;margin-bottom:12px;background:#fff;"><div style="font-size:9px;font-weight:bold;color:#1e3a8a;letter-spacing:1.2px;border-bottom:2px solid #1e3a8a;padding-bottom:4px;margin-bottom:6px;">ABOUT THE JOURNAL</div><p style="font-size:9px;line-height:1.5;color:#334155;margin:0;">WWJMRD is a peer-reviewed, refereed and indexed international multidisciplinary publication platform welcoming research across all disciplines.</p></div>
         <div style="border:1px solid #cbd5e1;border-radius:6px;padding:10px 12px;margin-bottom:12px;background:#fff;"><div style="font-size:9px;font-weight:bold;color:#1e3a8a;letter-spacing:1.2px;border-bottom:2px solid #1e3a8a;padding-bottom:4px;margin-bottom:6px;">JOURNAL HIGHLIGHTS</div><ul style="list-style:none;padding:0;margin:0;font-size:9px;color:#334155;line-height:1.8;"><li>◆ Peer Reviewed Journal</li><li>◆ Refereed Journal</li><li>◆ Indexed Journal</li><li>◆ Global Indexing & Archiving</li><li>◆ Impact Factor (SJIF)</li></ul></div>
         <div style="border:1px solid #1e3a8a;border-radius:6px;padding:10px 12px;background:#1e3a8a;color:#fff;"><div style="font-size:9px;font-weight:bold;letter-spacing:1.2px;border-bottom:1px solid #3b82f6;padding-bottom:4px;margin-bottom:6px;">CONTACT US</div><p style="font-size:8.5px;line-height:1.5;margin:0 0 4px;font-weight:bold;">World Wide Journal of Multidisciplinary Research and Development (WWJMRD)</p><p style="font-size:8.5px;margin:2px 0;">support@wwjmrd.com</p><p style="font-size:8.5px;margin:2px 0;">www.wwjmrd.com</p></div>
+        <div class="ww-cc-license" style="margin-top:12px;border:1px solid #cbd5e1;background:#f8fafc;border-radius:6px;padding:8px 10px;text-align:center;">
+          <a href="https://creativecommons.org/licenses/by/4.0/"><img src="https://licensebuttons.net/l/by/4.0/88x31.png" alt="Creative Commons Attribution 4.0 International License" style="width:88px;height:31px;display:inline-block;margin-bottom:6px;" /></a>
+          <p style="font-size:8px;line-height:1.5;margin:0;color:#334155;text-align:justify;font-family:Arial,sans-serif;"><strong>Copyright:</strong> © ${yr} ${esc(mainAuthorName)}. Published by WWJMRD. This is an open-access article distributed under the terms of the Creative Commons Attribution 4.0 International License (CC BY 4.0) (https://creativecommons.org/licenses/by/4.0/), which permits unrestricted use, distribution, and reproduction in any medium, provided the original author and source are properly credited.</p>
+        </div>
       </td>
     </tr></table>
     <div class="ww-cover-bottom">
     <div style="margin:6px 24px 0;border-top:2px solid #1e3a8a;padding-top:10px;">
       <table style="width:100%;border-collapse:separate;border-spacing:6px 0;margin-bottom:10px;"><tr>${[["Received", receivedDate],["Revised", revisedDate],["Accepted", acceptedDate],["Published", publishedDate]].map(([l,v]) => `<td style="border:1px solid #cbd5e1;border-radius:5px;padding:6px;text-align:center;background:#f8fafc;font-family:Arial,sans-serif;width:25%;"><div style="font-size:8px;color:#64748b;font-weight:bold;letter-spacing:1px;">${l.toUpperCase()}</div><div style="font-size:10px;color:#1e3a8a;font-weight:bold;margin-top:2px;">${v}</div></td>`).join("")}</tr></table>
       <div style="border-left:3px solid #1e3a8a;background:#f1f5f9;padding:8px 12px;border-radius:0 4px 4px 0;"><div style="font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#1e3a8a;letter-spacing:1px;margin-bottom:3px;">HOW TO CITE THIS ARTICLE</div><p style="font-size:9.5px;line-height:1.5;margin:0;color:#334155;">${esc(citationAuthors)}. ${esc(meta.title)}. <em>World Wide Journal of Multidisciplinary Research and Development</em>, ${yr}; ${vol}(${iss}): <span class="ww-page-range">${pgRange}</span>.</p></div>
-      <div class="ww-cc-license" style="margin-top:8px;border:1px solid #cbd5e1;background:#f8fafc;border-radius:4px;padding:8px 12px;display:flex;align-items:flex-start;gap:10px;">
-        <a href="https://creativecommons.org/licenses/by/4.0/" style="flex:0 0 auto;"><img src="https://licensebuttons.net/l/by/4.0/88x31.png" alt="Creative Commons Attribution 4.0 International License" style="width:88px;height:31px;display:block;" /></a>
-        <p style="font-size:8.5px;line-height:1.5;margin:0;color:#334155;text-align:justify;font-family:Arial,sans-serif;"><strong>Copyright:</strong> © ${yr} ${esc(citationAuthors)}. Published by WWJMRD. This is an open-access article distributed under the terms of the Creative Commons Attribution 4.0 International License (CC BY 4.0) (https://creativecommons.org/licenses/by/4.0/), which permits unrestricted use, distribution, and reproduction in any medium, provided the original author and source are properly credited.</p>
-      </div>
     </div>
     <div style="background:#0f172a;color:#fff;text-align:center;padding:12px;margin-top:14px;font-family:Arial,sans-serif;font-size:11px;letter-spacing:2px;font-weight:bold;">www.wwjmrd.com</div>
     </div>
