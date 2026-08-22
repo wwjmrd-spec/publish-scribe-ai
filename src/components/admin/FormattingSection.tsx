@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { ArticleContentEditor } from '@/components/admin/ArticleContentEditor';
 import { downloadFormattedAsPdf, downloadFormattedAsDocx } from '@/lib/exportFormattedArticle';
 import { injectOrcidsIntoFormattedHtml, type OrcidAuthorEntry } from '@/lib/orcid';
+import { injectCcLicenseIntoFormattedHtml } from '@/lib/ccLicense';
 
 interface Props { articleId: string }
 
@@ -184,6 +185,13 @@ export function FormattingSection({ articleId }: Props) {
               {orcidMut.isPending
                 ? <><GlassSpinner size="sm" className="mr-2" />Adding ORCID…</>
                 : <><Fingerprint className="w-4 h-4 mr-2" />Add ORCID iD</>}
+            </Button>
+          )}
+          {formattedContent && (
+            <Button variant="outline" size="sm" onClick={() => ccMut.mutate()} disabled={ccMut.isPending}>
+              {ccMut.isPending
+                ? <><GlassSpinner size="sm" className="mr-2" />Adding licence…</>
+                : <><Info className="w-4 h-4 mr-2" />Add CC BY 4.0</>}
             </Button>
           )}
           {formattedContent && (
