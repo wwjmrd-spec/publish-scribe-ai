@@ -96,6 +96,36 @@ export function FormattingSection({ articleId }: Props) {
     onError: (e: any) => toast.error('Could not add ORCID iDs: ' + e.message),
   });
 
+  const ccMut = useMutation({
+    mutationFn: async () => {
+      const a: any = article;
+      if (!a) throw new Error('Article not loaded');
+      const sourceField = a.author_revision_html ? 'author_revision_html' : 'formatted_content';
+      const sourceHtml: string | null = a[sourceField];
+      if (!sourceHtml) throw new Error('Format the article first');
+
+      const { data: cos } = await supabase
+        .from('co_authors').select('name').eq('article_id', articleId).order('created_at', { ascending: true });
+      const authors = [a.author_name, ...((cos || []) as any[]).map((c) => c.name)]
+        .filter(Boolean).join(', ') || 'Author';
+      const year = a.published_at ? new Date(a.published_at).getFullYear() : new Date().getFullYear();
+
+      const { html, added } = injectCcLicenseIntoFormattedHtml(sourceHtml, year, authors);
+      if (!added) return { added: false };
+      const patch: any = sourceField === 'author_revision_html'
+        ? { author_revision_html: html } : { formatted_content: html };
+      const { error } = await supabase.from('articles').update(patch).eq('id', articleId);
+      if (error) throw error;
+      return { added: true };
+    },
+    onSuccess: (r: any) => {
+      qc.invalidateQueries({ queryKey: ['admin-article-formatting', articleId] });
+      qc.invalidateQueries({ queryKey: ['admin-article-detail', articleId] });
+      toast[r.added ? 'success' : 'info'](r.added ? 'CC BY 4.0 licence added to the formatted article.' : 'Licence block is already present.');
+    },
+    onError: (e: any) => toast.error('Could not add licence: ' + e.message),
+  });
+
 
 
   const status = ((article as any)?.formatting_status || 'pending') as FormattingStatus;
