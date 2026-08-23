@@ -214,7 +214,7 @@ function parseHtmlToBlocks(html: string): Block[] {
 // =========================================================================
 
 interface ArticleMetadata {
-  header: { year: string; volume: string; issue: string; page_range: string };
+  header: { year: string; volume: string; issue: string; page_range: string; doi?: string };
   title: string;
   authors: { name: string; designation: string }[];
   correspondence: { name: string; designation: string };
@@ -1097,8 +1097,12 @@ function generateEditorHtml(meta: ArticleMetadata, body: Block[], images: Map<st
   const vol = meta.header.volume || "12";
   const iss = meta.header.issue || "01";
   const pgRange = meta.header.page_range || "01-10";
+  const doi = (meta.header.doi || "").trim();
 
   const esc = (s = "") => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  const doiLine = doi
+    ? `<p class="ww-doi-line" style="font-family:Arial,sans-serif;font-size:9.5px;color:#334155;margin:0 0 8px;"><strong style="color:#1e3a8a;letter-spacing:0.5px;">DOI:</strong> <a href="https://doi.org/${esc(doi)}" style="color:#1e3a8a;text-decoration:none;">https://doi.org/${esc(doi)}</a></p>`
+    : "";
 
   const renderImage = (id: string, caption?: string) => {
     const img = images.get(id);
@@ -1198,6 +1202,7 @@ function generateEditorHtml(meta: ArticleMetadata, body: Block[], images: Map<st
       <td style="padding:14px 12px 8px 24px;">
         <h1 style="font-family:Georgia,serif;font-size:18px;font-weight:bold;color:#0f172a;line-height:1.3;margin:0 0 10px;">${esc(meta.title)}</h1>
         <p style="font-size:11px;color:#1e3a8a;font-weight:600;margin:0 0 6px;line-height:1.5;">${authorsInline}</p>
+        ${doiLine}
         <div style="margin:0 0 12px;font-size:9px;color:#333;">${affiliationsList}</div>
         <div style="border:1px solid #cbd5e1;border-left:4px solid #1e3a8a;border-radius:6px;background:#f8fafc;padding:12px 14px;margin:10px 0 14px;">
           <div style="font-family:Arial,sans-serif;font-weight:bold;color:#1e3a8a;font-size:11px;letter-spacing:1.5px;margin-bottom:6px;">ABSTRACT</div>
@@ -1342,6 +1347,7 @@ serve(async (req) => {
           volume: ((article as any).volume || "12").toString(),
           issue: ((article as any).issue || _currentMonth).toString(),
           page_range: ((article as any).page_number || meta.header?.page_range || "01-10").toString(),
+          doi: ((article as any).doi_number || "").toString().trim(),
         };
 
         const body = removeReferenceSection(sliceBodyBlocks(allBlocks, meta), meta);
