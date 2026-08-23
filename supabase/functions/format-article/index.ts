@@ -214,7 +214,7 @@ function parseHtmlToBlocks(html: string): Block[] {
 // =========================================================================
 
 interface ArticleMetadata {
-  header: { year: string; volume: string; issue: string; page_range: string };
+  header: { year: string; volume: string; issue: string; page_range: string; doi?: string };
   title: string;
   authors: { name: string; designation: string }[];
   correspondence: { name: string; designation: string };
@@ -1342,6 +1342,7 @@ serve(async (req) => {
           volume: ((article as any).volume || "12").toString(),
           issue: ((article as any).issue || _currentMonth).toString(),
           page_range: ((article as any).page_number || meta.header?.page_range || "01-10").toString(),
+          doi: ((article as any).doi_number || "").toString().trim(),
         };
 
         const body = removeReferenceSection(sliceBodyBlocks(allBlocks, meta), meta);
