@@ -62,7 +62,7 @@ serve(async (req) => {
     const { data: article, error: artErr } = await admin
       .from("articles")
       .select(
-        "id, title, author_name, country, subject, abstract, reason_of_research, keywords, publication_year, volume, issue, page_number, published_link, galley_proof_pdf_url, formatted_document_url, status, wwjmrd_article_id, published_to_wwjmrd_at, author_id, co_authors(name, orcid)"
+        "id, title, author_name, country, subject, abstract, reason_of_research, keywords, publication_year, volume, issue, page_number, published_link, galley_proof_pdf_url, formatted_document_url, status, wwjmrd_article_id, published_to_wwjmrd_at, author_id, doi_number, co_authors(name, orcid)"
       )
       .eq("id", articleId)
       .maybeSingle();
@@ -196,7 +196,7 @@ serve(async (req) => {
       issue_number: issueValue,
       order_number: String(orderNumber),
       article_order: String(orderNumber),
-      doi: pubForm?.doi || "",
+      doi: pubForm?.doi || (article as any).doi_number || "",
       pdf_url: pdfUrl,
       ...(authorProfile?.orcid?.trim()
         ? { orcid: authorProfile.orcid.trim(), author_orcid: authorProfile.orcid.trim() }

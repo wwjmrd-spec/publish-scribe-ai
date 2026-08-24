@@ -616,7 +616,15 @@ function generatePdf(meta: ArticleMetadata, body: Block[], images: Map<string, E
   const impLines = doc.splitTextToSize("Impact Factor SJIF 2017: 5.182 2018: 5.51, (ISI) 2020-2021: 1.361", sidebarW);
   impLines.forEach((l: string) => { doc.text(l, sidebarX, leftY); leftY += 3.2; });
   doc.setFontSize(8);
-  doc.text("E-ISSN: 2454-6615", sidebarX, leftY); leftY += 6;
+  doc.text("E-ISSN: 2454-6615", sidebarX, leftY); leftY += 4;
+  const coverDoi = (meta.header.doi || "").trim();
+  if (coverDoi) {
+    doc.setFont("times", "bold");
+    const doiLines = doc.splitTextToSize(`DOI: ${coverDoi}`, sidebarW);
+    doiLines.forEach((l: string) => { doc.text(l, sidebarX, leftY); leftY += 3.4; });
+    doc.setFont("times", "normal");
+  }
+  leftY += 2;
 
   // Authors in sidebar
   for (const a of meta.authors || []) {

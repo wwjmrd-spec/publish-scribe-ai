@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { DownloadButton } from '@/components/ui/DownloadButton';
 import { Badge } from '@/components/ui/badge';
 import {
-  Wand2, RefreshCw, Edit, CheckCircle, XCircle, Clock, AlertTriangle, Info, Fingerprint,
+  Wand2, RefreshCw, Edit, CheckCircle, XCircle, Clock, AlertTriangle, Info, Fingerprint, Link2,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,6 +14,7 @@ import { ArticleContentEditor } from '@/components/admin/ArticleContentEditor';
 import { downloadFormattedAsPdf, downloadFormattedAsDocx } from '@/lib/exportFormattedArticle';
 import { injectOrcidsIntoFormattedHtml, type OrcidAuthorEntry } from '@/lib/orcid';
 import { injectCcLicenseIntoFormattedHtml } from '@/lib/ccLicense';
+import { injectDoiIntoFormattedHtml } from '@/lib/doi';
 
 interface Props { articleId: string }
 
@@ -125,7 +126,31 @@ export function FormattingSection({ articleId }: Props) {
     onError: (e: any) => toast.error('Could not add licence: ' + e.message),
   });
 
+  const doiMut = useMutation({
+    mutationFn: async () => {
+      const a: any = article;
+      if (!a) throw new Error('Article not loaded');
+      const doi = (a.doi_number || '').trim();
+      if (!doi) throw new Error('No DOI set on this article. Save a DOI first.');
+      const sourceField = a.author_revision_html ? 'author_revision_html' : 'formatted_content';
+      const sourceHtml: string | null = a[sourceField];
+      if (!sourceHtml) throw new Error('Format the article first');
 
+      const { html, added } = injectDoiIntoFormattedHtml(sourceHtml, doi);
+      if (!added) return { added: false };
+      const patch: any = sourceField === 'author_revision_html'
+        ? { author_revision_html: html } : { formatted_content: html };
+      const { error } = await supabase.from('articles').update(patch).eq('id', articleId);
+      if (error) throw error;
+      return { added: true };
+    },
+    onSuccess: (r: any) => {
+      qc.invalidateQueries({ queryKey: ['admin-article-formatting', articleId] });
+      qc.invalidateQueries({ queryKey: ['admin-article-detail', articleId] });
+      toast[r.added ? 'success' : 'info'](r.added ? 'DOI added to the formatted article.' : 'DOI is already present in the article.');
+    },
+    onError: (e: any) => toast.error('Could not add DOI: ' + e.message),
+  });
 
   const status = ((article as any)?.formatting_status || 'pending') as FormattingStatus;
   const suggestions: Suggestion[] = ((article as any)?.formatting_suggestions as Suggestion[]) || [];
@@ -190,6 +215,13 @@ export function FormattingSection({ articleId }: Props) {
               {ccMut.isPending
                 ? <><GlassSpinner size="sm" className="mr-2" />Adding licence…</>
                 : <><Info className="w-4 h-4 mr-2" />Add CC BY 4.0</>}
+            </Button>
+          )}
+          {formattedContent && (
+            <Button variant="outline" size="sm" onClick={() => doiMut.mutate()} disabled={doiMut.isPending}>
+              {doiMut.isPending
+                ? <><GlassSpinner size="sm" className="mr-2" />Adding DOI…</>
+                : <><Link2 className="w-4 h-4 mr-2" />Add DOI</>}
             </Button>
           )}
           {formattedContent && (
