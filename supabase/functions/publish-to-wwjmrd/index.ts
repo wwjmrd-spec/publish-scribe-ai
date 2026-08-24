@@ -226,16 +226,33 @@ serve(async (req) => {
     const { secret: _omit, ...loggable } = payload;
     console.log("WWJMRD publish payload:", JSON.stringify(loggable));
 
-    const form = new URLSearchParams();
-    for (const [k, v] of Object.entries(payload)) form.append(k, v ?? "");
-
-    let res: Response;
-    try {
-      res = await fetch(WWJMRD_ENDPOINT, {
+    const postPayload = async (p: Record<string, string>): Promise<Response> => {
+      const form = new URLSearchParams();
+      for (const [k, v] of Object.entries(p)) form.append(k, v ?? "");
+      return fetch(WWJMRD_ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: form.toString(),
       });
+    };
+
+    let res: Response;
+    let doiDropped = false;
+    try {
+      res = await postPayload(payload);
+      // Their endpoint runs a duplicate-DOI lookup against a table that does not
+      // exist (MySQL error 1146, table 'gst.article_up') and dies with HTTP 500
+      // whenever the payload contains a doi. Detect that exact failure and retry
+      // once without the DOI so the publish itself can succeed.
+      if (res.status === 500 && payload.doi) {
+        const probe = await res.clone().text();
+        if (/article_up|Error Number:\s*1146/i.test(probe)) {
+          console.warn("WWJMRD crashed on DOI lookup (article_up missing); retrying without doi");
+          const { doi: _d, ...withoutDoi } = payload;
+          res = await postPayload(withoutDoi);
+          doiDropped = true;
+        }
+      }
     } catch (e: any) {
       console.error("WWJMRD network error:", e?.message || e);
       return json({ error: "Network error contacting WWJMRD", details: String(e?.message || e) }, 502);
