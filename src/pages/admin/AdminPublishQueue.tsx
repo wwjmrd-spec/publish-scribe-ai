@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { resolveEdgeFunctionError } from '@/lib/edgeFunctionError';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { GlassCard } from '@/components/layout/GlassCard';
 import { Button } from '@/components/ui/button';
@@ -111,7 +112,7 @@ export default function AdminPublishQueue() {
         body: { articleId: id, ...(mode ? { mode } : {}) },
       });
       console.log('publish-to-wwjmrd response:', { data, error });
-      if (error) throw new Error(error.message);
+      if (error) throw await resolveEdgeFunctionError(error, 'Publish failed');
       if (!data?.success) throw new Error(data?.error || 'Publish failed');
       return data;
     },

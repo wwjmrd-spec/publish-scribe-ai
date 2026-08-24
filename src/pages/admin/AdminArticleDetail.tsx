@@ -46,6 +46,7 @@ import type { Database } from '@/integrations/supabase/types';
 import { SendGalleyProofDialog } from '@/components/admin/SendGalleyProofDialog';
 import { ChangeAuthorButton } from '@/components/admin/ChangeAuthorButton';
 import { formatArticleStatus, getArticleStatusBadgeClass, MANUAL_ADMIN_STATUSES } from '@/lib/articleStatus';
+import { resolveEdgeFunctionError } from '@/lib/edgeFunctionError';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AIReviewSection } from '@/components/admin/AIReviewSection';
 import { FormattingSection } from '@/components/admin/FormattingSection';
@@ -415,7 +416,7 @@ export default function AdminArticleDetail() {
         body: { articleId: article!.id, ...(mode ? { mode } : {}) },
       });
       console.log('publish-to-wwjmrd response:', { data, error });
-      if (error) throw new Error(error.message);
+      if (error) throw await resolveEdgeFunctionError(error, 'Publish failed');
       if (!data?.success) throw new Error(data?.error || 'Publish failed');
       return data;
     },
