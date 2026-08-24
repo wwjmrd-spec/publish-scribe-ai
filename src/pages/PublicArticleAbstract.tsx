@@ -64,12 +64,18 @@ export default function PublicArticleAbstract() {
               <span className="text-xs text-muted-foreground font-mono">{article.reference_number}</span>
             </div>
             <h1 className="font-display text-2xl md:text-3xl font-bold mb-3">{article.title}</h1>
-            <p className="text-sm text-muted-foreground mb-4">
-              {article.author_name}{article.country ? `, ${article.country}` : ''}
+            <p className="text-sm text-muted-foreground mb-1">
+              {article.author_name}
               {coAuthors.length > 0 && (
                 <span>{', '}{coAuthors.map(c => c.name).join(', ')}</span>
               )}
             </p>
+            {article.country && (
+              <p className="text-sm text-muted-foreground mb-4">
+                Country: <strong className="font-medium">{article.country}</strong>
+              </p>
+            )}
+            {!article.country && <div className="mb-3" />}
             <div className="text-xs text-muted-foreground mb-6">
               {article.publication_year && <>Year: <strong>{article.publication_year}</strong></>}
               {article.volume && <> · Volume: <strong>{article.volume}</strong></>}
