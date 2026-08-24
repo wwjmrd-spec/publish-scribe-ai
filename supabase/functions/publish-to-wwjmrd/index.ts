@@ -236,21 +236,34 @@ serve(async (req) => {
       });
     };
 
+    // Their endpoint's duplicate-DOI check runs `SELECT ... FROM \`article_up\`
+    // WHERE doi = '...'` against a table that does not exist (MySQL 1146) and
+    // dies with HTTP 500 whenever a non-empty doi is sent. Note the backticked
+    // table name — their INSERT goes into `article_article_up`, which must NOT
+    // match this check.
+    const isDoiLookupCrash = async (r: Response): Promise<boolean> => {
+      if (r.status !== 500) return false;
+      const probe = await r.clone().text();
+      return /`article_up`|Error Number:\s*1146/i.test(probe);
+    };
+
     let res: Response;
-    let doiDropped = false;
+    let doiMode: "sent" | "blanked" | "dropped" = "sent";
     try {
       res = await postPayload(payload);
-      // Their endpoint runs a duplicate-DOI lookup against a table that does not
-      // exist (MySQL error 1146, table 'gst.article_up') and dies with HTTP 500
-      // whenever the payload contains a doi. Detect that exact failure and retry
-      // once without the DOI so the publish itself can succeed.
-      if (res.status === 500 && payload.doi) {
-        const probe = await res.clone().text();
-        if (/article_up|Error Number:\s*1146/i.test(probe)) {
-          console.warn("WWJMRD crashed on DOI lookup (article_up missing); retrying without doi");
+      if (payload.doi && (await isDoiLookupCrash(res))) {
+        // First retry with an EMPTY doi: their PHP truthiness check then skips
+        // the broken lookup, and their NOT NULL `doi` column gets '' instead of
+        // NULL (dropping the key entirely fails with MySQL 1048).
+        console.warn("WWJMRD crashed on DOI lookup (article_up missing); retrying with empty doi");
+        res = await postPayload({ ...payload, doi: "" });
+        doiMode = "blanked";
+        if (await isDoiLookupCrash(res)) {
+          // Their code runs the lookup unconditionally — drop the key as a last resort.
+          console.warn("WWJMRD still crashing with empty doi; retrying without doi field");
           const { doi: _d, ...withoutDoi } = payload;
           res = await postPayload(withoutDoi);
-          doiDropped = true;
+          doiMode = "dropped";
         }
       }
     } catch (e: any) {
@@ -265,6 +278,15 @@ serve(async (req) => {
     let body: any = null;
     try { body = JSON.parse(text); } catch { /* not JSON */ }
 
+    // Turn their CodeIgniter HTML error pages into a readable one-line message.
+    const summarizeRemoteError = (raw: string): string => {
+      const lines = [...raw.matchAll(/<p>(.*?)<\/p>/gis)]
+        .map((m) => m[1].replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim())
+        .filter((l) => l && !/^Filename:/i.test(l) && !/^Line Number:/i.test(l));
+      const msg = lines.slice(0, 3).join(" — ");
+      return msg.length > 500 ? msg.slice(0, 500) + "…" : msg;
+    };
+
     const previousId = Number((article as any).wwjmrd_article_id);
     const returnedId = Number(body?.article_id);
     const remoteId = Number.isFinite(returnedId)
@@ -278,11 +300,16 @@ serve(async (req) => {
 
 
     if (!res.ok || !body || body.success !== true || !Number.isFinite(remoteId)) {
+      const remoteDetail = body?.message || body?.error || (!body ? summarizeRemoteError(text) : "");
+      const doiNote =
+        payload.doi && doiMode !== "sent"
+          ? " WWJMRD's endpoint cannot accept a DOI right now (their duplicate-DOI check table 'gst.article_up' doesn't exist — MySQL 1146) and their insert rejects a missing DOI (MySQL 1048). Their publish_article endpoint is broken; ask WWJMRD support to fix it, then retry."
+          : "";
       return json(
         {
-          error: body?.message || body?.error || `WWJMRD returned HTTP ${res.status}`,
+          error: `WWJMRD returned HTTP ${res.status}${remoteDetail ? `: ${remoteDetail}` : ""}.${doiNote}`,
           httpStatus: res.status,
-          response: body ?? text,
+          response: body ?? summarizeRemoteError(text),
         },
         502,
       );
@@ -320,11 +347,11 @@ serve(async (req) => {
       success: true,
       updated: isUpdate,
       duplicated,
-      doi_sent: !doiDropped,
+      doi_sent: doiMode === "sent",
       previous_wwjmrd_article_id: Number.isFinite(previousId) ? previousId : null,
       warning: duplicated
         ? `WWJMRD created a new entry (ID ${remoteId}) instead of updating ID ${previousId}. The remote API ignored the update request — the old entry ${previousId} must be removed on wwjmrd.com.`
-        : doiDropped
+        : doiMode !== "sent"
           ? "Published, but WWJMRD's server crashed when the DOI was included (their duplicate-DOI check table is missing), so the article was published without the DOI. Ask WWJMRD to fix their publish_article endpoint (MySQL error 1146: table 'gst.article_up' doesn't exist), then use Update to re-send the DOI."
           : undefined,
       order_number: orderNumber,
