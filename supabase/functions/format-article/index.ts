@@ -1205,7 +1205,7 @@ function generateEditorHtml(meta: ArticleMetadata, body: Block[], images: Map<st
     </tr></table>
     <div style="display:flex;align-items:center;justify-content:space-between;background:#f1f5f9;padding:8px 24px;border-bottom:1px solid #cbd5e1;">
       <span style="background:#1e3a8a;color:#fff;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;letter-spacing:1.2px;padding:5px 12px;border-radius:2px;">RESEARCH ARTICLE</span>
-      <span style="font-family:Arial,sans-serif;font-size:9px;color:#334155;font-weight:600;">Volume ${vol} | Issue ${iss} | ${currentMonth}-${yr} | Pages <span class="ww-page-range">${pgRange}</span></span>
+      <span class="ww-header-meta" style="font-family:Arial,sans-serif;font-size:9px;color:#334155;font-weight:600;">${doiHeaderPrefix}Volume ${vol} | Issue ${iss} | ${currentMonth}-${yr} | Pages <span class="ww-page-range">${pgRange}</span></span>
     </div>
     <table style="width:100%;border-collapse:collapse;"><tr style="vertical-align:top;">
       <td style="padding:14px 12px 8px 24px;">
