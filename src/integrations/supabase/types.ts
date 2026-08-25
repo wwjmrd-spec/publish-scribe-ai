@@ -2466,6 +2466,7 @@ export type Database = {
       }
     }
     Functions: {
+      compute_article_doi: { Args: { ref: string }; Returns: string }
       get_default_auto_apply_discount: {
         Args: never
         Returns: {

@@ -1108,9 +1108,10 @@ function generateEditorHtml(meta: ArticleMetadata, body: Block[], images: Map<st
   const doi = (meta.header.doi || "").trim();
 
   const esc = (s = "") => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-  const doiLine = doi
-    ? `<p class="ww-doi-line" style="font-family:Arial,sans-serif;font-size:9.5px;color:#334155;margin:0 0 8px;"><strong style="color:#1e3a8a;letter-spacing:0.5px;">DOI:</strong> <a href="https://doi.org/${esc(doi)}" style="color:#1e3a8a;text-decoration:none;">https://doi.org/${esc(doi)}</a></p>`
+  const doiHeaderPrefix = doi
+    ? `<span class="ww-doi-line">DOI: ${esc(doi)}</span> | `
     : "";
+  const doiCiteSuffix = doi ? ` <span class="ww-doi-cite">DOI: ${esc(doi)}</span>` : "";
 
   const renderImage = (id: string, caption?: string) => {
     const img = images.get(id);
@@ -1204,13 +1205,13 @@ function generateEditorHtml(meta: ArticleMetadata, body: Block[], images: Map<st
     </tr></table>
     <div style="display:flex;align-items:center;justify-content:space-between;background:#f1f5f9;padding:8px 24px;border-bottom:1px solid #cbd5e1;">
       <span style="background:#1e3a8a;color:#fff;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;letter-spacing:1.2px;padding:5px 12px;border-radius:2px;">RESEARCH ARTICLE</span>
-      <span style="font-family:Arial,sans-serif;font-size:9px;color:#334155;font-weight:600;">Volume ${vol} | Issue ${iss} | ${currentMonth}-${yr} | Pages <span class="ww-page-range">${pgRange}</span></span>
+      <span class="ww-header-meta" style="font-family:Arial,sans-serif;font-size:9px;color:#334155;font-weight:600;">${doiHeaderPrefix}Volume ${vol} | Issue ${iss} | ${currentMonth}-${yr} | Pages <span class="ww-page-range">${pgRange}</span></span>
     </div>
     <table style="width:100%;border-collapse:collapse;"><tr style="vertical-align:top;">
       <td style="padding:14px 12px 8px 24px;">
         <h1 style="font-family:Georgia,serif;font-size:18px;font-weight:bold;color:#0f172a;line-height:1.3;margin:0 0 10px;">${esc(meta.title)}</h1>
         <p style="font-size:11px;color:#1e3a8a;font-weight:600;margin:0 0 6px;line-height:1.5;">${authorsInline}</p>
-        ${doiLine}
+        
         <div style="margin:0 0 12px;font-size:9px;color:#333;">${affiliationsList}</div>
         <div style="border:1px solid #cbd5e1;border-left:4px solid #1e3a8a;border-radius:6px;background:#f8fafc;padding:12px 14px;margin:10px 0 14px;">
           <div style="font-family:Arial,sans-serif;font-weight:bold;color:#1e3a8a;font-size:11px;letter-spacing:1.5px;margin-bottom:6px;">ABSTRACT</div>
@@ -1238,7 +1239,7 @@ function generateEditorHtml(meta: ArticleMetadata, body: Block[], images: Map<st
     <div class="ww-cover-bottom">
     <div style="margin:6px 24px 0;border-top:2px solid #1e3a8a;padding-top:10px;">
       <table style="width:100%;border-collapse:separate;border-spacing:6px 0;margin-bottom:10px;"><tr>${[["Received", receivedDate],["Revised", revisedDate],["Accepted", acceptedDate],["Published", publishedDate]].map(([l,v]) => `<td style="border:1px solid #cbd5e1;border-radius:5px;padding:6px;text-align:center;background:#f8fafc;font-family:Arial,sans-serif;width:25%;"><div style="font-size:8px;color:#64748b;font-weight:bold;letter-spacing:1px;">${l.toUpperCase()}</div><div style="font-size:10px;color:#1e3a8a;font-weight:bold;margin-top:2px;">${v}</div></td>`).join("")}</tr></table>
-      <div style="border-left:3px solid #1e3a8a;background:#f1f5f9;padding:8px 12px;border-radius:0 4px 4px 0;"><div style="font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#1e3a8a;letter-spacing:1px;margin-bottom:3px;">HOW TO CITE THIS ARTICLE</div><p style="font-size:9.5px;line-height:1.5;margin:0;color:#334155;">${esc(citationAuthors)}. ${esc(meta.title)}. <em>World Wide Journal of Multidisciplinary Research and Development</em>, ${yr}; ${vol}(${iss}): <span class="ww-page-range">${pgRange}</span>.</p></div>
+      <div style="border-left:3px solid #1e3a8a;background:#f1f5f9;padding:8px 12px;border-radius:0 4px 4px 0;"><div style="font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#1e3a8a;letter-spacing:1px;margin-bottom:3px;">HOW TO CITE THIS ARTICLE</div><p style="font-size:9.5px;line-height:1.5;margin:0;color:#334155;">${esc(citationAuthors)}. ${esc(meta.title)}. <em>World Wide Journal of Multidisciplinary Research and Development</em>, ${yr}; ${vol}(${iss}): <span class="ww-page-range">${pgRange}</span>.${doiCiteSuffix}</p></div>
     </div>
     <div style="background:#0f172a;color:#fff;text-align:center;padding:12px;margin-top:14px;font-family:Arial,sans-serif;font-size:11px;letter-spacing:2px;font-weight:bold;">www.wwjmrd.com</div>
     </div>
@@ -1355,7 +1356,11 @@ serve(async (req) => {
           volume: ((article as any).volume || "12").toString(),
           issue: ((article as any).issue || _currentMonth).toString(),
           page_range: ((article as any).page_number || meta.header?.page_range || "01-10").toString(),
-          doi: ((article as any).doi_number || "").toString().trim(),
+          // Every article has an auto-assigned DOI, but it is only shown once
+          // the author has paid the DOI fee.
+          doi: (article as any).doi_paid
+            ? ((article as any).doi_number || "").toString().trim()
+            : "",
         };
 
         const body = removeReferenceSection(sliceBodyBlocks(allBlocks, meta), meta);

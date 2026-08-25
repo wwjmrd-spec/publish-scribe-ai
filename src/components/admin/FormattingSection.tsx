@@ -132,6 +132,7 @@ export function FormattingSection({ articleId }: Props) {
       if (!a) throw new Error('Article not loaded');
       const doi = (a.doi_number || '').trim();
       if (!doi) throw new Error('No DOI set on this article. Save a DOI first.');
+      if (!a.doi_paid) throw new Error('The author has not paid the DOI fee for this article, so the DOI cannot be added.');
       const sourceField = a.author_revision_html ? 'author_revision_html' : 'formatted_content';
       const sourceHtml: string | null = a[sourceField];
       if (!sourceHtml) throw new Error('Format the article first');
