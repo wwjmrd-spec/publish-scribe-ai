@@ -196,7 +196,8 @@ serve(async (req) => {
       issue_number: issueValue,
       order_number: String(orderNumber),
       article_order: String(orderNumber),
-      doi: pubForm?.doi || (article as any).doi_number || "",
+      // DOI is only sent when the author paid the DOI fee.
+      doi: pubForm?.doi || ((article as any).doi_paid ? (article as any).doi_number || "" : ""),
       pdf_url: pdfUrl,
       ...(authorProfile?.orcid?.trim()
         ? { orcid: authorProfile.orcid.trim(), author_orcid: authorProfile.orcid.trim() }
