@@ -1356,7 +1356,11 @@ serve(async (req) => {
           volume: ((article as any).volume || "12").toString(),
           issue: ((article as any).issue || _currentMonth).toString(),
           page_range: ((article as any).page_number || meta.header?.page_range || "01-10").toString(),
-          doi: ((article as any).doi_number || "").toString().trim(),
+          // Every article has an auto-assigned DOI, but it is only shown once
+          // the author has paid the DOI fee.
+          doi: (article as any).doi_paid
+            ? ((article as any).doi_number || "").toString().trim()
+            : "",
         };
 
         const body = removeReferenceSection(sliceBodyBlocks(allBlocks, meta), meta);
