@@ -1108,9 +1108,10 @@ function generateEditorHtml(meta: ArticleMetadata, body: Block[], images: Map<st
   const doi = (meta.header.doi || "").trim();
 
   const esc = (s = "") => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-  const doiLine = doi
-    ? `<p class="ww-doi-line" style="font-family:Arial,sans-serif;font-size:9.5px;color:#334155;margin:0 0 8px;"><strong style="color:#1e3a8a;letter-spacing:0.5px;">DOI:</strong> <a href="https://doi.org/${esc(doi)}" style="color:#1e3a8a;text-decoration:none;">https://doi.org/${esc(doi)}</a></p>`
+  const doiHeaderPrefix = doi
+    ? `<span class="ww-doi-line">DOI: ${esc(doi)}</span> | `
     : "";
+  const doiCiteSuffix = doi ? ` <span class="ww-doi-cite">DOI: ${esc(doi)}</span>` : "";
 
   const renderImage = (id: string, caption?: string) => {
     const img = images.get(id);
