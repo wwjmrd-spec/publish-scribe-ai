@@ -1,7 +1,7 @@
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { buildPagedFormattedArticleHtml, type PaginationOptions } from './formattedArticlePagination';
-import { renderA4PagesToPdf } from './htmlToVectorPdf';
+
 
 
 async function waitForImages(root: ParentNode, timeoutMs = 4000) {
@@ -31,11 +31,11 @@ function makeImagesExportSafe(root: ParentNode) {
 }
 
 /**
- * Build a print-quality PDF using real, selectable vector text (no screenshots).
- * The browser lays the A4 pages out exactly as shown in the editor preview, then
- * every box / line / image is painted into the PDF at measured coordinates —
- * giving the same crispness as Word's "Save as PDF".
+ * Build a print-quality PDF that matches the editor's A4 pages exactly:
+ * the browser renders the pages (fonts, colours, bullets, backgrounds, spacing)
+ * and each page is captured at ~380 DPI, so nothing is re-interpreted.
  */
+
 export async function buildFormattedPdfBlob(html: string, options: PaginationOptions = {}): Promise<Blob> {
   const container = document.createElement('div');
   container.style.cssText =
@@ -50,15 +50,9 @@ export async function buildFormattedPdfBlob(html: string, options: PaginationOpt
     const pages = Array.from(container.querySelectorAll('.formatted-a4-page')) as HTMLElement[];
     if (!pages.length) throw new Error('No A4 pages were generated');
 
-    try {
-      const vectorPdf = renderA4PagesToPdf(pages);
-      return vectorPdf.output('blob');
-    } catch (vectorError) {
-      console.error('Vector PDF rendering failed, falling back to raster', vectorError);
-    }
-
-    // Fallback: high-resolution raster capture.
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    // Pixel-exact capture of the editor's own rendering (fonts, colours, bullets,
+    // backgrounds and spacing all identical), at ~380 DPI so print stays crisp.
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
 
@@ -79,10 +73,11 @@ export async function buildFormattedPdfBlob(html: string, options: PaginationOpt
       } as any);
 
       const dataUrl = canvas.toDataURL('image/png');
-      pdf.addImage(dataUrl, 'PNG', 0, 0, pageW, pageH, undefined, 'FAST');
+      pdf.addImage(dataUrl, 'PNG', 0, 0, pageW, pageH, undefined, 'NONE');
     }
 
     return pdf.output('blob');
+
   } finally {
     document.body.removeChild(container);
   }
