@@ -1,6 +1,8 @@
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { buildPagedFormattedArticleHtml, type PaginationOptions } from './formattedArticlePagination';
+import { renderA4PagesToPdf } from './htmlToVectorPdf';
+
 
 async function waitForImages(root: ParentNode, timeoutMs = 4000) {
   const imgs = Array.from(root.querySelectorAll('img')) as HTMLImageElement[];
@@ -29,8 +31,10 @@ function makeImagesExportSafe(root: ParentNode) {
 }
 
 /**
- * Render each A4 page separately. Capturing one very tall canvas can hit
- * browser canvas limits and silently export only the first pages.
+ * Build a print-quality PDF using real, selectable vector text (no screenshots).
+ * The browser lays the A4 pages out exactly as shown in the editor preview, then
+ * every box / line / image is painted into the PDF at measured coordinates —
+ * giving the same crispness as Word's "Save as PDF".
  */
 export async function buildFormattedPdfBlob(html: string, options: PaginationOptions = {}): Promise<Blob> {
   const container = document.createElement('div');
@@ -46,6 +50,14 @@ export async function buildFormattedPdfBlob(html: string, options: PaginationOpt
     const pages = Array.from(container.querySelectorAll('.formatted-a4-page')) as HTMLElement[];
     if (!pages.length) throw new Error('No A4 pages were generated');
 
+    try {
+      const vectorPdf = renderA4PagesToPdf(pages);
+      return vectorPdf.output('blob');
+    } catch (vectorError) {
+      console.error('Vector PDF rendering failed, falling back to raster', vectorError);
+    }
+
+    // Fallback: high-resolution raster capture.
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
@@ -55,7 +67,7 @@ export async function buildFormattedPdfBlob(html: string, options: PaginationOpt
       if (index > 0) pdf.addPage();
 
       const canvas = await html2canvas(page, {
-        scale: 3,
+        scale: 4,
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
@@ -66,7 +78,6 @@ export async function buildFormattedPdfBlob(html: string, options: PaginationOpt
         windowHeight: page.scrollHeight,
       } as any);
 
-      // PNG for lossless, HD-clear text rendering.
       const dataUrl = canvas.toDataURL('image/png');
       pdf.addImage(dataUrl, 'PNG', 0, 0, pageW, pageH, undefined, 'FAST');
     }
@@ -76,6 +87,7 @@ export async function buildFormattedPdfBlob(html: string, options: PaginationOpt
     document.body.removeChild(container);
   }
 }
+
 
 export async function downloadFormattedAsPdf(html: string, fileName: string, options: PaginationOptions = {}) {
   const blob = await buildFormattedPdfBlob(html, options);
