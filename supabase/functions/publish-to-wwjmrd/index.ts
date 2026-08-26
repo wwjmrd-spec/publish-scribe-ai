@@ -62,7 +62,7 @@ serve(async (req) => {
     const { data: article, error: artErr } = await admin
       .from("articles")
       .select(
-        "id, title, author_name, country, subject, abstract, reason_of_research, keywords, publication_year, volume, issue, page_number, published_link, galley_proof_pdf_url, formatted_document_url, status, wwjmrd_article_id, published_to_wwjmrd_at, author_id, doi_number, doi_paid, co_authors(name, orcid)"
+        "published_pdf_url, id, title, author_name, country, subject, abstract, reason_of_research, keywords, publication_year, volume, issue, page_number, published_link, galley_proof_pdf_url, formatted_document_url, status, wwjmrd_article_id, published_to_wwjmrd_at, author_id, doi_number, doi_paid, co_authors(name, orcid)"
       )
       .eq("id", articleId)
       .maybeSingle();
@@ -155,8 +155,10 @@ serve(async (req) => {
       (article as any).galley_proof_pdf_url ||
       (article as any).formatted_document_url ||
       "";
+    const uploadedPdfUrl = String((article as any).published_pdf_url || "");
+    if (uploadedPdfUrl) pdfUrl = uploadedPdfUrl;
     const existingLink = String(article.published_link || "");
-    if (/\.pdf(\?|$)/i.test(existingLink)) pdfUrl = existingLink;
+    if (!pdfUrl && /\.pdf(\?|$)/i.test(existingLink)) pdfUrl = existingLink;
     if (!pdfUrl && pdfPath) {
       const { data: signed, error: signErr } = await admin.storage
         .from("formatted-articles")
