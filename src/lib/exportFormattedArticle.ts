@@ -133,7 +133,9 @@ export async function buildFormattedPdfBlob(html: string, options: PaginationOpt
       } as any);
 
       const dataUrl = canvas.toDataURL('image/png');
-      pdf.addImage(dataUrl, 'PNG', 0, 0, pageW, pageH, undefined, 'NONE');
+      // Lossless PNG with maximum deflate compression: keeps fine text and thin
+      // borders sharp without producing an impractically large upload.
+      pdf.addImage(dataUrl, 'PNG', 0, 0, pageW, pageH, undefined, 'SLOW');
     }
 
     return pdf.output('blob');
