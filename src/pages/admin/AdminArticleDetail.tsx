@@ -32,6 +32,7 @@ import {
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { uploadFormattedPdfToWwjmrd } from '@/lib/uploadFormattedPdf';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import {
   Dialog,
@@ -412,6 +413,15 @@ export default function AdminArticleDetail() {
 
   const publishToWwjmrdMutation = useMutation({
     mutationFn: async (mode?: 'update') => {
+      // Upload the finalised formatted PDF to wwjmrd.com/upload2 first so the
+      // publish payload links the journal-hosted file (not a Cloud storage URL).
+      try {
+        const uploaded = await uploadFormattedPdfToWwjmrd(article!.id);
+        console.log('Uploaded article PDF:', uploaded.url);
+      } catch (uploadErr: any) {
+        console.error('PDF upload failed', uploadErr);
+        toast.warning('PDF upload to wwjmrd.com failed: ' + (uploadErr?.message || 'unknown error'));
+      }
       const { data, error } = await supabase.functions.invoke('publish-to-wwjmrd', {
         body: { articleId: article!.id, ...(mode ? { mode } : {}) },
       });
