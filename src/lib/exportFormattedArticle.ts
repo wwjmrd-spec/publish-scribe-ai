@@ -21,6 +21,12 @@ async function waitForImages(root: ParentNode, timeoutMs = 4000) {
   );
 }
 
+async function waitForFonts() {
+  if ('fonts' in document) {
+    await document.fonts.ready;
+  }
+}
+
 function makeImagesExportSafe(root: ParentNode) {
   const origin = window.location.origin;
   root.querySelectorAll('img').forEach((img) => {
@@ -41,10 +47,33 @@ export async function buildFormattedPdfBlob(html: string, options: PaginationOpt
   container.style.cssText =
     'position:absolute;left:-10000px;top:0;width:210mm;background:#ffffff;z-index:-9999;pointer-events:none;';
   container.innerHTML = await buildPagedFormattedArticleHtml(html, options);
+
+  // The preview stylesheet intentionally scales A4 pages below 900px. Passing
+  // the page width to html2canvas as its virtual viewport used to activate that
+  // mobile rule, capturing a 46%-sized page and stretching it back to A4. That
+  // caused both blur and displaced text/boxes. Export pages must always retain
+  // their physical A4 geometry, regardless of the user's screen size.
+  const exportOverrides = document.createElement('style');
+  exportOverrides.textContent = `
+    .formatted-a4-document { width: 210mm !important; padding: 0 !important; }
+    .formatted-a4-page {
+      width: 210mm !important;
+      min-width: 210mm !important;
+      max-width: 210mm !important;
+      height: 297mm !important;
+      min-height: 297mm !important;
+      max-height: 297mm !important;
+      margin: 0 !important;
+      transform: none !important;
+      transform-origin: top left !important;
+      box-shadow: none !important;
+    }
+  `;
+  container.appendChild(exportOverrides);
   document.body.appendChild(container);
 
   makeImagesExportSafe(container);
-  await waitForImages(container);
+  await Promise.all([waitForImages(container), waitForFonts()]);
 
   try {
     const pages = Array.from(container.querySelectorAll('.formatted-a4-page')) as HTMLElement[];
@@ -60,6 +89,9 @@ export async function buildFormattedPdfBlob(html: string, options: PaginationOpt
       const page = pages[index];
       if (index > 0) pdf.addPage();
 
+      const captureWidth = page.offsetWidth;
+      const captureHeight = page.offsetHeight;
+
       const canvas = await html2canvas(page, {
         scale: 4,
         useCORS: true,
@@ -68,8 +100,36 @@ export async function buildFormattedPdfBlob(html: string, options: PaginationOpt
         logging: false,
         imageTimeout: 0,
         letterRendering: true,
-        windowWidth: page.scrollWidth,
-        windowHeight: page.scrollHeight,
+        width: captureWidth,
+        height: captureHeight,
+        // Keep the cloned document above the responsive-preview breakpoint.
+        // The explicit dimensions above still capture only the A4 page.
+        windowWidth: 1400,
+        windowHeight: 1600,
+        scrollX: 0,
+        scrollY: 0,
+        onclone: (clonedDocument: Document) => {
+          const style = clonedDocument.createElement('style');
+          style.textContent = `
+            *, *::before, *::after {
+              animation: none !important;
+              transition: none !important;
+              caret-color: transparent !important;
+            }
+            .formatted-a4-page {
+              width: 210mm !important;
+              min-width: 210mm !important;
+              max-width: 210mm !important;
+              height: 297mm !important;
+              min-height: 297mm !important;
+              max-height: 297mm !important;
+              margin: 0 !important;
+              transform: none !important;
+              box-shadow: none !important;
+            }
+          `;
+          clonedDocument.head.appendChild(style);
+        },
       } as any);
 
       const dataUrl = canvas.toDataURL('image/png');
