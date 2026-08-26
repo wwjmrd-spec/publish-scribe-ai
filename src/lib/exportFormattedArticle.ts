@@ -31,11 +31,11 @@ function makeImagesExportSafe(root: ParentNode) {
 }
 
 /**
- * Build a print-quality PDF using real, selectable vector text (no screenshots).
- * The browser lays the A4 pages out exactly as shown in the editor preview, then
- * every box / line / image is painted into the PDF at measured coordinates —
- * giving the same crispness as Word's "Save as PDF".
+ * Build a print-quality PDF that matches the editor's A4 pages exactly:
+ * the browser renders the pages (fonts, colours, bullets, backgrounds, spacing)
+ * and each page is captured at ~380 DPI, so nothing is re-interpreted.
  */
+
 export async function buildFormattedPdfBlob(html: string, options: PaginationOptions = {}): Promise<Blob> {
   const container = document.createElement('div');
   container.style.cssText =
