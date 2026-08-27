@@ -426,7 +426,7 @@ serve(async (req) => {
       certificateNumber,
       currentDate,
       stampImageBase64,
-      article.doi_paid && article.doi ? article.doi : null
+      article.doi_paid && article.doi_number ? article.doi_number : null
     );
 
     // Store certificate PDF
