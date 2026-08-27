@@ -23,6 +23,7 @@ type JournalKey = "WWJMRD" | "WWJMER";
 interface JournalConfig {
   fullName: string;
   issn: string;
+  doiPrefix?: string;
   email: string;
   website: string;
   websiteDisplay: string;
@@ -36,6 +37,7 @@ const JOURNAL_CONFIGS: Record<JournalKey, JournalConfig> = {
   WWJMRD: {
     fullName: "World Wide Journal of Multidisciplinary Research and Development",
     issn: "ONLINE-ISSN: 2454-6615",
+    doiPrefix: "10.67967/wwjmrd",
     email: "support@wwjmrd.com",
     website: "www.wwjmrd.com",
     websiteDisplay: "www.wwjmrd.com",
@@ -68,7 +70,8 @@ function generateCertificatePdf(
   coAuthorsStr: string,
   certificateNumber: string,
   currentDate: string,
-  stampImageBase64: string | null
+  stampImageBase64: string | null,
+  articleDoi?: string | null
 ): ArrayBuffer {
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -118,10 +121,13 @@ function generateCertificatePdf(
   }
   y += 10;
 
-  // ISSN (Online only)
+  // ISSN (Online only) + Journal DOI prefix
   doc.setFontSize(9);
   doc.setTextColor(...grayText);
-  doc.text(journal.issn, pageWidth / 2, y, { align: "center" });
+  const issnLine = journal.doiPrefix
+    ? `${journal.issn}    DOI: ${journal.doiPrefix}`
+    : journal.issn;
+  doc.text(issnLine, pageWidth / 2, y, { align: "center" });
   y += 6;
 
   // Separator
@@ -179,6 +185,11 @@ function generateCertificatePdf(
     ["Issue", issue],
     ["Page Number", pageNumber],
   ];
+
+  // Article DOI row — only when the author has paid for a DOI
+  if (articleDoi && String(articleDoi).trim()) {
+    tableData.push(["DOI", String(articleDoi).trim()]);
+  }
 
   const tableWidth = 120;
   const colWidth = tableWidth / 2;
@@ -414,7 +425,8 @@ serve(async (req) => {
       coAuthorsStr,
       certificateNumber,
       currentDate,
-      stampImageBase64
+      stampImageBase64,
+      article.doi_paid && article.doi ? article.doi : null
     );
 
     // Store certificate PDF
