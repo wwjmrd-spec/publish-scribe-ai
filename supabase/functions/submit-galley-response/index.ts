@@ -42,6 +42,15 @@ serve(async (req) => {
     if (articleError || !article) return json({ error: "Article not found" }, 404);
     if (article.author_id !== userData.user.id) return json({ error: "Forbidden" }, 403);
 
+    // Idempotency guard: ignore duplicate submissions (double clicks / retries)
+    const currentGalleyStatus = article.galley_proof_status;
+    if (
+      (body.action === "approve" && currentGalleyStatus === "approved") ||
+      (body.action === "corrections" && currentGalleyStatus === "revision_submitted")
+    ) {
+      return json({ success: true, alreadySubmitted: true });
+    }
+
     const authorProfile = Array.isArray(article.profiles) ? article.profiles[0] : article.profiles;
     const authorName = article.author_name || authorProfile?.full_name || "Author";
     const authorEmail = article.notification_email || authorProfile?.email || userData.user.email;
