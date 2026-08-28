@@ -73,12 +73,11 @@ serve(async (req) => {
 
     // Conditional update on the previously observed status makes concurrent
     // duplicate clicks resolve to a single winning write.
-    const { data: updatedRows, error: updateError } = await admin
-      .from("articles")
-      .update(update)
-      .eq("id", body.articleId)
-      .eq("galley_proof_status", currentGalleyStatus)
-      .select("id");
+    let updateQuery = admin.from("articles").update(update).eq("id", body.articleId);
+    updateQuery = currentGalleyStatus === null || currentGalleyStatus === undefined
+      ? updateQuery.is("galley_proof_status", null)
+      : updateQuery.eq("galley_proof_status", currentGalleyStatus);
+    const { data: updatedRows, error: updateError } = await updateQuery.select("id");
     if (updateError) throw updateError;
     if (!updatedRows || updatedRows.length === 0) {
       return json({ success: true, alreadySubmitted: true });
