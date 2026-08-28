@@ -141,6 +141,8 @@ export function ArticleContentEditor({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [saving, setSaving] = useState(false);
   const [approving, setApproving] = useState(false);
+  const [correctionsSent, setCorrectionsSent] = useState(false);
+  const correctionsSentRef = useRef(false);
   const [sending, setSending] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [previewHtml, setPreviewHtml] = useState<string>('');
@@ -594,6 +596,8 @@ export function ArticleContentEditor({
   }, []);
 
   const handleSendAuthorCorrections = useCallback(async () => {
+    if (correctionsSentRef.current) return;
+    correctionsSentRef.current = true;
     setApproving(true);
     const tid = toast.loading('Sending corrections to admin…');
     try {
@@ -603,10 +607,15 @@ export function ArticleContentEditor({
       });
       if (response.error) throw new Error(response.error.message);
       if ((response.data as any)?.error) throw new Error((response.data as any).error);
-      toast.success('Corrections sent to admin', { id: tid });
+      setCorrectionsSent(true);
+      toast.success(
+        (response.data as any)?.alreadySubmitted ? 'Corrections were already sent' : 'Corrections sent to admin',
+        { id: tid }
+      );
       queryClient.invalidateQueries({ queryKey: ['my-articles'] });
       onClose();
     } catch (err: any) {
+      correctionsSentRef.current = false;
       toast.error('Failed: ' + (err?.message || 'Unknown error'), { id: tid });
     } finally {
       setApproving(false);
@@ -1228,9 +1237,9 @@ export function ArticleContentEditor({
             </>
           )}
           {mode === 'author' && (
-            <Button onClick={handleSendAuthorCorrections} disabled={approving} className="gradient-primary">
+            <Button onClick={handleSendAuthorCorrections} disabled={approving || correctionsSent} className="gradient-primary">
               {approving ? <GlassSpinner size="sm" className="mr-2" /> : <Send className="w-4 h-4 mr-2" />}
-              Send Corrections to Admin
+              {correctionsSent ? 'Corrections Sent' : 'Send Corrections to Admin'}
             </Button>
           )}
         </div>

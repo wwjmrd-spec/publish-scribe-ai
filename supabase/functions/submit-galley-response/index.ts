@@ -42,6 +42,15 @@ serve(async (req) => {
     if (articleError || !article) return json({ error: "Article not found" }, 404);
     if (article.author_id !== userData.user.id) return json({ error: "Forbidden" }, 403);
 
+    // Idempotency guard: ignore duplicate submissions (double clicks / retries)
+    const currentGalleyStatus = article.galley_proof_status;
+    if (
+      (body.action === "approve" && currentGalleyStatus === "approved") ||
+      (body.action === "corrections" && currentGalleyStatus === "revision_submitted")
+    ) {
+      return json({ success: true, alreadySubmitted: true });
+    }
+
     const authorProfile = Array.isArray(article.profiles) ? article.profiles[0] : article.profiles;
     const authorName = article.author_name || authorProfile?.full_name || "Author";
     const authorEmail = article.notification_email || authorProfile?.email || userData.user.email;
@@ -62,8 +71,17 @@ serve(async (req) => {
           status: "galley_proof_revised",
         };
 
-    const { error: updateError } = await admin.from("articles").update(update).eq("id", body.articleId);
+    // Conditional update on the previously observed status makes concurrent
+    // duplicate clicks resolve to a single winning write.
+    let updateQuery = admin.from("articles").update(update).eq("id", body.articleId);
+    updateQuery = currentGalleyStatus === null || currentGalleyStatus === undefined
+      ? updateQuery.is("galley_proof_status", null)
+      : updateQuery.eq("galley_proof_status", currentGalleyStatus);
+    const { data: updatedRows, error: updateError } = await updateQuery.select("id");
     if (updateError) throw updateError;
+    if (!updatedRows || updatedRows.length === 0) {
+      return json({ success: true, alreadySubmitted: true });
+    }
 
     const { data: admins } = await admin.from("user_roles").select("user_id").eq("role", "admin");
     const adminNotifications = (admins || []).map((adminRow: { user_id: string }) => ({
