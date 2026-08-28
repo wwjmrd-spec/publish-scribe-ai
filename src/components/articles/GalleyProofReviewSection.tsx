@@ -132,6 +132,7 @@ export function GalleyProofReviewSection({ article }: GalleyProofReviewSectionPr
   };
 
   const handleApprove = async () => {
+    if (approving || submitted) return;
     setApproving(true);
     try {
       const response = await supabase.functions.invoke('submit-galley-response', {
@@ -140,8 +141,14 @@ export function GalleyProofReviewSection({ article }: GalleyProofReviewSectionPr
       if (response.error) throw new Error(response.error.message);
       if ((response.data as any)?.error) throw new Error((response.data as any).error);
 
-      toast.success('Galley proof approved and sent for final processing!');
+      setSubmitted(true);
+      toast.success(
+        (response.data as any)?.alreadySubmitted
+          ? 'Galley proof was already approved'
+          : 'Galley proof approved and sent for final processing!'
+      );
       queryClient.invalidateQueries({ queryKey: ['my-articles'] });
+      queryClient.invalidateQueries({ queryKey: ['article', article.id] });
     } catch (err: any) {
       toast.error('Failed to approve: ' + (err.message || 'Unknown error'));
     } finally {
