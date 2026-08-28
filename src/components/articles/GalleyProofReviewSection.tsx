@@ -240,13 +240,19 @@ export function GalleyProofReviewSection({ article }: GalleyProofReviewSectionPr
           </div>
         )}
 
-        {galleyStatus === 'sent' && (
+        {galleyStatus === 'sent' && !submitted && (
           <div className="p-3 rounded-lg bg-muted/30 text-sm space-y-1">
             <p className="font-medium mb-2">How to respond:</p>
             <p>• Open the article in the editor and use the <span className="text-red-400 font-semibold">RED text colour</span> to highlight every change you need</p>
             <p>• When done, click <em>Send Corrections to Admin</em></p>
             <p>• Or, if everything looks perfect, click <em>Approve Galley Proof</em> below</p>
-            
+          </div>
+        )}
+
+        {submitted && (
+          <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-sm text-emerald-400 flex items-center gap-2">
+            <CheckCircle className="w-4 h-4" />
+            Your response has been submitted. The admin has been notified — no further action is needed.
           </div>
         )}
 
@@ -255,7 +261,7 @@ export function GalleyProofReviewSection({ article }: GalleyProofReviewSectionPr
             PDF File
           </DownloadButton>
 
-          {(galleyStatus === 'sent' || galleyStatus === 'revision_submitted') && (
+          {(galleyStatus === 'sent' || galleyStatus === 'revision_submitted') && !submitted && (
             <Button variant="outline" size="sm" onClick={openEditor} className="text-primary">
               <Edit3 className="w-4 h-4 mr-1" />
               {galleyStatus === 'revision_submitted' ? 'Re-open Editor' : 'Open Article Editor'}
@@ -263,7 +269,7 @@ export function GalleyProofReviewSection({ article }: GalleyProofReviewSectionPr
           )}
         </div>
 
-        {galleyStatus === 'sent' && (
+        {galleyStatus === 'sent' && !submitted && (
           <Button className="w-full gradient-primary" onClick={handleApprove} disabled={approving}>
             {approving ? <GlassSpinner size="sm" /> : <><CheckCircle className="w-4 h-4 mr-2" />Approve Galley Proof</>}
           </Button>
