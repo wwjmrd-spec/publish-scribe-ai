@@ -1237,9 +1237,9 @@ export function ArticleContentEditor({
             </>
           )}
           {mode === 'author' && (
-            <Button onClick={handleSendAuthorCorrections} disabled={approving} className="gradient-primary">
+            <Button onClick={handleSendAuthorCorrections} disabled={approving || correctionsSent} className="gradient-primary">
               {approving ? <GlassSpinner size="sm" className="mr-2" /> : <Send className="w-4 h-4 mr-2" />}
-              Send Corrections to Admin
+              {correctionsSent ? 'Corrections Sent' : 'Send Corrections to Admin'}
             </Button>
           )}
         </div>
