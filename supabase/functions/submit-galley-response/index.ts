@@ -71,8 +71,18 @@ serve(async (req) => {
           status: "galley_proof_revised",
         };
 
-    const { error: updateError } = await admin.from("articles").update(update).eq("id", body.articleId);
+    // Conditional update on the previously observed status makes concurrent
+    // duplicate clicks resolve to a single winning write.
+    const { data: updatedRows, error: updateError } = await admin
+      .from("articles")
+      .update(update)
+      .eq("id", body.articleId)
+      .eq("galley_proof_status", currentGalleyStatus)
+      .select("id");
     if (updateError) throw updateError;
+    if (!updatedRows || updatedRows.length === 0) {
+      return json({ success: true, alreadySubmitted: true });
+    }
 
     const { data: admins } = await admin.from("user_roles").select("user_id").eq("role", "admin");
     const adminNotifications = (admins || []).map((adminRow: { user_id: string }) => ({
