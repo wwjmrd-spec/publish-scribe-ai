@@ -594,6 +594,8 @@ export function ArticleContentEditor({
   }, []);
 
   const handleSendAuthorCorrections = useCallback(async () => {
+    if (correctionsSentRef.current) return;
+    correctionsSentRef.current = true;
     setApproving(true);
     const tid = toast.loading('Sending corrections to admin…');
     try {
@@ -603,10 +605,15 @@ export function ArticleContentEditor({
       });
       if (response.error) throw new Error(response.error.message);
       if ((response.data as any)?.error) throw new Error((response.data as any).error);
-      toast.success('Corrections sent to admin', { id: tid });
+      setCorrectionsSent(true);
+      toast.success(
+        (response.data as any)?.alreadySubmitted ? 'Corrections were already sent' : 'Corrections sent to admin',
+        { id: tid }
+      );
       queryClient.invalidateQueries({ queryKey: ['my-articles'] });
       onClose();
     } catch (err: any) {
+      correctionsSentRef.current = false;
       toast.error('Failed: ' + (err?.message || 'Unknown error'), { id: tid });
     } finally {
       setApproving(false);
