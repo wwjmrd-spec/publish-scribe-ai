@@ -30,6 +30,7 @@ export function GalleyProofReviewSection({ article }: GalleyProofReviewSectionPr
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [approving, setApproving] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
   const [editorContent, setEditorContent] = useState<string | null>(null);
   const [editorLoading, setEditorLoading] = useState(false);
