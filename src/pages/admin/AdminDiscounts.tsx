@@ -349,9 +349,13 @@ export default function AdminDiscounts() {
                         checked={discount.is_active || false}
                         onCheckedChange={(checked) => toggleActiveMutation.mutate({ id: discount.id, is_active: checked })}
                       />
+                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => openEditDialog(discount)}>
+                        <Pencil className="w-3.5 h-3.5" />
+                      </Button>
                       <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive h-7 w-7 p-0" onClick={() => deleteMutation.mutate(discount.id)}>
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
+
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-1.5 text-xs">
