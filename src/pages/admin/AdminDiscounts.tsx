@@ -818,9 +818,10 @@ export default function AdminDiscounts() {
               Cancel
             </Button>
             <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>
-              Create Code
+              {editingId ? 'Save Changes' : 'Create Code'}
             </Button>
           </DialogFooter>
+
         </DialogContent>
       </Dialog>
     </DashboardLayout>
