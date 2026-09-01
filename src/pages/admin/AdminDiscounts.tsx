@@ -359,7 +359,7 @@ export default function AdminDiscounts() {
                     </span>
                     <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{discount.currency}</span>
                     <span className="px-2 py-0.5 rounded-full bg-accent/20 text-accent-foreground">
-                      {APPLIES_TO_LABELS[(discount.applies_to as AppliesTo) || 'both']}
+                      {appliesToLabel(discount.applies_to)}
                     </span>
                     <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
                       {POSITION_LABELS[(discount.article_position_limit as PositionLimit) || 'any']}
@@ -369,12 +369,18 @@ export default function AdminDiscounts() {
                         {discount.specific_article_ids.length} specific article{discount.specific_article_ids.length > 1 ? 's' : ''}
                       </span>
                     ) : null}
+                    {(discount as any).min_cart_value ? (
+                      <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                        Min cart: {(discount as any).min_cart_value}
+                      </span>
+                    ) : null}
                     <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
                       Used: {discount.used_count || 0}/{discount.usage_limit ?? '∞'}
                     </span>
                     <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
                       Max/user: {discount.max_uses_per_user ?? '∞'}
                     </span>
+
                   </div>
                   <div className="flex items-center justify-between text-xs">
                     <Label className="text-xs text-muted-foreground">Show in author cart</Label>
