@@ -355,6 +355,19 @@ export default function Cart() {
         return;
       }
 
+      const minCart = Number(data.min_cart_value ?? 0);
+      if (minCart > 0 && subtotal < minCart) {
+        toast({
+          title: 'Minimum cart value not met',
+          description: `This code requires a cart subtotal of at least ${currencySymbol}${minCart}`,
+          variant: 'destructive',
+        });
+        setAppliedDiscount(null);
+        return;
+      }
+
+
+
       setAppliedDiscount({
         code: data.code,
         value: Number(data.discount_value),
