@@ -89,6 +89,7 @@ export default function AdminDiscounts() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     code: '',
     discount_type: 'percentage' as DiscountType,
@@ -103,7 +104,9 @@ export default function AdminDiscounts() {
     article_position_limit: 'any' as PositionLimit,
     specific_article_ids: [] as string[],
     max_uses_per_user: '',
+    min_cart_value: '',
   });
+
 
   const { data: discounts, isLoading } = useQuery({
     queryKey: ['admin-discounts'],
