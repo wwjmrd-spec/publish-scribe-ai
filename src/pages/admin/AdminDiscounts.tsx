@@ -511,12 +511,21 @@ export default function AdminDiscounts() {
         )}
       </GlassCard>
 
-      {/* Create Dialog */}
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+      {/* Create / Edit Dialog */}
+      <Dialog
+        open={isCreateDialogOpen}
+        onOpenChange={(open) => {
+          setIsCreateDialogOpen(open);
+          if (!open) resetForm();
+        }}
+      >
         <DialogContent className="glass-card-strong max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="gradient-text">Create Discount Code</DialogTitle>
+            <DialogTitle className="gradient-text">
+              {editingId ? 'Edit Discount Code' : 'Create Discount Code'}
+            </DialogTitle>
           </DialogHeader>
+
 
           <div className="space-y-4">
             <div>
