@@ -39,22 +39,51 @@ import type { Database } from '@/integrations/supabase/types';
 
 type DiscountType = Database['public']['Enums']['discount_type'];
 type DiscountCurrency = Database['public']['Enums']['discount_currency'];
-type AppliesTo = 'article_fee' | 'pro_plan' | 'review_report' | 'both' | 'all';
-type PositionLimit = 'first' | 'first_two' | 'any';
+type AppliesPart = 'article_fee' | 'pro_plan' | 'review_report' | 'doi';
+type AppliesTo = string;
+type PositionLimit = 'first' | 'second' | 'first_two' | 'any';
 
-const APPLIES_TO_LABELS: Record<AppliesTo, string> = {
+const PART_LABELS: Record<AppliesPart, string> = {
   article_fee: 'Article fees',
   pro_plan: 'Pro plan',
   review_report: 'Review report',
-  both: 'Article + Pro plan',
-  all: 'All (Article + Pro + Review report)',
+  doi: 'DOI',
 };
+
+const ALL_PARTS: AppliesPart[] = ['article_fee', 'pro_plan', 'review_report', 'doi'];
+
+/** Decode the stored applies_to value into its individual parts. */
+function parseAppliesTo(value?: string | null): AppliesPart[] {
+  const v = (value || 'both').trim();
+  if (v === 'all') return [...ALL_PARTS];
+  if (v === 'both') return ['article_fee', 'pro_plan'];
+  return v
+    .split(',')
+    .map((p) => p.trim())
+    .filter((p): p is AppliesPart => (ALL_PARTS as string[]).includes(p));
+}
+
+/** Encode selected parts back into a stored applies_to value. */
+function serializeAppliesTo(parts: AppliesPart[]): string {
+  if (parts.length === 0) return 'article_fee';
+  if (parts.length === ALL_PARTS.length) return 'all';
+  if (parts.length === 2 && parts.includes('article_fee') && parts.includes('pro_plan')) return 'both';
+  return ALL_PARTS.filter((p) => parts.includes(p)).join(',');
+}
+
+function appliesToLabel(value?: string | null): string {
+  const parts = parseAppliesTo(value);
+  if (parts.length === ALL_PARTS.length) return 'All (Article + Pro + Review report + DOI)';
+  return parts.map((p) => PART_LABELS[p]).join(' + ') || '—';
+}
 
 const POSITION_LABELS: Record<PositionLimit, string> = {
   first: '1st article only',
+  second: '2nd article only',
   first_two: '1st & 2nd articles',
   any: 'Any article',
 };
+
 
 export default function AdminDiscounts() {
   const { user } = useAuth();
