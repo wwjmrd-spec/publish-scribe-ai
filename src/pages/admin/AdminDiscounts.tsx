@@ -8,6 +8,7 @@ import {
   Tag,
   Plus,
   Trash2,
+  Pencil,
   Calendar,
   Percent,
   DollarSign,
