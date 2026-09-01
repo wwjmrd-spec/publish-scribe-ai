@@ -209,7 +209,7 @@ export default function Cart() {
         description: `${promo.discount_type === 'percentage' ? promo.discount_value + '%' : promo.discount_value} off — code ${promo.code}`,
       });
     })();
-  }, [user?.id, subtotal]);
+  }, [user?.id]);
 
 
   // Handle PayPal return
