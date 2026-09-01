@@ -587,46 +587,31 @@ export default function AdminDiscounts() {
 
             <div>
               <Label className="mb-2 block">Applies To</Label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3 rounded-lg border border-border/60">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 p-3 rounded-lg border border-border/60">
                 {(() => {
-                  const parts = new Set(
-                    formData.applies_to === 'all'
-                      ? ['article_fee', 'pro_plan', 'review_report']
-                      : formData.applies_to === 'both'
-                        ? ['article_fee', 'pro_plan']
-                        : [formData.applies_to],
-                  );
-                  const toggle = (key: 'article_fee' | 'pro_plan' | 'review_report') => {
-                    const next = new Set(parts);
-                    if (next.has(key)) next.delete(key); else next.add(key);
-                    let value: AppliesTo = 'article_fee';
-                    if (next.size === 3) value = 'all';
-                    else if (next.size === 2 && next.has('article_fee') && next.has('pro_plan')) value = 'both';
-                    else if (next.size === 1) value = [...next][0] as AppliesTo;
-                    else if (next.size === 0) value = 'article_fee';
-                    else value = 'all';
-                    setFormData({ ...formData, applies_to: value });
+                  const parts = parseAppliesTo(formData.applies_to);
+                  const toggle = (key: AppliesPart) => {
+                    const next = parts.includes(key)
+                      ? parts.filter((p) => p !== key)
+                      : [...parts, key];
+                    setFormData({ ...formData, applies_to: serializeAppliesTo(next) });
                   };
-                  const setAll = (checked: boolean) => {
-                    setFormData({ ...formData, applies_to: checked ? 'all' : 'article_fee' });
-                  };
-                  const allChecked = formData.applies_to === 'all';
+                  const allChecked = parts.length === ALL_PARTS.length;
                   return (
                     <>
+                      {ALL_PARTS.map((part) => (
+                        <label key={part} className="flex items-center gap-2 text-sm cursor-pointer">
+                          <Checkbox checked={parts.includes(part)} onCheckedChange={() => toggle(part)} />
+                          {PART_LABELS[part]}
+                        </label>
+                      ))}
                       <label className="flex items-center gap-2 text-sm cursor-pointer">
-                        <Checkbox checked={parts.has('article_fee')} onCheckedChange={() => toggle('article_fee')} />
-                        Article fees
-                      </label>
-                      <label className="flex items-center gap-2 text-sm cursor-pointer">
-                        <Checkbox checked={parts.has('pro_plan')} onCheckedChange={() => toggle('pro_plan')} />
-                        Pro plan
-                      </label>
-                      <label className="flex items-center gap-2 text-sm cursor-pointer">
-                        <Checkbox checked={parts.has('review_report')} onCheckedChange={() => toggle('review_report')} />
-                        Review report
-                      </label>
-                      <label className="flex items-center gap-2 text-sm cursor-pointer">
-                        <Checkbox checked={allChecked} onCheckedChange={(c) => setAll(!!c)} />
+                        <Checkbox
+                          checked={allChecked}
+                          onCheckedChange={(c) =>
+                            setFormData({ ...formData, applies_to: c ? 'all' : 'article_fee' })
+                          }
+                        />
                         All
                       </label>
                     </>
@@ -635,20 +620,42 @@ export default function AdminDiscounts() {
               </div>
             </div>
 
-            <div>
-              <Label>Article Position Limit</Label>
-              <Select
-                value={formData.article_position_limit}
-                onValueChange={(v) => setFormData({ ...formData, article_position_limit: v as PositionLimit })}
-                disabled={formData.applies_to === 'pro_plan' || formData.applies_to === 'review_report'}
-              >
-                <SelectTrigger className="glass-input">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="any">Any article</SelectItem>
-                  <SelectItem value="first">1st article only</SelectItem>
-                  <SelectItem value="first_two">1st & 2nd articles</SelectItem>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label>Article Position Limit</Label>
+                <Select
+                  value={formData.article_position_limit}
+                  onValueChange={(v) => setFormData({ ...formData, article_position_limit: v as PositionLimit })}
+                  disabled={!parseAppliesTo(formData.applies_to).includes('article_fee')}
+                >
+                  <SelectTrigger className="glass-input">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="any">Any article</SelectItem>
+                    <SelectItem value="first">1st article only</SelectItem>
+                    <SelectItem value="second">2nd article only</SelectItem>
+                    <SelectItem value="first_two">1st &amp; 2nd articles</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Minimum Cart Value (optional)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="No minimum"
+                  value={formData.min_cart_value}
+                  onChange={(e) => setFormData({ ...formData, min_cart_value: e.target.value })}
+                  className="glass-input"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Code applies only when the cart subtotal reaches this amount.
+                </p>
+              </div>
+            </div>
+
                 </SelectContent>
               </Select>
             </div>
