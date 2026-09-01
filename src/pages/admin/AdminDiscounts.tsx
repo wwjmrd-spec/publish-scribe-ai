@@ -246,6 +246,7 @@ export default function AdminDiscounts() {
   });
 
   const resetForm = () => {
+    setEditingId(null);
     setFormData({
       code: '',
       discount_type: 'percentage',
@@ -260,8 +261,31 @@ export default function AdminDiscounts() {
       article_position_limit: 'any',
       specific_article_ids: [],
       max_uses_per_user: '',
+      min_cart_value: '',
     });
   };
+
+  const openEditDialog = (d: any) => {
+    setEditingId(d.id);
+    setFormData({
+      code: d.code || '',
+      discount_type: d.discount_type,
+      discount_value: String(d.discount_value ?? ''),
+      currency: d.currency,
+      start_date: d.start_date ? new Date(d.start_date).toISOString().slice(0, 10) : '',
+      end_date: d.end_date ? new Date(d.end_date).toISOString().slice(0, 10) : '',
+      usage_limit: d.usage_limit != null ? String(d.usage_limit) : '',
+      is_active: !!d.is_active,
+      show_in_cart: !!d.show_in_cart,
+      applies_to: d.applies_to || 'both',
+      article_position_limit: (d.article_position_limit || 'any') as PositionLimit,
+      specific_article_ids: d.specific_article_ids || [],
+      max_uses_per_user: d.max_uses_per_user != null ? String(d.max_uses_per_user) : '',
+      min_cart_value: d.min_cart_value != null ? String(d.min_cart_value) : '',
+    });
+    setIsCreateDialogOpen(true);
+  };
+
 
   const toggleArticleId = (id: string) => {
     setFormData((prev) => ({
