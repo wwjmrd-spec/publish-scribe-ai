@@ -137,7 +137,7 @@ export default function AdminDiscounts() {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from('discount_codes').insert({
+      const payload: any = {
         code: formData.code.toUpperCase(),
         discount_type: formData.discount_type,
         discount_value: parseFloat(formData.discount_value),
@@ -147,7 +147,6 @@ export default function AdminDiscounts() {
         usage_limit: formData.usage_limit ? parseInt(formData.usage_limit) : null,
         is_active: formData.is_active,
         show_in_cart: formData.show_in_cart,
-        created_by: user?.id,
         applies_to: formData.applies_to,
         article_position_limit: formData.article_position_limit,
         specific_article_ids:
@@ -157,10 +156,23 @@ export default function AdminDiscounts() {
         max_uses_per_user: formData.max_uses_per_user
           ? parseInt(formData.max_uses_per_user)
           : null,
-      } as any);
+        min_cart_value: formData.min_cart_value
+          ? parseFloat(formData.min_cart_value)
+          : null,
+      };
 
+      if (editingId) {
+        const { error } = await supabase.from('discount_codes').update(payload).eq('id', editingId);
+        if (error) throw error;
+        return;
+      }
+
+      const { error } = await supabase
+        .from('discount_codes')
+        .insert({ ...payload, created_by: user?.id });
       if (error) throw error;
     },
+
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['admin-discounts'] });
       await queryClient.refetchQueries({ queryKey: ['admin-discounts'] });
