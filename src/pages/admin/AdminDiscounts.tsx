@@ -8,6 +8,7 @@ import {
   Tag,
   Plus,
   Trash2,
+  Pencil,
   Calendar,
   Percent,
   DollarSign,
@@ -39,27 +40,57 @@ import type { Database } from '@/integrations/supabase/types';
 
 type DiscountType = Database['public']['Enums']['discount_type'];
 type DiscountCurrency = Database['public']['Enums']['discount_currency'];
-type AppliesTo = 'article_fee' | 'pro_plan' | 'review_report' | 'both' | 'all';
-type PositionLimit = 'first' | 'first_two' | 'any';
+type AppliesPart = 'article_fee' | 'pro_plan' | 'review_report' | 'doi';
+type AppliesTo = string;
+type PositionLimit = 'first' | 'second' | 'first_two' | 'any';
 
-const APPLIES_TO_LABELS: Record<AppliesTo, string> = {
+const PART_LABELS: Record<AppliesPart, string> = {
   article_fee: 'Article fees',
   pro_plan: 'Pro plan',
   review_report: 'Review report',
-  both: 'Article + Pro plan',
-  all: 'All (Article + Pro + Review report)',
+  doi: 'DOI',
 };
+
+const ALL_PARTS: AppliesPart[] = ['article_fee', 'pro_plan', 'review_report', 'doi'];
+
+/** Decode the stored applies_to value into its individual parts. */
+function parseAppliesTo(value?: string | null): AppliesPart[] {
+  const v = (value || 'both').trim();
+  if (v === 'all') return [...ALL_PARTS];
+  if (v === 'both') return ['article_fee', 'pro_plan'];
+  return v
+    .split(',')
+    .map((p) => p.trim())
+    .filter((p): p is AppliesPart => (ALL_PARTS as string[]).includes(p));
+}
+
+/** Encode selected parts back into a stored applies_to value. */
+function serializeAppliesTo(parts: AppliesPart[]): string {
+  if (parts.length === 0) return 'article_fee';
+  if (parts.length === ALL_PARTS.length) return 'all';
+  if (parts.length === 2 && parts.includes('article_fee') && parts.includes('pro_plan')) return 'both';
+  return ALL_PARTS.filter((p) => parts.includes(p)).join(',');
+}
+
+function appliesToLabel(value?: string | null): string {
+  const parts = parseAppliesTo(value);
+  if (parts.length === ALL_PARTS.length) return 'All (Article + Pro + Review report + DOI)';
+  return parts.map((p) => PART_LABELS[p]).join(' + ') || '—';
+}
 
 const POSITION_LABELS: Record<PositionLimit, string> = {
   first: '1st article only',
+  second: '2nd article only',
   first_two: '1st & 2nd articles',
   any: 'Any article',
 };
+
 
 export default function AdminDiscounts() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     code: '',
     discount_type: 'percentage' as DiscountType,
@@ -74,7 +105,9 @@ export default function AdminDiscounts() {
     article_position_limit: 'any' as PositionLimit,
     specific_article_ids: [] as string[],
     max_uses_per_user: '',
+    min_cart_value: '',
   });
+
 
   const { data: discounts, isLoading } = useQuery({
     queryKey: ['admin-discounts'],
@@ -105,7 +138,7 @@ export default function AdminDiscounts() {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from('discount_codes').insert({
+      const payload: any = {
         code: formData.code.toUpperCase(),
         discount_type: formData.discount_type,
         discount_value: parseFloat(formData.discount_value),
@@ -115,7 +148,6 @@ export default function AdminDiscounts() {
         usage_limit: formData.usage_limit ? parseInt(formData.usage_limit) : null,
         is_active: formData.is_active,
         show_in_cart: formData.show_in_cart,
-        created_by: user?.id,
         applies_to: formData.applies_to,
         article_position_limit: formData.article_position_limit,
         specific_article_ids:
@@ -125,10 +157,23 @@ export default function AdminDiscounts() {
         max_uses_per_user: formData.max_uses_per_user
           ? parseInt(formData.max_uses_per_user)
           : null,
-      } as any);
+        min_cart_value: formData.min_cart_value
+          ? parseFloat(formData.min_cart_value)
+          : null,
+      };
 
+      if (editingId) {
+        const { error } = await supabase.from('discount_codes').update(payload).eq('id', editingId);
+        if (error) throw error;
+        return;
+      }
+
+      const { error } = await supabase
+        .from('discount_codes')
+        .insert({ ...payload, created_by: user?.id });
       if (error) throw error;
     },
+
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['admin-discounts'] });
       await queryClient.refetchQueries({ queryKey: ['admin-discounts'] });
@@ -202,6 +247,7 @@ export default function AdminDiscounts() {
   });
 
   const resetForm = () => {
+    setEditingId(null);
     setFormData({
       code: '',
       discount_type: 'percentage',
@@ -216,8 +262,31 @@ export default function AdminDiscounts() {
       article_position_limit: 'any',
       specific_article_ids: [],
       max_uses_per_user: '',
+      min_cart_value: '',
     });
   };
+
+  const openEditDialog = (d: any) => {
+    setEditingId(d.id);
+    setFormData({
+      code: d.code || '',
+      discount_type: d.discount_type,
+      discount_value: String(d.discount_value ?? ''),
+      currency: d.currency,
+      start_date: d.start_date ? new Date(d.start_date).toISOString().slice(0, 10) : '',
+      end_date: d.end_date ? new Date(d.end_date).toISOString().slice(0, 10) : '',
+      usage_limit: d.usage_limit != null ? String(d.usage_limit) : '',
+      is_active: !!d.is_active,
+      show_in_cart: !!d.show_in_cart,
+      applies_to: d.applies_to || 'both',
+      article_position_limit: (d.article_position_limit || 'any') as PositionLimit,
+      specific_article_ids: d.specific_article_ids || [],
+      max_uses_per_user: d.max_uses_per_user != null ? String(d.max_uses_per_user) : '',
+      min_cart_value: d.min_cart_value != null ? String(d.min_cart_value) : '',
+    });
+    setIsCreateDialogOpen(true);
+  };
+
 
   const toggleArticleId = (id: string) => {
     setFormData((prev) => ({
@@ -249,7 +318,7 @@ export default function AdminDiscounts() {
           <h1 className="font-display text-2xl sm:text-3xl font-bold mb-2">Discount Codes</h1>
           <p className="text-muted-foreground text-sm sm:text-base">Create and manage promotional codes</p>
         </div>
-        <Button onClick={() => setIsCreateDialogOpen(true)} className="gap-2 w-full sm:w-auto">
+        <Button onClick={() => { resetForm(); setIsCreateDialogOpen(true); }} className="gap-2 w-full sm:w-auto">
           <Plus className="w-4 h-4" />
           Create Code
         </Button>
@@ -280,9 +349,13 @@ export default function AdminDiscounts() {
                         checked={discount.is_active || false}
                         onCheckedChange={(checked) => toggleActiveMutation.mutate({ id: discount.id, is_active: checked })}
                       />
+                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => openEditDialog(discount)}>
+                        <Pencil className="w-3.5 h-3.5" />
+                      </Button>
                       <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive h-7 w-7 p-0" onClick={() => deleteMutation.mutate(discount.id)}>
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
+
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-1.5 text-xs">
@@ -291,7 +364,7 @@ export default function AdminDiscounts() {
                     </span>
                     <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{discount.currency}</span>
                     <span className="px-2 py-0.5 rounded-full bg-accent/20 text-accent-foreground">
-                      {APPLIES_TO_LABELS[(discount.applies_to as AppliesTo) || 'both']}
+                      {appliesToLabel(discount.applies_to)}
                     </span>
                     <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
                       {POSITION_LABELS[(discount.article_position_limit as PositionLimit) || 'any']}
@@ -301,12 +374,18 @@ export default function AdminDiscounts() {
                         {discount.specific_article_ids.length} specific article{discount.specific_article_ids.length > 1 ? 's' : ''}
                       </span>
                     ) : null}
+                    {(discount as any).min_cart_value ? (
+                      <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                        Min cart: {(discount as any).min_cart_value}
+                      </span>
+                    ) : null}
                     <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
                       Used: {discount.used_count || 0}/{discount.usage_limit ?? '∞'}
                     </span>
                     <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
                       Max/user: {discount.max_uses_per_user ?? '∞'}
                     </span>
+
                   </div>
                   <div className="flex items-center justify-between text-xs">
                     <Label className="text-xs text-muted-foreground">Show in author cart</Label>
@@ -358,9 +437,15 @@ export default function AdminDiscounts() {
                         <td className="py-3 px-4 text-sm">{discount.currency}</td>
                         <td className="py-3 px-4 text-sm">
                           <span className="px-2 py-0.5 rounded-full bg-accent/20 text-xs">
-                            {APPLIES_TO_LABELS[appliesTo]}
+                            {appliesToLabel(appliesTo)}
                           </span>
+                          {(discount as any).min_cart_value ? (
+                            <div className="text-xs text-muted-foreground mt-1">
+                              Min cart: {(discount as any).min_cart_value}
+                            </div>
+                          ) : null}
                         </td>
+
                         <td className="py-3 px-4 text-sm">
                           <div className="flex flex-col gap-0.5">
                             {appliesTo !== 'pro_plan' && (
@@ -406,10 +491,16 @@ export default function AdminDiscounts() {
                           </div>
                         </td>
                         <td className="py-3 px-4">
-                          <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => deleteMutation.mutate(discount.id)}>
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <Button size="sm" variant="ghost" onClick={() => openEditDialog(discount)}>
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                            <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => deleteMutation.mutate(discount.id)}>
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </td>
+
                       </tr>
                     );
                   })}
@@ -420,12 +511,21 @@ export default function AdminDiscounts() {
         )}
       </GlassCard>
 
-      {/* Create Dialog */}
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+      {/* Create / Edit Dialog */}
+      <Dialog
+        open={isCreateDialogOpen}
+        onOpenChange={(open) => {
+          setIsCreateDialogOpen(open);
+          if (!open) resetForm();
+        }}
+      >
         <DialogContent className="glass-card-strong max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="gradient-text">Create Discount Code</DialogTitle>
+            <DialogTitle className="gradient-text">
+              {editingId ? 'Edit Discount Code' : 'Create Discount Code'}
+            </DialogTitle>
           </DialogHeader>
+
 
           <div className="space-y-4">
             <div>
@@ -496,46 +596,31 @@ export default function AdminDiscounts() {
 
             <div>
               <Label className="mb-2 block">Applies To</Label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3 rounded-lg border border-border/60">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 p-3 rounded-lg border border-border/60">
                 {(() => {
-                  const parts = new Set(
-                    formData.applies_to === 'all'
-                      ? ['article_fee', 'pro_plan', 'review_report']
-                      : formData.applies_to === 'both'
-                        ? ['article_fee', 'pro_plan']
-                        : [formData.applies_to],
-                  );
-                  const toggle = (key: 'article_fee' | 'pro_plan' | 'review_report') => {
-                    const next = new Set(parts);
-                    if (next.has(key)) next.delete(key); else next.add(key);
-                    let value: AppliesTo = 'article_fee';
-                    if (next.size === 3) value = 'all';
-                    else if (next.size === 2 && next.has('article_fee') && next.has('pro_plan')) value = 'both';
-                    else if (next.size === 1) value = [...next][0] as AppliesTo;
-                    else if (next.size === 0) value = 'article_fee';
-                    else value = 'all';
-                    setFormData({ ...formData, applies_to: value });
+                  const parts = parseAppliesTo(formData.applies_to);
+                  const toggle = (key: AppliesPart) => {
+                    const next = parts.includes(key)
+                      ? parts.filter((p) => p !== key)
+                      : [...parts, key];
+                    setFormData({ ...formData, applies_to: serializeAppliesTo(next) });
                   };
-                  const setAll = (checked: boolean) => {
-                    setFormData({ ...formData, applies_to: checked ? 'all' : 'article_fee' });
-                  };
-                  const allChecked = formData.applies_to === 'all';
+                  const allChecked = parts.length === ALL_PARTS.length;
                   return (
                     <>
+                      {ALL_PARTS.map((part) => (
+                        <label key={part} className="flex items-center gap-2 text-sm cursor-pointer">
+                          <Checkbox checked={parts.includes(part)} onCheckedChange={() => toggle(part)} />
+                          {PART_LABELS[part]}
+                        </label>
+                      ))}
                       <label className="flex items-center gap-2 text-sm cursor-pointer">
-                        <Checkbox checked={parts.has('article_fee')} onCheckedChange={() => toggle('article_fee')} />
-                        Article fees
-                      </label>
-                      <label className="flex items-center gap-2 text-sm cursor-pointer">
-                        <Checkbox checked={parts.has('pro_plan')} onCheckedChange={() => toggle('pro_plan')} />
-                        Pro plan
-                      </label>
-                      <label className="flex items-center gap-2 text-sm cursor-pointer">
-                        <Checkbox checked={parts.has('review_report')} onCheckedChange={() => toggle('review_report')} />
-                        Review report
-                      </label>
-                      <label className="flex items-center gap-2 text-sm cursor-pointer">
-                        <Checkbox checked={allChecked} onCheckedChange={(c) => setAll(!!c)} />
+                        <Checkbox
+                          checked={allChecked}
+                          onCheckedChange={(c) =>
+                            setFormData({ ...formData, applies_to: c ? 'all' : 'article_fee' })
+                          }
+                        />
                         All
                       </label>
                     </>
@@ -544,23 +629,43 @@ export default function AdminDiscounts() {
               </div>
             </div>
 
-            <div>
-              <Label>Article Position Limit</Label>
-              <Select
-                value={formData.article_position_limit}
-                onValueChange={(v) => setFormData({ ...formData, article_position_limit: v as PositionLimit })}
-                disabled={formData.applies_to === 'pro_plan' || formData.applies_to === 'review_report'}
-              >
-                <SelectTrigger className="glass-input">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="any">Any article</SelectItem>
-                  <SelectItem value="first">1st article only</SelectItem>
-                  <SelectItem value="first_two">1st & 2nd articles</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label>Article Position Limit</Label>
+                <Select
+                  value={formData.article_position_limit}
+                  onValueChange={(v) => setFormData({ ...formData, article_position_limit: v as PositionLimit })}
+                  disabled={!parseAppliesTo(formData.applies_to).includes('article_fee')}
+                >
+                  <SelectTrigger className="glass-input">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="any">Any article</SelectItem>
+                    <SelectItem value="first">1st article only</SelectItem>
+                    <SelectItem value="second">2nd article only</SelectItem>
+                    <SelectItem value="first_two">1st &amp; 2nd articles</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Minimum Cart Value (optional)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="No minimum"
+                  value={formData.min_cart_value}
+                  onChange={(e) => setFormData({ ...formData, min_cart_value: e.target.value })}
+                  className="glass-input"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Code applies only when the cart subtotal reaches this amount.
+                </p>
+              </div>
             </div>
+
+
 
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -722,9 +827,10 @@ export default function AdminDiscounts() {
               Cancel
             </Button>
             <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>
-              Create Code
+              {editingId ? 'Save Changes' : 'Create Code'}
             </Button>
           </DialogFooter>
+
         </DialogContent>
       </Dialog>
     </DashboardLayout>

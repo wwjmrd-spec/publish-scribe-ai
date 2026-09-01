@@ -174,6 +174,8 @@ export default function Cart() {
       const { data: defaultCoupon } = await supabase.rpc('get_default_auto_apply_discount' as any);
       const def: any = Array.isArray(defaultCoupon) ? defaultCoupon[0] : defaultCoupon;
       if (def && def.is_active) {
+        const minCart = Number(def.min_cart_value ?? 0);
+        if (minCart > 0 && subtotal < minCart) return;
         setDiscountCode(def.code);
         setAppliedDiscount({
           code: def.code,
@@ -186,6 +188,7 @@ export default function Cart() {
         });
         return;
       }
+
 
       // 3) Legacy fallback: admin_settings auto_apply_discount_code
       const { data: cfg } = await supabase
@@ -354,6 +357,19 @@ export default function Cart() {
         setAppliedDiscount(null);
         return;
       }
+
+      const minCart = Number(data.min_cart_value ?? 0);
+      if (minCart > 0 && subtotal < minCart) {
+        toast({
+          title: 'Minimum cart value not met',
+          description: `This code requires a cart subtotal of at least ${currencySymbol}${minCart}`,
+          variant: 'destructive',
+        });
+        setAppliedDiscount(null);
+        return;
+      }
+
+
 
       setAppliedDiscount({
         code: data.code,

@@ -1189,6 +1189,7 @@ export type Database = {
           is_active: boolean | null
           is_default: boolean
           max_uses_per_user: number | null
+          min_cart_value: number | null
           show_in_cart: boolean
           specific_article_ids: string[] | null
           start_date: string
@@ -1210,6 +1211,7 @@ export type Database = {
           is_active?: boolean | null
           is_default?: boolean
           max_uses_per_user?: number | null
+          min_cart_value?: number | null
           show_in_cart?: boolean
           specific_article_ids?: string[] | null
           start_date: string
@@ -1231,6 +1233,7 @@ export type Database = {
           is_active?: boolean | null
           is_default?: boolean
           max_uses_per_user?: number | null
+          min_cart_value?: number | null
           show_in_cart?: boolean
           specific_article_ids?: string[] | null
           start_date?: string
@@ -2483,6 +2486,7 @@ export type Database = {
           id: string
           is_active: boolean
           max_uses_per_user: number
+          min_cart_value: number
           specific_article_ids: string[]
           start_date: string
           usage_limit: number
@@ -2521,6 +2525,7 @@ export type Database = {
           id: string
           is_active: boolean
           max_uses_per_user: number
+          min_cart_value: number
           specific_article_ids: string[]
           start_date: string
           usage_limit: number
