@@ -432,9 +432,15 @@ export default function AdminDiscounts() {
                         <td className="py-3 px-4 text-sm">{discount.currency}</td>
                         <td className="py-3 px-4 text-sm">
                           <span className="px-2 py-0.5 rounded-full bg-accent/20 text-xs">
-                            {APPLIES_TO_LABELS[appliesTo]}
+                            {appliesToLabel(appliesTo)}
                           </span>
+                          {(discount as any).min_cart_value ? (
+                            <div className="text-xs text-muted-foreground mt-1">
+                              Min cart: {(discount as any).min_cart_value}
+                            </div>
+                          ) : null}
                         </td>
+
                         <td className="py-3 px-4 text-sm">
                           <div className="flex flex-col gap-0.5">
                             {appliesTo !== 'pro_plan' && (
