@@ -656,9 +656,7 @@ export default function AdminDiscounts() {
               </div>
             </div>
 
-                </SelectContent>
-              </Select>
-            </div>
+
 
             <div className="grid grid-cols-2 gap-4">
               <div>
