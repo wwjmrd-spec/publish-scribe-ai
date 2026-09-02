@@ -149,7 +149,7 @@ export default function Cart() {
       // 1) Prefer personal referral/welcome code
       const { data } = await supabase
         .from('discount_codes')
-        .select('code, discount_type, discount_value, currency, is_active, used_count, end_date')
+        .select('code, discount_type, discount_value, currency, is_active, used_count, end_date, applies_to')
         .eq('created_by', user.id)
         .or('code.like.REF-%,code.like.WELCOME-%')
         .eq('is_active', true)
@@ -162,6 +162,7 @@ export default function Cart() {
           code: fresh.code,
           value: Number(fresh.discount_value),
           type: fresh.discount_type as 'percentage' | 'fixed',
+          appliesTo: fresh.applies_to ?? null,
         });
         toast({
           title: 'Referral discount applied 🎁',
@@ -182,6 +183,7 @@ export default function Cart() {
           code: def.code,
           value: Number(def.discount_value),
           type: def.discount_type as 'percentage' | 'fixed',
+          appliesTo: def.applies_to ?? null,
         });
         toast({
           title: 'Default discount applied 🎁',
@@ -204,6 +206,7 @@ export default function Cart() {
         code: promo.code,
         value: Number(promo.discount_value),
         type: promo.discount_type as 'percentage' | 'fixed',
+        appliesTo: promo.applies_to ?? null,
       });
       toast({
         title: 'Discount applied 🎁',
@@ -376,6 +379,7 @@ export default function Cart() {
         code: data.code,
         value: Number(data.discount_value),
         type: data.discount_type as 'percentage' | 'fixed',
+        appliesTo: data.applies_to ?? null,
       });
 
       toast({
