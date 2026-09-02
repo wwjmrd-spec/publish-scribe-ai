@@ -82,11 +82,15 @@ export default function Cart() {
   const [doiArticles, setDoiArticles] = useState<string[]>([]);
   const [discountCode, setDiscountCode] = useState('');
   const [appliedDiscount, setAppliedDiscount] = useState<{
+    id?: string | null;
     code: string;
     value: number;
     type: 'percentage' | 'fixed';
     appliesTo?: string | null;
+    positionLimit?: string | null;
+    specificArticleIds?: string[] | null;
   } | null>(null);
+
   const [applyingDiscount, setApplyingDiscount] = useState(false);
   const [txHash, setTxHash] = useState('');
   const [copied, setCopied] = useState(false);
