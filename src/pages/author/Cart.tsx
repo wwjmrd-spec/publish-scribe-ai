@@ -436,6 +436,24 @@ export default function Cart() {
     }
   };
 
+  /** How many times this author already used a code in a SUCCESSFUL payment. */
+  const countSuccessfulRedemptions = React.useCallback(async (codeId?: string | null) => {
+    if (!codeId || !user?.id) return 0;
+    const { data: reds } = await supabase
+      .from('discount_redemptions')
+      .select('id, payment_id')
+      .eq('discount_code_id', codeId)
+      .eq('user_id', user.id);
+    if (!reds?.length) return 0;
+    const paymentIds = reds.map((r) => r.payment_id).filter(Boolean) as string[];
+    if (!paymentIds.length) return 0;
+    const { data: pays } = await supabase
+      .from('payments')
+      .select('id, payment_status')
+      .in('id', paymentIds);
+    return (pays || []).filter((p) => p.payment_status === 'success').length;
+  }, [user?.id]);
+
   const applyDiscountCode = async (codeOverride?: string) => {
     const trimmedCode = (codeOverride ?? discountCode).trim().toUpperCase();
 
@@ -478,6 +496,23 @@ export default function Cart() {
         return;
       }
 
+      // Per-author limit — counts only codes already used in a successful payment.
+      const maxPerUser = Number(data.max_uses_per_user ?? 0);
+      if (maxPerUser > 0) {
+        const used = await countSuccessfulRedemptions(data.id);
+        if (used >= maxPerUser) {
+          toast({
+            title: 'Already used',
+            description: maxPerUser === 1
+              ? 'This code can be used only once per author and you have already used it.'
+              : `This code can be used ${maxPerUser} times per author and you have used it ${used} times.`,
+            variant: 'destructive',
+          });
+          setAppliedDiscount(null);
+          return;
+        }
+      }
+
       const minCart = Number(data.min_cart_value ?? 0);
       if (minCart > 0 && subtotal < minCart) {
         toast({
@@ -489,13 +524,16 @@ export default function Cart() {
         return;
       }
 
-      // Only discount the categories this code applies to.
+      // Only discount the categories + article positions this code applies to.
       const parts = parseAppliesTo(data.applies_to);
-      const eligible = parts.reduce((sum, p) => sum + (categoryTotals[p] ?? 0), 0);
+      const eligible = baseFor(data.applies_to, data.article_position_limit, data.specific_article_ids);
       if (eligible <= 0) {
+        const posText = POSITION_TEXT[(data.article_position_limit || 'any') as string];
         toast({
           title: 'Not applicable',
-          description: `This code only applies to ${parts.map((p) => PART_LABELS[p]).join(', ')}.`,
+          description: posText
+            ? `This code applies only to ${posText} (${parts.map((p) => PART_LABELS[p]).join(', ')}).`
+            : `This code only applies to ${parts.map((p) => PART_LABELS[p]).join(', ')}.`,
           variant: 'destructive',
         });
         setAppliedDiscount(null);
@@ -503,19 +541,24 @@ export default function Cart() {
       }
 
       setAppliedDiscount({
+        id: data.id ?? null,
         code: data.code,
         value: Number(data.discount_value),
         type: data.discount_type as 'percentage' | 'fixed',
         appliesTo: data.applies_to ?? null,
+        positionLimit: data.article_position_limit ?? null,
+        specificArticleIds: data.specific_article_ids ?? null,
       });
 
       const amount = data.discount_type === 'percentage'
         ? (eligible * Number(data.discount_value)) / 100
         : Math.min(Number(data.discount_value), eligible);
+      const posText = POSITION_TEXT[(data.article_position_limit || 'any') as string];
       toast({
         title: 'Discount applied!',
-        description: `${currencySymbol}${amount.toLocaleString()} off — applies to ${parts.map((p) => PART_LABELS[p]).join(', ')}`,
+        description: `${currencySymbol}${amount.toLocaleString()} off — applies to ${parts.map((p) => PART_LABELS[p]).join(', ')}${posText ? ` (${posText})` : ''}`,
       });
+
     } catch (error) {
       console.error('Discount error:', error);
       toast({ title: 'Error applying discount', variant: 'destructive' });
