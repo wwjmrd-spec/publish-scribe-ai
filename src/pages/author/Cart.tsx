@@ -1000,7 +1000,14 @@ export default function Cart() {
                     ))}
                     {appliedDiscount && (
                       <div className="flex justify-between text-sm text-emerald-500">
-                        <span>Discount</span>
+                        <span>
+                          Discount
+                          {discountBase < subtotal && (
+                            <span className="block text-xs text-muted-foreground">
+                              on {parseAppliesTo(appliedDiscount.appliesTo).map((p) => PART_LABELS[p]).join(', ')} ({currencySymbol}{discountBase.toLocaleString()})
+                            </span>
+                          )}
+                        </span>
                         <span>-{currencySymbol}{discountAmountValue.toLocaleString()}</span>
                       </div>
                     )}
