@@ -290,13 +290,51 @@ export default function Cart() {
 
   const subtotal = articleSubtotal + doiSubtotal + cartItemsSubtotal;
 
+  /** Per-category amount of the current cart, used to scope discounts. */
+  const categoryTotals = useMemo(() => {
+    const priceOf = (item: typeof validCartItems[number]) => {
+      if (preferredCurrency === 'USDT' && fees) {
+        if (item.type === 'pro_subscription') return Number((fees as any).usdt_pro_fee ?? (fees as any).international_pro_fee);
+        if (item.type === 'coauthor_certificate') return Number((fees as any).usdt_coauthor_fee ?? (fees as any).international_coauthor_fee);
+        if (item.type === 'doi' || item.type === 'legacy_doi') return doiFee;
+        return item.amount;
+      }
+      if (useIndianFees) return item.amount;
+      return (item.type === 'doi' || item.type === 'legacy_doi') ? doiFee : item.amount;
+    };
+
+    const totals: Record<string, number> = {
+      article_fee: articleSubtotal,
+      doi: doiSubtotal,
+      pro_plan: 0,
+      review_report: 0,
+      other: 0,
+    };
+    validCartItems.forEach((item) => {
+      const price = priceOf(item);
+      if (item.type === 'pro_subscription') totals.pro_plan += price;
+      else if (item.type === 'review_report') totals.review_report += price;
+      else if (item.type === 'doi' || item.type === 'legacy_doi') totals.doi += price;
+      else if (item.type === 'article_edit') totals.other += price;
+      else totals.other += price;
+    });
+    return totals;
+  }, [validCartItems, articleSubtotal, doiSubtotal, preferredCurrency, fees, doiFee, useIndianFees]);
+
+  /** Amount the applied code may discount, based on its Applies To setting. */
+  const discountBase = useMemo(() => {
+    if (!appliedDiscount) return 0;
+    const parts = parseAppliesTo(appliedDiscount.appliesTo);
+    return parts.reduce((sum, p) => sum + (categoryTotals[p] ?? 0), 0);
+  }, [appliedDiscount, categoryTotals]);
+
   const discountAmountValue = useMemo(() => {
     if (!appliedDiscount) return 0;
     if (appliedDiscount.type === 'percentage') {
-      return (subtotal * appliedDiscount.value) / 100;
+      return (discountBase * appliedDiscount.value) / 100;
     }
-    return Math.min(appliedDiscount.value, subtotal);
-  }, [appliedDiscount, subtotal]);
+    return Math.min(appliedDiscount.value, discountBase);
+  }, [appliedDiscount, discountBase]);
 
   const total = subtotal - discountAmountValue;
   const totalItemCount = selectedArticles.length + validCartItems.length;
