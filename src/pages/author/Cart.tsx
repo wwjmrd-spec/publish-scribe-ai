@@ -366,12 +366,45 @@ export default function Cart() {
     return totals;
   }, [validCartItems, articleSubtotal, doiSubtotal, preferredCurrency, fees, doiFee, useIndianFees]);
 
-  /** Amount the applied code may discount, based on its Applies To setting. */
+  /** Selected articles that a position/specific-article limited code may cover. */
+  const eligibleArticleIdsFor = React.useCallback(
+    (positionLimit?: string | null, specificIds?: string[] | null) => {
+      const ordered = [...(pendingArticles || [])].sort(
+        (a, b) => new Date(a.created_at as string).getTime() - new Date(b.created_at as string).getTime(),
+      );
+      return ordered
+        .filter((a, idx) => selectedArticles.includes(a.id) && positionAllowed(idx, positionLimit))
+        .filter((a) => !specificIds?.length || specificIds.includes(a.id))
+        .map((a) => a.id);
+    },
+    [pendingArticles, selectedArticles],
+  );
+
+  /** Discountable amount for a code, honouring Applies To + article position limits. */
+  const baseFor = React.useCallback(
+    (appliesTo?: string | null, positionLimit?: string | null, specificIds?: string[] | null) => {
+      const parts = parseAppliesTo(appliesTo);
+      const eligibleIds = eligibleArticleIdsFor(positionLimit, specificIds);
+      return parts.reduce((sum, p) => {
+        if (p === 'article_fee') return sum + eligibleIds.length * feePerArticle;
+        if (p === 'doi') {
+          const doiCount = eligibleIds.filter((id) => doiArticles.includes(id)).length;
+          const cartDoi = validCartItems.filter((i) => i.type === 'doi' || i.type === 'legacy_doi').length;
+          // Cart DOI add-ons are not article-position based, so include them only when unrestricted.
+          const restricted = (positionLimit || 'any') !== 'any' || !!specificIds?.length;
+          return sum + doiCount * doiFee + (restricted ? 0 : cartDoi * doiFee);
+        }
+        return sum + (categoryTotals[p] ?? 0);
+      }, 0);
+    },
+    [eligibleArticleIdsFor, feePerArticle, doiArticles, doiFee, validCartItems, categoryTotals],
+  );
+
   const discountBase = useMemo(() => {
     if (!appliedDiscount) return 0;
-    const parts = parseAppliesTo(appliedDiscount.appliesTo);
-    return parts.reduce((sum, p) => sum + (categoryTotals[p] ?? 0), 0);
-  }, [appliedDiscount, categoryTotals]);
+    return baseFor(appliedDiscount.appliesTo, appliedDiscount.positionLimit, appliedDiscount.specificArticleIds);
+  }, [appliedDiscount, baseFor]);
+
 
   const discountAmountValue = useMemo(() => {
     if (!appliedDiscount) return 0;
