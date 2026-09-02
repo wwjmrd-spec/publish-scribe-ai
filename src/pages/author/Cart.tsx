@@ -56,6 +56,23 @@ const PART_LABELS: Record<DiscountPart, string> = {
   other: 'other items',
 };
 
+/** Is an article at the given 0-based position covered by the code's position limit? */
+function positionAllowed(index: number, limit?: string | null): boolean {
+  switch ((limit || 'any').trim()) {
+    case 'first': return index === 0;
+    case 'second': return index === 1;
+    case 'first_two': return index < 2;
+    default: return true;
+  }
+}
+
+const POSITION_TEXT: Record<string, string> = {
+  first: 'your 1st article',
+  second: 'your 2nd article',
+  first_two: 'your 1st & 2nd articles',
+};
+
+
 export default function Cart() {
   const { user, isIndian } = useAuth();
   const { items: cartItems, removeItem, clearCart } = useCart();
@@ -82,11 +99,15 @@ export default function Cart() {
   const [doiArticles, setDoiArticles] = useState<string[]>([]);
   const [discountCode, setDiscountCode] = useState('');
   const [appliedDiscount, setAppliedDiscount] = useState<{
+    id?: string | null;
     code: string;
     value: number;
     type: 'percentage' | 'fixed';
     appliesTo?: string | null;
+    positionLimit?: string | null;
+    specificArticleIds?: string[] | null;
   } | null>(null);
+
   const [applyingDiscount, setApplyingDiscount] = useState(false);
   const [txHash, setTxHash] = useState('');
   const [copied, setCopied] = useState(false);
@@ -345,12 +366,45 @@ export default function Cart() {
     return totals;
   }, [validCartItems, articleSubtotal, doiSubtotal, preferredCurrency, fees, doiFee, useIndianFees]);
 
-  /** Amount the applied code may discount, based on its Applies To setting. */
+  /** Selected articles that a position/specific-article limited code may cover. */
+  const eligibleArticleIdsFor = React.useCallback(
+    (positionLimit?: string | null, specificIds?: string[] | null) => {
+      const ordered = [...(pendingArticles || [])].sort(
+        (a, b) => new Date(a.created_at as string).getTime() - new Date(b.created_at as string).getTime(),
+      );
+      return ordered
+        .filter((a, idx) => selectedArticles.includes(a.id) && positionAllowed(idx, positionLimit))
+        .filter((a) => !specificIds?.length || specificIds.includes(a.id))
+        .map((a) => a.id);
+    },
+    [pendingArticles, selectedArticles],
+  );
+
+  /** Discountable amount for a code, honouring Applies To + article position limits. */
+  const baseFor = React.useCallback(
+    (appliesTo?: string | null, positionLimit?: string | null, specificIds?: string[] | null) => {
+      const parts = parseAppliesTo(appliesTo);
+      const eligibleIds = eligibleArticleIdsFor(positionLimit, specificIds);
+      return parts.reduce((sum, p) => {
+        if (p === 'article_fee') return sum + eligibleIds.length * feePerArticle;
+        if (p === 'doi') {
+          const doiCount = eligibleIds.filter((id) => doiArticles.includes(id)).length;
+          const cartDoi = validCartItems.filter((i) => i.type === 'doi' || i.type === 'legacy_doi').length;
+          // Cart DOI add-ons are not article-position based, so include them only when unrestricted.
+          const restricted = (positionLimit || 'any') !== 'any' || !!specificIds?.length;
+          return sum + doiCount * doiFee + (restricted ? 0 : cartDoi * doiFee);
+        }
+        return sum + (categoryTotals[p] ?? 0);
+      }, 0);
+    },
+    [eligibleArticleIdsFor, feePerArticle, doiArticles, doiFee, validCartItems, categoryTotals],
+  );
+
   const discountBase = useMemo(() => {
     if (!appliedDiscount) return 0;
-    const parts = parseAppliesTo(appliedDiscount.appliesTo);
-    return parts.reduce((sum, p) => sum + (categoryTotals[p] ?? 0), 0);
-  }, [appliedDiscount, categoryTotals]);
+    return baseFor(appliedDiscount.appliesTo, appliedDiscount.positionLimit, appliedDiscount.specificArticleIds);
+  }, [appliedDiscount, baseFor]);
+
 
   const discountAmountValue = useMemo(() => {
     if (!appliedDiscount) return 0;
@@ -381,6 +435,24 @@ export default function Cart() {
       }
     }
   };
+
+  /** How many times this author already used a code in a SUCCESSFUL payment. */
+  const countSuccessfulRedemptions = React.useCallback(async (codeId?: string | null) => {
+    if (!codeId || !user?.id) return 0;
+    const { data: reds } = await supabase
+      .from('discount_redemptions')
+      .select('id, payment_id')
+      .eq('discount_code_id', codeId)
+      .eq('user_id', user.id);
+    if (!reds?.length) return 0;
+    const paymentIds = reds.map((r) => r.payment_id).filter(Boolean) as string[];
+    if (!paymentIds.length) return 0;
+    const { data: pays } = await supabase
+      .from('payments')
+      .select('id, payment_status')
+      .in('id', paymentIds);
+    return (pays || []).filter((p) => p.payment_status === 'success').length;
+  }, [user?.id]);
 
   const applyDiscountCode = async (codeOverride?: string) => {
     const trimmedCode = (codeOverride ?? discountCode).trim().toUpperCase();
@@ -424,6 +496,23 @@ export default function Cart() {
         return;
       }
 
+      // Per-author limit — counts only codes already used in a successful payment.
+      const maxPerUser = Number(data.max_uses_per_user ?? 0);
+      if (maxPerUser > 0) {
+        const used = await countSuccessfulRedemptions(data.id);
+        if (used >= maxPerUser) {
+          toast({
+            title: 'Already used',
+            description: maxPerUser === 1
+              ? 'This code can be used only once per author and you have already used it.'
+              : `This code can be used ${maxPerUser} times per author and you have used it ${used} times.`,
+            variant: 'destructive',
+          });
+          setAppliedDiscount(null);
+          return;
+        }
+      }
+
       const minCart = Number(data.min_cart_value ?? 0);
       if (minCart > 0 && subtotal < minCart) {
         toast({
@@ -435,13 +524,16 @@ export default function Cart() {
         return;
       }
 
-      // Only discount the categories this code applies to.
+      // Only discount the categories + article positions this code applies to.
       const parts = parseAppliesTo(data.applies_to);
-      const eligible = parts.reduce((sum, p) => sum + (categoryTotals[p] ?? 0), 0);
+      const eligible = baseFor(data.applies_to, data.article_position_limit, data.specific_article_ids);
       if (eligible <= 0) {
+        const posText = POSITION_TEXT[(data.article_position_limit || 'any') as string];
         toast({
           title: 'Not applicable',
-          description: `This code only applies to ${parts.map((p) => PART_LABELS[p]).join(', ')}.`,
+          description: posText
+            ? `This code applies only to ${posText} (${parts.map((p) => PART_LABELS[p]).join(', ')}).`
+            : `This code only applies to ${parts.map((p) => PART_LABELS[p]).join(', ')}.`,
           variant: 'destructive',
         });
         setAppliedDiscount(null);
@@ -449,19 +541,24 @@ export default function Cart() {
       }
 
       setAppliedDiscount({
+        id: data.id ?? null,
         code: data.code,
         value: Number(data.discount_value),
         type: data.discount_type as 'percentage' | 'fixed',
         appliesTo: data.applies_to ?? null,
+        positionLimit: data.article_position_limit ?? null,
+        specificArticleIds: data.specific_article_ids ?? null,
       });
 
       const amount = data.discount_type === 'percentage'
         ? (eligible * Number(data.discount_value)) / 100
         : Math.min(Number(data.discount_value), eligible);
+      const posText = POSITION_TEXT[(data.article_position_limit || 'any') as string];
       toast({
         title: 'Discount applied!',
-        description: `${currencySymbol}${amount.toLocaleString()} off — applies to ${parts.map((p) => PART_LABELS[p]).join(', ')}`,
+        description: `${currencySymbol}${amount.toLocaleString()} off — applies to ${parts.map((p) => PART_LABELS[p]).join(', ')}${posText ? ` (${posText})` : ''}`,
       });
+
     } catch (error) {
       console.error('Discount error:', error);
       toast({ title: 'Error applying discount', variant: 'destructive' });
