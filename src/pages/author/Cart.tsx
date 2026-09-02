@@ -61,6 +61,7 @@ export default function Cart() {
     code: string;
     value: number;
     type: 'percentage' | 'fixed';
+    appliesTo?: string | null;
   } | null>(null);
   const [applyingDiscount, setApplyingDiscount] = useState(false);
   const [txHash, setTxHash] = useState('');
