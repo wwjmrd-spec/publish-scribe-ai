@@ -32,6 +32,30 @@ import {
   Clock,
 } from 'lucide-react';
 
+/** Categories a discount code can be limited to. */
+type DiscountPart = 'article_fee' | 'pro_plan' | 'review_report' | 'doi' | 'other';
+const ALL_DISCOUNT_PARTS: DiscountPart[] = ['article_fee', 'pro_plan', 'review_report', 'doi', 'other'];
+
+/** Decode a stored applies_to value into the cart categories it covers. */
+function parseAppliesTo(value?: string | null): DiscountPart[] {
+  const v = (value || 'all').trim();
+  if (v === 'all') return [...ALL_DISCOUNT_PARTS];
+  if (v === 'both') return ['article_fee', 'pro_plan'];
+  const parts = v
+    .split(',')
+    .map((p) => p.trim())
+    .filter((p): p is DiscountPart => (ALL_DISCOUNT_PARTS as string[]).includes(p));
+  return parts.length ? parts : [...ALL_DISCOUNT_PARTS];
+}
+
+const PART_LABELS: Record<DiscountPart, string> = {
+  article_fee: 'article fees',
+  pro_plan: 'Pro plan',
+  review_report: 'review reports',
+  doi: 'DOI fees',
+  other: 'other items',
+};
+
 export default function Cart() {
   const { user, isIndian } = useAuth();
   const { items: cartItems, removeItem, clearCart } = useCart();
