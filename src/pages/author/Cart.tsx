@@ -56,6 +56,23 @@ const PART_LABELS: Record<DiscountPart, string> = {
   other: 'other items',
 };
 
+/** Is an article at the given 0-based position covered by the code's position limit? */
+function positionAllowed(index: number, limit?: string | null): boolean {
+  switch ((limit || 'any').trim()) {
+    case 'first': return index === 0;
+    case 'second': return index === 1;
+    case 'first_two': return index < 2;
+    default: return true;
+  }
+}
+
+const POSITION_TEXT: Record<string, string> = {
+  first: 'your 1st article',
+  second: 'your 2nd article',
+  first_two: 'your 1st & 2nd articles',
+};
+
+
 export default function Cart() {
   const { user, isIndian } = useAuth();
   const { items: cartItems, removeItem, clearCart } = useCart();
