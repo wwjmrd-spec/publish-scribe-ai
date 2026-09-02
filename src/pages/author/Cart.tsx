@@ -435,7 +435,18 @@ export default function Cart() {
         return;
       }
 
-
+      // Only discount the categories this code applies to.
+      const parts = parseAppliesTo(data.applies_to);
+      const eligible = parts.reduce((sum, p) => sum + (categoryTotals[p] ?? 0), 0);
+      if (eligible <= 0) {
+        toast({
+          title: 'Not applicable',
+          description: `This code only applies to ${parts.map((p) => PART_LABELS[p]).join(', ')}.`,
+          variant: 'destructive',
+        });
+        setAppliedDiscount(null);
+        return;
+      }
 
       setAppliedDiscount({
         code: data.code,
@@ -444,9 +455,12 @@ export default function Cart() {
         appliesTo: data.applies_to ?? null,
       });
 
+      const amount = data.discount_type === 'percentage'
+        ? (eligible * Number(data.discount_value)) / 100
+        : Math.min(Number(data.discount_value), eligible);
       toast({
         title: 'Discount applied!',
-        description: `${data.discount_type === 'percentage' ? data.discount_value + '%' : currencySymbol + data.discount_value} discount applied`,
+        description: `${currencySymbol}${amount.toLocaleString()} off — applies to ${parts.map((p) => PART_LABELS[p]).join(', ')}`,
       });
     } catch (error) {
       console.error('Discount error:', error);
