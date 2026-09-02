@@ -32,6 +32,30 @@ import {
   Clock,
 } from 'lucide-react';
 
+/** Categories a discount code can be limited to. */
+type DiscountPart = 'article_fee' | 'pro_plan' | 'review_report' | 'doi' | 'other';
+const ALL_DISCOUNT_PARTS: DiscountPart[] = ['article_fee', 'pro_plan', 'review_report', 'doi', 'other'];
+
+/** Decode a stored applies_to value into the cart categories it covers. */
+function parseAppliesTo(value?: string | null): DiscountPart[] {
+  const v = (value || 'all').trim();
+  if (v === 'all') return [...ALL_DISCOUNT_PARTS];
+  if (v === 'both') return ['article_fee', 'pro_plan'];
+  const parts = v
+    .split(',')
+    .map((p) => p.trim())
+    .filter((p): p is DiscountPart => (ALL_DISCOUNT_PARTS as string[]).includes(p));
+  return parts.length ? parts : [...ALL_DISCOUNT_PARTS];
+}
+
+const PART_LABELS: Record<DiscountPart, string> = {
+  article_fee: 'article fees',
+  pro_plan: 'Pro plan',
+  review_report: 'review reports',
+  doi: 'DOI fees',
+  other: 'other items',
+};
+
 export default function Cart() {
   const { user, isIndian } = useAuth();
   const { items: cartItems, removeItem, clearCart } = useCart();
@@ -61,6 +85,7 @@ export default function Cart() {
     code: string;
     value: number;
     type: 'percentage' | 'fixed';
+    appliesTo?: string | null;
   } | null>(null);
   const [applyingDiscount, setApplyingDiscount] = useState(false);
   const [txHash, setTxHash] = useState('');
@@ -148,7 +173,7 @@ export default function Cart() {
       // 1) Prefer personal referral/welcome code
       const { data } = await supabase
         .from('discount_codes')
-        .select('code, discount_type, discount_value, currency, is_active, used_count, end_date')
+        .select('code, discount_type, discount_value, currency, is_active, used_count, end_date, applies_to')
         .eq('created_by', user.id)
         .or('code.like.REF-%,code.like.WELCOME-%')
         .eq('is_active', true)
@@ -161,6 +186,7 @@ export default function Cart() {
           code: fresh.code,
           value: Number(fresh.discount_value),
           type: fresh.discount_type as 'percentage' | 'fixed',
+          appliesTo: fresh.applies_to ?? null,
         });
         toast({
           title: 'Referral discount applied 🎁',
@@ -181,6 +207,7 @@ export default function Cart() {
           code: def.code,
           value: Number(def.discount_value),
           type: def.discount_type as 'percentage' | 'fixed',
+          appliesTo: def.applies_to ?? null,
         });
         toast({
           title: 'Default discount applied 🎁',
@@ -203,6 +230,7 @@ export default function Cart() {
         code: promo.code,
         value: Number(promo.discount_value),
         type: promo.discount_type as 'percentage' | 'fixed',
+        appliesTo: promo.applies_to ?? null,
       });
       toast({
         title: 'Discount applied 🎁',
@@ -286,13 +314,51 @@ export default function Cart() {
 
   const subtotal = articleSubtotal + doiSubtotal + cartItemsSubtotal;
 
+  /** Per-category amount of the current cart, used to scope discounts. */
+  const categoryTotals = useMemo(() => {
+    const priceOf = (item: typeof validCartItems[number]) => {
+      if (preferredCurrency === 'USDT' && fees) {
+        if (item.type === 'pro_subscription') return Number((fees as any).usdt_pro_fee ?? (fees as any).international_pro_fee);
+        if (item.type === 'coauthor_certificate') return Number((fees as any).usdt_coauthor_fee ?? (fees as any).international_coauthor_fee);
+        if (item.type === 'doi' || item.type === 'legacy_doi') return doiFee;
+        return item.amount;
+      }
+      if (useIndianFees) return item.amount;
+      return (item.type === 'doi' || item.type === 'legacy_doi') ? doiFee : item.amount;
+    };
+
+    const totals: Record<string, number> = {
+      article_fee: articleSubtotal,
+      doi: doiSubtotal,
+      pro_plan: 0,
+      review_report: 0,
+      other: 0,
+    };
+    validCartItems.forEach((item) => {
+      const price = priceOf(item);
+      if (item.type === 'pro_subscription') totals.pro_plan += price;
+      else if (item.type === 'review_report') totals.review_report += price;
+      else if (item.type === 'doi' || item.type === 'legacy_doi') totals.doi += price;
+      else if (item.type === 'article_edit') totals.other += price;
+      else totals.other += price;
+    });
+    return totals;
+  }, [validCartItems, articleSubtotal, doiSubtotal, preferredCurrency, fees, doiFee, useIndianFees]);
+
+  /** Amount the applied code may discount, based on its Applies To setting. */
+  const discountBase = useMemo(() => {
+    if (!appliedDiscount) return 0;
+    const parts = parseAppliesTo(appliedDiscount.appliesTo);
+    return parts.reduce((sum, p) => sum + (categoryTotals[p] ?? 0), 0);
+  }, [appliedDiscount, categoryTotals]);
+
   const discountAmountValue = useMemo(() => {
     if (!appliedDiscount) return 0;
     if (appliedDiscount.type === 'percentage') {
-      return (subtotal * appliedDiscount.value) / 100;
+      return (discountBase * appliedDiscount.value) / 100;
     }
-    return Math.min(appliedDiscount.value, subtotal);
-  }, [appliedDiscount, subtotal]);
+    return Math.min(appliedDiscount.value, discountBase);
+  }, [appliedDiscount, discountBase]);
 
   const total = subtotal - discountAmountValue;
   const totalItemCount = selectedArticles.length + validCartItems.length;
@@ -369,17 +435,32 @@ export default function Cart() {
         return;
       }
 
-
+      // Only discount the categories this code applies to.
+      const parts = parseAppliesTo(data.applies_to);
+      const eligible = parts.reduce((sum, p) => sum + (categoryTotals[p] ?? 0), 0);
+      if (eligible <= 0) {
+        toast({
+          title: 'Not applicable',
+          description: `This code only applies to ${parts.map((p) => PART_LABELS[p]).join(', ')}.`,
+          variant: 'destructive',
+        });
+        setAppliedDiscount(null);
+        return;
+      }
 
       setAppliedDiscount({
         code: data.code,
         value: Number(data.discount_value),
         type: data.discount_type as 'percentage' | 'fixed',
+        appliesTo: data.applies_to ?? null,
       });
 
+      const amount = data.discount_type === 'percentage'
+        ? (eligible * Number(data.discount_value)) / 100
+        : Math.min(Number(data.discount_value), eligible);
       toast({
         title: 'Discount applied!',
-        description: `${data.discount_type === 'percentage' ? data.discount_value + '%' : currencySymbol + data.discount_value} discount applied`,
+        description: `${currencySymbol}${amount.toLocaleString()} off — applies to ${parts.map((p) => PART_LABELS[p]).join(', ')}`,
       });
     } catch (error) {
       console.error('Discount error:', error);
@@ -919,7 +1000,14 @@ export default function Cart() {
                     ))}
                     {appliedDiscount && (
                       <div className="flex justify-between text-sm text-emerald-500">
-                        <span>Discount</span>
+                        <span>
+                          Discount
+                          {discountBase < subtotal && (
+                            <span className="block text-xs text-muted-foreground">
+                              on {parseAppliesTo(appliedDiscount.appliesTo).map((p) => PART_LABELS[p]).join(', ')} ({currencySymbol}{discountBase.toLocaleString()})
+                            </span>
+                          )}
+                        </span>
                         <span>-{currencySymbol}{discountAmountValue.toLocaleString()}</span>
                       </div>
                     )}
