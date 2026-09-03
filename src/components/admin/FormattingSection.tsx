@@ -41,8 +41,10 @@ export function FormattingSection({ articleId }: Props) {
       if (error) throw error;
       return data;
     },
-    refetchInterval: (query: any) =>
-      query?.state?.data?.formatting_status === 'formatting' ? 3000 : false,
+    refetchInterval: (query: any) => {
+      const s = query?.state?.data?.formatting_status;
+      return s === 'formatting' || s === 'pending' ? 3000 : false;
+    },
     refetchIntervalInBackground: true,
   });
 
