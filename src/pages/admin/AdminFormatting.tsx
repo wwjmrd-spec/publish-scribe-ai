@@ -59,7 +59,7 @@ export default function AdminFormatting() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('articles')
-        .select('id, reference_number, title, created_at, formatting_status, formatting_suggestions, formatted_document_url, formatted_docx_url, profiles:author_id (full_name, email)')
+        .select('id, reference_number, title, created_at, updated_at, formatting_status, formatting_suggestions, formatted_document_url, formatted_docx_url, profiles:author_id (full_name, email)')
         .order('created_at', { ascending: false })
         .abortSignal(queryTimeout());
       if (error) throw error;
@@ -201,7 +201,11 @@ export default function AdminFormatting() {
       {/* Articles */}
       <div className="space-y-4">
         {pagedFormattingArticles?.map((article, index) => {
-          const status = (article as any).formatting_status as FormattingStatus || 'pending';
+          const rawStatus = (article as any).formatting_status as FormattingStatus || 'pending';
+          const stalled = rawStatus === 'formatting'
+            && !!(article as any).updated_at
+            && Date.now() - new Date((article as any).updated_at).getTime() > 10 * 60 * 1000;
+          const status = (stalled ? 'failed' : rawStatus) as FormattingStatus;
           const suggestions: Suggestion[] = ((article as any).formatting_suggestions as Suggestion[]) || [];
           const formattedUrl = (article as any).formatted_document_url;
           const formattedDocxUrl = (article as any).formatted_docx_url;
