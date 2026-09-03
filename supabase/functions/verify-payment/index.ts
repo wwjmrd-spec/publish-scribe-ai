@@ -486,17 +486,34 @@ serve(async (req) => {
     if (payment.discount_code && payment.discount_code !== 'PRO_SUBSCRIPTION') {
       const { data: discountData } = await serviceClient
         .from('discount_codes')
-        .select('used_count')
+        .select('id, used_count')
         .eq('code', payment.discount_code)
         .single();
-      
+
       if (discountData) {
         await serviceClient
           .from('discount_codes')
           .update({ used_count: (discountData.used_count || 0) + 1 })
           .eq('code', payment.discount_code);
+
+        // Record the per-author redemption (only successful payments reach this point)
+        const { data: existingRedemption } = await serviceClient
+          .from('discount_redemptions')
+          .select('id')
+          .eq('discount_code_id', discountData.id)
+          .eq('user_id', payment.user_id)
+          .eq('payment_id', payment.id)
+          .maybeSingle();
+        if (!existingRedemption) {
+          await serviceClient.from('discount_redemptions').insert({
+            discount_code_id: discountData.id,
+            user_id: payment.user_id,
+            payment_id: payment.id,
+          });
+        }
       }
     }
+
 
     // Send payment confirmation emails
     const { data: userProfile } = await serviceClient
