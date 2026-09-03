@@ -49,7 +49,10 @@ export function FormattingSection({ articleId }: Props) {
 
 
   const formatMut = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (opts?: { reset?: boolean }) => {
+      if (opts?.reset) {
+        await supabase.from('articles').update({ formatting_status: 'pending' }).eq('id', articleId);
+      }
       const r = await supabase.functions.invoke('format-article', { body: { articleId } });
       if (r.error) throw new Error(r.error.message);
       return r.data;
