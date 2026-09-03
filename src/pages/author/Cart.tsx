@@ -194,7 +194,7 @@ export default function Cart() {
       // 1) Prefer personal referral/welcome code
       const { data } = await supabase
         .from('discount_codes')
-        .select('code, discount_type, discount_value, currency, is_active, used_count, end_date, applies_to')
+        .select('id, code, discount_type, discount_value, currency, is_active, used_count, end_date, applies_to, article_position_limit, specific_article_ids, max_uses_per_user')
         .eq('created_by', user.id)
         .or('code.like.REF-%,code.like.WELCOME-%')
         .eq('is_active', true)
@@ -202,12 +202,18 @@ export default function Cart() {
         .order('created_at', { ascending: false });
       const fresh = (data ?? []).find((d: any) => (d.used_count ?? 0) === 0);
       if (fresh) {
+        const perUser = Number((fresh as any).max_uses_per_user ?? 0);
+        const used = perUser > 0 ? await countSuccessfulRedemptions((fresh as any).id) : 0;
+        if (perUser > 0 && used >= perUser) return;
         setDiscountCode(fresh.code);
         setAppliedDiscount({
+          id: (fresh as any).id ?? null,
           code: fresh.code,
           value: Number(fresh.discount_value),
           type: fresh.discount_type as 'percentage' | 'fixed',
           appliesTo: fresh.applies_to ?? null,
+          positionLimit: (fresh as any).article_position_limit ?? null,
+          specificArticleIds: (fresh as any).specific_article_ids ?? null,
         });
         toast({
           title: 'Referral discount applied 🎁',
@@ -223,12 +229,17 @@ export default function Cart() {
       if (def && def.is_active) {
         const minCart = Number(def.min_cart_value ?? 0);
         if (minCart > 0 && subtotal < minCart) return;
+        const perUser = Number(def.max_uses_per_user ?? 0);
+        if (perUser > 0 && (await countSuccessfulRedemptions(def.id)) >= perUser) return;
         setDiscountCode(def.code);
         setAppliedDiscount({
+          id: def.id ?? null,
           code: def.code,
           value: Number(def.discount_value),
           type: def.discount_type as 'percentage' | 'fixed',
           appliesTo: def.applies_to ?? null,
+          positionLimit: def.article_position_limit ?? null,
+          specificArticleIds: def.specific_article_ids ?? null,
         });
         toast({
           title: 'Default discount applied 🎁',
@@ -246,13 +257,19 @@ export default function Cart() {
       const { data: lookup } = await supabase.rpc('lookup_discount_code' as any, { p_code: adminCode });
       const promo: any = Array.isArray(lookup) ? lookup[0] : lookup;
       if (!promo || !promo.is_active) return;
+      const promoPerUser = Number(promo.max_uses_per_user ?? 0);
+      if (promoPerUser > 0 && (await countSuccessfulRedemptions(promo.id)) >= promoPerUser) return;
       setDiscountCode(promo.code);
       setAppliedDiscount({
+        id: promo.id ?? null,
         code: promo.code,
         value: Number(promo.discount_value),
         type: promo.discount_type as 'percentage' | 'fixed',
         appliesTo: promo.applies_to ?? null,
+        positionLimit: promo.article_position_limit ?? null,
+        specificArticleIds: promo.specific_article_ids ?? null,
       });
+
       toast({
         title: 'Discount applied 🎁',
         description: `${promo.discount_type === 'percentage' ? promo.discount_value + '%' : promo.discount_value} off — code ${promo.code}`,
