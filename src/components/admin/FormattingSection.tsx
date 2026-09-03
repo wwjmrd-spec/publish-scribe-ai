@@ -201,11 +201,18 @@ export function FormattingSection({ articleId }: Props) {
         <div className="flex items-center gap-2 flex-wrap">
           {statusBadge()}
           {status !== 'formatting' && (
-            <Button variant="outline" size="sm" onClick={() => formatMut.mutate()} disabled={formatMut.isPending}>
+            <Button variant="outline" size="sm" onClick={() => formatMut.mutate({})} disabled={formatMut.isPending}>
               {formatMut.isPending ? <><GlassSpinner size="sm" className="mr-2" />Formatting...</>
                 : status === 'pending' || status === 'failed'
                   ? <><Wand2 className="w-4 h-4 mr-2" />Format</>
                   : <><RefreshCw className="w-4 h-4 mr-2" />Re-format</>}
+            </Button>
+          )}
+          {rawStatus === 'formatting' && (
+            <Button variant="destructive" size="sm" onClick={() => formatMut.mutate({ reset: true })} disabled={formatMut.isPending}>
+              {formatMut.isPending
+                ? <><GlassSpinner size="sm" className="mr-2" />Restarting…</>
+                : <><RefreshCw className="w-4 h-4 mr-2" />Reset &amp; Retry</>}
             </Button>
           )}
           {formattedContent && (
