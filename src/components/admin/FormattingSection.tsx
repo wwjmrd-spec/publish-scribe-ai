@@ -153,7 +153,13 @@ export function FormattingSection({ articleId }: Props) {
     onError: (e: any) => toast.error('Could not add DOI: ' + e.message),
   });
 
-  const status = ((article as any)?.formatting_status || 'pending') as FormattingStatus;
+  const rawStatus = ((article as any)?.formatting_status || 'pending') as FormattingStatus;
+  // A background formatting run that died leaves the row stuck on "formatting" forever.
+  // Treat anything older than 10 minutes as stalled so admins can retry.
+  const stalled = rawStatus === 'formatting'
+    && !!(article as any)?.updated_at
+    && Date.now() - new Date((article as any).updated_at).getTime() > 10 * 60 * 1000;
+  const status = (stalled ? 'failed' : rawStatus) as FormattingStatus;
   const suggestions: Suggestion[] = ((article as any)?.formatting_suggestions as Suggestion[]) || [];
   const authorRevision = (article as any)?.author_revision_html as string | null;
   const formattedContent = (authorRevision || (article as any)?.formatted_content) as string | null;
