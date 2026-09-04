@@ -2,6 +2,10 @@ import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { buildPagedFormattedArticleHtml, type PaginationOptions } from './formattedArticlePagination';
 
+export type PdfBuildOptions = PaginationOptions & {
+  onProgress?: (completedPages: number, totalPages: number) => void;
+};
+
 
 
 async function waitForImages(root: ParentNode, timeoutMs = 4000) {
@@ -42,7 +46,7 @@ function makeImagesExportSafe(root: ParentNode) {
  * and each page is captured at ~380 DPI, so nothing is re-interpreted.
  */
 
-export async function buildFormattedPdfBlob(html: string, options: PaginationOptions = {}): Promise<Blob> {
+export async function buildFormattedPdfBlob(html: string, options: PdfBuildOptions = {}): Promise<Blob> {
   const container = document.createElement('div');
   container.style.cssText =
     'position:absolute;left:-10000px;top:0;width:210mm;background:#ffffff;z-index:-9999;pointer-events:none;';
@@ -79,6 +83,13 @@ export async function buildFormattedPdfBlob(html: string, options: PaginationOpt
     const pages = Array.from(container.querySelectorAll('.formatted-a4-page')) as HTMLElement[];
     if (!pages.length) throw new Error('No A4 pages were generated');
 
+    // A 4× A4 canvas is roughly 57 MB. Keeping several lossless PNG pages in
+    // jsPDF can exhaust the browser on normal journal-length manuscripts. A
+    // 2.5× capture is still print-quality (~240 DPI), while JPEG avoids the
+    // very expensive PNG deflate step that made long galley proofs appear to
+    // hang indefinitely.
+    const captureScale = pages.length > 8 ? 2.5 : 3;
+
     // Pixel-exact capture of the editor's own rendering (fonts, colours, bullets,
     // backgrounds and spacing all identical), at ~380 DPI so print stays crisp.
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
@@ -93,7 +104,7 @@ export async function buildFormattedPdfBlob(html: string, options: PaginationOpt
       const captureHeight = page.offsetHeight;
 
       const canvas = await html2canvas(page, {
-        scale: 4,
+        scale: captureScale,
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
@@ -132,10 +143,14 @@ export async function buildFormattedPdfBlob(html: string, options: PaginationOpt
         },
       } as any);
 
-      const dataUrl = canvas.toDataURL('image/png');
-      // Lossless PNG with maximum deflate compression: keeps fine text and thin
-      // borders sharp without producing an impractically large upload.
-      pdf.addImage(dataUrl, 'PNG', 0, 0, pageW, pageH, undefined, 'SLOW');
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.96);
+      pdf.addImage(dataUrl, 'JPEG', 0, 0, pageW, pageH, undefined, 'FAST');
+      canvas.width = 1;
+      canvas.height = 1;
+      options.onProgress?.(index + 1, pages.length);
+
+      // Give rendering and UI updates a chance to run between pages.
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
     }
 
     return pdf.output('blob');

@@ -699,13 +699,19 @@ export function ArticleContentEditor({
       setSavedPageRange(pageRange);
 
       // 2. Generate PDF using the saved starting page number
-      const pdfBlob = await buildFormattedPdfBlob(content, { startPage, showFirstPageNumber: true });
+      const pdfBlob = await buildFormattedPdfBlob(content, {
+        startPage,
+        showFirstPageNumber: true,
+        onProgress: (completed, total) => {
+          toast.loading(`Building galley proof PDF… page ${completed} of ${total}`, { id: tid });
+        },
+      });
 
       // 3. Ask the backend for a secure one-time upload target, then upload PDF.
       const prepared = await supabase.functions.invoke('send-galley-proof', {
         body: { action: 'prepare-upload', articleId },
       });
-      if (prepared.error) throw new Error(prepared.error.message);
+      if (prepared.error) throw await resolveEdgeFunctionError(prepared.error, 'Could not prepare galley proof upload');
       if ((prepared.data as any)?.error) throw new Error((prepared.data as any).error);
       const pdfPath = (prepared.data as any).path as string;
       const upload = await supabase.storage
@@ -733,7 +739,7 @@ export function ArticleContentEditor({
           pubPageRange: pageRange,
         },
       });
-      if (sendResponse.error) throw new Error(sendResponse.error.message);
+      if (sendResponse.error) throw await resolveEdgeFunctionError(sendResponse.error, 'Could not send galley proof');
       if ((sendResponse.data as any)?.error) throw new Error((sendResponse.data as any).error);
 
       toast.success('Galley proof generated, uploaded & sent to author!', { id: tid });
