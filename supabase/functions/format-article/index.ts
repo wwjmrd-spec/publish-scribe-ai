@@ -1375,7 +1375,12 @@ serve(async (req) => {
         const ts = Date.now();
         const pdfName = `formatted-${refSafe}-${ts}.pdf`;
         const docxName = `formatted-${refSafe}-${ts}.docx`;
-        const HEAVY_ARTICLE = body.length > 250 || extracted.images.length > 4;
+        // Server-side PDF/DOCX generation is CPU intensive. Articles around 100+
+        // blocks or with several figures can exceed the Edge runtime CPU budget
+        // before the formatted HTML/status is saved, leaving them stuck forever.
+        // The browser already exports the finalized HTML to both formats, so skip
+        // the optional server files early for these documents.
+        const HEAVY_ARTICLE = body.length > 100 || extracted.images.length >= 4;
 
         let savedPdfName: string | null = null;
         let savedDocxName: string | null = null;
