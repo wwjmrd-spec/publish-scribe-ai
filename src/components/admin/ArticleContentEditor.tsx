@@ -27,6 +27,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { buildPagedFormattedArticleHtml } from '@/lib/formattedArticlePagination';
 import { downloadFormattedAsPdf, downloadFormattedAsDocx, buildFormattedPdfBlob } from '@/lib/exportFormattedArticle';
+import { resolveEdgeFunctionError } from '@/lib/edgeFunctionError';
 
 interface ArticleContentEditorProps {
   articleId: string;
