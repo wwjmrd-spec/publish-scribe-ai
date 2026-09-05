@@ -28,6 +28,8 @@ import { Label } from '@/components/ui/label';
 import { buildPagedFormattedArticleHtml } from '@/lib/formattedArticlePagination';
 import { downloadFormattedAsPdf, downloadFormattedAsDocx, buildFormattedPdfBlob } from '@/lib/exportFormattedArticle';
 import { resolveEdgeFunctionError } from '@/lib/edgeFunctionError';
+import { UpdateAuthorDetailsDialog, type AuthorDetail } from '@/components/admin/UpdateAuthorDetailsDialog';
+
 
 interface ArticleContentEditorProps {
   articleId: string;
