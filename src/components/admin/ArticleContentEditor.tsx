@@ -9,7 +9,7 @@ import {
   List, ListOrdered, Undo, Redo, Strikethrough,
   Table2, Columns2, Columns3, LayoutGrid, Minus, Plus,
   Trash2, PaintBucket, Grid3X3, SeparatorHorizontal, Hash,
-  ImageIcon, Crop, MoveVertical, Palette, Eraser, Send,
+  ImageIcon, Crop, MoveVertical, Palette, Eraser, Send, Users,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -28,6 +28,8 @@ import { Label } from '@/components/ui/label';
 import { buildPagedFormattedArticleHtml } from '@/lib/formattedArticlePagination';
 import { downloadFormattedAsPdf, downloadFormattedAsDocx, buildFormattedPdfBlob } from '@/lib/exportFormattedArticle';
 import { resolveEdgeFunctionError } from '@/lib/edgeFunctionError';
+import { UpdateAuthorDetailsDialog, type AuthorDetail } from '@/components/admin/UpdateAuthorDetailsDialog';
+
 
 interface ArticleContentEditorProps {
   articleId: string;
@@ -164,7 +166,71 @@ export function ArticleContentEditor({
    *  admin edits the Page # input again. */
   const [savedPageRange, setSavedPageRange] = useState<string | null>(null);
   const [formattingApproved, setFormattingApproved] = useState<boolean>(false);
+  const [showAuthorDetails, setShowAuthorDetails] = useState(false);
   const queryClient = useQueryClient();
+
+  /** Replace ONLY the author block (names + affiliations + copyright name) inside the
+   *  already formatted article. Nothing else is touched, so no re-formatting is needed. */
+  const applyAuthorDetails = useCallback(async (authors: AuthorDetail[]) => {
+    const doc = iframeRef.current?.contentDocument;
+    const body = doc?.body;
+    if (!doc || !body) throw new Error('Editor is not ready');
+
+    const esc = (s: string) =>
+      s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const orcidBadge = (id: string) =>
+      !id.trim() ? '' :
+      `<span class="ww-orcid" data-orcid="${esc(id.trim())}" style="display:inline-flex;align-items:center;gap:3px;white-space:nowrap;"><img src="https://orcid.org/sites/default/files/images/orcid_16x16.png" alt="ORCID iD" style="width:11px;height:11px;display:inline-block;vertical-align:middle;" /><a href="https://orcid.org/${esc(id.trim())}" style="color:#a6ce39;text-decoration:none;font-size:9px;">${esc(id.trim())}</a></span>`;
+
+    const namesHtml = authors
+      .filter(a => a.name.trim())
+      .map((a, i) => `${esc(a.name.trim())}${a.affiliation.trim() ? `<sup>${i + 1}</sup>` : ''}`)
+      .join(', ');
+
+    const affilHtml = authors
+      .map((a, i) => ({ a, i }))
+      .filter(({ a }) => a.affiliation.trim())
+      .map(({ a, i }) =>
+        `<p class="ww-affil" data-author-index="${i + 1}" style="font-size:8px;line-height:1.4;margin:0;color:#334155;"><sup>${i + 1}</sup> ${esc(a.affiliation.trim())}${a.orcid.trim() ? ` ${orcidBadge(a.orcid)}` : ''}</p>`)
+      .join('');
+
+    // 1. Author names line — tagged with .ww-authors, or detected by the formatter's blue style.
+    let authorP = body.querySelector<HTMLElement>('p.ww-authors');
+    if (!authorP) {
+      authorP = Array.from(body.querySelectorAll<HTMLElement>('p')).find((p) =>
+        /color:\s*#1e3a8a/i.test(p.getAttribute('style') || '') && /font-weight:\s*(600|bold)/i.test(p.getAttribute('style') || '')
+      ) || null;
+    }
+    if (!authorP) throw new Error('Author line not found in the formatted article');
+    authorP.classList.add('ww-authors');
+    authorP.innerHTML = namesHtml;
+
+    // 2. Affiliation lines
+    const existing = Array.from(body.querySelectorAll<HTMLElement>('p.ww-affil'));
+    if (existing.length) {
+      existing[0].insertAdjacentHTML('beforebegin', affilHtml);
+      existing.forEach((el) => el.remove());
+    } else if (affilHtml) {
+      authorP.insertAdjacentHTML('afterend', affilHtml);
+    }
+
+    // 3. Copyright / citation lines that carry the corresponding author's name
+    const primaryName = authors[0]?.name.trim();
+    if (primaryName) {
+      body.querySelectorAll<HTMLElement>('.ww-copyright-author, .ww-citation-authors').forEach((el) => {
+        el.textContent = primaryName;
+      });
+    }
+
+    renderPageNumbersRef.current?.();
+
+    const { error } = await supabase
+      .from('articles')
+      .update({ formatted_content: body.innerHTML } as any)
+      .eq('id', articleId);
+    if (error) throw error;
+  }, [articleId]);
+
 
   // Keep a ref to startPage so the resize handler always reads the latest value
   const startPageRef = useRef(1);
@@ -1218,6 +1284,13 @@ export function ArticleContentEditor({
               Download Word
             </DownloadButton>
           )}
+          {mode === 'admin' && (
+            <Button variant="outline" onClick={() => setShowAuthorDetails(true)} title="Update author names, affiliations and ORCID iDs without re-formatting the article">
+              <Users className="w-4 h-4 mr-2" /> Update Author Details
+            </Button>
+          )}
+
+
 
           {mode === 'admin' && (
             <>
