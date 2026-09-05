@@ -1218,6 +1218,13 @@ export function ArticleContentEditor({
               Download Word
             </DownloadButton>
           )}
+          {mode === 'admin' && (
+            <Button variant="outline" onClick={() => setShowAuthorDetails(true)} title="Update author names, affiliations and ORCID iDs without re-formatting the article">
+              <Users className="w-4 h-4 mr-2" /> Update Author Details
+            </Button>
+          )}
+
+
 
           {mode === 'admin' && (
             <>
