@@ -1246,8 +1246,31 @@ export function ArticleContentEditor({
                 </DropdownMenuContent>
               </DropdownMenu>
 
+              {mode === 'author' && (
+                <>
+                  <Button
+                    type="button" variant="ghost" size="sm"
+                    className="h-7 px-2 gap-1 text-[#dc2626] hover:text-[#b91c1c] hover:bg-red-50"
+                    onClick={() => applyColor('#dc2626')}
+                    title="Mark the selected text as your change (red)"
+                  >
+                    <Palette className="w-3.5 h-3.5" />
+                    <span className="text-[10px] font-semibold">Mark Red</span>
+                  </Button>
+                  <Button
+                    type="button" variant="ghost" size="sm"
+                    className="h-7 px-2 gap-1 text-black/60 hover:text-black hover:bg-black/5"
+                    onClick={clearRedHighlights}
+                    title="Clear all red marks"
+                  >
+                    <Eraser className="w-3.5 h-3.5" />
+                    <span className="text-[10px]">Clear Red</span>
+                  </Button>
+                </>
+              )}
 
               <div className="w-px h-5 bg-[#d1d5db] mx-1" />
+
 
               <ToolbarBtn cmd="undo" icon={Undo} title="Undo" />
               <ToolbarBtn cmd="redo" icon={Redo} title="Redo" />
