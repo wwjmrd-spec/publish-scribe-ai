@@ -1348,7 +1348,17 @@ export function ArticleContentEditor({
         </div>
       </GlassCard>
 
+      {mode === 'admin' && (
+        <UpdateAuthorDetailsDialog
+          open={showAuthorDetails}
+          onOpenChange={setShowAuthorDetails}
+          articleId={articleId}
+          onApply={applyAuthorDetails}
+        />
+      )}
+
       {/* Paginated A4 Preview Dialog */}
+
       <Dialog open={showPreview} onOpenChange={setShowPreview}>
         <DialogContent className="max-w-5xl max-h-[95vh] p-0 overflow-hidden">
           <DialogHeader className="px-4 pt-4 pb-2">
