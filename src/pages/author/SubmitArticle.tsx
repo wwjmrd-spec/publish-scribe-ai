@@ -348,7 +348,14 @@ export default function SubmitArticle() {
 
   const updateCoAuthor = (id: string, field: keyof CoAuthor, value: string) => {
     setCoAuthors((prev) =>
-      prev.map((ca) => (ca.id === id ? { ...ca, [field]: value } : ca))
+      prev.map((ca) => {
+        if (ca.id !== id) return ca;
+        const next = { ...ca, [field]: value } as CoAuthor;
+        if (field === 'firstName' || field === 'lastName') {
+          next.name = joinName(next.firstName, next.lastName);
+        }
+        return next;
+      })
     );
   };
 
@@ -427,13 +434,18 @@ export default function SubmitArticle() {
       const { error: coAuthorError } = await supabase
         .from('co_authors')
         .insert(
-          validCoAuthors.map((ca) => ({
-            article_id: article.id,
-            name: ca.name.trim(),
-            email: ca.email.trim(),
-            affiliation: ca.affiliation.trim() || null,
-            orcid: (ca.orcid || '').trim() || null,
-          }))
+          validCoAuthors.map((ca) => {
+            const parts = splitName(ca.name);
+            return {
+              article_id: article.id,
+              name: ca.name.trim(),
+              first_name: (ca.firstName || parts.firstName).trim() || null,
+              last_name: (ca.lastName || parts.lastName).trim() || null,
+              email: ca.email.trim(),
+              affiliation: ca.affiliation.trim() || null,
+              orcid: (ca.orcid || '').trim() || null,
+            };
+          })
         );
       if (coAuthorError) throw coAuthorError;
     }
