@@ -21,6 +21,7 @@ import mammoth from 'mammoth';
 import { extractDocxPageCountFromArrayBuffer } from '@/lib/docxPageCount';
 import { extractTextFromLegacyDoc } from '@/lib/legacyDoc';
 import { joinName, splitName } from '@/lib/nameParts';
+import { resolveEdgeFunctionError } from '@/lib/edgeFunctionError';
 
 interface AdminCoAuthor {
   id: string;
