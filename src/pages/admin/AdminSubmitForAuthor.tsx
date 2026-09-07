@@ -128,7 +128,7 @@ export default function AdminSubmitForAuthor() {
       } else {
         toast.success('Author account created');
       }
-      setCEmail(''); setCPassword(''); setCFullName(''); setCCountry(''); setCAffiliation(''); setCIsIndian('auto');
+      setCEmail(''); setCPassword(''); setCFirstName(''); setCLastName(''); setCCountry(''); setCAffiliation(''); setCIsIndian('auto');
       queryClient.invalidateQueries({ queryKey: ['admin-all-authors-min'] });
       queryClient.invalidateQueries({ queryKey: ['admin-authors'] });
     } catch (e: any) {
