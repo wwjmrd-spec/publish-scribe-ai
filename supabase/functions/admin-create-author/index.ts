@@ -19,6 +19,8 @@ const BodySchema = z.object({
   // Password is optional now — if omitted we generate a temporary one.
   password: z.string().min(8).max(128).optional(),
   full_name: z.string().min(1).max(100),
+  first_name: z.string().max(100).optional().default(""),
+  last_name: z.string().max(100).optional().default(""),
   country: z.string().min(1).max(100).default("Unknown"),
   affiliation: z.string().max(200).optional().default(""),
   is_indian: z.boolean().optional(),
@@ -65,6 +67,9 @@ serve(async (req) => {
     if (!parsed.success) return json({ error: parsed.error.flatten() }, 400);
     const b = parsed.data;
     const isIndian = b.is_indian ?? b.country.toLowerCase() === "india";
+    const nameTokens = b.full_name.trim().split(/\s+/);
+    const firstName = (b.first_name || nameTokens[0] || "").trim();
+    const lastName = (b.last_name || nameTokens.slice(1).join(" ") || "").trim();
     const tempPassword = b.password || generateTempPassword();
     const isGeneratedTemp = !b.password;
 
@@ -77,6 +82,8 @@ serve(async (req) => {
       email_confirm: true,
       user_metadata: {
         full_name: b.full_name,
+        first_name: firstName,
+        last_name: lastName,
         country: b.country,
         affiliation: b.affiliation,
         must_reset_password: isGeneratedTemp,
@@ -91,6 +98,8 @@ serve(async (req) => {
       id: newId,
       email: b.email,
       full_name: b.full_name,
+      first_name: firstName || null,
+      last_name: lastName || null,
       country: b.country,
       affiliation: b.affiliation,
       is_indian: isIndian,

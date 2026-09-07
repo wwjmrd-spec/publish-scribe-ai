@@ -19,10 +19,16 @@ import {
 } from 'lucide-react';
 import mammoth from 'mammoth';
 import { extractDocxPageCountFromArrayBuffer } from '@/lib/docxPageCount';
+import { extractTextFromLegacyDoc } from '@/lib/legacyDoc';
+import { joinName, splitName } from '@/lib/nameParts';
+import { resolveEdgeFunctionError } from '@/lib/edgeFunctionError';
 
 interface AdminCoAuthor {
   id: string;
+  /** Derived from firstName + lastName. */
   name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   affiliation: string;
   orcid: string;
@@ -43,7 +49,9 @@ export default function AdminSubmitForAuthor() {
   // --- Create Author state ---
   const [cEmail, setCEmail] = useState('');
   const [cPassword, setCPassword] = useState('');
-  const [cFullName, setCFullName] = useState('');
+  const [cFirstName, setCFirstName] = useState('');
+  const [cLastName, setCLastName] = useState('');
+  const cFullName = joinName(cFirstName, cLastName);
   const [cCountry, setCCountry] = useState('');
   const [cAffiliation, setCAffiliation] = useState('');
   const [cIsIndian, setCIsIndian] = useState<'auto' | 'yes' | 'no'>('auto');
@@ -91,8 +99,8 @@ export default function AdminSubmitForAuthor() {
   const [generatedTemp, setGeneratedTemp] = useState<{ email: string; password: string } | null>(null);
 
   const handleCreateAuthor = async () => {
-    if (!cEmail || !cFullName) {
-      toast.error('Email and full name are required');
+    if (!cEmail || !cFirstName.trim() || !cLastName.trim()) {
+      toast.error('Email, first name and last name are required');
       return;
     }
     setCreating(true);
@@ -105,6 +113,8 @@ export default function AdminSubmitForAuthor() {
           // force the author to reset + verify on first login.
           ...(cPassword ? { password: cPassword } : {}),
           full_name: cFullName.trim(),
+          first_name: cFirstName.trim(),
+          last_name: cLastName.trim(),
           country: cCountry.trim() || 'Unknown',
           affiliation: cAffiliation.trim(),
           is_indian: cIsIndian === 'auto' ? undefined : cIsIndian === 'yes',
@@ -119,11 +129,12 @@ export default function AdminSubmitForAuthor() {
       } else {
         toast.success('Author account created');
       }
-      setCEmail(''); setCPassword(''); setCFullName(''); setCCountry(''); setCAffiliation(''); setCIsIndian('auto');
+      setCEmail(''); setCPassword(''); setCFirstName(''); setCLastName(''); setCCountry(''); setCAffiliation(''); setCIsIndian('auto');
       queryClient.invalidateQueries({ queryKey: ['admin-all-authors-min'] });
       queryClient.invalidateQueries({ queryKey: ['admin-authors'] });
     } catch (e: any) {
-      toast.error('Failed to create author: ' + (e?.message || e));
+      const resolved = await resolveEdgeFunctionError(e, 'Failed to create author');
+      toast.error('Failed to create author: ' + resolved.message);
     } finally {
       setCreating(false);
     }
@@ -140,10 +151,11 @@ export default function AdminSubmitForAuthor() {
   const handleScan = async () => {
     if (!authorId) { toast.error('Select an author first'); return; }
     if (!file) { toast.error('Upload a manuscript file'); return; }
-    const isDocx = file.name.toLowerCase().endsWith('.docx');
-    if (!isDocx) {
-      // .doc / PDF can't be scanned client-side here — skip to step 2
-      toast.message('Automatic scan only supports .docx — fill details manually.');
+    const lower = file.name.toLowerCase();
+    const isDocx = lower.endsWith('.docx');
+    const isLegacyDoc = lower.endsWith('.doc');
+    if (!isDocx && !isLegacyDoc) {
+      toast.message('Automatic scan supports .docx and .doc — fill details manually.');
       setStep(2);
       return;
     }
@@ -152,10 +164,16 @@ export default function AdminSubmitForAuthor() {
     try {
       const buf = await file.arrayBuffer();
       setScanProgress(35);
-      const [text, pc] = await Promise.all([
-        extractTextFromDocx(buf),
-        extractDocxPageCountFromArrayBuffer(buf),
-      ]);
+      let text = '';
+      let pc: number | null = null;
+      if (isLegacyDoc) {
+        text = extractTextFromLegacyDoc(buf);
+      } else {
+        [text, pc] = await Promise.all([
+          extractTextFromDocx(buf),
+          extractDocxPageCountFromArrayBuffer(buf),
+        ]);
+      }
       setScanProgress(55);
       if (text.length < 50) {
         toast.message('Document looks empty — fill details manually.');
@@ -177,15 +195,21 @@ export default function AdminSubmitForAuthor() {
       if (m.reason_of_research) setReason(m.reason_of_research);
       if (m.page_count) setPageCount(m.page_count);
       if (Array.isArray(m.co_authors) && m.co_authors.length > 0) {
-        setCoAuthors(m.co_authors.map((ca: any) => ({
-          id: crypto.randomUUID(),
-          name: ca.name || '',
-          email: ca.email || '',
-          affiliation: ca.affiliation || '',
-          orcid: ca.orcid || '',
-          verificationSent: false,
-          skipVerification: false,
-        })));
+        setCoAuthors(m.co_authors.map((ca: any) => {
+          const full = ca.name || joinName(ca.first_name, ca.last_name);
+          const parts = splitName(full);
+          return {
+            id: crypto.randomUUID(),
+            name: full,
+            firstName: ca.first_name || parts.firstName,
+            lastName: ca.last_name || parts.lastName,
+            email: ca.email || '',
+            affiliation: ca.affiliation || '',
+            orcid: ca.orcid || '',
+            verificationSent: false,
+            skipVerification: false,
+          };
+        }));
       }
       setScanProgress(100);
       toast.success('AI scan complete ✨');
@@ -200,11 +224,16 @@ export default function AdminSubmitForAuthor() {
   };
 
   const addCoAuthor = () => setCoAuthors((p) => [
-    ...p, { id: crypto.randomUUID(), name: '', email: '', affiliation: '', orcid: '', verificationSent: false, skipVerification: false },
+    ...p, { id: crypto.randomUUID(), name: '', firstName: '', lastName: '', email: '', affiliation: '', orcid: '', verificationSent: false, skipVerification: false },
   ]);
   const removeCoAuthor = (id: string) => setCoAuthors((p) => p.filter((c) => c.id !== id));
   const updateCoAuthor = (id: string, field: keyof AdminCoAuthor, value: any) =>
-    setCoAuthors((p) => p.map((c) => (c.id === id ? { ...c, [field]: value } : c)));
+    setCoAuthors((p) => p.map((c) => {
+      if (c.id !== id) return c;
+      const next = { ...c, [field]: value } as AdminCoAuthor;
+      if (field === 'firstName' || field === 'lastName') next.name = joinName(next.firstName, next.lastName);
+      return next;
+    }));
 
   const sendCoAuthorVerification = async (ca: AdminCoAuthor) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -269,7 +298,10 @@ export default function AdminSubmitForAuthor() {
         submission_target: target.trim(),
         publication_type: pubType,
         co_authors: filledCoAuthors.map((c) => ({
-          name: c.name.trim(), email: c.email.trim(), affiliation: c.affiliation.trim(), orcid: (c.orcid || '').trim(),
+          name: (c.name || joinName(c.firstName, c.lastName)).trim(),
+          first_name: (c.firstName || splitName(c.name).firstName).trim(),
+          last_name: (c.lastName || splitName(c.name).lastName).trim(),
+          email: c.email.trim(), affiliation: c.affiliation.trim(), orcid: (c.orcid || '').trim(),
         })),
         notification_email: notificationEmail.trim() || null,
       };
@@ -485,11 +517,19 @@ export default function AdminSubmitForAuthor() {
                         <p className="text-xs text-muted-foreground mb-3">Co-Author {idx + 1}</p>
                         <div className="grid sm:grid-cols-3 gap-3">
                           <div>
-                            <Label className="text-xs">Name *</Label>
+                            <Label className="text-xs">First Name *</Label>
                             <div className="relative mt-1">
                               <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                              <Input className="glass-input pl-9 h-9 text-sm" value={ca.name}
-                                onChange={(e) => updateCoAuthor(ca.id, 'name', e.target.value)} />
+                              <Input className="glass-input pl-9 h-9 text-sm" value={ca.firstName}
+                                onChange={(e) => updateCoAuthor(ca.id, 'firstName', e.target.value)} />
+                            </div>
+                          </div>
+                          <div>
+                            <Label className="text-xs">Last Name *</Label>
+                            <div className="relative mt-1">
+                              <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                              <Input className="glass-input pl-9 h-9 text-sm" value={ca.lastName}
+                                onChange={(e) => updateCoAuthor(ca.id, 'lastName', e.target.value)} />
                             </div>
                           </div>
                           <div>
@@ -594,8 +634,12 @@ export default function AdminSubmitForAuthor() {
             <div className="space-y-4 max-w-2xl">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label>Full Name *</Label>
-                  <Input value={cFullName} onChange={(e) => setCFullName(e.target.value)} className="glass-input mt-1" />
+                  <Label>First Name *</Label>
+                  <Input value={cFirstName} onChange={(e) => setCFirstName(e.target.value)} placeholder="First name" className="glass-input mt-1" />
+                </div>
+                <div>
+                  <Label>Last Name *</Label>
+                  <Input value={cLastName} onChange={(e) => setCLastName(e.target.value)} placeholder="Last name" className="glass-input mt-1" />
                 </div>
                 <div>
                   <Label>Email *</Label>

@@ -8,7 +8,10 @@ import { User, Mail, Building, Plus, X, Fingerprint } from 'lucide-react';
 
 export interface CoAuthor {
   id: string;
+  /** Kept in sync automatically from firstName + lastName. */
   name: string;
+  firstName?: string;
+  lastName?: string;
   email: string;
   affiliation: string;
   orcid?: string;
@@ -62,13 +65,26 @@ export function CoAuthorsSection({ coAuthors, onAdd, onRemove, onUpdate }: CoAut
 
               <div className="grid sm:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label className="text-xs">Name *</Label>
+                  <Label className="text-xs">First Name *</Label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
-                      value={coAuthor.name}
-                      onChange={(e) => onUpdate(coAuthor.id, 'name', e.target.value)}
-                      placeholder="Full name"
+                      value={coAuthor.firstName ?? ''}
+                      onChange={(e) => onUpdate(coAuthor.id, 'firstName', e.target.value)}
+                      placeholder="First name"
+                      className="glass-input pl-10 h-9 text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs">Last Name *</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      value={coAuthor.lastName ?? ''}
+                      onChange={(e) => onUpdate(coAuthor.id, 'lastName', e.target.value)}
+                      placeholder="Last name"
                       className="glass-input pl-10 h-9 text-sm"
                     />
                   </div>

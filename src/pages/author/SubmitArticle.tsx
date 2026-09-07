@@ -27,6 +27,8 @@ import { ArrowRight, ArrowLeft, Upload, FileText, CheckCircle, Sparkles, Bot, Cr
 import { Progress } from '@/components/ui/progress';
 import mammoth from 'mammoth';
 import { extractDocxPageCountFromArrayBuffer } from '@/lib/docxPageCount';
+import { extractTextFromLegacyDoc } from '@/lib/legacyDoc';
+import { joinName, splitName } from '@/lib/nameParts';
 import { isHoneypotFilled, isSubmissionTooFast, validateArticleContent } from '@/lib/antispam';
 import {
   Dialog,
@@ -230,19 +232,17 @@ export default function SubmitArticle() {
     try {
       setScanProgress(20);
       const isLegacyDoc = /\.doc$/i.test(file.name);
-      if (isLegacyDoc) {
-        toast({
-          title: 'Legacy .doc file uploaded',
-          description: 'Automatic text extraction only works for .docx. Please fill in the details manually.',
-        });
-        setStep(2);
-        return;
-      }
       const fileBuffer = await file.arrayBuffer();
-      const [extractedText, detectedDocxPageCount] = await Promise.all([
-        extractTextFromDocx(fileBuffer),
-        extractDocxPageCountFromArrayBuffer(fileBuffer),
-      ]);
+      let extractedText = '';
+      let detectedDocxPageCount: number | null = null;
+      if (isLegacyDoc) {
+        extractedText = extractTextFromLegacyDoc(fileBuffer);
+      } else {
+        [extractedText, detectedDocxPageCount] = await Promise.all([
+          extractTextFromDocx(fileBuffer),
+          extractDocxPageCountFromArrayBuffer(fileBuffer),
+        ]);
+      }
 
       setScanProgress(40);
 
@@ -295,13 +295,18 @@ export default function SubmitArticle() {
       if (meta.page_count) setPageCount(meta.page_count);
 
       if (meta.co_authors && Array.isArray(meta.co_authors) && meta.co_authors.length > 0) {
-        const newCoAuthors: CoAuthor[] = meta.co_authors.map((ca: any) => ({
-          id: crypto.randomUUID(),
-          name: ca.name || '',
-          email: ca.email || '',
-          affiliation: ca.affiliation || '',
-          orcid: ca.orcid || '',
-        }));
+        const newCoAuthors: CoAuthor[] = meta.co_authors.map((ca: any) => {
+          const parts = splitName(ca.name || joinName(ca.first_name, ca.last_name));
+          return {
+            id: crypto.randomUUID(),
+            name: ca.name || joinName(ca.first_name, ca.last_name),
+            firstName: ca.first_name || parts.firstName,
+            lastName: ca.last_name || parts.lastName,
+            email: ca.email || '',
+            affiliation: ca.affiliation || '',
+            orcid: ca.orcid || '',
+          };
+        });
         setCoAuthors(newCoAuthors);
       }
 
@@ -338,7 +343,7 @@ export default function SubmitArticle() {
   const addCoAuthor = () => {
     setCoAuthors((prev) => [
       ...prev,
-      { id: crypto.randomUUID(), name: '', email: '', affiliation: '', orcid: '' },
+      { id: crypto.randomUUID(), name: '', firstName: '', lastName: '', email: '', affiliation: '', orcid: '' },
     ]);
   };
 
@@ -348,7 +353,14 @@ export default function SubmitArticle() {
 
   const updateCoAuthor = (id: string, field: keyof CoAuthor, value: string) => {
     setCoAuthors((prev) =>
-      prev.map((ca) => (ca.id === id ? { ...ca, [field]: value } : ca))
+      prev.map((ca) => {
+        if (ca.id !== id) return ca;
+        const next = { ...ca, [field]: value } as CoAuthor;
+        if (field === 'firstName' || field === 'lastName') {
+          next.name = joinName(next.firstName, next.lastName);
+        }
+        return next;
+      })
     );
   };
 
@@ -427,13 +439,18 @@ export default function SubmitArticle() {
       const { error: coAuthorError } = await supabase
         .from('co_authors')
         .insert(
-          validCoAuthors.map((ca) => ({
-            article_id: article.id,
-            name: ca.name.trim(),
-            email: ca.email.trim(),
-            affiliation: ca.affiliation.trim() || null,
-            orcid: (ca.orcid || '').trim() || null,
-          }))
+          validCoAuthors.map((ca) => {
+            const parts = splitName(ca.name);
+            return {
+              article_id: article.id,
+              name: ca.name.trim(),
+              first_name: (ca.firstName || parts.firstName).trim() || null,
+              last_name: (ca.lastName || parts.lastName).trim() || null,
+              email: ca.email.trim(),
+              affiliation: ca.affiliation.trim() || null,
+              orcid: (ca.orcid || '').trim() || null,
+            };
+          })
         );
       if (coAuthorError) throw coAuthorError;
     }
