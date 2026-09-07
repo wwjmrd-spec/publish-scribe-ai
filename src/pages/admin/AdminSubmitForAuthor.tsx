@@ -485,11 +485,19 @@ export default function AdminSubmitForAuthor() {
                         <p className="text-xs text-muted-foreground mb-3">Co-Author {idx + 1}</p>
                         <div className="grid sm:grid-cols-3 gap-3">
                           <div>
-                            <Label className="text-xs">Name *</Label>
+                            <Label className="text-xs">First Name *</Label>
                             <div className="relative mt-1">
                               <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                              <Input className="glass-input pl-9 h-9 text-sm" value={ca.name}
-                                onChange={(e) => updateCoAuthor(ca.id, 'name', e.target.value)} />
+                              <Input className="glass-input pl-9 h-9 text-sm" value={ca.firstName}
+                                onChange={(e) => updateCoAuthor(ca.id, 'firstName', e.target.value)} />
+                            </div>
+                          </div>
+                          <div>
+                            <Label className="text-xs">Last Name *</Label>
+                            <div className="relative mt-1">
+                              <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                              <Input className="glass-input pl-9 h-9 text-sm" value={ca.lastName}
+                                onChange={(e) => updateCoAuthor(ca.id, 'lastName', e.target.value)} />
                             </div>
                           </div>
                           <div>
@@ -594,8 +602,12 @@ export default function AdminSubmitForAuthor() {
             <div className="space-y-4 max-w-2xl">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label>Full Name *</Label>
-                  <Input value={cFullName} onChange={(e) => setCFullName(e.target.value)} className="glass-input mt-1" />
+                  <Label>First Name *</Label>
+                  <Input value={cFirstName} onChange={(e) => setCFirstName(e.target.value)} placeholder="First name" className="glass-input mt-1" />
+                </div>
+                <div>
+                  <Label>Last Name *</Label>
+                  <Input value={cLastName} onChange={(e) => setCLastName(e.target.value)} placeholder="Last name" className="glass-input mt-1" />
                 </div>
                 <div>
                   <Label>Email *</Label>
