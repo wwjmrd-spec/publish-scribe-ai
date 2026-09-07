@@ -27,6 +27,8 @@ import { ArrowRight, ArrowLeft, Upload, FileText, CheckCircle, Sparkles, Bot, Cr
 import { Progress } from '@/components/ui/progress';
 import mammoth from 'mammoth';
 import { extractDocxPageCountFromArrayBuffer } from '@/lib/docxPageCount';
+import { extractTextFromLegacyDoc } from '@/lib/legacyDoc';
+import { joinName, splitName } from '@/lib/nameParts';
 import { isHoneypotFilled, isSubmissionTooFast, validateArticleContent } from '@/lib/antispam';
 import {
   Dialog,
