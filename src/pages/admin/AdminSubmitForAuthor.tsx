@@ -132,7 +132,8 @@ export default function AdminSubmitForAuthor() {
       queryClient.invalidateQueries({ queryKey: ['admin-all-authors-min'] });
       queryClient.invalidateQueries({ queryKey: ['admin-authors'] });
     } catch (e: any) {
-      toast.error('Failed to create author: ' + (e?.message || e));
+      const resolved = await resolveEdgeFunctionError(e, 'Failed to create author');
+      toast.error('Failed to create author: ' + resolved.message);
     } finally {
       setCreating(false);
     }
