@@ -1089,7 +1089,9 @@ export type Database = {
           article_id: string
           created_at: string | null
           email: string
+          first_name: string | null
           id: string
+          last_name: string | null
           name: string
           orcid: string | null
         }
@@ -1098,7 +1100,9 @@ export type Database = {
           article_id: string
           created_at?: string | null
           email: string
+          first_name?: string | null
           id?: string
+          last_name?: string | null
           name: string
           orcid?: string | null
         }
@@ -1107,7 +1111,9 @@ export type Database = {
           article_id?: string
           created_at?: string | null
           email?: string
+          first_name?: string | null
           id?: string
+          last_name?: string | null
           name?: string
           orcid?: string | null
         }
@@ -1760,9 +1766,11 @@ export type Database = {
           discovery_details: Json | null
           discovery_source: string | null
           email: string
+          first_name: string | null
           full_name: string
           id: string
           is_indian: boolean | null
+          last_name: string | null
           orcid: string | null
           referral_code: string | null
         }
@@ -1774,9 +1782,11 @@ export type Database = {
           discovery_details?: Json | null
           discovery_source?: string | null
           email: string
+          first_name?: string | null
           full_name: string
           id: string
           is_indian?: boolean | null
+          last_name?: string | null
           orcid?: string | null
           referral_code?: string | null
         }
@@ -1788,9 +1798,11 @@ export type Database = {
           discovery_details?: Json | null
           discovery_source?: string | null
           email?: string
+          first_name?: string | null
           full_name?: string
           id?: string
           is_indian?: boolean | null
+          last_name?: string | null
           orcid?: string | null
           referral_code?: string | null
         }
