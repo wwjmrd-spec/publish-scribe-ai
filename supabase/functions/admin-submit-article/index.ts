@@ -14,6 +14,8 @@ const json = (b: unknown, s = 200) =>
 
 const CoAuthorSchema = z.object({
   name: z.string().min(1).max(200),
+  first_name: z.string().max(100).optional().default(""),
+  last_name: z.string().max(100).optional().default(""),
   email: z.string().email().max(254),
   affiliation: z.string().max(300).optional().default(""),
   orcid: z.string().max(50).optional().default(""),
@@ -108,6 +110,8 @@ serve(async (req) => {
         p.co_authors.map((ca) => ({
           article_id: article.id,
           name: ca.name.trim(),
+          first_name: ca.first_name?.trim() || ca.name.trim().split(/\s+/)[0] || null,
+          last_name: ca.last_name?.trim() || ca.name.trim().split(/\s+/).slice(1).join(" ") || null,
           email: ca.email.trim(),
           affiliation: ca.affiliation?.trim() || null,
           orcid: ca.orcid?.trim() || null,

@@ -296,7 +296,10 @@ export default function AdminSubmitForAuthor() {
         submission_target: target.trim(),
         publication_type: pubType,
         co_authors: filledCoAuthors.map((c) => ({
-          name: c.name.trim(), email: c.email.trim(), affiliation: c.affiliation.trim(), orcid: (c.orcid || '').trim(),
+          name: (c.name || joinName(c.firstName, c.lastName)).trim(),
+          first_name: (c.firstName || splitName(c.name).firstName).trim(),
+          last_name: (c.lastName || splitName(c.name).lastName).trim(),
+          email: c.email.trim(), affiliation: c.affiliation.trim(), orcid: (c.orcid || '').trim(),
         })),
         notification_email: notificationEmail.trim() || null,
       };
