@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import { FileText, Sparkles, Globe, BookOpen, Target, ExternalLink } from 'lucide-react';
+import { joinName, splitName } from '@/lib/nameParts';
 import {
   Select,
   SelectContent,
