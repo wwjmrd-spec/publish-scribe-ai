@@ -338,7 +338,7 @@ export default function SubmitArticle() {
   const addCoAuthor = () => {
     setCoAuthors((prev) => [
       ...prev,
-      { id: crypto.randomUUID(), name: '', email: '', affiliation: '', orcid: '' },
+      { id: crypto.randomUUID(), name: '', firstName: '', lastName: '', email: '', affiliation: '', orcid: '' },
     ]);
   };
 
