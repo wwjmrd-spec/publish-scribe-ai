@@ -71,12 +71,22 @@ export function ArticleDetailsSection({
         {/* Author Name & Country Row */}
         <div className="grid sm:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="authorName">Author Name *</Label>
+            <Label htmlFor="authorFirstName">First Name *</Label>
             <Input
-              id="authorName"
-              value={authorName}
-              onChange={(e) => setAuthorName(e.target.value)}
-              placeholder="Your full name"
+              id="authorFirstName"
+              value={splitName(authorName).firstName}
+              onChange={(e) => setAuthorName(joinName(e.target.value, splitName(authorName).lastName))}
+              placeholder="First name"
+              className="glass-input"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="authorLastName">Last Name *</Label>
+            <Input
+              id="authorLastName"
+              value={splitName(authorName).lastName}
+              onChange={(e) => setAuthorName(joinName(splitName(authorName).firstName, e.target.value))}
+              placeholder="Last name"
               className="glass-input"
             />
           </div>
