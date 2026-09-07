@@ -48,7 +48,9 @@ export default function AdminSubmitForAuthor() {
   // --- Create Author state ---
   const [cEmail, setCEmail] = useState('');
   const [cPassword, setCPassword] = useState('');
-  const [cFullName, setCFullName] = useState('');
+  const [cFirstName, setCFirstName] = useState('');
+  const [cLastName, setCLastName] = useState('');
+  const cFullName = joinName(cFirstName, cLastName);
   const [cCountry, setCCountry] = useState('');
   const [cAffiliation, setCAffiliation] = useState('');
   const [cIsIndian, setCIsIndian] = useState<'auto' | 'yes' | 'no'>('auto');
@@ -145,10 +147,11 @@ export default function AdminSubmitForAuthor() {
   const handleScan = async () => {
     if (!authorId) { toast.error('Select an author first'); return; }
     if (!file) { toast.error('Upload a manuscript file'); return; }
-    const isDocx = file.name.toLowerCase().endsWith('.docx');
-    if (!isDocx) {
-      // .doc / PDF can't be scanned client-side here — skip to step 2
-      toast.message('Automatic scan only supports .docx — fill details manually.');
+    const lower = file.name.toLowerCase();
+    const isDocx = lower.endsWith('.docx');
+    const isLegacyDoc = lower.endsWith('.doc');
+    if (!isDocx && !isLegacyDoc) {
+      toast.message('Automatic scan supports .docx and .doc — fill details manually.');
       setStep(2);
       return;
     }
@@ -157,10 +160,16 @@ export default function AdminSubmitForAuthor() {
     try {
       const buf = await file.arrayBuffer();
       setScanProgress(35);
-      const [text, pc] = await Promise.all([
-        extractTextFromDocx(buf),
-        extractDocxPageCountFromArrayBuffer(buf),
-      ]);
+      let text = '';
+      let pc: number | null = null;
+      if (isLegacyDoc) {
+        text = extractTextFromLegacyDoc(buf);
+      } else {
+        [text, pc] = await Promise.all([
+          extractTextFromDocx(buf),
+          extractDocxPageCountFromArrayBuffer(buf),
+        ]);
+      }
       setScanProgress(55);
       if (text.length < 50) {
         toast.message('Document looks empty — fill details manually.');
