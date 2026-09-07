@@ -222,11 +222,16 @@ export default function AdminSubmitForAuthor() {
   };
 
   const addCoAuthor = () => setCoAuthors((p) => [
-    ...p, { id: crypto.randomUUID(), name: '', email: '', affiliation: '', orcid: '', verificationSent: false, skipVerification: false },
+    ...p, { id: crypto.randomUUID(), name: '', firstName: '', lastName: '', email: '', affiliation: '', orcid: '', verificationSent: false, skipVerification: false },
   ]);
   const removeCoAuthor = (id: string) => setCoAuthors((p) => p.filter((c) => c.id !== id));
   const updateCoAuthor = (id: string, field: keyof AdminCoAuthor, value: any) =>
-    setCoAuthors((p) => p.map((c) => (c.id === id ? { ...c, [field]: value } : c)));
+    setCoAuthors((p) => p.map((c) => {
+      if (c.id !== id) return c;
+      const next = { ...c, [field]: value } as AdminCoAuthor;
+      if (field === 'firstName' || field === 'lastName') next.name = joinName(next.firstName, next.lastName);
+      return next;
+    }));
 
   const sendCoAuthorVerification = async (ca: AdminCoAuthor) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
