@@ -98,8 +98,8 @@ export default function AdminSubmitForAuthor() {
   const [generatedTemp, setGeneratedTemp] = useState<{ email: string; password: string } | null>(null);
 
   const handleCreateAuthor = async () => {
-    if (!cEmail || !cFullName) {
-      toast.error('Email and full name are required');
+    if (!cEmail || !cFirstName.trim() || !cLastName.trim()) {
+      toast.error('Email, first name and last name are required');
       return;
     }
     setCreating(true);
@@ -112,6 +112,8 @@ export default function AdminSubmitForAuthor() {
           // force the author to reset + verify on first login.
           ...(cPassword ? { password: cPassword } : {}),
           full_name: cFullName.trim(),
+          first_name: cFirstName.trim(),
+          last_name: cLastName.trim(),
           country: cCountry.trim() || 'Unknown',
           affiliation: cAffiliation.trim(),
           is_indian: cIsIndian === 'auto' ? undefined : cIsIndian === 'yes',
