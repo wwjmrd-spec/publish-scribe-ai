@@ -19,10 +19,15 @@ import {
 } from 'lucide-react';
 import mammoth from 'mammoth';
 import { extractDocxPageCountFromArrayBuffer } from '@/lib/docxPageCount';
+import { extractTextFromLegacyDoc } from '@/lib/legacyDoc';
+import { joinName, splitName } from '@/lib/nameParts';
 
 interface AdminCoAuthor {
   id: string;
+  /** Derived from firstName + lastName. */
   name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   affiliation: string;
   orcid: string;
