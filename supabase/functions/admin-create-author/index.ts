@@ -19,6 +19,8 @@ const BodySchema = z.object({
   // Password is optional now — if omitted we generate a temporary one.
   password: z.string().min(8).max(128).optional(),
   full_name: z.string().min(1).max(100),
+  first_name: z.string().max(100).optional().default(""),
+  last_name: z.string().max(100).optional().default(""),
   country: z.string().min(1).max(100).default("Unknown"),
   affiliation: z.string().max(200).optional().default(""),
   is_indian: z.boolean().optional(),
