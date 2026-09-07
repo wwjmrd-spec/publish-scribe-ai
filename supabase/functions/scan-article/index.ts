@@ -222,12 +222,16 @@ export const handler = async (req: Request) => {
                     keywords: { type: "string", description: "Comma-separated keywords" },
                     subject: { type: "string", description: "Primary academic subject/discipline" },
                     author_name: { type: "string", description: "Primary author's full name" },
+                    author_first_name: { type: "string", description: "Primary author's first (given) name only" },
+                    author_last_name: { type: "string", description: "Primary author's last (family) name, including any middle names" },
                     co_authors: {
                       type: "array",
                       items: {
                         type: "object",
                         properties: {
                           name: { type: "string" },
+                          first_name: { type: "string", description: "Co-author's first (given) name only" },
+                          last_name: { type: "string", description: "Co-author's last (family) name" },
                           email: { type: "string" },
                           affiliation: { type: "string" },
                         },
