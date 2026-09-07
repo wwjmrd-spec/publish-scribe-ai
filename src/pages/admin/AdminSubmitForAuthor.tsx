@@ -193,15 +193,21 @@ export default function AdminSubmitForAuthor() {
       if (m.reason_of_research) setReason(m.reason_of_research);
       if (m.page_count) setPageCount(m.page_count);
       if (Array.isArray(m.co_authors) && m.co_authors.length > 0) {
-        setCoAuthors(m.co_authors.map((ca: any) => ({
-          id: crypto.randomUUID(),
-          name: ca.name || '',
-          email: ca.email || '',
-          affiliation: ca.affiliation || '',
-          orcid: ca.orcid || '',
-          verificationSent: false,
-          skipVerification: false,
-        })));
+        setCoAuthors(m.co_authors.map((ca: any) => {
+          const full = ca.name || joinName(ca.first_name, ca.last_name);
+          const parts = splitName(full);
+          return {
+            id: crypto.randomUUID(),
+            name: full,
+            firstName: ca.first_name || parts.firstName,
+            lastName: ca.last_name || parts.lastName,
+            email: ca.email || '',
+            affiliation: ca.affiliation || '',
+            orcid: ca.orcid || '',
+            verificationSent: false,
+            skipVerification: false,
+          };
+        }));
       }
       setScanProgress(100);
       toast.success('AI scan complete ✨');
