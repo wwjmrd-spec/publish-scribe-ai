@@ -103,7 +103,7 @@ export function CountryCollectionModal() {
         update.full_name = joinName(firstName.trim(), lastName.trim());
       }
 
-      const { error } = await supabase.from('profiles').update(update).eq('id', user.id);
+      const { error } = await supabase.from('profiles').update(update as any).eq('id', user.id);
       if (error) throw error;
 
       toast({ title: 'Profile updated successfully!' });
