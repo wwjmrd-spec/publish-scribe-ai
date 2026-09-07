@@ -232,19 +232,17 @@ export default function SubmitArticle() {
     try {
       setScanProgress(20);
       const isLegacyDoc = /\.doc$/i.test(file.name);
-      if (isLegacyDoc) {
-        toast({
-          title: 'Legacy .doc file uploaded',
-          description: 'Automatic text extraction only works for .docx. Please fill in the details manually.',
-        });
-        setStep(2);
-        return;
-      }
       const fileBuffer = await file.arrayBuffer();
-      const [extractedText, detectedDocxPageCount] = await Promise.all([
-        extractTextFromDocx(fileBuffer),
-        extractDocxPageCountFromArrayBuffer(fileBuffer),
-      ]);
+      let extractedText = '';
+      let detectedDocxPageCount: number | null = null;
+      if (isLegacyDoc) {
+        extractedText = extractTextFromLegacyDoc(fileBuffer);
+      } else {
+        [extractedText, detectedDocxPageCount] = await Promise.all([
+          extractTextFromDocx(fileBuffer),
+          extractDocxPageCountFromArrayBuffer(fileBuffer),
+        ]);
+      }
 
       setScanProgress(40);
 
@@ -297,13 +295,18 @@ export default function SubmitArticle() {
       if (meta.page_count) setPageCount(meta.page_count);
 
       if (meta.co_authors && Array.isArray(meta.co_authors) && meta.co_authors.length > 0) {
-        const newCoAuthors: CoAuthor[] = meta.co_authors.map((ca: any) => ({
-          id: crypto.randomUUID(),
-          name: ca.name || '',
-          email: ca.email || '',
-          affiliation: ca.affiliation || '',
-          orcid: ca.orcid || '',
-        }));
+        const newCoAuthors: CoAuthor[] = meta.co_authors.map((ca: any) => {
+          const parts = splitName(ca.name || joinName(ca.first_name, ca.last_name));
+          return {
+            id: crypto.randomUUID(),
+            name: ca.name || joinName(ca.first_name, ca.last_name),
+            firstName: ca.first_name || parts.firstName,
+            lastName: ca.last_name || parts.lastName,
+            email: ca.email || '',
+            affiliation: ca.affiliation || '',
+            orcid: ca.orcid || '',
+          };
+        });
         setCoAuthors(newCoAuthors);
       }
 
