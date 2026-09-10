@@ -619,6 +619,18 @@ export default function AdminArticles() {
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
+                              className="text-amber-400"
+                              onClick={() => {
+                                if (!confirm('Email the author that this manuscript file is not readable and ask them to upload it again as a .docx file?')) return;
+                                fileNotReadableMutation.mutate(article);
+                              }}
+                              disabled={fileNotReadableMutation.isPending}
+                            >
+                              <Mail className="w-4 h-4 mr-2" />
+                              File Not Readable — Ask to Resubmit
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
                               onClick={() => togglePublicationTypeMutation.mutate({
                                 id: article.id,
                                 type: article.publication_type === 'fast_track' ? 'normal' : 'fast_track',
