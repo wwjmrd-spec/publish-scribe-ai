@@ -1027,6 +1027,11 @@ function getEmailContent(
         subject: "Upgrade to Pro Plan - Unlock More Benefits! 🚀 - WWJMRD",
         html: getUpgradeToProTemplate(data),
       };
+    case "file-not-readable":
+      return {
+        subject: `Action Required: Manuscript File Not Readable (${data?.referenceNumber || "Your Article"}) - WWJMRD`,
+        html: getFileNotReadableTemplate(data),
+      };
     case "manuscript-revise":
       return {
         subject: `Manuscript Revision Required: ${data?.articleTitle || "Your Article"} - WWJMRD`,
