@@ -978,6 +978,19 @@ export default function AdminArticleDetail() {
                 <Button
                   variant="outline"
                   size="sm"
+                  className="text-amber-400 hover:text-amber-300 border-amber-500/30"
+                  onClick={() => {
+                    if (!confirm('Email the author that this manuscript file is not readable and ask them to upload it again as a .docx file?')) return;
+                    fileNotReadableMutation.mutate();
+                  }}
+                  disabled={fileNotReadableMutation.isPending}
+                >
+                  <Mail className="w-4 h-4 mr-2" />
+                  {fileNotReadableMutation.isPending ? 'Sending request…' : 'File Not Readable — Ask Author to Resubmit'}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => updateStatusMutation.mutate({ status: 'under_review' })}
                   disabled={updateStatusMutation.isPending}
                 >
