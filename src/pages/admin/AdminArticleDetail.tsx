@@ -355,6 +355,38 @@ export default function AdminArticleDetail() {
     },
   });
 
+  const fileNotReadableMutation = useMutation({
+    mutationFn: async () => {
+      const authorProfile = article!.profiles as any;
+      const to = authorProfile?.email;
+      if (!to) throw new Error('This author has no email address on file');
+      const fileName = String((article as any).document_url || '').split('/').pop() || '';
+      const emailData = {
+        authorName: authorProfile?.full_name || article!.author_name || 'Author',
+        authorEmail: to,
+        articleTitle: article!.title,
+        referenceNumber: article!.reference_number,
+        articleId: article!.id,
+        fileName,
+      };
+      const { error } = await supabase.functions.invoke('send-email', {
+        body: { to, template: 'file-not-readable', data: emailData },
+      });
+      if (error) throw await resolveEdgeFunctionError(error, 'Failed to send email');
+
+      await supabase.from('notifications').insert({
+        user_id: article!.author_id,
+        title: 'Manuscript file not readable ⚠️',
+        message: `The file uploaded for "${article!.title}" (${article!.reference_number}) could not be opened by our system. Please upload your manuscript again as a .docx file from My Articles.`,
+        type: 'warning',
+        link: '/author/articles',
+      });
+    },
+    onSuccess: () => toast.success('Re-submission request emailed to the author'),
+    onError: (err: any) => toast.error(err.message || 'Failed to send email'),
+  });
+
+
   const updateDetailsMutation = useMutation({
     mutationFn: async () => {
       const payload: any = {
