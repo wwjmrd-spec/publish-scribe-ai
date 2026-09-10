@@ -45,6 +45,7 @@ type EmailTemplate =
   | "copyright-form-request"
   | "upgrade-to-pro"
   | "manuscript-revise"
+  | "file-not-readable"
   | "manuscript-update"
   | "galley-proof-revision"
   | "galley-proof-approved"
