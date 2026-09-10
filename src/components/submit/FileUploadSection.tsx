@@ -25,6 +25,19 @@ export function FileUploadSection({ file, setFile }: FileUploadSectionProps) {
     }
   }, []);
 
+  const warnIfLegacyDoc = useCallback(
+    (name: string) => {
+      if (/\.doc$/i.test(name)) {
+        toast({
+          title: 'Old Word format detected',
+          description:
+            'This is an old Word 97-2003 (.doc) file. Please save it as a .docx file and upload again, otherwise your manuscript cannot be formatted for publication.',
+        });
+      }
+    },
+    [toast]
+  );
+
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
@@ -35,6 +48,7 @@ export function FileUploadSection({ file, setFile }: FileUploadSectionProps) {
         const droppedFile = e.dataTransfer.files[0];
         if (isAllowed(droppedFile.name)) {
           setFile(droppedFile);
+          warnIfLegacyDoc(droppedFile.name);
         } else {
           toast({
             title: 'Invalid file type',
@@ -44,7 +58,7 @@ export function FileUploadSection({ file, setFile }: FileUploadSectionProps) {
         }
       }
     },
-    [toast, setFile]
+    [toast, setFile, warnIfLegacyDoc]
   );
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -52,6 +66,7 @@ export function FileUploadSection({ file, setFile }: FileUploadSectionProps) {
       const selectedFile = e.target.files[0];
       if (isAllowed(selectedFile.name)) {
         setFile(selectedFile);
+        warnIfLegacyDoc(selectedFile.name);
       } else {
         toast({
           title: 'Invalid file type',
@@ -61,6 +76,7 @@ export function FileUploadSection({ file, setFile }: FileUploadSectionProps) {
       }
     }
   };
+
 
   return (
     <GlassCard>
