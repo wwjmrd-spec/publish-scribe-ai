@@ -45,6 +45,7 @@ type EmailTemplate =
   | "copyright-form-request"
   | "upgrade-to-pro"
   | "manuscript-revise"
+  | "file-not-readable"
   | "manuscript-update"
   | "galley-proof-revision"
   | "galley-proof-approved"
@@ -718,6 +719,46 @@ const getManuscriptReviseTemplate = (data: EmailRequest["data"]): string => {
   return wrapEmail("Manuscript Revision Required - WWJMRD", body);
 };
 
+const getFileNotReadableTemplate = (data: EmailRequest["data"]): string => {
+  const d = (data || {}) as any;
+  const infoRows = [
+    emailInfoRow("Reference Number", escapeHtml(d.referenceNumber || "N/A")),
+    emailInfoRow("Title", escapeHtml(d.articleTitle || "N/A")),
+    emailInfoRow("Uploaded File", escapeHtml(d.fileName || "Your manuscript file")),
+  ].join("");
+
+  const body = `
+    ${emailH1("Action Required: Your Manuscript File Is Not Readable ⚠️")}
+    ${emailP(`Dear ${escapeHtml(d.authorName || "Author")},`)}
+    ${emailP(`We attempted to process your submitted manuscript <strong style="color:#ffffff;">"${escapeHtml(d.articleTitle || "")}"</strong>, but the uploaded file could not be opened or read by our publishing system. This usually happens when the file is saved in the older Word 97-2003 <strong style="color:#ffffff;">.doc</strong> format, was damaged during upload, or is password protected.`)}
+    ${emailInfoBox("Submission Details:", infoRows)}
+    ${d.adminNote ? emailP(`<strong style="color:#ffffff;">Note from the editorial office:</strong> ${escapeHtml(String(d.adminNote))}`) : ""}
+    ${emailP("Kindly upload your manuscript again as a <strong style='color:#ffffff;'>.docx</strong> file so that we can continue the review and formatting process without further delay.")}
+
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#1a2340" style="background-color:#1a2340; border-radius:8px; margin:20px 0;">
+      <tr><td style="padding:20px;">
+        <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif; font-size:16px; font-weight:700; color:#ffffff; margin:0 0 12px;">Step-by-step re-submission guide</p>
+        ${emailFeatureItem('<strong style="color:#ffffff;">Step 1 —</strong> Open your manuscript in Microsoft Word, Google Docs or WPS Office.')}
+        ${emailFeatureItem('<strong style="color:#ffffff;">Step 2 —</strong> Choose <em>File → Save As</em> (in Google Docs: <em>File → Download</em>) and select the format <strong style="color:#ffffff;">Word Document (*.docx)</strong>. Do not choose “Word 97-2003 (*.doc)”.')}
+        ${emailFeatureItem('<strong style="color:#ffffff;">Step 3 —</strong> Remove any password protection or “restrict editing” setting, and make sure all figures and tables are inside the document.')}
+        ${emailFeatureItem('<strong style="color:#ffffff;">Step 4 —</strong> Reopen the saved .docx file once to confirm it opens correctly and the content is complete.')}
+        ${emailFeatureItem('<strong style="color:#ffffff;">Step 5 —</strong> Sign in to your author dashboard at wwjmrdai.online and open <strong style="color:#ffffff;">My Articles</strong>.')}
+        ${emailFeatureItem(`<strong style="color:#ffffff;">Step 6 —</strong> Find reference <strong style="color:#ffffff;">${escapeHtml(d.referenceNumber || "your article")}</strong> and click <strong style="color:#ffffff;">Update Manuscript</strong> (or <strong style="color:#ffffff;">Resubmit</strong>).`)}
+        ${emailFeatureItem('<strong style="color:#ffffff;">Step 7 —</strong> Upload the new .docx file and confirm the submission. Your file size should be under 20 MB.')}
+        ${emailFeatureItem('<strong style="color:#ffffff;">Step 8 —</strong> Once uploaded, the review process restarts automatically: status moves to <em>Under Review</em>, the AI review report is regenerated, and formatting continues from there.')}
+      </td></tr>
+    </table>
+
+    ${emailP("You do not need to pay anything again or create a new submission — your reference number, co-authors and all other details remain exactly the same.")}
+    ${emailButton("https://wwjmrdai.online/author/articles", "Upload My Manuscript Again")}
+    ${emailDivider()}
+    ${emailFooterText("If the problem continues or you are unsure which format to use, simply reply to this email or write to support@wwjmrd.com and our team will assist you.")}
+  `;
+  return wrapEmail("Manuscript File Not Readable - WWJMRD", body);
+};
+
+
+
 
 const getManuscriptUpdateTemplate = (data: EmailRequest["data"], isAdmin: boolean = false): string => {
   const infoRows = [
@@ -986,6 +1027,11 @@ function getEmailContent(
       return {
         subject: "Upgrade to Pro Plan - Unlock More Benefits! 🚀 - WWJMRD",
         html: getUpgradeToProTemplate(data),
+      };
+    case "file-not-readable":
+      return {
+        subject: `Action Required: Manuscript File Not Readable (${data?.referenceNumber || "Your Article"}) - WWJMRD`,
+        html: getFileNotReadableTemplate(data),
       };
     case "manuscript-revise":
       return {

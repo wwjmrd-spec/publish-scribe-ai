@@ -1290,6 +1290,44 @@ serve(async (req) => {
     if (!articleId) return jsonResponse({ error: "Article ID required" }, 400);
     stuckArticleId = articleId;
 
+    // Pre-flight: make sure the uploaded manuscript really is a readable .docx
+    // (a ZIP container). Legacy Word 97-2003 .doc files and damaged uploads
+    // cannot be parsed, so fail fast with an actionable message instead of
+    // leaving the article stuck in "formatting".
+    {
+      const { data: preArticle } = await supabase
+        .from("articles")
+        .select("document_url")
+        .eq("id", articleId)
+        .maybeSingle();
+      const docUrl = (preArticle as any)?.document_url as string | undefined;
+      if (!docUrl) {
+        await supabase.from("articles").update({ formatting_status: "failed" }).eq("id", articleId);
+        return jsonResponse({ error: "This article has no manuscript file attached." }, 422);
+      }
+      const { data: probe, error: probeErr } = await supabase.storage.from("documents").download(docUrl);
+      if (probeErr || !probe) {
+        await supabase.from("articles").update({ formatting_status: "failed" }).eq("id", articleId);
+        return jsonResponse({ error: "The manuscript file could not be downloaded from storage." }, 422);
+      }
+      const head = new Uint8Array(await probe.slice(0, 8).arrayBuffer());
+      const isZip = head[0] === 0x50 && head[1] === 0x4b;
+      const isOleDoc =
+        head[0] === 0xd0 && head[1] === 0xcf && head[2] === 0x11 && head[3] === 0xe0;
+      if (!isZip) {
+        await supabase.from("articles").update({ formatting_status: "failed" }).eq("id", articleId);
+        return jsonResponse(
+          {
+            error: isOleDoc
+              ? "This manuscript is an old Word 97-2003 (.doc) file, which cannot be formatted. Use \"Ask Author to Resubmit File\" so the author uploads a .docx version."
+              : "This manuscript file is not a readable .docx document (it may be damaged or in an unsupported format). Use \"Ask Author to Resubmit File\" so the author uploads a valid .docx version.",
+            code: "UNREADABLE_SOURCE_FILE",
+          },
+          422,
+        );
+      }
+    }
+
     await supabase.from("articles").update({ formatting_status: "formatting" }).eq("id", articleId);
 
     // Offload heavy work so the client fetch doesn't time out.

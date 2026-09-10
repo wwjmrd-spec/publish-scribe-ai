@@ -322,6 +322,39 @@ export default function AdminArticles() {
     onError: (e: any) => toast.error('Failed: ' + e.message),
   });
 
+  const fileNotReadableMutation = useMutation({
+    mutationFn: async (article: any) => {
+      const profile = article.profiles as any;
+      const to = profile?.email;
+      if (!to) throw new Error('This author has no email address on file');
+      const { error } = await supabase.functions.invoke('send-email', {
+        body: {
+          to,
+          template: 'file-not-readable',
+          data: {
+            authorName: profile?.full_name || 'Author',
+            authorEmail: to,
+            articleTitle: article.title,
+            referenceNumber: article.reference_number,
+            articleId: article.id,
+            fileName: String(article.document_url || '').split('/').pop() || '',
+          },
+        },
+      });
+      if (error) throw error;
+
+      await supabase.from('notifications').insert({
+        user_id: article.author_id,
+        title: 'Manuscript file not readable ⚠️',
+        message: `The file uploaded for "${article.title}" (${article.reference_number}) could not be opened by our system. Please upload your manuscript again as a .docx file from My Articles.`,
+        type: 'warning',
+        link: '/author/articles',
+      });
+    },
+    onSuccess: () => toast.success('Re-submission request emailed to the author'),
+    onError: (e: any) => toast.error('Failed: ' + e.message),
+  });
+
   const markPaidMutation = useMutation({
     mutationFn: async ({ id, paid }: { id: string; paid: boolean }) => {
       const { error } = await supabase
@@ -583,6 +616,18 @@ export default function AdminArticles() {
                             <DropdownMenuItem onClick={() => navigate(`/admin/ai-review?articleId=${article.id}`)}>
                               <Brain className="w-4 h-4 mr-2" />
                               AI Review
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-amber-400"
+                              onClick={() => {
+                                if (!confirm('Email the author that this manuscript file is not readable and ask them to upload it again as a .docx file?')) return;
+                                fileNotReadableMutation.mutate(article);
+                              }}
+                              disabled={fileNotReadableMutation.isPending}
+                            >
+                              <Mail className="w-4 h-4 mr-2" />
+                              File Not Readable — Ask to Resubmit
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
