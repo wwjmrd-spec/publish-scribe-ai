@@ -49,6 +49,8 @@ export default function AdminAuthors() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAuthor, setSelectedAuthor] = useState<any>(null);
   const [isPlanDialogOpen, setIsPlanDialogOpen] = useState(false);
+  const [isLimitDialogOpen, setIsLimitDialogOpen] = useState(false);
+  const [limitDraft, setLimitDraft] = useState(5);
   const [authorsPage, setAuthorsPage] = useState(1);
   const [coAuthorsPage, setCoAuthorsPage] = useState(1);
   const [downloadFilter, setDownloadFilter] = useState<'all' | 'submitted' | 'not_submitted' | 'paid' | 'unpaid'>('all');
@@ -120,6 +122,24 @@ export default function AdminAuthors() {
     onError: (error) => {
       toast.error('Failed to change currency: ' + error.message);
     },
+  });
+
+  const changeSubmissionLimitMutation = useMutation({
+    mutationFn: async ({ authorId, limit }: { authorId: string; limit: number }) => {
+      const normalizedLimit = Math.max(0, Math.floor(limit));
+      const { error } = await supabase
+        .from('profiles')
+        .update({ daily_submission_limit: normalizedLimit })
+        .eq('id', authorId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-authors'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-author-detail'] });
+      toast.success('Article submission limit updated');
+      setIsLimitDialogOpen(false);
+    },
+    onError: (error) => toast.error('Failed to update limit: ' + error.message),
   });
 
   const { data: coAuthorsMap } = useQuery({
@@ -472,6 +492,19 @@ export default function AdminAuthors() {
                               className="flex-1 text-xs"
                               onClick={() => {
                                 setSelectedAuthor(author);
+                                setLimitDraft(author.daily_submission_limit ?? 5);
+                                setIsLimitDialogOpen(true);
+                              }}
+                            >
+                              <FileText className="w-3 h-3 mr-1" />
+                              {author.daily_submission_limit ?? 5}/24h
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="flex-1 text-xs"
+                              onClick={() => {
+                                setSelectedAuthor(author);
                                 setIsPlanDialogOpen(true);
                               }}
                             >
@@ -628,6 +661,39 @@ export default function AdminAuthors() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsPlanDialogOpen(false)}>
               Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isLimitDialogOpen} onOpenChange={setIsLimitDialogOpen}>
+        <DialogContent className="glass-card-strong">
+          <DialogHeader>
+            <DialogTitle className="gradient-text">Article Submission Limit</DialogTitle>
+            <DialogDescription>
+              Set how many new articles {selectedAuthor?.full_name} may submit during any rolling 24-hour period.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-4">
+            <label htmlFor="daily-submission-limit" className="text-sm font-medium">Articles per 24 hours</label>
+            <Input
+              id="daily-submission-limit"
+              type="number"
+              min={0}
+              step={1}
+              className="glass-input"
+              value={limitDraft}
+              onChange={(event) => setLimitDraft(Math.max(0, Number(event.target.value)))}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsLimitDialogOpen(false)}>Cancel</Button>
+            <Button
+              className="gradient-primary"
+              disabled={!selectedAuthor || changeSubmissionLimitMutation.isPending}
+              onClick={() => selectedAuthor && changeSubmissionLimitMutation.mutate({ authorId: selectedAuthor.id, limit: limitDraft })}
+            >
+              {changeSubmissionLimitMutation.isPending ? 'Saving…' : 'Save Limit'}
             </Button>
           </DialogFooter>
         </DialogContent>

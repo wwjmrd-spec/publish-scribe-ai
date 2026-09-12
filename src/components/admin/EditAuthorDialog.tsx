@@ -15,7 +15,7 @@ interface Props {
 
 export function EditAuthorDialog({ open, onOpenChange, author }: Props) {
   const qc = useQueryClient();
-  const [form, setForm] = useState({ full_name: '', email: '', affiliation: '', country: '', orcid: '' });
+  const [form, setForm] = useState({ full_name: '', email: '', affiliation: '', country: '', orcid: '', daily_submission_limit: 5 });
 
   useEffect(() => {
     if (author) {
@@ -25,6 +25,7 @@ export function EditAuthorDialog({ open, onOpenChange, author }: Props) {
         affiliation: author.affiliation || '',
         country: author.country || '',
         orcid: author.orcid || '',
+        daily_submission_limit: author.daily_submission_limit ?? 5,
       });
     }
   }, [author]);
@@ -40,6 +41,7 @@ export function EditAuthorDialog({ open, onOpenChange, author }: Props) {
           country: form.country.trim().slice(0, 100),
           orcid: form.orcid.trim().slice(0, 50) || null,
           is_indian: form.country.trim().toLowerCase() === 'india',
+          daily_submission_limit: Math.max(0, Math.floor(Number(form.daily_submission_limit) || 0)),
         })
         .eq('id', author.id);
       if (error) throw error;
@@ -79,6 +81,17 @@ export function EditAuthorDialog({ open, onOpenChange, author }: Props) {
           <div>
             <Label>Country</Label>
             <Input className="glass-input" value={form.country} onChange={(e) => setForm(f => ({ ...f, country: e.target.value }))} />
+          </div>
+          <div>
+            <Label>Article Submission Limit (rolling 24 hours)</Label>
+            <Input
+              className="glass-input"
+              type="number"
+              min={0}
+              step={1}
+              value={form.daily_submission_limit}
+              onChange={(e) => setForm(f => ({ ...f, daily_submission_limit: Math.max(0, Number(e.target.value)) }))}
+            />
           </div>
         </div>
         <DialogFooter>

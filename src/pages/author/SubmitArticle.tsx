@@ -127,6 +127,32 @@ export default function SubmitArticle() {
     return isIndian ? Number(fees.indian_fast_track_fee) : Number(fees.international_fast_track_fee);
   }, [fees, isIndian]);
 
+  const { data: submissionQuota, refetch: refetchSubmissionQuota } = useQuery({
+    queryKey: ['article-submission-quota', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_article_submission_quota', { _user_id: user?.id });
+      if (error) throw error;
+      return data?.[0] ?? { daily_limit: 5, used: 0, remaining: 5 };
+    },
+    enabled: !!user?.id,
+  });
+
+  const limitReached = !!submissionQuota && submissionQuota.remaining <= 0;
+  const limitMessage = 'You have reached your article submission limit. To request an increase, email support@wwjmrd.com.';
+
+  const ensureSubmissionAvailable = async (): Promise<boolean> => {
+    const { data, error } = await refetchSubmissionQuota();
+    if (error) {
+      toast({ title: 'Unable to check submission limit', description: 'Please try again.', variant: 'destructive' });
+      return false;
+    }
+    if (data && data.remaining <= 0) {
+      toast({ title: 'Article submission limit reached', description: limitMessage, variant: 'destructive' });
+      return false;
+    }
+    return true;
+  };
+
   // Pre-fill from profile
   useEffect(() => {
     if (!user?.id) return;
@@ -427,7 +453,12 @@ export default function SubmitArticle() {
       .select()
       .single();
 
-    if (articleError) throw articleError;
+    if (articleError) {
+      if (articleError.message?.includes('DAILY_ARTICLE_SUBMISSION_LIMIT_REACHED')) {
+        throw new Error(limitMessage);
+      }
+      throw articleError;
+    }
 
     // Add co-authors
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -499,6 +530,7 @@ export default function SubmitArticle() {
 
     setSubmittedRef(article.reference_number);
     setStep(3);
+    await refetchSubmissionQuota();
   };
 
   // Validate form fields
@@ -709,6 +741,7 @@ export default function SubmitArticle() {
 
   const handleSubmit = async () => {
     if (!validateForm()) return;
+    if (!(await ensureSubmissionAvailable())) return;
 
     // Anti-bot checks
     if (isHoneypotFilled(honeypot)) {
@@ -769,6 +802,7 @@ export default function SubmitArticle() {
   };
 
   const handleFastTrackSubmit = async () => {
+    if (!(await ensureSubmissionAvailable())) return;
     if (paymentMethod === 'razorpay' && !razorpayLoaded) {
       toast({
         title: 'Loading payment gateway',
@@ -895,6 +929,24 @@ export default function SubmitArticle() {
             Follow the steps below to submit your article for review
           </p>
         </div>
+
+        {submissionQuota && (
+          <GlassCard className={`mb-6 ${limitReached ? 'border-destructive/50' : ''}`}>
+            <div className="flex items-start gap-3">
+              <FileText className={`w-5 h-5 mt-0.5 ${limitReached ? 'text-destructive' : 'text-primary'}`} />
+              <div>
+                <p className="font-medium">
+                  {submissionQuota.used} of {submissionQuota.daily_limit} submissions used in the last 24 hours
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {limitReached
+                    ? limitMessage
+                    : `${submissionQuota.remaining} new article${submissionQuota.remaining === 1 ? '' : 's'} remaining.`}
+                </p>
+              </div>
+            </div>
+          </GlassCard>
+        )}
 
         {/* Stepper */}
         <div className="flex items-center justify-center gap-2 mb-10">
@@ -1354,7 +1406,7 @@ export default function SubmitArticle() {
                   type="button"
                   variant="outline"
                   onClick={() => setStep(1)}
-                  disabled={loading || isProcessing}
+                  disabled={loading || isProcessing || limitReached}
                 >
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   Back
