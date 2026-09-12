@@ -1763,6 +1763,7 @@ export type Database = {
           avatar_url: string | null
           country: string | null
           created_at: string | null
+          daily_submission_limit: number
           discovery_details: Json | null
           discovery_source: string | null
           email: string
@@ -1779,6 +1780,7 @@ export type Database = {
           avatar_url?: string | null
           country?: string | null
           created_at?: string | null
+          daily_submission_limit?: number
           discovery_details?: Json | null
           discovery_source?: string | null
           email: string
@@ -1795,6 +1797,7 @@ export type Database = {
           avatar_url?: string | null
           country?: string | null
           created_at?: string | null
+          daily_submission_limit?: number
           discovery_details?: Json | null
           discovery_source?: string | null
           email?: string
@@ -2485,6 +2488,15 @@ export type Database = {
     }
     Functions: {
       compute_article_doi: { Args: { ref: string }; Returns: string }
+      get_article_submission_quota: {
+        Args: { _user_id?: string }
+        Returns: {
+          daily_limit: number
+          remaining: number
+          used: number
+          window_started_at: string
+        }[]
+      }
       get_default_auto_apply_discount: {
         Args: never
         Returns: {
