@@ -348,6 +348,10 @@ export default function AdminAuthorDetail() {
                     <Globe className="w-4 h-4" />
                     <span>{author.country || 'Not specified'}</span>
                   </div>
+                  <div className="flex items-center gap-1 text-muted-foreground mt-1">
+                    <FileText className="w-4 h-4" />
+                    <span>{author.daily_submission_limit ?? 5} new articles per rolling 24 hours</span>
+                  </div>
                 </div>
               </div>
             </GlassCard>
