@@ -160,8 +160,8 @@ export default function AdminArticles() {
         .eq('id', articleId);
       
       if (error) throw error;
-      if (paid) {
-        const result = await supabase.functions.invoke('format-article', { body: { articleId: id } });
+      if (status === 'paid') {
+        const result = await supabase.functions.invoke('format-article', { body: { articleId } });
         if (result.error || result.data?.error) {
           throw new Error(result.data?.error || result.error?.message || 'Formatting could not start');
         }
@@ -320,6 +320,12 @@ export default function AdminArticles() {
     mutationFn: async ({ id, type }: { id: string; type: 'normal' | 'fast_track' }) => {
       const { error } = await supabase.from('articles').update({ publication_type: type }).eq('id', id);
       if (error) throw error;
+      if (paid) {
+        const result = await supabase.functions.invoke('format-article', { body: { articleId: id } });
+        if (result.error || result.data?.error) {
+          throw new Error(result.data?.error || result.error?.message || 'Formatting could not start');
+        }
+      }
     },
     onSuccess: (_, { type }) => {
       queryClient.invalidateQueries({ queryKey: ['admin-articles'] });
