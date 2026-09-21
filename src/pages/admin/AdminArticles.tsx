@@ -348,13 +348,6 @@ export default function AdminArticles() {
         },
       });
       if (error) throw error;
-      if (paid) {
-        const result = await supabase.functions.invoke('format-article', { body: { articleId: id } });
-        if (result.error || result.data?.error) {
-          throw new Error(result.data?.error || result.error?.message || 'Formatting could not start');
-        }
-      }
-
       await supabase.from('notifications').insert({
         user_id: article.author_id,
         title: 'Manuscript file not readable ⚠️',
@@ -374,6 +367,12 @@ export default function AdminArticles() {
         .update({ status: (paid ? 'paid' : 'pending_fee') as ArticleStatus })
         .eq('id', id);
       if (error) throw error;
+      if (paid) {
+        const result = await supabase.functions.invoke('format-article', { body: { articleId: id } });
+        if (result.error || result.data?.error) {
+          throw new Error(result.data?.error || result.error?.message || 'Formatting could not start');
+        }
+      }
     },
     onSuccess: (_, { paid }) => {
       queryClient.invalidateQueries({ queryKey: ['admin-articles'] });
