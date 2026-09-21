@@ -234,8 +234,8 @@ export default function AdminAIReview() {
         if (!review) return false;
         const score = review.overall_score || 0;
         if (scoreFilter === 'high') return score >= 80;
-        if (scoreFilter === 'medium') return score >= 60 && score < 80;
-        if (scoreFilter === 'low') return score < 60;
+        if (scoreFilter === 'medium') return score >= 70 && score < 80;
+        if (scoreFilter === 'low') return score < 70;
         return true;
       });
     }
@@ -261,13 +261,13 @@ export default function AdminAIReview() {
 
   const getScoreColor = (score: number) => {
     if (score >= 80) return 'text-green-400';
-    if (score >= 60) return 'text-yellow-400';
+    if (score >= 70) return 'text-yellow-400';
     return 'text-red-400';
   };
 
   const getScoreBg = (score: number) => {
     if (score >= 80) return 'bg-green-500/20 border-green-500/30';
-    if (score >= 60) return 'bg-yellow-500/20 border-yellow-500/30';
+    if (score >= 70) return 'bg-yellow-500/20 border-yellow-500/30';
     return 'bg-red-500/20 border-red-500/30';
   };
 
@@ -348,8 +348,8 @@ export default function AdminAIReview() {
           <SelectContent>
             <SelectItem value="all">All Scores</SelectItem>
             <SelectItem value="high">High (80%+)</SelectItem>
-            <SelectItem value="medium">Medium (60-79%)</SelectItem>
-            <SelectItem value="low">Low (&lt;60%)</SelectItem>
+            <SelectItem value="medium">Standard (70-79%)</SelectItem>
+            <SelectItem value="low">Legacy (&lt;70%)</SelectItem>
           </SelectContent>
         </Select>
         <Select value={recommendationFilter} onValueChange={setRecommendationFilter}>
@@ -605,7 +605,7 @@ export default function AdminAIReview() {
                         {editingScoresFor === latestReview.id && scoreDraft ? (
                           <>
                             <p className="text-xs text-muted-foreground mb-3">
-                              Adjust any score (0-100). Saving regenerates the PDF report and resets the
+                               Adjust any score (70-100). Saving regenerates the PDF report and resets the
                               "Pending approval" status — you'll need to approve again to send to the author.
                             </p>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
@@ -622,11 +622,11 @@ export default function AdminAIReview() {
                                   <p className="text-sm text-muted-foreground mb-1">{label}</p>
                                   <Input
                                     type="number"
-                                    min={0}
+                                     min={70}
                                     max={100}
                                     value={scoreDraft[key]}
                                     onChange={(e) => {
-                                      const v = Math.max(0, Math.min(100, Number(e.target.value) || 0));
+                                       const v = Math.max(70, Math.min(100, Number(e.target.value) || 70));
                                       setScoreDraft({ ...scoreDraft, [key]: v });
                                     }}
                                     className={`text-2xl font-bold h-auto py-1 ${getScoreColor(scoreDraft[key])} bg-transparent`}
