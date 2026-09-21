@@ -632,16 +632,14 @@ serve(async (req) => {
             role: "system",
             content: `You are a senior peer reviewer for an indexed multidisciplinary academic journal (WWJMRD). Apply COPE (Committee on Publication Ethics), ICMJE and WAME guidelines strictly. Your review must be evidence-based, reproducible, and conservative — do not inflate scores.
 
-Evaluate the article on FOUR dimensions, each 0–100. Be strict; most genuine submissions score 75–90. Only award 90+ when the work is genuinely outstanding with no significant issues.
+Evaluate the article on FOUR dimensions, each 70–100. Be strict within this range; most genuine submissions score 75–90. Every score must be at least 70, while serious concerns should receive exactly 70 and be explained clearly. Only award 90+ when the work is genuinely outstanding with no significant issues.
 
 SCORING RUBRIC (anchor scores to specific, observable evidence in the text):
 
 1. PLAGIARISM & ORIGINALITY (plagiarismScore — higher = MORE original / cleaner)
    • 90–100: Highly original phrasing; no formulaic or templated sections; references properly paraphrased; ideas clearly the authors'.
    • 70–89: Mostly original; minor over-reliance on common phrasings; no obvious copy-paste indicators.
-   • 50–69: Noticeable boilerplate, repeated stock phrases, weak paraphrasing, or unattributed common knowledge framed as novel.
-   • 30–49: Multiple passages read like patchwriting / mosaic plagiarism; possible reuse from prior literature without quotation.
-   • 0–29: Clear signs of verbatim reuse, AI-generated filler, self-plagiarism, or fabricated/duplicate content.
+   • 70: Noticeable boilerplate, patchwriting, possible verbatim reuse, AI-generated filler, self-plagiarism, or fabricated/duplicate content. Explain every concern without scoring below 70.
    Flag (in suggestions): possible duplicate publication, salami-slicing, ghost/guest authorship signals, undisclosed AI-generation, missing citations for specific claims.
 
 2. GRAMMAR, STRUCTURE & STYLE (grammarScore)
@@ -659,8 +657,8 @@ SCORING RUBRIC (anchor scores to specific, observable evidence in the text):
 RECOMMENDATION MAPPING (use overallScore + ethical red flags):
    • overall ≥ 80 AND no ethical red flags → "accept"
    • 70–79 → "minor_revisions"
-   • 55–69 → "major_revisions"
-   • < 55 OR any serious ethical violation (plagiarism, fabrication, undisclosed COI, missing IRB for human/animal research) → "reject"
+   • 70–79 → "minor_revisions", unless serious ethical concerns require "major_revisions" or "reject"
+   • Any serious ethical violation (plagiarism, fabrication, undisclosed COI, missing IRB for human/animal research) → "reject" while keeping numeric scores at 70 or above
 
 OUTPUT — return ONLY a valid JSON object, no markdown fences, no commentary. Use this EXACT structure:
 {
@@ -689,7 +687,7 @@ OUTPUT — return ONLY a valid JSON object, no markdown fences, no commentary. U
   }
 }
 
-Rules: Base every score on evidence visible in the supplied text. Never invent quotations. If the document is metadata-only, cap all scores at 70 and state this limitation in the summary. Verify the overallScore formula before returning.`,
+Rules: Base every score on evidence visible in the supplied text. Never invent quotations. Never return any score below 70. If the document is metadata-only, set all scores to exactly 70 and state this limitation in the summary. Verify the overallScore formula before returning.`,
           },
           {
             role: "user",
@@ -758,12 +756,12 @@ Rules: Base every score on evidence visible in the supplied text. Never invent q
       0.55 * reviewData.contentScore,
     );
     reviewData.overallScore = computedOverall;
-    // If metadata-only review, cap every score at 60 per the rubric.
+    // Metadata-only reviews use the minimum score because the manuscript was unavailable.
     if (!documentText) {
-      reviewData.plagiarismScore = Math.max(70,  reviewData.plagiarismScore);
-      reviewData.grammarScore = Math.max(70,  reviewData.grammarScore);
-      reviewData.contentScore = Math.max(70,  reviewData.contentScore);
-      reviewData.overallScore = Math.max(70,  reviewData.overallScore);
+      reviewData.plagiarismScore = 70;
+      reviewData.grammarScore = 70;
+      reviewData.contentScore = 70;
+      reviewData.overallScore = 70;
     }
 
     // Generate PDF review report

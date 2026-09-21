@@ -6,6 +6,21 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+async function startFormatting(supabaseUrl: string, serviceRoleKey: string, articleIds: string[]) {
+  for (const articleId of [...new Set(articleIds)]) {
+    try {
+      const response = await fetch(`${supabaseUrl}/functions/v1/format-article`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${serviceRoleKey}` },
+        body: JSON.stringify({ articleId }),
+      });
+      if (!response.ok) console.error(`Formatting start failed for ${articleId}:`, await response.text());
+    } catch (error) {
+      console.error(`Formatting start failed for ${articleId}:`, error);
+    }
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -37,6 +52,7 @@ serve(async (req) => {
       supabaseUrl,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
     // ACTION: submit_tx_hash — author submits their transaction hash
     if (action === 'submit_tx_hash') {
@@ -158,6 +174,7 @@ serve(async (req) => {
           .update({ status: 'paid' })
           .in('id', articleIdsFromItems);
         console.log('Articles updated to paid:', articleIdsFromItems.length);
+        await startFormatting(supabaseUrl, serviceRoleKey, articleIdsFromItems);
       }
 
       // Process Pro subscription

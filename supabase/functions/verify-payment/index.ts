@@ -33,6 +33,21 @@ const PAYPAL_BASE_URL = Deno.env.get('PAYPAL_MODE') === 'live'
   ? 'https://api-m.paypal.com'
   : 'https://api-m.sandbox.paypal.com';
 
+async function startFormatting(supabaseUrl: string, serviceRoleKey: string, articleIds: string[]) {
+  for (const articleId of [...new Set(articleIds)]) {
+    try {
+      const response = await fetch(`${supabaseUrl}/functions/v1/format-article`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${serviceRoleKey}` },
+        body: JSON.stringify({ articleId }),
+      });
+      if (!response.ok) console.error(`Formatting start failed for ${articleId}:`, await response.text());
+    } catch (error) {
+      console.error(`Formatting start failed for ${articleId}:`, error);
+    }
+  }
+}
+
 async function getPayPalAccessToken(clientId: string, clientSecret: string): Promise<string> {
   const auth = btoa(`${clientId}:${clientSecret}`);
   const response = await fetch(`${PAYPAL_BASE_URL}/v1/oauth2/token`, {
@@ -106,6 +121,7 @@ serve(async (req) => {
       supabaseUrl,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
     // Get payment record
     const { data: payment, error: paymentFetchError } = await serviceClient
@@ -229,6 +245,7 @@ serve(async (req) => {
           console.error('Failed to update articles:', updateArticlesError);
         } else {
           console.log('Articles updated to paid:', articleIdsFromItems.length);
+          await startFormatting(supabaseUrl, serviceRoleKey, articleIdsFromItems);
         }
 
         // Get article titles for email
@@ -470,6 +487,7 @@ serve(async (req) => {
         }
 
         console.log('Articles updated to paid status (legacy):', payment.article_ids);
+        await startFormatting(supabaseUrl, serviceRoleKey, payment.article_ids);
 
         const { data: articles } = await serviceClient
           .from('articles')

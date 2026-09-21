@@ -138,7 +138,7 @@ export default function AdminArticles() {
           id, author_id, reference_number, title, status, created_at, publication_type,
           document_url, certificate_url, review_report_url,
           profiles:author_id (full_name, email, country, affiliation),
-          co_authors (id, name, email, affiliation, co_author_certificates (id, certificate_url, payment_status))
+          co_authors (id, first_name, last_name, name, email, affiliation, co_author_certificates (id, certificate_url, payment_status))
         `)
         .order('created_at', { ascending: false });
       
@@ -148,6 +148,12 @@ export default function AdminArticles() {
       
       const { data, error } = await query.abortSignal(queryTimeout());
       if (error) throw error;
+      if (paid) {
+        const result = await supabase.functions.invoke('format-article', { body: { articleId: id } });
+        if (result.error || result.data?.error) {
+          throw new Error(result.data?.error || result.error?.message || 'Formatting could not start');
+        }
+      }
       return data;
     },
   });

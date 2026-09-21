@@ -144,6 +144,13 @@ export function AddManualPaymentDialog({ onSuccess }: Props) {
         if (updateError) {
           console.error('Failed to update article status:', updateError);
           toast.warning('Payment recorded but failed to update article status');
+        } else if (form.paymentType === 'article_fee') {
+          const formatResult = await supabase.functions.invoke('format-article', {
+            body: { articleId: form.selectedArticleId },
+          });
+          if (formatResult.error || formatResult.data?.error) {
+            toast.warning('Payment recorded. Formatting will retry automatically.');
+          }
         }
       }
 
