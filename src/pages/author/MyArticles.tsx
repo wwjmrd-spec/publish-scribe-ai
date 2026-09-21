@@ -337,7 +337,7 @@ export default function MyArticles() {
       if (ids.length) {
         const { data: co } = await supabase
           .from('co_authors')
-          .select('id, article_id, name, email, affiliation, country, certificate_url, payment_status')
+          .select('id, article_id, first_name, last_name, name, email, affiliation, country, certificate_url, payment_status')
           .in('article_id', ids)
           .abortSignal(queryTimeout());
         (co || []).forEach((c: any) => {
@@ -623,6 +623,7 @@ export default function MyArticles() {
           open={!!manageCoAuthorsFor}
           onOpenChange={(o) => !o && setManageCoAuthorsFor(null)}
           articleTitle={manageCoAuthorsFor.title}
+          articleId={manageCoAuthorsFor.id}
           coAuthors={manageCoAuthorsFor.co_authors || []}
           invalidateKeys={[['my-articles', user?.id]]}
         />

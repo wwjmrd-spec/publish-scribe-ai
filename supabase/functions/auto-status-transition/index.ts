@@ -63,6 +63,7 @@ serve(async (req: Request) => {
       step2_accepted: 0,
       step2_pendingFee: 0,
       step2_revisionRequested: 0,
+      step_paidFormattingTriggered: 0,
       step3_referralRewardEmails: 0,
       errors: [] as string[],
     };
@@ -158,8 +159,8 @@ serve(async (req: Request) => {
       .in("setting_key", ["auto_accept_threshold", "auto_revision_threshold"]);
     const thresholdMap: Record<string, string> = {};
     (thresholdRows ?? []).forEach((r: any) => (thresholdMap[r.setting_key] = r.setting_value));
-    const acceptThreshold = Number(thresholdMap.auto_accept_threshold ?? "70");
-    const revisionThreshold = Number(thresholdMap.auto_revision_threshold ?? "40");
+    const acceptThreshold = Math.max(70, Number(thresholdMap.auto_accept_threshold ?? "70"));
+    const revisionThreshold = Math.max(70, Number(thresholdMap.auto_revision_threshold ?? "70"));
 
     {
       const { data: reviews, error } = await supabase
@@ -380,6 +381,37 @@ serve(async (req: Request) => {
             }
           } catch (e: any) {
             results.errors.push(`Step2b ${article.id}: ${e?.message || e}`);
+          }
+        }
+      }
+    }
+
+    // ===== STEP 2c: Recover paid articles whose formatting has not started =====
+    {
+      const { data: paidArticles, error } = await supabase
+        .from("articles")
+        .select("id")
+        .eq("status", "paid")
+        .or("formatting_status.is.null,formatting_status.in.(pending,failed)")
+        .limit(20);
+      if (error) {
+        results.errors.push(`Step2c fetch: ${error.message}`);
+      } else {
+        for (const article of paidArticles || []) {
+          try {
+            const response = await fetch(`${supabaseUrl}/functions/v1/format-article`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceRoleKey}` },
+              body: JSON.stringify({ articleId: article.id }),
+            });
+            if (!response.ok) {
+              const detail = await response.text();
+              results.errors.push(`Step2c ${article.id}: ${detail}`);
+            } else {
+              results.step_paidFormattingTriggered++;
+            }
+          } catch (e: any) {
+            results.errors.push(`Step2c ${article.id}: ${e?.message || e}`);
           }
         }
       }

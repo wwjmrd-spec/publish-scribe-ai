@@ -28,6 +28,7 @@ import {
   Pencil,
   Globe,
   RefreshCw,
+  Plus,
 } from 'lucide-react';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -102,11 +103,17 @@ export default function AdminArticleDetail() {
         .select(`
           *,
           profiles:author_id (full_name, email, country, affiliation),
-          co_authors (id, name, email, affiliation, co_author_certificates (id, certificate_url, payment_status))
+          co_authors (id, first_name, last_name, name, email, affiliation, orcid, co_author_certificates (id, certificate_url, payment_status))
         `)
         .eq('id', articleId!)
         .single();
       if (error) throw error;
+      if (status === 'paid') {
+        const formatResult = await supabase.functions.invoke('format-article', { body: { articleId } });
+        if (formatResult.error || formatResult.data?.error) {
+          throw new Error(formatResult.data?.error || formatResult.error?.message || 'Formatting could not start');
+        }
+      }
       return data;
     },
     enabled: !!articleId,
@@ -761,14 +768,21 @@ export default function AdminArticleDetail() {
             )}
 
             {/* Co-Authors */}
-            {(article as any)?.co_authors?.length > 0 && (
-              <GlassCard>
-                <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Co-Authors</h3>
+            <GlassCard>
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Co-Authors</h3>
+                  <Button size="sm" variant="outline" onClick={() => setEditCoAuthor({})}>
+                    <Plus className="w-3 h-3 mr-1" /> Add Co-Author
+                  </Button>
+                </div>
+                {(article as any)?.co_authors?.length > 0 ? (
                 <div className="space-y-3">
                   {(article as any).co_authors.map((ca: any) => (
                     <div key={ca.id} className="flex items-start justify-between gap-3 p-3 rounded-lg bg-[hsl(var(--glass-bg))] border border-[hsl(var(--glass-border))]">
                       <div className="text-sm space-y-0.5">
-                        <p className="font-medium">{ca.name}</p>
+                        <p className="font-medium">{ca.first_name || '—'} {ca.last_name || ''}</p>
+                        <p className="text-muted-foreground text-xs">First name: {ca.first_name || '—'}</p>
+                        <p className="text-muted-foreground text-xs">Last name: {ca.last_name || '—'}</p>
                         <p className="text-muted-foreground text-xs">{ca.email}</p>
                         {ca.affiliation && <p className="text-muted-foreground text-xs">{ca.affiliation}</p>}
                       </div>
@@ -798,14 +812,15 @@ export default function AdminArticleDetail() {
                     </div>
                   ))}
                 </div>
+                ) : <p className="text-sm text-muted-foreground">No co-authors on this article.</p>}
                 <EditCoAuthorDialog
                   open={!!editCoAuthor}
                   onOpenChange={(v) => { if (!v) setEditCoAuthor(null); }}
                   coAuthor={editCoAuthor}
+                   articleId={articleId}
                   invalidateKeys={[['admin-article-detail', articleId]]}
                 />
               </GlassCard>
-            )}
 
             {/* Publication Details */}
             {article.status === 'published' && article.volume && (

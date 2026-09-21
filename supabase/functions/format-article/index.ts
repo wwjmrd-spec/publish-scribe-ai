@@ -1268,23 +1268,24 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const aiGateway = await getAiGatewayConfig();
 
-    const authClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
     const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) return jsonResponse({ error: "Unauthorized" }, 401);
-
-    const userId = claimsData.claims.sub as string;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     stuckSupabase = supabase;
-
-    const { data: roleData } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .single();
-    if (roleData?.role !== "admin") return jsonResponse({ error: "Admin access required" }, 403);
+    const isServiceRole = token === supabaseServiceKey;
+    if (!isServiceRole) {
+      const authClient = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(token);
+      if (claimsError || !claimsData?.claims) return jsonResponse({ error: "Unauthorized" }, 401);
+      const userId = claimsData.claims.sub as string;
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId)
+        .single();
+      if (roleData?.role !== "admin") return jsonResponse({ error: "Admin access required" }, 403);
+    }
 
     const { articleId } = await req.json();
     if (!articleId) return jsonResponse({ error: "Article ID required" }, 400);
@@ -1297,10 +1298,15 @@ serve(async (req) => {
     {
       const { data: preArticle } = await supabase
         .from("articles")
-        .select("document_url")
+        .select("document_url, formatting_status")
         .eq("id", articleId)
         .maybeSingle();
       const docUrl = (preArticle as any)?.document_url as string | undefined;
+      const currentFormattingStatus = (preArticle as any)?.formatting_status as string | undefined;
+      if (currentFormattingStatus === "formatting" || currentFormattingStatus === "ready_for_review") {
+        completed = true;
+        return jsonResponse({ success: true, alreadyStarted: true, formattingStatus: currentFormattingStatus });
+      }
       if (!docUrl) {
         await supabase.from("articles").update({ formatting_status: "failed" }).eq("id", articleId);
         return jsonResponse({ error: "This article has no manuscript file attached." }, 422);

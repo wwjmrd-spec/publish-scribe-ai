@@ -98,8 +98,8 @@ export function AIReviewSection({ articleId }: Props) {
     } catch { toast.error('Failed to download report', { id: tid }); }
   };
 
-  const scoreColor = (s: number) => s >= 80 ? 'text-green-400' : s >= 60 ? 'text-yellow-400' : 'text-red-400';
-  const scoreBg = (s: number) => s >= 80 ? 'bg-green-500/20 border-green-500/30' : s >= 60 ? 'bg-yellow-500/20 border-yellow-500/30' : 'bg-red-500/20 border-red-500/30';
+  const scoreColor = (s: number) => s >= 80 ? 'text-green-400' : 'text-yellow-400';
+  const scoreBg = (s: number) => s >= 80 ? 'bg-green-500/20 border-green-500/30' : 'bg-yellow-500/20 border-yellow-500/30';
 
   const recBadge = (rec: string) => {
     switch (rec) {
@@ -216,9 +216,9 @@ export function AIReviewSection({ articleId }: Props) {
                 <div key={key} className={`p-3 rounded-lg border ${scoreBg(val || 0)}`}>
                   <p className="text-xs text-muted-foreground mb-1">{label}</p>
                   {editing ? (
-                    <Input type="number" min={0} max={100} value={draft?.[key] ?? 0}
+                     <Input type="number" min={70} max={100} value={draft?.[key] ?? 70}
                       onChange={(e) => {
-                        const v = Math.max(0, Math.min(100, Number(e.target.value) || 0));
+                         const v = Math.max(70, Math.min(100, Number(e.target.value) || 70));
                         setDraft({ ...draft, [key]: v });
                       }}
                       className={`text-xl font-bold h-auto py-1 ${scoreColor(val || 0)} bg-transparent`} />

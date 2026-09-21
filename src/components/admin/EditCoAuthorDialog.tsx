@@ -6,46 +6,58 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { joinName, splitName } from '@/lib/nameParts';
 
 interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  coAuthor: any;
+  coAuthor?: any;
+  articleId?: string;
   invalidateKeys?: any[][];
 }
 
-export function EditCoAuthorDialog({ open, onOpenChange, coAuthor, invalidateKeys = [] }: Props) {
+export function EditCoAuthorDialog({ open, onOpenChange, coAuthor, articleId, invalidateKeys = [] }: Props) {
   const qc = useQueryClient();
-  const [form, setForm] = useState({ name: '', email: '', affiliation: '', orcid: '' });
+  const [form, setForm] = useState({ first_name: '', last_name: '', email: '', affiliation: '', orcid: '' });
 
   useEffect(() => {
     if (coAuthor) {
+      const fallback = splitName(coAuthor.name);
       setForm({
-        name: coAuthor.name || '',
+        first_name: coAuthor.first_name || fallback.firstName,
+        last_name: coAuthor.last_name || fallback.lastName,
         email: coAuthor.email || '',
         affiliation: coAuthor.affiliation || '',
         orcid: coAuthor.orcid || '',
       });
+    } else {
+      setForm({ first_name: '', last_name: '', email: '', affiliation: '', orcid: '' });
     }
   }, [coAuthor]);
 
   const save = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase
-        .from('co_authors')
-        .update({
-          name: form.name.trim().slice(0, 200),
-          email: form.email.trim(),
-          affiliation: form.affiliation.trim().slice(0, 200),
-          orcid: form.orcid.trim().slice(0, 50) || null,
-        })
-        .eq('id', coAuthor.id);
+      const firstName = form.first_name.trim().slice(0, 100);
+      const lastName = form.last_name.trim().slice(0, 100);
+      const name = joinName(firstName, lastName);
+      if (!firstName || !lastName || !form.email.trim()) throw new Error('First name, last name, and email are required');
+      if (!coAuthor?.id && !articleId) throw new Error('Article ID is required');
+      const values = {
+        first_name: firstName, last_name: lastName, name,
+        email: form.email.trim(),
+        affiliation: form.affiliation.trim().slice(0, 200) || null,
+        orcid: form.orcid.trim().slice(0, 50) || null,
+      };
+      const request = coAuthor?.id
+        ? supabase.from('co_authors').update(values).eq('id', coAuthor.id)
+        : supabase.from('co_authors').insert({ ...values, article_id: articleId as string });
+      const { error } = await request;
       if (error) throw error;
     },
     onSuccess: () => {
       invalidateKeys.forEach(k => qc.invalidateQueries({ queryKey: k }));
       qc.invalidateQueries({ queryKey: ['admin-co-authors'] });
-      toast.success('Co-author updated');
+      toast.success(coAuthor?.id ? 'Co-author updated' : 'Co-author added');
       onOpenChange(false);
     },
     onError: (e: any) => toast.error('Failed: ' + e.message),
@@ -55,12 +67,18 @@ export function EditCoAuthorDialog({ open, onOpenChange, coAuthor, invalidateKey
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="glass-card-strong">
         <DialogHeader>
-          <DialogTitle className="gradient-text">Edit Co-Author</DialogTitle>
+          <DialogTitle className="gradient-text">{coAuthor?.id ? 'Edit Co-Author' : 'Add Co-Author'}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3 py-2">
-          <div>
-            <Label>Name</Label>
-            <Input className="glass-input" value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))} />
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div>
+              <Label>First Name</Label>
+              <Input className="glass-input" value={form.first_name} onChange={(e) => setForm(f => ({ ...f, first_name: e.target.value }))} />
+            </div>
+            <div>
+              <Label>Last Name</Label>
+              <Input className="glass-input" value={form.last_name} onChange={(e) => setForm(f => ({ ...f, last_name: e.target.value }))} />
+            </div>
           </div>
           <div>
             <Label>Email</Label>
@@ -78,7 +96,7 @@ export function EditCoAuthorDialog({ open, onOpenChange, coAuthor, invalidateKey
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button className="gradient-primary" onClick={() => save.mutate()} disabled={save.isPending}>
-            {save.isPending ? 'Saving…' : 'Save'}
+            {save.isPending ? 'Saving…' : coAuthor?.id ? 'Save' : 'Add Co-Author'}
           </Button>
         </DialogFooter>
       </DialogContent>

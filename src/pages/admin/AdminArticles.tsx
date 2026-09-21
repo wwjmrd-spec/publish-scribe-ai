@@ -138,7 +138,7 @@ export default function AdminArticles() {
           id, author_id, reference_number, title, status, created_at, publication_type,
           document_url, certificate_url, review_report_url,
           profiles:author_id (full_name, email, country, affiliation),
-          co_authors (id, name, email, affiliation, co_author_certificates (id, certificate_url, payment_status))
+          co_authors (id, first_name, last_name, name, email, affiliation, co_author_certificates (id, certificate_url, payment_status))
         `)
         .order('created_at', { ascending: false });
       
@@ -160,6 +160,12 @@ export default function AdminArticles() {
         .eq('id', articleId);
       
       if (error) throw error;
+      if (status === 'paid') {
+        const result = await supabase.functions.invoke('format-article', { body: { articleId } });
+        if (result.error || result.data?.error) {
+          throw new Error(result.data?.error || result.error?.message || 'Formatting could not start');
+        }
+      }
 
       // Send email notification for specific status changes
       const notifyStatuses: ArticleStatus[] = ['under_review', 'pending_fee', 'rejected'];
@@ -342,7 +348,6 @@ export default function AdminArticles() {
         },
       });
       if (error) throw error;
-
       await supabase.from('notifications').insert({
         user_id: article.author_id,
         title: 'Manuscript file not readable ⚠️',
@@ -362,6 +367,12 @@ export default function AdminArticles() {
         .update({ status: (paid ? 'paid' : 'pending_fee') as ArticleStatus })
         .eq('id', id);
       if (error) throw error;
+      if (paid) {
+        const result = await supabase.functions.invoke('format-article', { body: { articleId: id } });
+        if (result.error || result.data?.error) {
+          throw new Error(result.data?.error || result.error?.message || 'Formatting could not start');
+        }
+      }
     },
     onSuccess: (_, { paid }) => {
       queryClient.invalidateQueries({ queryKey: ['admin-articles'] });

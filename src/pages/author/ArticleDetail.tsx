@@ -17,6 +17,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { downloadFromUrl } from '@/lib/downloadFile';
 import { formatArticleStatus, getArticleStatusBadgeClass } from '@/lib/articleStatus';
+import { joinName, splitName } from '@/lib/nameParts';
 import { GalleyProofReviewSection } from '@/components/articles/GalleyProofReviewSection';
 import { CopyrightFormSection } from '@/components/articles/CopyrightFormSection';
 import { PublicationCard } from '@/components/articles/PublicationCard';
@@ -73,7 +74,7 @@ export default function AuthorArticleDetail() {
       if (error) throw error;
       const { data: co } = await supabase
         .from('co_authors')
-        .select('id, name, email, affiliation')
+        .select('id, first_name, last_name, name, email, affiliation, orcid')
         .eq('article_id', articleId!);
       return { ...(data as any), co_authors: co || [] };
     },
@@ -102,7 +103,14 @@ export default function AuthorArticleDetail() {
         subject: article.subject || '',
         author_name: article.author_name || '',
         author_affiliation: profile?.affiliation || '',
-        co_authors: (article.co_authors || []).map((c: any) => ({ ...c })),
+        co_authors: (article.co_authors || []).map((c: any) => {
+          const fallback = splitName(c.name);
+          return {
+            ...c,
+            first_name: c.first_name || fallback.firstName,
+            last_name: c.last_name || fallback.lastName,
+          };
+        }),
       });
     }
   }, [article, form, profile]);
@@ -141,11 +149,13 @@ export default function AuthorArticleDetail() {
         add(
           `New co-author #${i + 1}`,
           '',
-          [c.name, c.email, c.affiliation].filter(Boolean).join(' · '),
+           [joinName(c.first_name, c.last_name), c.email, c.affiliation].filter(Boolean).join(' · '),
         );
         return;
       }
-      add(`Co-author name (${orig.name || ''})`, orig.name, c.name);
+       const origParts = splitName(orig.name);
+       add(`Co-author first name (${orig.name || ''})`, orig.first_name || origParts.firstName, c.first_name);
+       add(`Co-author last name (${orig.name || ''})`, orig.last_name || origParts.lastName, c.last_name);
       add(`Co-author email (${orig.name || ''})`, orig.email, c.email);
       add(`Co-author affiliation (${orig.name || ''})`, orig.affiliation, c.affiliation);
     });
@@ -184,15 +194,18 @@ export default function AuthorArticleDetail() {
     return (form.co_authors || []).some((c: any) => {
       const o = (article.co_authors || []).find((x: any) => x.id === c.id);
       if (!o) return true;
-      return o.name !== c.name || o.email !== c.email || (o.affiliation || '') !== (c.affiliation || '');
+       const parts = splitName(o.name);
+       return (o.first_name || parts.firstName) !== c.first_name ||
+         (o.last_name || parts.lastName) !== c.last_name ||
+         o.email !== c.email || (o.affiliation || '') !== (c.affiliation || '');
     });
   };
 
   const handleSave = async () => {
     if (!article || !form) return;
     const newCoAuthors = (form.co_authors || []).filter((c: any) => !c.id);
-    if (newCoAuthors.some((c: any) => !c.name?.trim() || !c.email?.trim())) {
-      toast.error('Every new co-author needs a name and an email.');
+     if (newCoAuthors.some((c: any) => !c.first_name?.trim() || !c.last_name?.trim() || !c.email?.trim())) {
+       toast.error('Every new co-author needs a first name, last name, and email.');
       return;
     }
     const diffHtml = buildUpdateHtml();
@@ -251,14 +264,24 @@ export default function AuthorArticleDetail() {
           if (c.id) {
             await supabase
               .from('co_authors')
-              .update({ name: c.name, email: c.email, affiliation: c.affiliation })
+               .update({
+                 first_name: c.first_name.trim(),
+                 last_name: c.last_name.trim(),
+                 name: joinName(c.first_name, c.last_name),
+                 email: c.email,
+                 affiliation: c.affiliation,
+                 orcid: c.orcid?.trim() || null,
+               })
               .eq('id', c.id);
           } else {
             await supabase.from('co_authors').insert({
               article_id: article.id,
-              name: c.name.trim(),
+               first_name: c.first_name.trim(),
+               last_name: c.last_name.trim(),
+               name: joinName(c.first_name, c.last_name),
               email: c.email.trim(),
               affiliation: (c.affiliation || '').trim() || null,
+               orcid: c.orcid?.trim() || null,
             });
           }
         }
@@ -455,7 +478,7 @@ export default function AuthorArticleDetail() {
                       onClick={() =>
                         setForm({
                           ...form,
-                          co_authors: [...(form.co_authors || []), { name: '', email: '', affiliation: '' }],
+                           co_authors: [...(form.co_authors || []), { first_name: '', last_name: '', name: '', email: '', affiliation: '', orcid: '' }],
                         })
                       }
                     >
@@ -470,16 +493,25 @@ export default function AuthorArticleDetail() {
                   <div key={c.id || `new-${i}`} className="p-3 rounded-lg bg-[hsl(var(--glass-bg))] space-y-2">
                     {editing && !detailsChangedOnce ? (
                       <div className="flex items-start gap-2">
-                        <div className="grid sm:grid-cols-3 gap-2 flex-1">
+                         <div className="grid sm:grid-cols-2 gap-2 flex-1">
                           <Input
-                            value={c.name}
-                            placeholder="Name"
+                             value={c.first_name || ''}
+                             placeholder="First name"
                             onChange={(e) => {
                               const next = [...form.co_authors];
-                              next[i] = { ...c, name: e.target.value };
+                               next[i] = { ...c, first_name: e.target.value };
                               setForm({ ...form, co_authors: next });
                             }}
                           />
+                           <Input
+                             value={c.last_name || ''}
+                             placeholder="Last name"
+                             onChange={(e) => {
+                               const next = [...form.co_authors];
+                               next[i] = { ...c, last_name: e.target.value };
+                               setForm({ ...form, co_authors: next });
+                             }}
+                           />
                           <Input
                             value={c.email}
                             placeholder="Email"
@@ -498,6 +530,15 @@ export default function AuthorArticleDetail() {
                               setForm({ ...form, co_authors: next });
                             }}
                           />
+                           <Input
+                             value={c.orcid || ''}
+                             placeholder="ORCID iD"
+                             onChange={(e) => {
+                               const next = [...form.co_authors];
+                               next[i] = { ...c, orcid: e.target.value };
+                               setForm({ ...form, co_authors: next });
+                             }}
+                           />
                         </div>
                         <Button
                           size="icon"
@@ -515,7 +556,9 @@ export default function AuthorArticleDetail() {
                       </div>
                     ) : (
                       <div className="text-sm">
-                        <p className="font-medium">{c.name}</p>
+                         <p className="font-medium">{joinName(c.first_name, c.last_name) || c.name}</p>
+                         <p className="text-xs text-muted-foreground">First name: {c.first_name || '—'}</p>
+                         <p className="text-xs text-muted-foreground">Last name: {c.last_name || '—'}</p>
                         <p className="text-muted-foreground">{c.email}</p>
                         {c.affiliation && <p className="text-xs text-muted-foreground">{c.affiliation}</p>}
                       </div>

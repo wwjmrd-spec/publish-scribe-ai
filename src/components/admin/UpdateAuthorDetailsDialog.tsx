@@ -7,11 +7,14 @@ import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
+import { joinName, splitName } from '@/lib/nameParts';
 
 export interface AuthorDetail {
   /** co_authors.id — undefined for the corresponding (primary) author */
   coAuthorId?: string;
   isPrimary: boolean;
+  firstName: string;
+  lastName: string;
   name: string;
   affiliation: string;
   orcid: string;
@@ -41,12 +44,12 @@ export function UpdateAuthorDetailsDialog({ open, onOpenChange, articleId, onApp
         const [{ data: article, error: aErr }, { data: coAuthors, error: cErr }] = await Promise.all([
           supabase
             .from('articles')
-            .select('author_name, author_id, profiles:author_id (full_name, affiliation, orcid)')
+            .select('author_name, author_id, profiles:author_id (full_name, first_name, last_name, affiliation, orcid)')
             .eq('id', articleId)
             .maybeSingle(),
           supabase
             .from('co_authors')
-            .select('id, name, affiliation, orcid')
+            .select('id, first_name, last_name, name, affiliation, orcid')
             .eq('article_id', articleId)
             .order('created_at', { ascending: true }),
         ]);
@@ -59,20 +62,29 @@ export function UpdateAuthorDetailsDialog({ open, onOpenChange, articleId, onApp
           : (article as any)?.profiles;
 
         setAuthorProfileId(((article as any)?.author_id as string) || null);
+        const primaryName = ((article as any)?.author_name || profile?.full_name || '').toString();
+        const primaryParts = splitName(primaryName);
         setAuthors([
           {
             isPrimary: true,
-            name: ((article as any)?.author_name || profile?.full_name || '').toString(),
+            firstName: (profile?.first_name || primaryParts.firstName).toString(),
+            lastName: (profile?.last_name || primaryParts.lastName).toString(),
+            name: primaryName,
             affiliation: (profile?.affiliation || '').toString(),
             orcid: (profile?.orcid || '').toString(),
           },
-          ...((coAuthors || []) as any[]).map((c) => ({
-            coAuthorId: c.id as string,
-            isPrimary: false,
-            name: (c.name || '').toString(),
-            affiliation: (c.affiliation || '').toString(),
-            orcid: (c.orcid || '').toString(),
-          })),
+          ...((coAuthors || []) as any[]).map((c) => {
+            const parts = splitName(c.name);
+            return {
+              coAuthorId: c.id as string,
+              isPrimary: false,
+              firstName: (c.first_name || parts.firstName).toString(),
+              lastName: (c.last_name || parts.lastName).toString(),
+              name: (c.name || '').toString(),
+              affiliation: (c.affiliation || '').toString(),
+              orcid: (c.orcid || '').toString(),
+            };
+          }),
         ]);
       } catch (e: any) {
         toast.error('Could not load author details: ' + (e?.message || 'unknown error'));
@@ -88,14 +100,15 @@ export function UpdateAuthorDetailsDialog({ open, onOpenChange, articleId, onApp
 
   const handleSave = async () => {
     if (!authors.length) return;
-    if (!authors[0].name.trim()) { toast.error('Corresponding author name is required'); return; }
+    if (!authors[0].firstName.trim() || !authors[0].lastName.trim()) { toast.error('Corresponding author first and last names are required'); return; }
     setSaving(true);
     try {
       const primary = authors[0];
+      const primaryName = joinName(primary.firstName, primary.lastName);
 
       const { error: artErr } = await supabase
         .from('articles')
-        .update({ author_name: primary.name.trim().slice(0, 200) } as any)
+        .update({ author_name: primaryName.slice(0, 200) } as any)
         .eq('id', articleId);
       if (artErr) throw artErr;
 
@@ -103,6 +116,9 @@ export function UpdateAuthorDetailsDialog({ open, onOpenChange, articleId, onApp
         const { error: profErr } = await supabase
           .from('profiles')
           .update({
+            first_name: primary.firstName.trim().slice(0, 100),
+            last_name: primary.lastName.trim().slice(0, 100),
+            full_name: primaryName.slice(0, 200),
             affiliation: primary.affiliation.trim().slice(0, 300) || null,
             orcid: primary.orcid.trim().slice(0, 50) || null,
           } as any)
@@ -115,7 +131,9 @@ export function UpdateAuthorDetailsDialog({ open, onOpenChange, articleId, onApp
         const { error: coErr } = await supabase
           .from('co_authors')
           .update({
-            name: co.name.trim().slice(0, 200),
+            first_name: co.firstName.trim().slice(0, 100),
+            last_name: co.lastName.trim().slice(0, 100),
+            name: joinName(co.firstName, co.lastName).slice(0, 200),
             affiliation: co.affiliation.trim().slice(0, 300) || null,
             orcid: co.orcid.trim().slice(0, 50) || null,
           } as any)
@@ -123,7 +141,7 @@ export function UpdateAuthorDetailsDialog({ open, onOpenChange, articleId, onApp
         if (coErr) throw coErr;
       }
 
-      await onApply(authors);
+       await onApply(authors.map((author) => ({ ...author, name: joinName(author.firstName, author.lastName) })));
 
       qc.invalidateQueries({ queryKey: ['admin-article-detail'] });
       qc.invalidateQueries({ queryKey: ['admin-articles'] });
@@ -158,9 +176,15 @@ export function UpdateAuthorDetailsDialog({ open, onOpenChange, articleId, onApp
                 </p>
                 <div className="grid md:grid-cols-2 gap-2">
                   <div>
-                    <Label className="text-xs">Name</Label>
-                    <Input className="glass-input" value={a.name} onChange={(e) => setField(i, 'name', e.target.value)} />
+                    <Label className="text-xs">First Name</Label>
+                    <Input className="glass-input" value={a.firstName} onChange={(e) => setField(i, 'firstName', e.target.value)} />
                   </div>
+                  <div>
+                    <Label className="text-xs">Last Name</Label>
+                    <Input className="glass-input" value={a.lastName} onChange={(e) => setField(i, 'lastName', e.target.value)} />
+                  </div>
+                </div>
+                <div className="grid md:grid-cols-2 gap-2">
                   <div>
                     <Label className="text-xs">ORCID iD</Label>
                     <Input
