@@ -41,6 +41,7 @@ export function EditCoAuthorDialog({ open, onOpenChange, coAuthor, articleId, in
       const lastName = form.last_name.trim().slice(0, 100);
       const name = joinName(firstName, lastName);
       if (!firstName || !lastName || !form.email.trim()) throw new Error('First name, last name, and email are required');
+      if (!coAuthor?.id && !articleId) throw new Error('Article ID is required');
       const values = {
         first_name: firstName, last_name: lastName, name,
         email: form.email.trim(),
@@ -49,7 +50,7 @@ export function EditCoAuthorDialog({ open, onOpenChange, coAuthor, articleId, in
       };
       const request = coAuthor?.id
         ? supabase.from('co_authors').update(values).eq('id', coAuthor.id)
-        : supabase.from('co_authors').insert({ ...values, article_id: articleId || '' });
+        : supabase.from('co_authors').insert({ ...values, article_id: articleId as string });
       const { error } = await request;
       if (error) throw error;
     },

@@ -392,7 +392,7 @@ serve(async (req: Request) => {
         .from("articles")
         .select("id")
         .eq("status", "paid")
-        .in("formatting_status", ["pending", "failed"])
+        .or("formatting_status.is.null,formatting_status.in.(pending,failed)")
         .limit(20);
       if (error) {
         results.errors.push(`Step2c fetch: ${error.message}`);

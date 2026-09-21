@@ -174,7 +174,7 @@ export function UpdateAuthorDetailsDialog({ open, onOpenChange, articleId, onApp
                 <p className="text-xs font-semibold text-primary">
                   {a.isPrimary ? 'Corresponding Author' : `Co-Author ${i}`}
                 </p>
-                <div className="grid md:grid-cols-2 gap-2">
+                <div>
                   <div>
                     <Label className="text-xs">First Name</Label>
                     <Input className="glass-input" value={a.firstName} onChange={(e) => setField(i, 'firstName', e.target.value)} />
@@ -182,7 +182,6 @@ export function UpdateAuthorDetailsDialog({ open, onOpenChange, articleId, onApp
                   <div>
                     <Label className="text-xs">Last Name</Label>
                     <Input className="glass-input" value={a.lastName} onChange={(e) => setField(i, 'lastName', e.target.value)} />
-                  </div>
                 </div>
                 <div className="grid md:grid-cols-2 gap-2">
                   <div>

@@ -148,12 +148,6 @@ export default function AdminArticles() {
       
       const { data, error } = await query.abortSignal(queryTimeout());
       if (error) throw error;
-      if (paid) {
-        const result = await supabase.functions.invoke('format-article', { body: { articleId: id } });
-        if (result.error || result.data?.error) {
-          throw new Error(result.data?.error || result.error?.message || 'Formatting could not start');
-        }
-      }
       return data;
     },
   });
@@ -166,6 +160,12 @@ export default function AdminArticles() {
         .eq('id', articleId);
       
       if (error) throw error;
+      if (paid) {
+        const result = await supabase.functions.invoke('format-article', { body: { articleId: id } });
+        if (result.error || result.data?.error) {
+          throw new Error(result.data?.error || result.error?.message || 'Formatting could not start');
+        }
+      }
 
       // Send email notification for specific status changes
       const notifyStatuses: ArticleStatus[] = ['under_review', 'pending_fee', 'rejected'];

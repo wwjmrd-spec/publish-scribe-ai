@@ -108,6 +108,12 @@ export default function AdminArticleDetail() {
         .eq('id', articleId!)
         .single();
       if (error) throw error;
+      if (status === 'paid') {
+        const formatResult = await supabase.functions.invoke('format-article', { body: { articleId } });
+        if (formatResult.error || formatResult.data?.error) {
+          throw new Error(formatResult.data?.error || formatResult.error?.message || 'Formatting could not start');
+        }
+      }
       return data;
     },
     enabled: !!articleId,
@@ -770,7 +776,6 @@ export default function AdminArticleDetail() {
                   </Button>
                 </div>
                 {(article as any)?.co_authors?.length > 0 ? (
-              <GlassCard>
                 <div className="space-y-3">
                   {(article as any).co_authors.map((ca: any) => (
                     <div key={ca.id} className="flex items-start justify-between gap-3 p-3 rounded-lg bg-[hsl(var(--glass-bg))] border border-[hsl(var(--glass-border))]">
@@ -807,7 +812,6 @@ export default function AdminArticleDetail() {
                     </div>
                   ))}
                 </div>
-                </GlassCard>
                 ) : <p className="text-sm text-muted-foreground">No co-authors on this article.</p>}
                 <EditCoAuthorDialog
                   open={!!editCoAuthor}
