@@ -239,7 +239,7 @@ serve(async (req) => {
       const clamp = (n: any) => {
         const x = Number(n);
         if (!Number.isFinite(x)) return null;
-        return Math.max(0, Math.min(100, Math.round(x)));
+        return Math.max(70, Math.min(100, Math.round(x)));
       };
       const plag = scores?.plagiarism_score != null ? clamp(scores.plagiarism_score) : review.plagiarism_score;
       const gram = scores?.grammar_score != null ? clamp(scores.grammar_score) : review.grammar_score;

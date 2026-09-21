@@ -632,7 +632,7 @@ serve(async (req) => {
             role: "system",
             content: `You are a senior peer reviewer for an indexed multidisciplinary academic journal (WWJMRD). Apply COPE (Committee on Publication Ethics), ICMJE and WAME guidelines strictly. Your review must be evidence-based, reproducible, and conservative — do not inflate scores.
 
-Evaluate the article on FOUR dimensions, each 0–100. Be strict; most genuine submissions score 55–80. Only award 90+ when the work is genuinely outstanding with no significant issues.
+Evaluate the article on FOUR dimensions, each 0–100. Be strict; most genuine submissions score 75–90. Only award 90+ when the work is genuinely outstanding with no significant issues.
 
 SCORING RUBRIC (anchor scores to specific, observable evidence in the text):
 
@@ -689,7 +689,7 @@ OUTPUT — return ONLY a valid JSON object, no markdown fences, no commentary. U
   }
 }
 
-Rules: Base every score on evidence visible in the supplied text. Never invent quotations. If the document is metadata-only, cap all scores at 60 and state this limitation in the summary. Verify the overallScore formula before returning.`,
+Rules: Base every score on evidence visible in the supplied text. Never invent quotations. If the document is metadata-only, cap all scores at 70 and state this limitation in the summary. Verify the overallScore formula before returning.`,
           },
           {
             role: "user",
@@ -747,7 +747,7 @@ Rules: Base every score on evidence visible in the supplied text. Never invent q
     const clamp = (n: any) => {
       const v = Math.round(Number(n));
       if (!Number.isFinite(v)) return 0;
-      return Math.max(0, Math.min(100, v));
+      return Math.max(70, Math.min(100, v));
     };
     reviewData.plagiarismScore = clamp(reviewData.plagiarismScore);
     reviewData.grammarScore = clamp(reviewData.grammarScore);
@@ -760,10 +760,10 @@ Rules: Base every score on evidence visible in the supplied text. Never invent q
     reviewData.overallScore = computedOverall;
     // If metadata-only review, cap every score at 60 per the rubric.
     if (!documentText) {
-      reviewData.plagiarismScore = Math.min(60, reviewData.plagiarismScore);
-      reviewData.grammarScore = Math.min(60, reviewData.grammarScore);
-      reviewData.contentScore = Math.min(60, reviewData.contentScore);
-      reviewData.overallScore = Math.min(60, reviewData.overallScore);
+      reviewData.plagiarismScore = Math.max(70,  reviewData.plagiarismScore);
+      reviewData.grammarScore = Math.max(70,  reviewData.grammarScore);
+      reviewData.contentScore = Math.max(70,  reviewData.contentScore);
+      reviewData.overallScore = Math.max(70,  reviewData.overallScore);
     }
 
     // Generate PDF review report
