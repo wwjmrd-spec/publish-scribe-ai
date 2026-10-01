@@ -1301,7 +1301,9 @@ serve(async (req) => {
       if (roleData?.role !== "admin") return jsonResponse({ error: "Admin access required" }, 403);
     }
 
-    const { articleId } = await req.json();
+    const requestBody = await req.json().catch(() => ({}));
+    const articleId = typeof requestBody?.articleId === "string" ? requestBody.articleId.trim() : "";
+    const force = requestBody?.force === true;
     if (!articleId) return jsonResponse({ error: "Article ID required" }, 400);
     stuckArticleId = articleId;
 
@@ -1317,7 +1319,7 @@ serve(async (req) => {
         .maybeSingle();
       const docUrl = (preArticle as any)?.document_url as string | undefined;
       const currentFormattingStatus = (preArticle as any)?.formatting_status as string | undefined;
-      if (currentFormattingStatus === "formatting" || currentFormattingStatus === "ready_for_review") {
+      if (currentFormattingStatus === "formatting" || (currentFormattingStatus === "ready_for_review" && !force)) {
         completed = true;
         return jsonResponse({ success: true, alreadyStarted: true, formattingStatus: currentFormattingStatus });
       }

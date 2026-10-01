@@ -33,6 +33,7 @@ import { ArticleContentEditor } from '@/components/admin/ArticleContentEditor';
 import { downloadFormattedAsPdf, downloadFormattedAsDocx } from '@/lib/exportFormattedArticle';
 import { SimplePager } from '@/components/ui/SimplePager';
 import { queryTimeout } from '@/lib/queryTimeout';
+import { resolveEdgeFunctionError } from '@/lib/edgeFunctionError';
 
 const PAGE_SIZE = 10;
 
@@ -88,11 +89,12 @@ export default function AdminFormatting() {
   };
 
   const formatMutation = useMutation({
-    mutationFn: async (articleId: string) => {
+    mutationFn: async ({ articleId, force }: { articleId: string; force: boolean }) => {
       const response = await supabase.functions.invoke('format-article', {
-        body: { articleId },
+        body: { articleId, force },
       });
-      if (response.error) throw new Error(response.error.message);
+      if (response.error) throw await resolveEdgeFunctionError(response.error, 'Formatting could not start');
+      if (response.data?.error) throw new Error(response.data.error);
       return response.data;
     },
     onSuccess: () => {
@@ -245,10 +247,13 @@ export default function AdminFormatting() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => formatMutation.mutate(article.id)}
-                        disabled={formatMutation.isPending && formatMutation.variables === article.id}
+                        onClick={() => formatMutation.mutate({
+                          articleId: article.id,
+                          force: status === 'ready_for_review' || status === 'approved',
+                        })}
+                        disabled={formatMutation.isPending && formatMutation.variables?.articleId === article.id}
                       >
-                        {formatMutation.isPending && formatMutation.variables === article.id ? (
+                        {formatMutation.isPending && formatMutation.variables?.articleId === article.id ? (
                           <>
                             <GlassSpinner size="sm" className="mr-2" />
                             Formatting...
