@@ -10,6 +10,7 @@ import {
   Table2, Columns2, Columns3, LayoutGrid, Minus, Plus,
   Trash2, PaintBucket, Grid3X3, SeparatorHorizontal, Hash,
   ImageIcon, Crop, MoveVertical, Palette, Eraser, Send, Users,
+  Subscript, Superscript, Sigma, Maximize2, Minimize2,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -110,6 +111,18 @@ const EDITOR_STYLES = `
     transform: translateX(-50%); background: #fff; padding: 0 8px;
     font-size: 10px; color: #e74c3c; font-family: Arial, sans-serif; font-weight: bold;
   }
+  sub, sup { font-size: 0.72em; line-height: 0; position: relative; vertical-align: baseline; }
+  sup { top: -0.48em; }
+  sub { bottom: -0.22em; }
+  .ww-equation {
+    display: inline-block; max-width: 100%; padding: 1px 4px; margin: 0 1px;
+    font-family: 'Cambria Math', 'STIX Two Math', 'Times New Roman', serif;
+    white-space: nowrap; vertical-align: middle; border-radius: 3px;
+  }
+  .ww-equation:hover { background: #eff6ff; outline: 1px solid #93c5fd; }
+  .ww-equation .ww-frac { display:inline-flex; flex-direction:column; text-align:center; vertical-align:middle; line-height:1.05; margin:0 2px; }
+  .ww-equation .ww-frac-num { border-bottom:1px solid currentColor; padding:0 2px 1px; }
+  .ww-equation .ww-frac-den { padding:1px 2px 0; }
 `;
 
 // Real point sizes — applied as inline `font-size: Npt` on the SELECTED text only,
@@ -167,6 +180,12 @@ export function ArticleContentEditor({
   const [savedPageRange, setSavedPageRange] = useState<string | null>(null);
   const [formattingApproved, setFormattingApproved] = useState<boolean>(false);
   const [showAuthorDetails, setShowAuthorDetails] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showEquationEditor, setShowEquationEditor] = useState(false);
+  const [equationSource, setEquationSource] = useState('E = mc^2');
+  const savedSelectionRef = useRef<Range | null>(null);
+  const editingEquationRef = useRef<HTMLElement | null>(null);
+  const editorShellRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
   /** Replace ONLY the author block (names + affiliations + copyright name) inside the
@@ -320,6 +339,13 @@ export function ArticleContentEditor({
           setSelectedImg(null);
         }
       });
+      doc.body.addEventListener('dblclick', (e) => {
+        const equation = (e.target as HTMLElement)?.closest?.('.ww-equation') as HTMLElement | null;
+        if (!equation) return;
+        editingEquationRef.current = equation;
+        setEquationSource(equation.getAttribute('data-equation') || equation.textContent || '');
+        setShowEquationEditor(true);
+      });
 
       // Page-number overlay: one absolutely-positioned label per A4 page,
       // mirroring the dashed page-break background. Stays in sync with content
@@ -470,6 +496,76 @@ export function ArticleContentEditor({
     const doc = iframeRef.current?.contentDocument;
     if (!doc) return;
     doc.execCommand('insertHTML', false, html);
+  }, []);
+
+  const renderEquation = useCallback((source: string) => {
+    const esc = (value: string) => value
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const greek: Record<string, string> = {
+      alpha: 'α', beta: 'β', gamma: 'γ', delta: 'δ', theta: 'θ', lambda: 'λ', mu: 'μ',
+      pi: 'π', rho: 'ρ', sigma: 'σ', phi: 'φ', omega: 'ω', Delta: 'Δ', Sigma: 'Σ', Omega: 'Ω',
+    };
+    let html = esc(source.trim());
+    html = html.replace(/\\(alpha|beta|gamma|delta|theta|lambda|mu|pi|rho|sigma|phi|omega|Delta|Sigma|Omega)\b/g, (_, key) => greek[key] || key);
+    html = html.replace(/\\(times|cdot|pm|le|ge|neq|infty|sum|prod)\b/g, (_, key) => ({ times: '×', cdot: '·', pm: '±', le: '≤', ge: '≥', neq: '≠', infty: '∞', sum: '∑', prod: '∏' }[key] || key));
+    html = html.replace(/\\sqrt\{([^{}]+)\}/g, '√<span style="text-decoration:overline">$1</span>');
+    html = html.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, '<span class="ww-frac"><span class="ww-frac-num">$1</span><span class="ww-frac-den">$2</span></span>');
+    html = html.replace(/\^\{([^{}]+)\}|\^([A-Za-z0-9+\-]+)/g, '<sup>$1$2</sup>');
+    html = html.replace(/_\{([^{}]+)\}|_([A-Za-z0-9+\-]+)/g, '<sub>$1$2</sub>');
+    return html;
+  }, []);
+
+  const openEquationEditor = useCallback(() => {
+    const doc = iframeRef.current?.contentDocument;
+    const selection = iframeRef.current?.contentWindow?.getSelection();
+    savedSelectionRef.current = selection?.rangeCount ? selection.getRangeAt(0).cloneRange() : null;
+    editingEquationRef.current = null;
+    setEquationSource(selection && !selection.isCollapsed ? selection.toString() : 'E = mc^2');
+    setShowEquationEditor(true);
+    doc?.body.blur();
+  }, []);
+
+  const applyEquation = useCallback(() => {
+    const source = equationSource.trim();
+    if (!source) { toast.error('Enter an equation first'); return; }
+    const doc = iframeRef.current?.contentDocument;
+    const win = iframeRef.current?.contentWindow;
+    if (!doc || !win) return;
+    const equationHtml = renderEquation(source);
+    const existing = editingEquationRef.current;
+    if (existing && doc.body.contains(existing)) {
+      existing.setAttribute('data-equation', source);
+      existing.innerHTML = equationHtml;
+    } else {
+      const selection = win.getSelection();
+      const saved = savedSelectionRef.current;
+      if (selection && saved && doc.body.contains(saved.commonAncestorContainer)) {
+        selection.removeAllRanges();
+        selection.addRange(saved);
+      }
+      const sourceAttr = source.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+      doc.execCommand('insertHTML', false, `<span class="ww-equation" data-equation="${sourceAttr}" contenteditable="false">${equationHtml}</span>&nbsp;`);
+    }
+    renderPageNumbersRef.current?.();
+    editingEquationRef.current = null;
+    savedSelectionRef.current = null;
+    setShowEquationEditor(false);
+  }, [equationSource, renderEquation]);
+
+  useEffect(() => {
+    const syncFullscreen = () => setIsFullscreen(document.fullscreenElement === editorShellRef.current);
+    document.addEventListener('fullscreenchange', syncFullscreen);
+    return () => document.removeEventListener('fullscreenchange', syncFullscreen);
+  }, []);
+
+  const toggleFullscreen = useCallback(async () => {
+    try {
+      if (document.fullscreenElement === editorShellRef.current) await document.exitFullscreen();
+      else if (editorShellRef.current?.requestFullscreen) await editorShellRef.current.requestFullscreen();
+      else setIsFullscreen((value) => !value);
+    } catch {
+      setIsFullscreen((value) => !value);
+    }
   }, []);
 
   const resizeSelectedImage = useCallback((widthPct: number) => {
@@ -888,13 +984,24 @@ export function ArticleContentEditor({
 
   return (
     <>
-      <GlassCard className="mt-4">
+      <div ref={editorShellRef} className={isFullscreen ? 'h-screen overflow-auto bg-background' : ''}>
+      <GlassCard className={isFullscreen ? 'm-0 min-h-screen rounded-none overflow-auto' : 'mt-4'}>
         <div className="flex items-center justify-between mb-3">
           <div>
             <h3 className="font-semibold text-lg">Edit Formatted Article</h3>
             <p className="text-sm text-muted-foreground">{referenceNumber} — {articleTitle}</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={toggleFullscreen}
+              title={isFullscreen ? 'Exit full screen' : 'Edit in full screen'}
+            >
+              {isFullscreen ? <Minimize2 className="w-4 h-4 mr-2" /> : <Maximize2 className="w-4 h-4 mr-2" />}
+              {isFullscreen ? 'Exit Full Screen' : 'Full Screen'}
+            </Button>
             {/* Column setting */}
             <div className="flex items-center gap-1.5">
               <Label className="text-xs text-muted-foreground">Columns:</Label>
@@ -1018,7 +1125,7 @@ export function ArticleContentEditor({
           @media (max-width: 640px) { .ww-a4-shell { --ww-scale: 0.42; } }
           @media (max-width: 420px) { .ww-a4-shell { --ww-scale: 0.34; } }
         `}</style>
-        <div className="overflow-auto rounded-lg" style={{ maxHeight: '78vh', background: '#e5e7eb', padding: '24px' }}>
+        <div className="overflow-auto rounded-lg" style={{ maxHeight: isFullscreen ? 'calc(100vh - 190px)' : '78vh', background: '#e5e7eb', padding: '24px' }}>
           <div
             className="mx-auto shadow-lg rounded ww-a4-shell"
             style={{
@@ -1093,6 +1200,17 @@ export function ArticleContentEditor({
               <ToolbarBtn cmd="italic" icon={Italic} title="Italic" />
               <ToolbarBtn cmd="underline" icon={Underline} title="Underline" />
               <ToolbarBtn cmd="strikeThrough" icon={Strikethrough} title="Strikethrough" />
+              <ToolbarBtn cmd="subscript" icon={Subscript} title="Subscript" />
+              <ToolbarBtn cmd="superscript" icon={Superscript} title="Superscript" />
+              <Button
+                type="button" variant="ghost" size="sm"
+                className="h-7 px-1.5 gap-1 text-black/70 hover:text-black hover:bg-black/5"
+                onClick={openEquationEditor}
+                title="Insert or edit an equation"
+              >
+                <Sigma className="w-3.5 h-3.5" />
+                <span className="text-[10px]">Equation</span>
+              </Button>
 
               <div className="w-px h-5 bg-[#d1d5db] mx-1" />
 
@@ -1347,6 +1465,7 @@ export function ArticleContentEditor({
           )}
         </div>
       </GlassCard>
+      </div>
 
       {mode === 'admin' && (
         <UpdateAuthorDetailsDialog
@@ -1372,6 +1491,32 @@ export function ArticleContentEditor({
             ) : (
               <iframe srcDoc={previewHtml} className="w-full h-full border-0" title="A4 Preview" style={{ minHeight: '85vh' }} />
             )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showEquationEditor} onOpenChange={setShowEquationEditor}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{editingEquationRef.current ? 'Edit Equation' : 'Insert Equation'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Label htmlFor="equation-source">Equation</Label>
+            <input
+              id="equation-source"
+              value={equationSource}
+              onChange={(event) => setEquationSource(event.target.value)}
+              onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); applyEquation(); } }}
+              className="h-10 w-full rounded-md border border-input bg-background px-3 font-mono text-sm"
+              placeholder="Example: E = mc^2 or \\frac{a}{b}"
+              autoFocus
+            />
+            <div className="rounded-md border border-border bg-muted/40 p-3 text-center text-lg" dangerouslySetInnerHTML={{ __html: renderEquation(equationSource) }} />
+            <p className="text-xs text-muted-foreground">Use ^ for powers, _ for subscripts, \\frac{'{a}{b}'}, \\sqrt{'{x}'}, and names such as \\alpha or \\sum.</p>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setShowEquationEditor(false)}>Cancel</Button>
+              <Button type="button" onClick={applyEquation}>{editingEquationRef.current ? 'Update Equation' : 'Insert Equation'}</Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

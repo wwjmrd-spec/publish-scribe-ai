@@ -119,6 +119,15 @@ function stripTags(html: string): string {
   return decodeEntities(html.replace(/<[^>]+>/g, "")).replace(/\s+/g, " ").trim();
 }
 
+function safeInlineHtml(html: string): string {
+  return html
+    .replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, "")
+    .replace(/<!--([\s\S]*?)-->/g, "")
+    .replace(/<\/?(?!strong\b|b\b|em\b|i\b|u\b|sub\b|sup\b|span\b|br\b)[a-z][^>]*>/gi, "")
+    .replace(/<(strong|b|em|i|u|sub|sup|span)(?:\s[^>]*)?>/gi, "<$1>")
+    .replace(/<br(?:\s[^>]*)?\/?\s*>/gi, "<br>");
+}
+
 function parseHtmlToBlocks(html: string): Block[] {
   const blocks: Block[] = [];
   // Normalize whitespace
@@ -1130,7 +1139,7 @@ function generateEditorHtml(meta: ArticleMetadata, body: Block[], images: Map<st
 
   const bodyHtml = body.map(b => {
     if (b.kind === "heading") return `<h${b.level}>${esc(b.text)}</h${b.level}>`;
-    if (b.kind === "paragraph") return `<p>${esc(b.text)}</p>`;
+    if (b.kind === "paragraph") return `<p>${safeInlineHtml(b.html)}</p>`;
     if (b.kind === "image") return renderImage(b.id, b.caption);
     if (b.kind === "table") return renderTable(b.rows);
     if (b.kind === "list") {
@@ -1185,6 +1194,11 @@ function generateEditorHtml(meta: ArticleMetadata, body: Block[], images: Map<st
   .ww-body-flow p { text-align:justify; margin:4px 0; }
   .ww-body-flow ul, .ww-body-flow ol { margin:5px 0 6px 18px; padding:0; }
   .ww-body-flow li { margin:2px 0; text-align:justify; }
+  .ww-body-flow sub, .ww-body-flow sup { font-size:.72em;line-height:0;position:relative;vertical-align:baseline; }
+  .ww-body-flow sup { top:-.48em; } .ww-body-flow sub { bottom:-.22em; }
+  .ww-equation { display:inline-block;max-width:100%;font-family:'Cambria Math','STIX Two Math','Times New Roman',serif;white-space:nowrap;vertical-align:middle;break-inside:avoid;page-break-inside:avoid; }
+  .ww-frac { display:inline-flex;flex-direction:column;text-align:center;vertical-align:middle;line-height:1.05;margin:0 2px; }
+  .ww-frac-num { border-bottom:1px solid currentColor;padding:0 2px 1px; }.ww-frac-den { padding:1px 2px 0; }
   .ww-figure { page-break-inside:avoid; break-inside:avoid; text-align:center; margin:10px 0 12px; }
   .ww-figure img { max-width:100%; height:auto; display:inline-block; }
   .ww-caption { text-align:center !important; font-weight:bold; font-style:italic; font-size:10px; margin:3px 0 0 !important; }

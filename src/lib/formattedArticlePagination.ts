@@ -67,6 +67,12 @@ const pageCss = `
     .formatted-body-content .ww-reference-item { display: block; margin: 1px 0; padding-left: 18px; text-indent: -18px; text-align: justify; font-size: 9.5px; line-height: 1.4; }
     .formatted-body-content .ww-reference-number { display: inline-block; min-width: 16px; font-weight: 700; text-indent: 0; }
     .formatted-body-content .ww-reference-text { text-indent: 0; }
+    .formatted-body-content sub, .formatted-body-content sup { font-size: .72em; line-height: 0; position: relative; vertical-align: baseline; }
+    .formatted-body-content sup { top: -.48em; } .formatted-body-content sub { bottom: -.22em; }
+    .formatted-body-content .ww-equation { display: inline-block; max-width: 100%; font-family: 'Cambria Math', 'STIX Two Math', 'Times New Roman', serif; white-space: nowrap; vertical-align: middle; break-inside: avoid; page-break-inside: avoid; }
+    .formatted-body-content .ww-frac { display:inline-flex; flex-direction:column; text-align:center; vertical-align:middle; line-height:1.05; margin:0 2px; }
+    .formatted-body-content .ww-frac-num { border-bottom:1px solid currentColor; padding:0 2px 1px; }
+    .formatted-body-content .ww-frac-den { padding:1px 2px 0; }
     .formatted-page-footer { height: ${BODY_FOOTER_MM}mm; border-top: 1px solid #cbd5e1; color: #64748b; font-family: Arial, sans-serif; font-size: 9px; line-height: ${BODY_FOOTER_MM}mm; text-align: center; }
     @media print { body, .formatted-a4-document { background: #fff; padding: 0; } .formatted-a4-page { margin: 0; box-shadow: none; } }
     @media (max-width: 900px) {
@@ -219,18 +225,41 @@ function splitParagraphFirstFit(
   measure: HTMLElement,
   firstMaxPx: number,
 ): { first: string | null; rest: string | null } {
-  const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
-  const words = text.split(' ').filter(Boolean);
-  if (words.length <= 1) return { first: null, rest: el.outerHTML };
+  const textNodes: Text[] = [];
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  let walked: Node | null;
+  while ((walked = walker.nextNode())) textNodes.push(walked as Text);
+  const wordEnds: Array<{ node: Text; offset: number }> = [];
+  textNodes.forEach((node) => {
+    const value = node.data;
+    const re = /\S+/g;
+    let match: RegExpExecArray | null;
+    while ((match = re.exec(value))) wordEnds.push({ node, offset: match.index + match[0].length });
+  });
+  if (wordEnds.length <= 1) return { first: null, rest: el.outerHTML };
+
+  const fragmentHtml = (start: boolean, splitIndex: number) => {
+    const boundary = wordEnds[splitIndex - 1];
+    const range = document.createRange();
+    if (start) {
+      range.setStart(el, 0);
+      range.setEnd(boundary.node, boundary.offset);
+    } else {
+      range.setStart(boundary.node, boundary.offset);
+      range.setEnd(el, el.childNodes.length);
+    }
+    const clone = el.cloneNode(false) as HTMLElement;
+    clone.appendChild(range.cloneContents());
+    return clone;
+  };
 
   let low = 1;
-  let high = words.length;
+  let high = wordEnds.length;
   let best = 0;
 
   while (low <= high) {
     const mid = Math.floor((low + high) / 2);
-    const clone = el.cloneNode(false) as HTMLElement;
-    clone.textContent = words.slice(0, mid).join(' ');
+    const clone = fragmentHtml(true, mid);
     measure.innerHTML = clone.outerHTML;
     if (measure.scrollHeight <= firstMaxPx) {
       best = mid;
@@ -244,12 +273,10 @@ function splitParagraphFirstFit(
   // push the whole paragraph to the next page.
   const MIN_WORDS_ON_PAGE = 6;
   if (best < MIN_WORDS_ON_PAGE) return { first: null, rest: el.outerHTML };
-  if (best >= words.length) return { first: el.outerHTML, rest: null };
+  if (best >= wordEnds.length) return { first: el.outerHTML, rest: null };
 
-  const firstEl = el.cloneNode(false) as HTMLElement;
-  firstEl.textContent = words.slice(0, best).join(' ');
-  const restEl = el.cloneNode(false) as HTMLElement;
-  restEl.textContent = words.slice(best).join(' ');
+  const firstEl = fragmentHtml(true, best);
+  const restEl = fragmentHtml(false, best);
   return { first: firstEl.outerHTML, rest: restEl.outerHTML };
 }
 
