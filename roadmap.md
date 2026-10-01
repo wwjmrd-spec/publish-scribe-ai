@@ -9,4 +9,4 @@
 - [x] Preserve equations, subscripts, and superscripts during article formatting.
 - [x] Add equation, subscript, and superscript controls for admin and author editing.
 - [x] Add a full-screen editing mode with all existing controls.
-- [ ] Verify editing, pagination, preview, and PDF/Word export behavior.
+- [x] Verify editing, pagination, preview, and PDF/Word export behavior.
