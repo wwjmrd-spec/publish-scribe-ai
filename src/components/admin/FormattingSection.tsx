@@ -15,6 +15,7 @@ import { downloadFormattedAsPdf, downloadFormattedAsDocx } from '@/lib/exportFor
 import { injectOrcidsIntoFormattedHtml, type OrcidAuthorEntry } from '@/lib/orcid';
 import { injectCcLicenseIntoFormattedHtml } from '@/lib/ccLicense';
 import { injectDoiIntoFormattedHtml } from '@/lib/doi';
+import { resolveEdgeFunctionError } from '@/lib/edgeFunctionError';
 
 interface Props { articleId: string }
 
@@ -51,12 +52,16 @@ export function FormattingSection({ articleId }: Props) {
 
 
   const formatMut = useMutation({
-    mutationFn: async (opts?: { reset?: boolean }) => {
+    mutationFn: async (opts?: { reset?: boolean; force?: boolean }) => {
       if (opts?.reset) {
-        await supabase.from('articles').update({ formatting_status: 'pending' }).eq('id', articleId);
+        const { error } = await supabase.from('articles').update({ formatting_status: 'pending' }).eq('id', articleId);
+        if (error) throw error;
       }
-      const r = await supabase.functions.invoke('format-article', { body: { articleId } });
-      if (r.error) throw new Error(r.error.message);
+      const r = await supabase.functions.invoke('format-article', {
+        body: { articleId, force: opts?.force === true },
+      });
+      if (r.error) throw await resolveEdgeFunctionError(r.error, 'Formatting could not start');
+      if (r.data?.error) throw new Error(r.data.error);
       return r.data;
     },
     onSuccess: () => {
@@ -203,7 +208,12 @@ export function FormattingSection({ articleId }: Props) {
         <div className="flex items-center gap-2 flex-wrap">
           {statusBadge()}
           {status !== 'formatting' && (
-            <Button variant="outline" size="sm" onClick={() => formatMut.mutate({})} disabled={formatMut.isPending}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => formatMut.mutate({ force: status === 'ready_for_review' || status === 'approved' })}
+              disabled={formatMut.isPending}
+            >
               {formatMut.isPending ? <><GlassSpinner size="sm" className="mr-2" />Formatting...</>
                 : status === 'pending' || status === 'failed'
                   ? <><Wand2 className="w-4 h-4 mr-2" />Format</>

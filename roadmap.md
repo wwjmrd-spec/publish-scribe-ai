@@ -10,3 +10,4 @@
 - [x] Add equation, subscript, and superscript controls for admin and author editing.
 - [x] Add a full-screen editing mode with all existing controls.
 - [x] Verify editing, pagination, preview, and PDF/Word export behavior.
+- [x] Make Re-format rebuild completed formatted articles while keeping automatic formatting idempotent.
