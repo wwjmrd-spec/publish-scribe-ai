@@ -185,6 +185,7 @@ export function ArticleContentEditor({
   const [equationSource, setEquationSource] = useState('E = mc^2');
   const savedSelectionRef = useRef<Range | null>(null);
   const editingEquationRef = useRef<HTMLElement | null>(null);
+  const editorShellRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
   /** Replace ONLY the author block (names + affiliations + copyright name) inside the
@@ -550,6 +551,22 @@ export function ArticleContentEditor({
     savedSelectionRef.current = null;
     setShowEquationEditor(false);
   }, [equationSource, renderEquation]);
+
+  useEffect(() => {
+    const syncFullscreen = () => setIsFullscreen(document.fullscreenElement === editorShellRef.current);
+    document.addEventListener('fullscreenchange', syncFullscreen);
+    return () => document.removeEventListener('fullscreenchange', syncFullscreen);
+  }, []);
+
+  const toggleFullscreen = useCallback(async () => {
+    try {
+      if (document.fullscreenElement === editorShellRef.current) await document.exitFullscreen();
+      else if (editorShellRef.current?.requestFullscreen) await editorShellRef.current.requestFullscreen();
+      else setIsFullscreen((value) => !value);
+    } catch {
+      setIsFullscreen((value) => !value);
+    }
+  }, []);
 
   const resizeSelectedImage = useCallback((widthPct: number) => {
     if (!selectedImg) { toast.error('Click an image first'); return; }
@@ -967,7 +984,8 @@ export function ArticleContentEditor({
 
   return (
     <>
-      <GlassCard className={isFullscreen ? 'fixed inset-0 z-[80] m-0 rounded-none overflow-auto' : 'mt-4'}>
+      <div ref={editorShellRef} className={isFullscreen ? 'h-screen overflow-auto bg-background' : ''}>
+      <GlassCard className={isFullscreen ? 'm-0 min-h-screen rounded-none overflow-auto' : 'mt-4'}>
         <div className="flex items-center justify-between mb-3">
           <div>
             <h3 className="font-semibold text-lg">Edit Formatted Article</h3>
@@ -978,7 +996,7 @@ export function ArticleContentEditor({
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => setIsFullscreen((value) => !value)}
+              onClick={toggleFullscreen}
               title={isFullscreen ? 'Exit full screen' : 'Edit in full screen'}
             >
               {isFullscreen ? <Minimize2 className="w-4 h-4 mr-2" /> : <Maximize2 className="w-4 h-4 mr-2" />}
@@ -1447,6 +1465,7 @@ export function ArticleContentEditor({
           )}
         </div>
       </GlassCard>
+      </div>
 
       {mode === 'admin' && (
         <UpdateAuthorDetailsDialog
