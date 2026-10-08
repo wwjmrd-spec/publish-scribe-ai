@@ -14,8 +14,8 @@ describe('formatted article saves', () => {
   function response(result: unknown) {
     const builder = {
       update: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(),
-      select: vi.fn().mockReturnThis(), single: vi.fn().mockReturnThis(),
-      abortSignal: vi.fn().mockResolvedValue(result),
+      select: vi.fn().mockReturnThis(), single: vi.fn().mockResolvedValue(result),
+      abortSignal: vi.fn().mockReturnThis(),
     };
     mocks.from.mockReturnValue(builder);
     return builder;
