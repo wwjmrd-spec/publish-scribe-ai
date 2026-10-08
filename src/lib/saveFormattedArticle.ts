@@ -11,8 +11,8 @@ export async function saveFormattedArticle(articleId: string, patch: ArticlePatc
     .update(patch)
     .eq('id', articleId)
     .select('id')
-    .single()
-    .abortSignal(queryTimeout(90000));
+    .abortSignal(queryTimeout(90000))
+    .single();
 
   if (error) {
     if (/abort|timeout|timed out/i.test(`${error.message} ${error.details || ''}`)) {
