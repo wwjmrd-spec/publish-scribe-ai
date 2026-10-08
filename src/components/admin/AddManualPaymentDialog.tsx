@@ -23,6 +23,8 @@ interface ArticleOption {
   title: string;
   reference_number: string;
   status: string | null;
+  doi_paid: boolean;
+  doi_number: string | null;
 }
 
 export function AddManualPaymentDialog({ onSuccess }: Props) {
@@ -43,13 +45,14 @@ export function AddManualPaymentDialog({ onSuccess }: Props) {
     transactionId: '',
     notes: '',
     selectedArticleId: '',
+    doiNumber: '',
     paymentDate: new Date() as Date,
   });
 
   // Fetch articles when author email changes and payment type is article_fee
   useEffect(() => {
     const fetchArticles = async () => {
-      if (!form.authorEmail.trim() || form.paymentType !== 'article_fee') {
+      if (!form.authorEmail.trim() || !['article_fee', 'doi'].includes(form.paymentType)) {
         setArticles([]);
         return;
       }
@@ -69,11 +72,11 @@ export function AddManualPaymentDialog({ onSuccess }: Props) {
 
         const { data } = await supabase
           .from('articles')
-          .select('id, title, reference_number, status')
+          .select('id, title, reference_number, status, doi_paid, doi_number')
           .eq('author_id', profile.id)
           .order('created_at', { ascending: false });
 
-        setArticles(data || []);
+        setArticles((data || []).filter((article) => form.paymentType !== 'doi' || !article.doi_paid));
       } catch {
         setArticles([]);
       } finally {
@@ -89,6 +92,16 @@ export function AddManualPaymentDialog({ onSuccess }: Props) {
     e.preventDefault();
     if (!form.authorEmail || !form.amount) {
       toast.error('Please fill in email and amount');
+      return;
+    }
+    const selectedArticleId = form.selectedArticleId === 'none' ? '' : form.selectedArticleId;
+    const amount = Number(form.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      toast.error('Enter a positive payment amount');
+      return;
+    }
+    if (form.paymentType === 'doi' && !selectedArticleId) {
+      toast.error('Select the article for this DOI payment');
       return;
     }
 
@@ -107,14 +120,27 @@ export function AddManualPaymentDialog({ onSuccess }: Props) {
         return;
       }
 
-      const amount = parseFloat(form.amount);
-      const articleIds = form.selectedArticleId ? [form.selectedArticleId] : [];
+      if (form.paymentType === 'doi') {
+        const { error } = await supabase.rpc('record_manual_doi_payment', {
+          p_article_id: selectedArticleId,
+          p_author_id: profile.id,
+          p_amount: amount,
+          p_currency: form.currency,
+          p_gateway: form.gateway,
+          p_transaction_id: form.transactionId,
+          p_paid_at: form.paymentDate.toISOString(),
+          p_notes: form.notes,
+          p_doi_number: form.doiNumber.trim(),
+        });
+        if (error) throw error;
+      } else {
+      const articleIds = selectedArticleId ? [selectedArticleId] : [];
       const paymentItems = [
         {
           type: form.paymentType,
           manual: true,
           notes: form.notes || undefined,
-          ...(form.selectedArticleId ? { articleId: form.selectedArticleId } : {}),
+          ...(selectedArticleId ? { articleId: selectedArticleId } : {}),
         },
       ];
 
@@ -135,31 +161,35 @@ export function AddManualPaymentDialog({ onSuccess }: Props) {
       if (error) throw error;
 
       // If an article was selected, update its status to 'paid'
-      if (form.selectedArticleId) {
+      if (selectedArticleId && form.paymentType === 'article_fee') {
         const { error: updateError } = await supabase
           .from('articles')
           .update({ status: 'paid' as any })
-          .eq('id', form.selectedArticleId);
+          .eq('id', selectedArticleId);
 
         if (updateError) {
           console.error('Failed to update article status:', updateError);
           toast.warning('Payment recorded but failed to update article status');
         } else if (form.paymentType === 'article_fee') {
           const formatResult = await supabase.functions.invoke('format-article', {
-            body: { articleId: form.selectedArticleId },
+            body: { articleId: selectedArticleId },
           });
           if (formatResult.error || formatResult.data?.error) {
             toast.warning('Payment recorded. Formatting will retry automatically.');
           }
         }
       }
+      }
 
       toast.success('Payment recorded successfully');
       queryClient.invalidateQueries({ queryKey: ['admin-revenue-payments'] });
+      for (const key of ['author-article', 'admin-article', 'admin-doi-articles', 'articles', 'my-articles', 'cart-articles']) {
+        queryClient.invalidateQueries({ queryKey: [key] });
+      }
       setOpen(false);
       setForm({
         authorEmail: '', amount: '', currency: 'USD', paymentType: 'article_fee',
-        gateway: 'manual', transactionId: '', notes: '', selectedArticleId: '', paymentDate: new Date(),
+        gateway: 'manual', transactionId: '', notes: '', selectedArticleId: '', doiNumber: '', paymentDate: new Date(),
       });
       onSuccess?.();
     } catch (err: any) {
@@ -188,7 +218,7 @@ export function AddManualPaymentDialog({ onSuccess }: Props) {
               type="email"
               placeholder="author@example.com"
               value={form.authorEmail}
-              onChange={(e) => setForm(prev => ({ ...prev, authorEmail: e.target.value, selectedArticleId: '' }))}
+              onChange={(e) => setForm(prev => ({ ...prev, authorEmail: e.target.value, selectedArticleId: '', doiNumber: '' }))}
               required
             />
           </div>
@@ -222,12 +252,13 @@ export function AddManualPaymentDialog({ onSuccess }: Props) {
 
           <div className="space-y-2">
             <Label>Payment Type</Label>
-            <Select value={form.paymentType} onValueChange={(v) => setForm(prev => ({ ...prev, paymentType: v, selectedArticleId: '' }))}>
+            <Select value={form.paymentType} onValueChange={(v) => setForm(prev => ({ ...prev, paymentType: v, selectedArticleId: '', doiNumber: '' }))}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="article_fee">Article Fee</SelectItem>
+                <SelectItem value="doi">DOI Fee</SelectItem>
                 <SelectItem value="coauthor_certificate">Co-Author Certificate</SelectItem>
                 <SelectItem value="pro_subscription">Pro Plan Subscription</SelectItem>
                 <SelectItem value="other">Other</SelectItem>
@@ -236,12 +267,12 @@ export function AddManualPaymentDialog({ onSuccess }: Props) {
           </div>
 
           {/* Article selector - shown when payment type is article_fee */}
-          {form.paymentType === 'article_fee' && (
+          {['article_fee', 'doi'].includes(form.paymentType) && (
             <div className="space-y-2">
-              <Label>Link to Article (optional)</Label>
+              <Label>{form.paymentType === 'doi' ? 'Article *' : 'Link to Article (optional)'}</Label>
               <Select
                 value={form.selectedArticleId}
-                onValueChange={(v) => setForm(prev => ({ ...prev, selectedArticleId: v }))}
+                onValueChange={(v) => setForm(prev => ({ ...prev, selectedArticleId: v, doiNumber: articles.find(a => a.id === v)?.doi_number || '' }))}
               >
                 <SelectTrigger>
                   <SelectValue placeholder={
@@ -251,7 +282,7 @@ export function AddManualPaymentDialog({ onSuccess }: Props) {
                   } />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">No article linked</SelectItem>
+                  {form.paymentType !== 'doi' && <SelectItem value="none">No article linked</SelectItem>}
                   {articles.map((a) => (
                     <SelectItem key={a.id} value={a.id}>
                       <span className="flex flex-col">
@@ -262,11 +293,21 @@ export function AddManualPaymentDialog({ onSuccess }: Props) {
                   ))}
                 </SelectContent>
               </Select>
-              {form.selectedArticleId && form.selectedArticleId !== 'none' && (
+              {form.paymentType === 'article_fee' && form.selectedArticleId && form.selectedArticleId !== 'none' && (
                 <p className="text-xs text-muted-foreground">
                   ✅ This article will be marked as <strong>paid</strong> upon recording.
                 </p>
               )}
+            </div>
+          )}
+
+          {form.paymentType === 'doi' && (
+            <div className="space-y-2">
+              <Label htmlFor="manual-payment-doi">DOI number (optional)</Label>
+              <Input id="manual-payment-doi" value={form.doiNumber}
+                onChange={(e) => setForm(prev => ({ ...prev, doiNumber: e.target.value }))}
+                placeholder="10.67967/wwjmrd.0426" />
+              <p className="text-xs text-muted-foreground">Leave blank to use the article’s assigned DOI. Publication status will not change.</p>
             </div>
           )}
 
