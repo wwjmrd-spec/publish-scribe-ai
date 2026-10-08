@@ -1,3 +1,11 @@
+export function getAuthorDoiState(article: { doi_paid?: boolean; doi_number?: string | null; status?: string | null }) {
+  if (!article.doi_paid) return 'unpaid';
+  if (article.doi_number?.trim() && ['published', 'published_to_wwjmrd', 'updated_published'].includes(article.status || '')) {
+    return 'registered';
+  }
+  return 'pending';
+}
+
 /**
  * Inject the DOI into an already-formatted article HTML string, without
  * re-formatting the whole article.
