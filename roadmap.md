@@ -11,6 +11,6 @@
 - [x] Add a full-screen editing mode with all existing controls.
 - [x] Verify editing, pagination, preview, and PDF/Word export behavior.
 - [x] Make Re-format rebuild completed formatted articles while keeping automatic formatting idempotent.
-- [ ] Add manual DOI payments and assignment without changing publication status.
-- [ ] Rename Get DOI and gate author DOI visibility on payment and publication.
-- [ ] Verify DOI payment and visibility behavior.
+- [x] Add manual DOI payments and assignment without changing publication status.
+- [x] Rename Get DOI and gate author DOI visibility on payment and publication.
+- [x] Verify DOI visibility with five tests and the manual payment form in the browser; no real payment recorded.
