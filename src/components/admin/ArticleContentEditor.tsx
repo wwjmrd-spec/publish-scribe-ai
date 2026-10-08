@@ -29,6 +29,7 @@ import { Label } from '@/components/ui/label';
 import { buildPagedFormattedArticleHtml } from '@/lib/formattedArticlePagination';
 import { downloadFormattedAsPdf, downloadFormattedAsDocx, buildFormattedPdfBlob } from '@/lib/exportFormattedArticle';
 import { resolveEdgeFunctionError } from '@/lib/edgeFunctionError';
+import { saveFormattedArticle } from '@/lib/saveFormattedArticle';
 import { UpdateAuthorDetailsDialog, type AuthorDetail } from '@/components/admin/UpdateAuthorDetailsDialog';
 
 
@@ -243,11 +244,7 @@ export function ArticleContentEditor({
 
     renderPageNumbersRef.current?.();
 
-    const { error } = await supabase
-      .from('articles')
-      .update({ formatted_content: body.innerHTML } as any)
-      .eq('id', articleId);
-    if (error) throw error;
+    await saveFormattedArticle(articleId, { formatted_content: body.innerHTML });
   }, [articleId]);
 
 
@@ -796,15 +793,14 @@ export function ArticleContentEditor({
   }, [savedPageRange, startPage, pageCount]);
 
   const handleSave = async () => {
+    if (saving || approving || sending) return;
     setSaving(true);
     try {
       const content = getContent();
       const range = computedPageRange();
-      const { error } = await supabase
-        .from('articles')
-        .update({ formatted_content: content, page_number: range, issue: currentIssue } as any)
-        .eq('id', articleId);
-      if (error) throw error;
+      await saveFormattedArticle(articleId, {
+        formatted_content: content, page_number: range, issue: currentIssue,
+      });
       setSavedPageRange(range);
       toast.success(`Saved (pages ${range})`);
       queryClient.invalidateQueries({ queryKey: ['admin-formatting-articles'] });
@@ -817,22 +813,19 @@ export function ArticleContentEditor({
 
   /** Step 1 — approve the final formatted version. Does NOT notify the author. */
   const handleApproveFinalVersion = async () => {
+    if (saving || approving || sending) return;
     setApproving(true);
     const tid = toast.loading('Approving final version…');
     try {
       const content = getContent();
       const pageRange = computedPageRange();
-      const { error } = await supabase
-        .from('articles')
-        .update({
+      await saveFormattedArticle(articleId, {
           formatted_content: content,
           formatting_status: 'approved',
           formatting_approved_at: new Date().toISOString(),
           page_number: pageRange,
           issue: currentIssue,
-        } as any)
-        .eq('id', articleId);
-      if (error) throw error;
+        });
       setSavedPageRange(pageRange);
       setFormattingApproved(true);
       toast.success(`Final version approved (pages ${pageRange}). You can now send the galley proof.`, { id: tid });
@@ -847,6 +840,7 @@ export function ArticleContentEditor({
 
   /** Step 2 — build the PDF and send the galley proof to the author. */
   const handleSendGalleyProof = async () => {
+    if (saving || approving || sending) return;
     setSending(true);
     const tid = toast.loading('Building galley proof PDF…');
     try {
@@ -854,11 +848,9 @@ export function ArticleContentEditor({
       const pageRange = computedPageRange();
 
       // Persist the exact content/page range being sent (no re-numbering).
-      const { error: saveError } = await supabase
-        .from('articles')
-        .update({ formatted_content: content, page_number: pageRange, issue: currentIssue } as any)
-        .eq('id', articleId);
-      if (saveError) throw saveError;
+      await saveFormattedArticle(articleId, {
+        formatted_content: content, page_number: pageRange, issue: currentIssue,
+      });
       setSavedPageRange(pageRange);
 
       // 2. Generate PDF using the saved starting page number
@@ -1435,14 +1427,14 @@ export function ArticleContentEditor({
 
           {mode === 'admin' && (
             <>
-              <Button variant="outline" onClick={handleSave} disabled={saving}>
-                {saving ? <GlassSpinner size="sm" className="mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+              <Button variant="outline" onClick={handleSave} disabled={saving || approving || sending}>
+                {saving ? <span><GlassSpinner size="sm" className="mr-2" /></span> : <Save className="w-4 h-4 mr-2" />}
                 Save Draft
               </Button>
               <Button
                 variant={formattingApproved ? 'outline' : 'default'}
                 onClick={handleApproveFinalVersion}
-                disabled={approving || sending}
+                disabled={saving || approving || sending}
               >
                 {approving ? <GlassSpinner size="sm" className="mr-2" /> : <CheckCircle className="w-4 h-4 mr-2" />}
                 {formattingApproved ? 'Re-approve Final Version' : 'Approve Final Version'}
