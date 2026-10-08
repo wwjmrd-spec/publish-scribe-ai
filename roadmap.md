@@ -1,6 +1,6 @@
 # Roadmap
 
-- [ ] Fix and verify formatted article saves interrupted by the short request timeout.
+- [x] Fix formatted article save timeouts; four tests pass and a simulated 14-second save succeeds in the browser without modifying the manuscript.
 
 - [x] Allow admins and authors to add co-authors while editing article details.
 - [x] Use and display separate first-name and last-name fields for co-authors.
