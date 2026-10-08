@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 import { downloadFromUrl } from '@/lib/downloadFile';
 import { formatArticleStatus, getArticleStatusBadgeClass } from '@/lib/articleStatus';
 import { joinName, splitName } from '@/lib/nameParts';
+import { getAuthorDoiState } from '@/lib/doi';
 import { GalleyProofReviewSection } from '@/components/articles/GalleyProofReviewSection';
 import { CopyrightFormSection } from '@/components/articles/CopyrightFormSection';
 import { PublicationCard } from '@/components/articles/PublicationCard';
@@ -662,30 +663,27 @@ export default function AuthorArticleDetail() {
 
         {/* DOI */}
         <GlassCard>
-          <h2 className="font-semibold mb-2 flex items-center gap-2">
-            <Link2 className="w-4 h-4 text-primary" /> DOI (Digital Object Identifier)
-          </h2>
-          {article.doi_number ? (
+          {article.doi_paid && (
+            <h2 className="font-semibold mb-2 flex items-center gap-2">
+              <Link2 className="w-4 h-4 text-primary" /> DOI (Digital Object Identifier)
+            </h2>
+          )}
+          {getAuthorDoiState(article) === 'registered' ? (
             <div className="space-y-1">
               <p className="text-sm text-muted-foreground">Your article has a registered DOI:</p>
               <p className="font-mono text-sm text-primary break-all">{article.doi_number}</p>
             </div>
           ) : article.doi_paid ? (
             <div className="flex items-start gap-2 text-sm">
-              <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" />
+              <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 shrink-0" />
               <p className="text-muted-foreground">
-                DOI fee received. Your DOI is being registered and will appear here shortly.
+                DOI fee received. Your registered DOI will appear once your article is published and the DOI is assigned.
               </p>
             </div>
           ) : (
-            <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                Get a permanent DOI link for this article for{' '}
-                <span className="font-semibold text-foreground">{doiPriceLabel}</span>. A DOI makes your work
-                easier to cite, index and discover.
-              </p>
+            <div>
               <Button size="sm" className="gradient-primary" onClick={() => setDoiPayOpen(true)}>
-                <Link2 className="w-4 h-4 mr-1" /> Get DOI for this article — {doiPriceLabel}
+                <Link2 className="w-4 h-4 mr-1" /> Pay fee for DOI — {doiPriceLabel}
               </Button>
             </div>
           )}
@@ -756,14 +754,14 @@ export default function AuthorArticleDetail() {
       />
 
       <PayOptionsDialog
-        open={doiPayOpen}
+        open={doiPayOpen && !article.doi_paid}
         onOpenChange={setDoiPayOpen}
         title="Get a DOI for this article"
         description={
           <>
             A DOI is a permanent link to your published article. Fee:{' '}
             <span className="font-semibold text-foreground">{doiPriceLabel}</span>. Once paid, our team registers the
-            DOI and it appears on this page and in your article record.
+            DOI and it appears here after your article is published. This payment covers only the DOI fee.
           </>
         }
         items={[{ type: 'doi', articleId: article.id }]}
@@ -778,6 +776,10 @@ export default function AuthorArticleDetail() {
           articleId: article.id,
         }}
         onPaid={() => {
+          setDoiPayOpen(false);
+          queryClient.setQueryData(['author-article', articleId], (previous: any) =>
+            previous ? { ...previous, doi_paid: true } : previous,
+          );
           queryClient.invalidateQueries({ queryKey: ['author-article', articleId] });
           toast.success('DOI payment received. We will register your DOI shortly.');
         }}

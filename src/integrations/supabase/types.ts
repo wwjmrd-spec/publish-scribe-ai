@@ -2586,6 +2586,20 @@ export type Database = {
           similarity: number
         }[]
       }
+      record_manual_doi_payment: {
+        Args: {
+          p_amount: number
+          p_article_id: string
+          p_author_id: string
+          p_currency: Database["public"]["Enums"]["currency_type"]
+          p_doi_number?: string
+          p_gateway: Database["public"]["Enums"]["payment_gateway"]
+          p_notes?: string
+          p_paid_at: string
+          p_transaction_id: string
+        }
+        Returns: string
+      }
       set_fee_promise: {
         Args: { p_article_id: string; p_date: string }
         Returns: undefined

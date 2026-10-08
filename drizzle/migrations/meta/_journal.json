@@ -15,6 +15,13 @@
       "when": 1789217846730,
       "tag": "0001_protect_daily_submission_limit",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791470347093,
+      "tag": "0002_record_manual_doi_payment",
+      "breakpoints": true
     }
   ]
 }

@@ -460,7 +460,7 @@ export default function MyArticles() {
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             <Button variant="outline" className="w-full sm:w-auto" onClick={() => setLegacyDoiOpen(true)}>
               <Link2 className="w-4 h-4 mr-2" />
-              Get DOI for a past article
+              Get DOI
             </Button>
             <Button
               onClick={() => navigate('/author/submit')}
