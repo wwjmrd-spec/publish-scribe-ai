@@ -22,6 +22,13 @@
       "when": 1791470347093,
       "tag": "0002_record_manual_doi_payment",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791734320751,
+      "tag": "0003_queue_free_article_doi_fee_requests",
+      "breakpoints": true
     }
   ]
 }
