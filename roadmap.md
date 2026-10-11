@@ -1,5 +1,11 @@
 # Roadmap
 
+- [ ] Allow admins and authors to delete co-authors.
+- [ ] Send personalized mandatory DOI-fee requests for accepted free articles (India Rs 500; other countries USD 10).
+- [ ] Include every article status in admin filters and search articles by author email and status.
+- [ ] Search authors by referral code.
+- [ ] Verify affected controls, permissions, and email flow.
+
 - [x] Fix formatted article save timeouts; four tests pass and a simulated 14-second save succeeds in the browser without modifying the manuscript.
 
 - [x] Allow admins and authors to add co-authors while editing article details.
