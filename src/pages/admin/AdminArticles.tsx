@@ -51,7 +51,7 @@ import {
 import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
 import { useNavigate } from 'react-router-dom';
-import { formatArticleStatus, getArticleStatusBadgeClass } from '@/lib/articleStatus';
+import { ARTICLE_STATUS_LABELS, formatArticleStatus, getArticleStatusBadgeClass } from '@/lib/articleStatus';
 import { SimplePager } from '@/components/ui/SimplePager';
 import { queryTimeout } from '@/lib/queryTimeout';
 
@@ -383,7 +383,10 @@ export default function AdminArticles() {
 
   const filteredArticles = articles?.filter(article =>
     article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    article.reference_number.toLowerCase().includes(searchQuery.toLowerCase())
+    article.reference_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    article.profiles?.email?.toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
+    formatArticleStatus(article.status).toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
+    article.status?.toLowerCase().includes(searchQuery.trim().toLowerCase())
   );
   const totalArticles = filteredArticles?.length || 0;
   const pagedArticles = filteredArticles?.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE) || [];
@@ -421,7 +424,7 @@ export default function AdminArticles() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Search by title or reference..."
+            placeholder="Search title, reference, author email or status..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10 glass-input"
@@ -434,22 +437,9 @@ export default function AdminArticles() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="submitted">Submitted</SelectItem>
-            <SelectItem value="under_review">Under Review</SelectItem>
-            <SelectItem value="copyright_received">Copyright Received</SelectItem>
-            <SelectItem value="ai_review_generated">AI Review Generated</SelectItem>
-            <SelectItem value="manuscript_accepted">Manuscript Accepted</SelectItem>
-            <SelectItem value="revision_requested">Revision Requested</SelectItem>
-            <SelectItem value="revised_submitted">Revised Submitted</SelectItem>
-            <SelectItem value="revised_review_generated">Revised Review Generated</SelectItem>
-            <SelectItem value="pending_fee">Pending Fee</SelectItem>
-            <SelectItem value="paid">Paid</SelectItem>
-            <SelectItem value="galley_proof_sent">Galley Proof Sent</SelectItem>
-            <SelectItem value="galley_proof_approved">Galley Proof Approved</SelectItem>
-            <SelectItem value="galley_proof_revised">Galley Proof Revised</SelectItem>
-            <SelectItem value="published">Published</SelectItem>
-            <SelectItem value="rejected">Rejected</SelectItem>
-            <SelectItem value="withdrawn">Withdrawn</SelectItem>
+            {Object.entries(ARTICLE_STATUS_LABELS).map(([value, label]) => (
+              <SelectItem key={value} value={value}>{label}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
