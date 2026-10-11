@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Pencil, Plus } from 'lucide-react';
 import { EditCoAuthorDialog } from '@/components/admin/EditCoAuthorDialog';
+import { DeleteCoAuthorButton } from './DeleteCoAuthorButton';
 
 interface Props {
   open: boolean;
@@ -50,9 +51,12 @@ export function ManageCoAuthorsDialog({ open, onOpenChange, articleTitle, articl
                       <p className="text-xs text-muted-foreground truncate">ORCID: {ca.orcid}</p>
                     )}
                   </div>
+                  <div className="flex items-center gap-1 shrink-0">
                   <Button size="sm" variant="outline" onClick={() => setEditing(ca)}>
                     <Pencil className="w-3.5 h-3.5 mr-1" /> Edit
                   </Button>
+                  <DeleteCoAuthorButton id={ca.id} name={ca.name} invalidateKeys={invalidateKeys} />
+                  </div>
                 </div>
               ))}
             </div>

@@ -53,6 +53,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AIReviewSection } from '@/components/admin/AIReviewSection';
 import { FormattingSection } from '@/components/admin/FormattingSection';
 import { EditCoAuthorDialog } from '@/components/admin/EditCoAuthorDialog';
+import { DeleteCoAuthorButton } from '@/components/articles/DeleteCoAuthorButton';
 import { AuthorUpdateReviewSection } from '@/components/admin/AuthorUpdateReviewSection';
 
 
@@ -787,6 +788,7 @@ export default function AdminArticleDetail() {
                         {ca.affiliation && <p className="text-muted-foreground text-xs">{ca.affiliation}</p>}
                       </div>
                       <div className="flex gap-1 shrink-0">
+                        <DeleteCoAuthorButton id={ca.id} name={ca.name} invalidateKeys={[[ 'admin-article-detail', articleId ]]} />
                         <Button
                           variant="outline"
                           size="sm"
