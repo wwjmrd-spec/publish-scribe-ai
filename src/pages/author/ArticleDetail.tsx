@@ -12,6 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { DownloadButton } from '@/components/ui/DownloadButton';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import { PayOptionsDialog } from '@/components/articles/PayOptionsDialog';
+import { DeleteCoAuthorButton } from '@/components/articles/DeleteCoAuthorButton';
 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -259,7 +260,8 @@ export default function AuthorArticleDetail() {
           (o: any) => !(form.co_authors || []).some((c: any) => c.id === o.id),
         );
         for (const o of removed) {
-          await supabase.from('co_authors').delete().eq('id', o.id);
+          const { error: deleteError } = await supabase.from('co_authors').delete().eq('id', o.id).select('id').single();
+          if (deleteError) throw deleteError;
         }
         for (const c of form.co_authors) {
           if (c.id) {
@@ -556,12 +558,15 @@ export default function AuthorArticleDetail() {
                         </Button>
                       </div>
                     ) : (
-                      <div className="text-sm">
+                       <div className="flex items-start justify-between gap-3 text-sm">
+                         <div className="min-w-0 break-words">
                          <p className="font-medium">{joinName(c.first_name, c.last_name) || c.name}</p>
                          <p className="text-xs text-muted-foreground">First name: {c.first_name || '—'}</p>
                          <p className="text-xs text-muted-foreground">Last name: {c.last_name || '—'}</p>
                         <p className="text-muted-foreground">{c.email}</p>
                         {c.affiliation && <p className="text-xs text-muted-foreground">{c.affiliation}</p>}
+                         </div>
+                         {c.id && <DeleteCoAuthorButton id={c.id} name={c.name} invalidateKeys={[[ 'author-article', articleId ]]} />}
                       </div>
                     )}
                   </div>

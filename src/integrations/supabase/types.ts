@@ -417,6 +417,54 @@ export type Database = {
         }
         Relationships: []
       }
+      article_doi_fee_email_events: {
+        Row: {
+          article_id: string
+          attempts: number
+          available_at: string
+          claimed_at: string | null
+          created_at: string
+          last_error: string | null
+          sent_at: string | null
+          status: string
+        }
+        Insert: {
+          article_id: string
+          attempts?: number
+          available_at?: string
+          claimed_at?: string | null
+          created_at?: string
+          last_error?: string | null
+          sent_at?: string | null
+          status?: string
+        }
+        Update: {
+          article_id?: string
+          attempts?: number
+          available_at?: string
+          claimed_at?: string | null
+          created_at?: string
+          last_error?: string | null
+          sent_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "article_doi_fee_email_events_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: true
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "article_doi_fee_email_events_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: true
+            referencedRelation: "published_articles_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       article_reviews: {
         Row: {
           approved: boolean
@@ -2487,6 +2535,25 @@ export type Database = {
       }
     }
     Functions: {
+      claim_article_doi_fee_email_event: {
+        Args: never
+        Returns: {
+          article_id: string
+          attempts: number
+          available_at: string
+          claimed_at: string | null
+          created_at: string
+          last_error: string | null
+          sent_at: string | null
+          status: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "article_doi_fee_email_events"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       compute_article_doi: { Args: { ref: string }; Returns: string }
       get_article_submission_quota: {
         Args: { _user_id?: string }

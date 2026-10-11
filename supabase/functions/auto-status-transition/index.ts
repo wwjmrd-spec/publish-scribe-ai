@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { sendNextFreeArticleDoiEmail } from '../_shared/freeArticleDoiEmail.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -80,13 +81,15 @@ serve(async (req: Request) => {
     }
 
     async function sendEmail(to: string, template: string, data: Record<string, any>) {
-      try {
-        await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+        const response = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceRoleKey}` },
           body: JSON.stringify({ to, template, data }),
         });
-      } catch (e) { console.error("sendEmail failed", e); }
+        const result = await response.json();
+        if (!response.ok || result?.success === false || result?.error) {
+          throw new Error(result?.detail || result?.error || 'Email delivery failed');
+        }
     }
 
     // ===== STEP -1: Move 'submitted' articles older than 5 minutes to 'under_review' =====
@@ -318,6 +321,13 @@ serve(async (req: Request) => {
           }
         }
       }
+    }
+
+    // Persisted acceptance events cover automatic and manual Free status changes.
+    try {
+      await sendNextFreeArticleDoiEmail(supabase, sendEmail);
+    } catch (error) {
+      results.errors.push(`DOI fee email: ${error instanceof Error ? error.message : error}`);
     }
 
     // ===== STEP 2b: Manuscript accepted for 24h+ => pending fee =====

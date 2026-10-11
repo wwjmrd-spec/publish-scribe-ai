@@ -41,6 +41,7 @@ type EmailTemplate =
   | "article-status-change"
   | "review-report-ready"
   | "payment-reminder"
+  | "free-article-doi-fee"
   | "galley-proof-review"
   | "copyright-form-request"
   | "upgrade-to-pro"
@@ -67,6 +68,8 @@ interface EmailRequest {
     referenceNumber?: string;
     authorName?: string;
     authorEmail?: string;
+    doiFeeLabel?: string;
+    articleUrl?: string;
     submissionDate?: string;
     coAuthors?: string[];
     // Payment confirmation
@@ -955,6 +958,27 @@ function getEmailContent(
   isAdmin: boolean = false
 ): { subject: string; html: string } {
   switch (template) {
+    case "free-article-doi-fee":
+      return {
+        subject: `DOI Fee Required for Your Accepted Article — ${data?.referenceNumber || "WWJMRD"}`,
+        html: wrapEmail("DOI Fee Request", `
+          ${emailH1("Accepted Article — DOI Fee Request")}
+          ${emailP(`Dear ${escapeHtml(data?.authorName || "Author")},`)}
+          ${emailP("We are pleased to inform you that your manuscript has been accepted for publication in WWJMRD under the free-publication category. Thank you for choosing our journal to share your research.")}
+          ${emailInfoBox([
+            emailInfoRow("Author", escapeHtml(data?.authorName || "Author")),
+            emailInfoRow("Article Title", escapeHtml(data?.articleTitle || "Untitled")),
+            emailInfoRow("Reference Number", escapeHtml(data?.referenceNumber || "N/A")),
+            emailInfoRow("DOI Fee Payable", escapeHtml(data?.doiFeeLabel || "$10 (USD)")),
+          ].join(""))}
+          ${emailP("Although the publication fee for your article is waived, the DOI (Digital Object Identifier) fee is mandatory for all free articles. The applicable fee is Rs 500 (INR) for Indian authors and $10 (USD) for authors from all other countries.")}
+          ${emailP(`We kindly request that you submit the DOI fee of <strong>${escapeHtml(data?.doiFeeLabel || "$10 (USD)")}</strong> by opening your article details and selecting <strong>Pay fee for DOI</strong>. This payment is for the DOI only; no publication fee is required for your free article.`)}
+          ${emailButton(data?.articleUrl || "https://wwjmrdai.online/author/articles", "View Article and Pay DOI Fee")}
+          ${emailP("If you have already submitted the DOI fee, please contact support@wwjmrd.com with your payment details and article reference number so we can verify the payment.")}
+          ${emailP("Thank you for your cooperation and valuable contribution. Please contact us if you require any assistance.")}
+          ${emailP("Yours sincerely,<br />Editorial Office<br />WWJMRD<br />support@wwjmrd.com")}
+        `),
+      };
     case "password-reset":
       return {
         subject: "Reset Your Password - WWJMRD",
