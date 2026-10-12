@@ -29,6 +29,13 @@
       "when": 1791734320751,
       "tag": "0003_queue_free_article_doi_fee_requests",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791819156295,
+      "tag": "0004_article_acceptance_letters",
+      "breakpoints": true
     }
   ]
 }
