@@ -142,7 +142,16 @@ serve(async (req) => {
     let filePath: string | null = null;
     let bucket: string = "documents";
 
-    if (fileType === "document") {
+    if (fileType === "acceptance_letter") {
+      bucket = "certificates";
+      const { data: letter, error: letterError } = await supabase
+        .from("article_acceptance_letters")
+        .select("file_path")
+        .eq("article_id", articleId)
+        .maybeSingle();
+      if (letterError) throw letterError;
+      filePath = letter?.file_path || null;
+    } else if (fileType === "document") {
       filePath = article.document_url || null;
     } else if (fileType === "certificate") {
       bucket = "certificates";
@@ -331,6 +340,7 @@ serve(async (req) => {
     const extensionMap: Record<string, string> = {
       document: ".docx",
       certificate: ".pdf",
+      acceptance_letter: ".pdf",
       review_report: ".pdf",
       pending_review_report: ".pdf",
       formatted_document: ".pdf",

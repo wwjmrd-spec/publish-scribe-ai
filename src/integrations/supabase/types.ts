@@ -417,6 +417,48 @@ export type Database = {
         }
         Relationships: []
       }
+      article_acceptance_letters: {
+        Row: {
+          acceptance_date: string
+          article_id: string
+          created_at: string
+          created_by: string
+          file_path: string
+          letter_number: string
+        }
+        Insert: {
+          acceptance_date: string
+          article_id: string
+          created_at?: string
+          created_by: string
+          file_path: string
+          letter_number: string
+        }
+        Update: {
+          acceptance_date?: string
+          article_id?: string
+          created_at?: string
+          created_by?: string
+          file_path?: string
+          letter_number?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "article_acceptance_letters_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: true
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "article_acceptance_letters_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: true
+            referencedRelation: "published_articles_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       article_doi_fee_email_events: {
         Row: {
           article_id: string
