@@ -1,5 +1,9 @@
 # Roadmap
 
+- [ ] Add one-click admin acceptance letter generation and admin/author PDF downloads.
+- [ ] Diagnose and repair journal PDF upload failures without publishing after a failed upload.
+- [ ] Verify acceptance letter creation/download and upload error handling.
+
 - [x] Allow admins and authors to delete co-authors; verified owner/admin deletion permissions and a real temporary co-author add/delete flow.
 - [x] Queue personalized mandatory DOI-fee requests on new free-article acceptance (India Rs 500; other countries USD 10), with delivery retries and author email preferences respected.
 - [x] Include every article status in admin filters and search articles by author email and status.
