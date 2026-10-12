@@ -1,7 +1,8 @@
-import { getUnsubscribeUrl, isCategoryEnabled } from './emailPreferences.ts';
-
 /** Deliver one acceptance event per scheduler invocation; never a recipient-list send. */
-export async function sendNextFreeArticleDoiEmail(db: any, send: (to: string, template: string, data: Record<string, unknown>) => Promise<void>) {
+export async function sendNextFreeArticleDoiEmail(db: any, send: (to: string, template: string, data: Record<string, unknown>) => Promise<void>, preferences: {
+  enabled: (authorId: string) => Promise<boolean>;
+  unsubscribeUrl: (authorId: string) => Promise<string>;
+}) {
   const { data: events, error } = await db.rpc('claim_article_doi_fee_email_event');
   if (error) throw error;
   const event = events?.[0];
@@ -19,14 +20,14 @@ export async function sendNextFreeArticleDoiEmail(db: any, send: (to: string, te
       await finish({ status: 'skipped', last_error: null });
       return;
     }
-    if (!(await isCategoryEnabled(db, article.author_id, 'fee_reminder'))) {
+    if (!(await preferences.enabled(article.author_id))) {
       await finish({ status: 'skipped', last_error: 'Fee emails disabled by author' });
       return;
     }
     const profile = article.profiles;
     if (!profile?.email) throw new Error('Author email is missing');
     const indian = profile.country?.trim().toLowerCase() === 'india' || (!profile.country && profile.is_indian);
-    const unsubscribeUrl = await getUnsubscribeUrl(db, article.author_id, 'fee_reminder');
+    const unsubscribeUrl = await preferences.unsubscribeUrl(article.author_id);
     await send(profile.email, 'free-article-doi-fee', {
       articleId: article.id, authorName: profile.full_name || 'Author', articleTitle: article.title,
       referenceNumber: article.reference_number, doiFeeLabel: indian ? 'Rs 500 (INR)' : '$10 (USD)',

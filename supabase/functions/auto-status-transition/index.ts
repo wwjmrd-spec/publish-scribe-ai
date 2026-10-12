@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { sendNextFreeArticleDoiEmail } from '../_shared/freeArticleDoiEmail.ts';
+import { getUnsubscribeUrl, isCategoryEnabled } from '../_shared/emailPreferences.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -325,7 +326,10 @@ serve(async (req: Request) => {
 
     // Persisted acceptance events cover automatic and manual Free status changes.
     try {
-      await sendNextFreeArticleDoiEmail(supabase, sendEmail);
+      await sendNextFreeArticleDoiEmail(supabase, sendEmail, {
+        enabled: (authorId) => isCategoryEnabled(supabase, authorId, 'fee_reminder'),
+        unsubscribeUrl: (authorId) => getUnsubscribeUrl(supabase, authorId, 'fee_reminder'),
+      });
     } catch (error) {
       results.errors.push(`DOI fee email: ${error instanceof Error ? error.message : error}`);
     }
