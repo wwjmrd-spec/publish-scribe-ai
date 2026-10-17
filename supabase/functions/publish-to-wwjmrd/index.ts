@@ -147,28 +147,12 @@ serve(async (req) => {
       orderNumber = isUpdate && existingIdx >= 0 ? existingIdx + 1 : list.length + 1;
     }
 
-    // Build the public PDF URL. NOTE: published_link points at the WWJMRD abstract
-    // page (not a PDF), so it must never be used as pdf_url — always sign the file.
-    let pdfUrl = "";
-    const pdfPath =
-      pubForm?.final_pdf_url ||
-      (article as any).galley_proof_pdf_url ||
-      (article as any).formatted_document_url ||
-      "";
-    const uploadedPdfUrl = String((article as any).published_pdf_url || "");
-    if (uploadedPdfUrl) pdfUrl = uploadedPdfUrl;
-    const existingLink = String(article.published_link || "");
-    if (!pdfUrl && /\.pdf(\?|$)/i.test(existingLink)) pdfUrl = existingLink;
-    if (!pdfUrl && pdfPath) {
-      const { data: signed, error: signErr } = await admin.storage
-        .from("formatted-articles")
-        .createSignedUrl(pdfPath, 60 * 60 * 24 * 365 * 5);
-      if (signErr) console.error("Failed to sign PDF path", pdfPath, signErr.message);
-      pdfUrl = signed?.signedUrl || "";
-    }
-    if (!pdfUrl) {
+    // Publishing must use the successfully uploaded journal file, not a stale
+    // abstract link or a silent long-lived Cloud URL fallback.
+    const pdfUrl = String(article.published_pdf_url || "");
+    if (!/^https:\/\/wwjmrd\.com\/upload2\/[^/?]+\.pdf$/.test(pdfUrl)) {
       return json(
-        { error: "No final PDF found for this article. Generate the galley proof / formatted PDF first." },
+        { error: "Upload the final PDF to WWJMRD successfully before publishing this article." },
         400,
       );
     }

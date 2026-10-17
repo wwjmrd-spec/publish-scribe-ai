@@ -13,6 +13,7 @@ import { DownloadButton } from '@/components/ui/DownloadButton';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import { PayOptionsDialog } from '@/components/articles/PayOptionsDialog';
 import { DeleteCoAuthorButton } from '@/components/articles/DeleteCoAuthorButton';
+import { AcceptanceLetterButton } from '@/components/articles/AcceptanceLetterButton';
 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -619,6 +620,7 @@ export default function AuthorArticleDetail() {
         <GlassCard>
           <h2 className="font-semibold mb-4">Documents</h2>
           <div className="flex flex-wrap gap-2">
+            <AcceptanceLetterButton articleId={article.id} />
             {article.document_url && (
               <DownloadButton size="sm" variant="outline" onDownload={() => downloadDoc('document', `${article.reference_number}.docx`)}>
                 Manuscript

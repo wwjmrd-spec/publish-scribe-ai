@@ -1,12 +1,11 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { z } from "npm:zod@3";
 import { Client as FtpClient } from "npm:basic-ftp@5.0.5";
 import { Buffer } from "node:buffer";
 import { Readable } from "node:stream";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+const bodySchema = z.object({ articleId: z.string().uuid(), pdfBase64: z.string().min(1).max(40_000_000) });
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -31,20 +30,27 @@ function buildFileName(title: string, reference: string) {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
   try {
-    const { articleId, pdfBase64 } = await req.json();
-    if (!articleId || !pdfBase64) return json({ error: "articleId and pdfBase64 are required" }, 400);
+    const url = Deno.env.get("SUPABASE_URL");
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!url || !anonKey || !serviceKey) throw new Error("Upload service is not configured");
+    const auth = createClient(url, anonKey, { global: { headers: { Authorization: req.headers.get("Authorization") || "" } } });
+    const { data: userData, error: userError } = await auth.auth.getUser();
+    if (userError || !userData.user) return json({ error: "Unauthorized" }, 401);
+    const supabase = createClient(url, serviceKey);
+    const { data: isAdmin, error: roleError } = await supabase.rpc("has_role", { _user_id: userData.user.id, _role: "admin" });
+    if (roleError || !isAdmin) return json({ error: "Admin access required" }, 403);
+    const parsed = bodySchema.safeParse(await req.json().catch(() => null));
+    if (!parsed.success) return json({ error: "A valid article ID and PDF (maximum 30 MB) are required" }, 400);
+    const { articleId, pdfBase64 } = parsed.data;
 
     const host = Deno.env.get("WWJMRD_FTP_HOST");
     const user = Deno.env.get("WWJMRD_FTP_USER");
     const password = Deno.env.get("WWJMRD_FTP_PASSWORD");
     if (!host || !user || !password) return json({ error: "FTP credentials are not configured" }, 500);
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
 
     const { data: article, error } = await supabase
       .from("articles")
@@ -56,28 +62,50 @@ Deno.serve(async (req) => {
 
     const fileName = buildFileName(article.title, article.reference_number);
     const bytes = Buffer.from(pdfBase64.replace(/^data:[^,]+,/, ""), "base64");
-    if (!bytes.length) return json({ error: "Empty PDF payload" }, 400);
+    if (bytes.subarray(0, 5).toString() !== "%PDF-") return json({ error: "The uploaded file is not a PDF" }, 400);
 
     const client = new FtpClient(30_000);
     client.ftp.verbose = false;
+    let stage = "connection";
     try {
+      const ftpUrl = new URL(/^ftps?:\/\//i.test(host) ? host : `ftp://${host}`);
       await client.access({
-        host: host.replace(/^ftps?:\/\//i, ""),
+        host: ftpUrl.hostname,
+        port: ftpUrl.port ? Number(ftpUrl.port) : 21,
         user,
         password,
-        secure: false,
+        secure: true,
       });
-      await client.ensureDir("/upload2");
+      stage = "upload folder";
+      // FTP accounts may be rooted at the site or its hosting home directory.
+      // Only use an existing folder; ensureDir could silently create the wrong one.
+      let found = false;
+      for (const directory of ["/upload2", "/public_html/upload2", "/www/upload2", "/httpdocs/upload2"]) {
+        try { await client.cd(directory); found = true; break; } catch { /* try the next existing web root */ }
+      }
+      if (!found) throw new Error("The existing website upload2 folder is not accessible to the FTP account");
+      stage = "PDF transfer";
       await client.uploadFrom(Readable.from(bytes), fileName);
+      const remoteSize = await client.size(fileName);
+      if (remoteSize !== bytes.length) throw new Error("Uploaded PDF size does not match; retry the upload");
+    } catch (error) {
+      console.error("Journal FTP failure", { articleId, stage, message: error instanceof Error ? error.message : String(error) });
+      // Do not return remote server messages, which may contain login details.
+      return json({ error: `WWJMRD PDF upload failed during ${stage}. Check the FTP account, FTPS support, upload2 folder permissions and passive data ports. The article has not been published.` }, 502);
     } finally {
       client.close();
     }
 
     const publicUrl = `https://wwjmrd.com/upload2/${fileName}`;
-    await supabase
+    const publicResponse = await fetch(publicUrl, { headers: { Range: "bytes=0-4" }, signal: AbortSignal.timeout(15000) });
+    if (!publicResponse.ok) throw new Error("FTP transfer completed but the PDF is not accessible in the website upload2 folder. Check the FTP website root.");
+    const publicBytes = new Uint8Array(await publicResponse.arrayBuffer());
+    if (new TextDecoder().decode(publicBytes.subarray(0, 5)) !== "%PDF-") throw new Error("FTP transfer completed but the website did not return a PDF. Check the FTP website root.");
+    const { error: saveError, data: saved } = await supabase
       .from("articles")
       .update({ published_pdf_url: publicUrl })
-      .eq("id", articleId);
+      .eq("id", articleId).select("id").single();
+    if (saveError || !saved) throw new Error("PDF uploaded but its article link could not be saved. Retry before publishing.");
 
     console.log("Uploaded formatted PDF to FTP", { articleId, fileName, size: bytes.length });
     return json({ success: true, fileName, url: publicUrl });
