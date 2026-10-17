@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { buildFormattedPdfBlob } from './exportFormattedArticle';
 import type { PaginationOptions } from './formattedArticlePagination';
+import { resolveEdgeFunctionError } from './edgeFunctionError';
 
 async function blobToBase64(blob: Blob): Promise<string> {
   const buffer = await blob.arrayBuffer();
@@ -38,7 +39,7 @@ export async function uploadFormattedPdfToWwjmrd(
   const response = await supabase.functions.invoke('upload-article-pdf', {
     body: { articleId, pdfBase64 },
   });
-  if (response.error) throw new Error(response.error.message);
+  if (response.error) throw await resolveEdgeFunctionError(response.error, 'PDF upload failed');
   if (!response.data?.success) throw new Error(response.data?.error || 'PDF upload failed');
 
   return { url: response.data.url as string, fileName: response.data.fileName as string };

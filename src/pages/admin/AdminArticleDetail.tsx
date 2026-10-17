@@ -54,6 +54,7 @@ import { AIReviewSection } from '@/components/admin/AIReviewSection';
 import { FormattingSection } from '@/components/admin/FormattingSection';
 import { EditCoAuthorDialog } from '@/components/admin/EditCoAuthorDialog';
 import { DeleteCoAuthorButton } from '@/components/articles/DeleteCoAuthorButton';
+import { AcceptanceLetterButton } from '@/components/articles/AcceptanceLetterButton';
 import { AuthorUpdateReviewSection } from '@/components/admin/AuthorUpdateReviewSection';
 
 
@@ -455,15 +456,10 @@ export default function AdminArticleDetail() {
     mutationFn: async (mode?: 'update') => {
       // Upload the finalised formatted PDF to wwjmrd.com/upload2 first so the
       // publish payload links the journal-hosted file (not a Cloud storage URL).
-      try {
-        const uploaded = await uploadFormattedPdfToWwjmrd(article!.id);
-        console.log('Uploaded article PDF:', uploaded.url);
-      } catch (uploadErr: any) {
-        console.error('PDF upload failed', uploadErr);
-        toast.warning('PDF upload to wwjmrd.com failed: ' + (uploadErr?.message || 'unknown error'));
-      }
+      if (!article) throw new Error('Article not found');
+      await uploadFormattedPdfToWwjmrd(article.id);
       const { data, error } = await supabase.functions.invoke('publish-to-wwjmrd', {
-        body: { articleId: article!.id, ...(mode ? { mode } : {}) },
+        body: { articleId: article.id, ...(mode ? { mode } : {}) },
       });
       console.log('publish-to-wwjmrd response:', { data, error });
       if (error) throw await resolveEdgeFunctionError(error, 'Publish failed');
@@ -525,6 +521,7 @@ export default function AdminArticleDetail() {
           </Button>
           <h1 className="font-display text-2xl md:text-3xl font-bold gradient-text mb-1">{article.title}</h1>
           <p className="text-muted-foreground font-mono text-sm">Reference: {article.reference_number}</p>
+          <div className="mt-3"><AcceptanceLetterButton articleId={article.id} admin /></div>
         </div>
 
         {Array.isArray((article as any).missing_sections) && (article as any).missing_sections.length > 0 && (
