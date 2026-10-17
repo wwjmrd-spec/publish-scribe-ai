@@ -97,6 +97,10 @@ Deno.serve(async (req) => {
     }
 
     const publicUrl = `https://wwjmrd.com/upload2/${fileName}`;
+    const publicResponse = await fetch(publicUrl, { headers: { Range: "bytes=0-4" }, signal: AbortSignal.timeout(15000) });
+    if (!publicResponse.ok) throw new Error("FTP transfer completed but the PDF is not accessible in the website upload2 folder. Check the FTP website root.");
+    const publicBytes = new Uint8Array(await publicResponse.arrayBuffer());
+    if (new TextDecoder().decode(publicBytes.subarray(0, 5)) !== "%PDF-") throw new Error("FTP transfer completed but the website did not return a PDF. Check the FTP website root.");
     const { error: saveError, data: saved } = await supabase
       .from("articles")
       .update({ published_pdf_url: publicUrl })

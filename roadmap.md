@@ -1,8 +1,9 @@
 # Roadmap
 
-- [ ] Add one-click admin acceptance letter generation and admin/author PDF downloads.
-- [ ] Diagnose and repair journal PDF upload failures without publishing after a failed upload.
-- [ ] Verify acceptance letter creation/download and upload error handling.
+- [x] Add one-click admin acceptance letter generation and admin/author PDF downloads; deployed letter and download functions.
+- [x] Stop publication after failed PDF transfers; add admin validation, secure FTP, existing website-folder discovery, transfer verification and actionable errors.
+- [x] Verify PDF generation, long-title pagination and upload failure handling with four passing tests; preview builds successfully.
+- [ ] Verify live acceptance letter creation/download and diagnose the actual FTP response; blocked by article-service requests timing out even with a 90-second deadline.
 
 - [x] Allow admins and authors to delete co-authors; verified owner/admin deletion permissions and a real temporary co-author add/delete flow.
 - [x] Queue personalized mandatory DOI-fee requests on new free-article acceptance (India Rs 500; other countries USD 10), with delivery retries and author email preferences respected.
