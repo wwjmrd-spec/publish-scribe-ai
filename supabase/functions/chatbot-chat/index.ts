@@ -75,6 +75,10 @@ Deno.serve(async (req) => {
       }
     }
 
+    // AI chat is only for signed-in users (or internal service calls such as WhatsApp).
+    const isInternal = authHeader === `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`;
+    if (!userId && !isInternal) return json({ error: "Please sign in to use the support chat." }, 401);
+
     // ---- Conversation ----
     let conversationId: string | null = body.conversationId ?? null;
     let memory: Memory = { ...(body.memory ?? {}) };
@@ -414,10 +418,11 @@ async function escalate(sb: any, o: {
 async function articleStatus(sb: any, o: { userId: string | null; memory: Memory }) {
   const { reference_number: ref, author_email: email } = o.memory;
 
-  if (!o.userId && (!ref || !email)) {
+  void email;
+  if (!o.userId) {
     return {
       confidence: 1,
-      reply: "To check your article status securely, please provide:\n\n• Article Reference Number\n• Registered Email Address",
+      reply: "To check your article status securely, please sign in to your WWJMRD author account and ask again.",
       quickReplies: [],
     };
   }
@@ -432,11 +437,7 @@ async function articleStatus(sb: any, o: { userId: string | null; memory: Memory
   const { data: rows } = await q;
   let articles = rows ?? [];
 
-  // Unauthenticated lookups must match reference number AND registered email.
-  if (!o.userId) {
-    const { data: profile } = await sb.from("profiles").select("id").eq("email", email).maybeSingle();
-    articles = profile ? articles.filter((a: any) => a.author_id === profile.id) : [];
-  }
+
 
   if (articles.length === 0) {
     return {
