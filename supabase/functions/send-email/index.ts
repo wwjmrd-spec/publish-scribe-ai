@@ -1348,6 +1348,7 @@ const handler = async (req: Request): Promise<Response> => {
     const token = authHeader.replace("Bearer ", "");
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const isServiceRole = !!serviceRoleKey && token === serviceRoleKey;
+    let callerEmail = "";
 
     let callerUserId: string | null = null;
     let callerIsAdmin = false;
@@ -1368,6 +1369,7 @@ const handler = async (req: Request): Promise<Response> => {
         });
       }
       callerUserId = userData.user.id;
+      callerEmail = (userData.user.email || "").toLowerCase();
       // Check admin role via service-role client to bypass RLS
       try {
         const admin = createClient(supabaseUrl, serviceRoleKey!);
@@ -1429,6 +1431,31 @@ const handler = async (req: Request): Promise<Response> => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(to)) {
       throw new Error("Invalid email address format");
+    }
+
+    // Non-admin users may only email themselves or the editorial/admin inbox.
+    if (!isServiceRole && !callerIsAdmin) {
+      const target = String(to).toLowerCase();
+      const sbCheck = createClient(supabaseUrl, serviceRoleKey!);
+      const allowed = new Set<string>([callerEmail, "shubhmeena23@gmail.com", "support@wwjmrd.com"]);
+      const [{ data: prof }, { data: setting }, { data: admins }] = await Promise.all([
+        sbCheck.from("profiles").select("email").eq("id", callerUserId).maybeSingle(),
+        sbCheck.from("admin_settings").select("setting_value").eq("setting_key", "admin_notification_email").maybeSingle(),
+        sbCheck.from("user_roles").select("user_id").eq("role", "admin"),
+      ]);
+      if (prof?.email) allowed.add(prof.email.toLowerCase());
+      if (setting?.setting_value) allowed.add(setting.setting_value.toLowerCase());
+      const adminIds = (admins ?? []).map((a: any) => a.user_id);
+      if (adminIds.length) {
+        const { data: adminProfiles } = await sbCheck.from("profiles").select("email").in("id", adminIds);
+        for (const a of adminProfiles ?? []) if (a.email) allowed.add(a.email.toLowerCase());
+      }
+      if (!allowed.has(target)) {
+        return new Response(JSON.stringify({ error: "Forbidden recipient" }), {
+          status: 403,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
     }
 
     let emailSubject: string;
