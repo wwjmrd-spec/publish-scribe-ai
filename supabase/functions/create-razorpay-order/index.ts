@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { priceCart } from "../_shared/pricing.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -43,11 +44,7 @@ serve(async (req) => {
     console.log('Creating Razorpay order for user:', userId);
 
     const body = await req.json();
-    const { items, amount, discountCode, discountAmount, currency } = body;
-
-    if (!amount || amount <= 0) {
-      throw new Error('Invalid amount');
-    }
+    const { discountCode, currency } = body;
 
     if (!currency || !['INR', 'USD'].includes(currency)) {
       throw new Error('Invalid currency');
@@ -58,139 +55,52 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    // Determine article IDs from items
-    let articleIds: string[] = [];
-    let paymentItems: any[] = [];
+    // Legacy callers send articleIds; convert them to article-fee items.
+    const rawItems = Array.isArray(body.items) && body.items.length > 0
+      ? body.items
+      : Array.isArray(body.articleIds) ? body.articleIds.map((id: string) => ({ type: 'article_fee', articleId: id })) : [];
 
-    if (items && Array.isArray(items) && items.length > 0) {
-      // New unified cart flow
-      articleIds = items.filter((i: any) => i.type === 'article_fee' && i.articleId).map((i: any) => i.articleId);
-      paymentItems = items;
+    // Prices, ownership and discounts are all derived server-side.
+    const priced = await priceCart(serviceClient, userId, rawItems, currency, discountCode);
+    const articleIds = priced.articleIds;
+    const paymentItems = priced.paymentItems;
+    const amount = priced.subtotal;
+    const discountAmount = priced.discount;
 
-      const hasSubscription = items.some((i: any) => i.type === 'pro_subscription');
-      const coauthorCerts = items.filter((i: any) => i.type === 'coauthor_certificate');
-
-      // Validate subscription eligibility
-      if (hasSubscription) {
-        const { data: existingSub } = await serviceClient
-          .from('user_subscriptions')
-          .select('*')
-          .eq('user_id', userId)
-          .eq('is_active', true)
-          .eq('plan_type', 'pro')
-          .maybeSingle();
-
-        if (existingSub && existingSub.expires_at && new Date(existingSub.expires_at) > new Date()) {
-          throw new Error('You already have an active Pro subscription');
-        }
-        console.log('Pro subscription validated for user:', userId);
+    if (paymentItems.some((i: any) => i.type === 'pro_subscription')) {
+      const { data: existingSub } = await serviceClient
+        .from('user_subscriptions')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('is_active', true)
+        .eq('plan_type', 'pro')
+        .maybeSingle();
+      if (existingSub && existingSub.expires_at && new Date(existingSub.expires_at) > new Date()) {
+        throw new Error('You already have an active Pro subscription');
       }
-
-      // Validate and create cert records for co-author certificates
-      for (const cert of coauthorCerts) {
-        if (!cert.coAuthorId || !cert.articleId) {
-          throw new Error('Invalid co-author certificate data');
-        }
-
-        // Verify article belongs to user and is published
-        const { data: article, error: articleError } = await serviceClient
-          .from('articles')
-          .select('id, author_id, status')
-          .eq('id', cert.articleId)
-          .eq('author_id', userId)
-          .eq('status', 'published')
-          .single();
-
-        if (articleError || !article) {
-          throw new Error('Article not found, not yours, or not published');
-        }
-
-        // Verify co-author belongs to this article
-        const { data: coAuthor, error: coAuthorError } = await serviceClient
-          .from('co_authors')
-          .select('id, name')
-          .eq('id', cert.coAuthorId)
-          .eq('article_id', cert.articleId)
-          .single();
-
-        if (coAuthorError || !coAuthor) {
-          throw new Error('Co-author not found for this article');
-        }
-
-        // Check if already paid
-        const { data: existingCert } = await serviceClient
-          .from('co_author_certificates')
-          .select('id, payment_status')
-          .eq('co_author_id', cert.coAuthorId)
-          .eq('article_id', cert.articleId)
-          .maybeSingle();
-
-        if (existingCert?.payment_status === 'paid') {
-          throw new Error(`Certificate already paid for co-author: ${coAuthor.name}`);
-        }
-
-        // Create or update cert record as pending
-        if (existingCert) {
-          await serviceClient
-            .from('co_author_certificates')
-            .update({ payment_status: 'pending', currency })
-            .eq('id', existingCert.id);
-        } else {
-          await serviceClient
-            .from('co_author_certificates')
-            .insert({
-              co_author_id: cert.coAuthorId,
-              article_id: cert.articleId,
-              payment_status: 'pending',
-              currency,
-            });
-        }
-
-        console.log('Co-author cert record created/updated for:', coAuthor.name);
-      }
-
-      // Validate review-report items (per-download purchase)
-      const reviewReports = items.filter((i: any) => i.type === 'review_report');
-      for (const rr of reviewReports) {
-        if (!rr.articleId) throw new Error('Invalid review-report item');
-        const { data: art, error: artErr } = await serviceClient
-          .from('articles')
-          .select('id, author_id, review_report_url')
-          .eq('id', rr.articleId)
-          .eq('author_id', userId)
-          .maybeSingle();
-        if (artErr || !art) throw new Error('Article not found or not yours');
-        if (!art.review_report_url) throw new Error('No review report available for this article');
-      }
-
-      // Validate article-edit unlock items
-      const editItems = items.filter((i: any) => i.type === 'article_edit');
-      for (const it of editItems) {
-        if (!it.articleId) throw new Error('Invalid article-edit item');
-        const { data: art, error: artErr } = await serviceClient
-          .from('articles')
-          .select('id, author_id')
-          .eq('id', it.articleId)
-          .eq('author_id', userId)
-          .maybeSingle();
-        if (artErr || !art) throw new Error('Article not found or not yours');
-      }
-    } else if (body.articleIds && Array.isArray(body.articleIds)) {
-      // Legacy flow
-      articleIds = body.articleIds;
-      paymentItems = articleIds.map((id: string) => ({ type: 'article_fee', articleId: id }));
-
-      if (articleIds.length === 0) {
-        throw new Error('No articles selected');
-      }
-    } else {
-      throw new Error('No items provided');
     }
 
-    const finalAmount = amount - (discountAmount || 0);
+    for (const cert of paymentItems.filter((i: any) => i.type === 'coauthor_certificate')) {
+      const { data: existingCert } = await serviceClient
+        .from('co_author_certificates')
+        .select('id, payment_status')
+        .eq('co_author_id', cert.coAuthorId)
+        .eq('article_id', cert.articleId)
+        .maybeSingle();
+      if (existingCert?.payment_status === 'paid') throw new Error('Certificate already paid for this co-author');
+      if (existingCert) {
+        await serviceClient.from('co_author_certificates').update({ payment_status: 'pending', currency }).eq('id', existingCert.id);
+      } else {
+        await serviceClient.from('co_author_certificates').insert({
+          co_author_id: cert.coAuthorId, article_id: cert.articleId, payment_status: 'pending', currency,
+        });
+      }
+    }
+
+    const finalAmount = priced.finalAmount;
     const amountInSmallestUnit = Math.round(finalAmount * 100);
 
-    console.log('Order details:', { itemCount: paymentItems.length, amount, discountAmount, finalAmount, amountInSmallestUnit, currency });
+    console.log('Order details:', { itemCount: paymentItems.length, amount, discountAmount, finalAmount, currency });
 
     // Create Razorpay order
     const razorpayAuth = btoa(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`);
@@ -208,7 +118,7 @@ serve(async (req) => {
         notes: {
           user_id: userId,
           item_count: String(paymentItems.length),
-          discount_code: discountCode || '',
+          discount_code: priced.discountCode || '',
         },
       }),
     });
@@ -229,7 +139,7 @@ serve(async (req) => {
         user_id: userId,
         article_ids: articleIds,
         amount: amount,
-        discount_code: discountCode || null,
+        discount_code: priced.discountCode,
         discount_amount: discountAmount || 0,
         final_amount: finalAmount,
         currency: currency,
