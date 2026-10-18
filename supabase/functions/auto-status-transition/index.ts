@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { authorizeCaller, unauthorized } from "../_shared/callerAuth.ts";
 import { sendNextFreeArticleDoiEmail } from '../_shared/freeArticleDoiEmail.ts';
 import { getUnsubscribeUrl, isCategoryEnabled } from '../_shared/emailPreferences.ts';
 
@@ -47,14 +48,9 @@ serve(async (req: Request) => {
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const projectRef = new URL(supabaseUrl).hostname.split(".")[0];
 
-    const authHeader = req.headers.get("Authorization");
-    const token = authHeader?.replace("Bearer ", "");
-    if (!isAuthorizedSchedulerToken({ token: token ?? null, serviceRoleKey, anonKey, projectRef })) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
-    }
-
+    const caller = await authorizeCaller(req, createClient(supabaseUrl, serviceRoleKey), { allowCron: true });
+    if (!caller) return unauthorized(corsHeaders);
+    void anonKey; void projectRef;
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
     const now = new Date();

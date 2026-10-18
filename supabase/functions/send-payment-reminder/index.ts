@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { authorizeCaller, unauthorized } from "../_shared/callerAuth.ts";
 import { getUnsubscribeUrl, isCategoryEnabled, CATEGORY_LABEL } from "../_shared/emailPreferences.ts";
 
 const corsHeaders = {
@@ -24,53 +25,13 @@ serve(async (req: Request) => {
     const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    const authHeader = req.headers.get("Authorization");
-    const token = authHeader?.replace("Bearer ", "");
-
-    if (!token) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const isServiceRole = token === serviceRoleKey;
-    // Allow the anon key to call this function as a "cron" caller (no admin powers).
-    let isCronCaller = token === supabaseKey;
-    let isAdminUser = false;
-
-    if (!isServiceRole && !isCronCaller) {
-      // Decode JWT payload (verify_jwt=false so signature already gated at edge if enabled).
-      let claims: Record<string, any> | null = null;
-      try {
-        const payload = token.split(".")[1];
-        const decoded = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
-        claims = JSON.parse(decoded);
-      } catch {
-        claims = null;
-      }
-      if (!claims) {
-        return new Response(JSON.stringify({ error: "Unauthorized" }), {
-          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      // Anon JWTs (used by pg_cron) have role='anon' and no sub — accept as cron.
-      if (claims.role === "anon" || !claims.sub) {
-        isCronCaller = true;
-      } else {
-        const userId = claims.sub as string;
-        const adminCheck = createClient(supabaseUrl, serviceRoleKey);
-        const { data: roleData } = await adminCheck
-          .from("user_roles").select("role").eq("user_id", userId).eq("role", "admin").single();
-        if (!roleData) {
-          return new Response(JSON.stringify({ error: "Unauthorized" }), {
-            status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        isAdminUser = true;
-      }
-    }
-
-
+    const authClient = createClient(supabaseUrl, serviceRoleKey);
+    const caller = await authorizeCaller(req, authClient, { allowCron: true });
+    if (!caller) return unauthorized(corsHeaders);
+    const isServiceRole = caller.kind === "internal";
+    const isCronCaller = caller.kind === "cron";
+    const isAdminUser = caller.kind === "admin";
+    void supabaseKey; void isServiceRole; void isCronCaller; void isAdminUser;
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
@@ -157,7 +118,7 @@ serve(async (req: Request) => {
                 .update({ manuscript_accepted_email_sent_at: new Date().toISOString() })
                 .eq("id", aId);
             } else {
-              console.error("[backfill accepted]", profile.email, r1.error.message);
+              console.error("[backfill accepted] send failed", r1.error.message);
             }
             await new Promise((res) => setTimeout(res, 800));
           }
@@ -182,7 +143,7 @@ serve(async (req: Request) => {
                 .update({ fee_reminder_email_sent_at: new Date().toISOString() })
                 .eq("id", aId);
             } else {
-              console.error("[backfill fee]", profile.email, r2.error.message);
+              console.error("[backfill fee] send failed", r2.error.message);
             }
             await new Promise((res) => setTimeout(res, 800));
           }
