@@ -80,6 +80,11 @@ serve(async (req) => {
 
   try {
     const body = await req.text();
+    // Only accept events whose PayPal signature verifies.
+    if (!Deno.env.get('PAYPAL_WEBHOOK_ID') || !(await verifyPayPalWebhook(req, body))) {
+      console.error('Rejected PayPal webhook: signature verification failed');
+      return new Response('Unauthorized', { status: 401 });
+    }
     const event = JSON.parse(body);
     const eventType = event.event_type;
     console.log('PayPal webhook event:', eventType);

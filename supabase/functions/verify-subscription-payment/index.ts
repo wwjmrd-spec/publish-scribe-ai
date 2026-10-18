@@ -89,6 +89,11 @@ serve(async (req) => {
       );
     }
 
+    // The signed order must be the order this server created for this payment record.
+    if (!payment.transaction_id || razorpayOrderId !== payment.transaction_id) {
+      throw new Error('Payment does not match this order');
+    }
+
     // Verify Razorpay signature
     const verified = await verifyRazorpaySignature(
       razorpayOrderId,

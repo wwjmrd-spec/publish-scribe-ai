@@ -203,7 +203,9 @@ function heading(text: string, level: 1 | 2 = 1) {
   });
 }
 
-async function fetchFigure(sb: ReturnType<typeof createClient>, path: string): Promise<Uint8Array | null> {
+async function fetchFigure(sb: ReturnType<typeof createClient>, path: string, ownerId: string): Promise<Uint8Array | null> {
+  // Only the caller's own uploaded files may be embedded.
+  if (typeof path !== "string" || !path.startsWith(`${ownerId}/`) || path.includes("..")) return null;
   try {
     const { data, error } = await sb.storage.from("documents").download(path);
     if (error || !data) return null;
@@ -285,12 +287,12 @@ async function sectionWithMarkers(
   return blocks;
 }
 
-async function buildDocx(sb: ReturnType<typeof createClient>, a: Article): Promise<Uint8Array> {
+async function buildDocx(sb: ReturnType<typeof createClient>, a: Article, ownerId: string): Promise<Uint8Array> {
   // Preload figures
   const loaded = new Map<number, Uint8Array>();
   await Promise.all(
     (a.figures || []).map(async (f, i) => {
-      const bytes = await fetchFigure(sb, f.storagePath);
+      const bytes = await fetchFigure(sb, f.storagePath, ownerId);
       if (bytes) loaded.set(i, bytes);
     }),
   );
@@ -533,13 +535,13 @@ ${JSON.stringify(articleWithFigs)}`;
 
     if (body.mode === "build_docx") {
       if (!body.article) return json({ error: "article is required" }, 400);
-      const bytes = await buildDocx(sb, body.article);
+      const bytes = await buildDocx(sb, body.article, userId);
       return json({ success: true, docxBase64: encodeBase64(bytes) });
     }
 
     if (body.mode === "upload_for_submit") {
       if (!body.article) return json({ error: "article is required" }, 400);
-      const bytes = await buildDocx(sb, body.article);
+      const bytes = await buildDocx(sb, body.article, userId);
       const safeTitle = (body.article.title || "article")
         .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "article";
       const filePath = `${userId}/ai-written/${Date.now()}-${safeTitle}.docx`;

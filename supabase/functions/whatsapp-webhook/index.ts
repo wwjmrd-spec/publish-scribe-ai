@@ -7,6 +7,7 @@
 //   WHATSAPP_VERIFY_TOKEN      (you choose it; paste the same value in Meta)
 //   WHATSAPP_ACCESS_TOKEN      (permanent system-user token)
 //   WHATSAPP_PHONE_NUMBER_ID   (from the Meta WhatsApp app)
+//   WHATSAPP_APP_SECRET        (Meta app secret; used to verify X-Hub-Signature-256)
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -32,6 +33,19 @@ async function sendWhatsApp(to: string, text: string) {
   if (!r.ok) console.error("WhatsApp send failed", r.status, await r.text());
 }
 
+async function validMetaSignature(body: string, header: string | null): Promise<boolean> {
+  const secret = Deno.env.get("WHATSAPP_APP_SECRET");
+  if (!secret || !header?.startsWith("sha256=")) return false;
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(body));
+  const expected = Array.from(new Uint8Array(sig)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  const given = header.slice(7).toLowerCase();
+  if (given.length !== expected.length) return false;
+  let diff = 0;
+  for (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ given.charCodeAt(i);
+  return diff === 0;
+}
+
 Deno.serve(async (req) => {
   const url = new URL(req.url);
 
@@ -48,8 +62,15 @@ Deno.serve(async (req) => {
 
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
 
+  // Only process events signed by Meta with the app secret.
+  const raw = await req.text();
+  if (!(await validMetaSignature(raw, req.headers.get("x-hub-signature-256")))) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
   // Always 200 quickly so Meta does not retry.
-  const payload = await req.json().catch(() => null);
+  let payload: any = null;
+  try { payload = JSON.parse(raw); } catch { payload = null; }
   queueMicrotask(() => handle(payload).catch((e) => console.error("whatsapp handle error", e)));
   return new Response("EVENT_RECEIVED", { status: 200 });
 });

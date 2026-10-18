@@ -83,7 +83,12 @@ Deno.serve(async (req) => {
     if (conversationId) {
       const { data: conv } = await sb.from("chat_conversations")
         .select("*").eq("id", conversationId).maybeSingle();
-      if (conv) {
+      // Only the visitor's own session (or signed-in owner) may continue a conversation.
+      const owns = conv && (
+        (userId && conv.user_id === userId) ||
+        (typeof body.sessionId === "string" && body.sessionId.length > 0 && conv.session_id === body.sessionId)
+      );
+      if (conv && owns) {
         humanTakeover = !!conv.human_takeover;
         memory = {
           author_name: memory.author_name ?? conv.author_name,
@@ -191,7 +196,9 @@ Deno.serve(async (req) => {
 
     // Keyword fallback when semantic search is unavailable or empty.
     if (kb.length === 0) {
-      const like = `%${message.split(/\s+/).slice(0, 4).join("%")}%`;
+      // Strip filter syntax characters so user text can only act as search words.
+      const words = message.replace(/[^\p{L}\p{N}\s]/gu, " ").split(/\s+/).filter(Boolean).slice(0, 4);
+      const like = `%${words.join("%")}%`;
       const [{ data: kbRows }, { data: faqRows }] = await Promise.all([
         sb.from("ai_knowledge_base").select("id,title,question,content")
           .eq("is_active", true).eq("status", "published")

@@ -1,6 +1,7 @@
 // Generates an AI draft reply for one ai_emails row using Gemini + KB/FAQ/DB context.
 // Never sends anything. Saves to ai_draft_replies for admin review.
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { authorizeCaller, unauthorized } from "../_shared/callerAuth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -119,6 +120,9 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+  const caller = await authorizeCaller(req, supabase);
+  if (!caller) return unauthorized(corsHeaders);
 
   try {
     const { email_id, regenerate } = await req.json();

@@ -340,7 +340,7 @@ const handler = async (req: Request): Promise<Response> => {
             });
           } catch (_) { /* ignore */ }
         } catch (err: any) {
-          console.error(`Email send failed for ${sendTo}:`, err?.message);
+          console.error("Email send failed for a broadcast recipient:", err?.message);
           emailCount.failed++;
           emailResults.push({ email: sendTo, name: recipient.name || null, kind: "recipient", status: "failed", error: err?.message });
           try {
@@ -417,7 +417,7 @@ const handler = async (req: Request): Promise<Response> => {
             });
           } catch (_) { /* ignore */ }
         } catch (err: any) {
-          console.error(`Email send failed for ${addr}:`, err?.message);
+          console.error("Email send failed for an extra recipient:", err?.message);
           emailCount.failed++;
           emailResults.push({ email: addr, name: info.name, kind: info.kind, status: "failed", error: err?.message });
         }

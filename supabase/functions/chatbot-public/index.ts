@@ -76,7 +76,13 @@ Deno.serve(async (req) => {
     if (action === "feedback") {
       const rating = Number(body.rating);
       if (!body.messageId || ![1, -1].includes(rating)) return json({ error: "Invalid feedback" }, 400);
-      await sb.from("chat_messages").update({ feedback: rating }).eq("id", body.messageId);
+      // Feedback is accepted only for messages in the caller's own conversation.
+      if (!body.conversationId || !body.sessionId) return json({ error: "Invalid feedback" }, 400);
+      const { data: conv } = await sb.from("chat_conversations").select("id")
+        .eq("id", body.conversationId).eq("session_id", String(body.sessionId)).eq("site", site.slug).maybeSingle();
+      if (!conv) return json({ error: "Invalid feedback" }, 403);
+      await sb.from("chat_messages").update({ feedback: rating })
+        .eq("id", body.messageId).eq("conversation_id", conv.id);
       return json({ success: true });
     }
 

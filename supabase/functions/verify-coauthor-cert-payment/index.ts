@@ -295,7 +295,7 @@ serve(async (req) => {
         *,
         co_authors (name, email, affiliation, article_id),
         articles:article_id (
-          title, reference_number, volume, issue, page_number, publication_year, published_link,
+          author_id, title, reference_number, volume, issue, page_number, publication_year, published_link,
           profiles:author_id (full_name, affiliation)
         )
       `
@@ -306,6 +306,14 @@ serve(async (req) => {
     if (certError || !certRecord) {
       console.error("Certificate record not found:", certError);
       throw new Error("Certificate record not found");
+    }
+
+    // The certificate must belong to the caller and the order must be the one created for it.
+    if ((certRecord.articles as any)?.author_id !== user.id) {
+      throw new Error("Certificate record not found");
+    }
+    if (!certRecord.payment_id || certRecord.payment_id !== razorpayOrderId) {
+      throw new Error("Payment does not match this certificate order");
     }
 
     if (certRecord.payment_status === "paid") {

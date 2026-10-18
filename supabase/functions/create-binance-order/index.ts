@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { priceCart } from "../_shared/pricing.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -39,99 +40,51 @@ serve(async (req) => {
     console.log('Creating Binance USDT order for user:', userId);
 
     const body = await req.json();
-    const { items, amount, discountCode, discountAmount } = body;
-
-    if (!amount || amount <= 0) {
-      throw new Error('Invalid amount');
-    }
+    const { discountCode } = body;
 
     const serviceClient = createClient(
       supabaseUrl,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    // Determine article IDs and payment items
-    let articleIds: string[] = [];
-    let paymentItems: any[] = [];
+    // Prices, ownership and discounts are all derived server-side.
+    const priced = await priceCart(serviceClient, userId, body.items, 'USDT', discountCode);
+    const articleIds = priced.articleIds;
+    const paymentItems = priced.paymentItems;
+    const amount = priced.subtotal;
+    const discountAmount = priced.discount;
 
-    if (items && Array.isArray(items) && items.length > 0) {
-      articleIds = items.filter((i: any) => i.type === 'article_fee' && i.articleId).map((i: any) => i.articleId);
-      paymentItems = items;
-
-      // Validate subscription eligibility
-      const hasSubscription = items.some((i: any) => i.type === 'pro_subscription');
-      if (hasSubscription) {
-        const { data: existingSub } = await serviceClient
-          .from('user_subscriptions')
-          .select('*')
-          .eq('user_id', userId)
-          .eq('is_active', true)
-          .eq('plan_type', 'pro')
-          .maybeSingle();
-
-        if (existingSub && existingSub.expires_at && new Date(existingSub.expires_at) > new Date()) {
-          throw new Error('You already have an active Pro subscription');
-        }
+    if (paymentItems.some((i: any) => i.type === 'pro_subscription')) {
+      const { data: existingSub } = await serviceClient
+        .from('user_subscriptions')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('is_active', true)
+        .eq('plan_type', 'pro')
+        .maybeSingle();
+      if (existingSub && existingSub.expires_at && new Date(existingSub.expires_at) > new Date()) {
+        throw new Error('You already have an active Pro subscription');
       }
-
-      // Validate and create cert records for co-author certificates
-      const coauthorCerts = items.filter((i: any) => i.type === 'coauthor_certificate');
-      for (const cert of coauthorCerts) {
-        if (!cert.coAuthorId || !cert.articleId) {
-          throw new Error('Invalid co-author certificate data');
-        }
-
-        const { data: article } = await serviceClient
-          .from('articles')
-          .select('id')
-          .eq('id', cert.articleId)
-          .eq('author_id', userId)
-          .eq('status', 'published')
-          .single();
-
-        if (!article) throw new Error('Article not found, not yours, or not published');
-
-        const { data: coAuthor } = await serviceClient
-          .from('co_authors')
-          .select('id, name')
-          .eq('id', cert.coAuthorId)
-          .eq('article_id', cert.articleId)
-          .single();
-
-        if (!coAuthor) throw new Error('Co-author not found for this article');
-
-        const { data: existingCert } = await serviceClient
-          .from('co_author_certificates')
-          .select('id, payment_status')
-          .eq('co_author_id', cert.coAuthorId)
-          .eq('article_id', cert.articleId)
-          .maybeSingle();
-
-        if (existingCert?.payment_status === 'paid') {
-          throw new Error(`Certificate already paid for co-author: ${coAuthor.name}`);
-        }
-
-        if (existingCert) {
-          await serviceClient
-            .from('co_author_certificates')
-            .update({ payment_status: 'pending', currency: 'USDT' })
-            .eq('id', existingCert.id);
-        } else {
-          await serviceClient
-            .from('co_author_certificates')
-            .insert({
-              co_author_id: cert.coAuthorId,
-              article_id: cert.articleId,
-              payment_status: 'pending',
-              currency: 'USDT',
-            });
-        }
-      }
-    } else {
-      throw new Error('No items provided');
     }
 
-    const finalAmount = amount - (discountAmount || 0);
+    for (const cert of paymentItems.filter((i: any) => i.type === 'coauthor_certificate')) {
+      const { data: existingCert } = await serviceClient
+        .from('co_author_certificates')
+        .select('id, payment_status')
+        .eq('co_author_id', cert.coAuthorId)
+        .eq('article_id', cert.articleId)
+        .maybeSingle();
+      if (existingCert?.payment_status === 'paid') throw new Error('Certificate already paid for this co-author');
+      if (existingCert) {
+        await serviceClient.from('co_author_certificates').update({ payment_status: 'pending', currency: 'USDT' }).eq('id', existingCert.id);
+      } else {
+        await serviceClient.from('co_author_certificates').insert({
+          co_author_id: cert.coAuthorId, article_id: cert.articleId, payment_status: 'pending', currency: 'USDT',
+        });
+      }
+    }
+
+    const finalAmount = priced.finalAmount;
 
     // Also fetch wallet address from publication_fees if stored there
     const { data: feeSettings } = await serviceClient
@@ -149,7 +102,7 @@ serve(async (req) => {
         user_id: userId,
         article_ids: articleIds,
         amount: amount,
-        discount_code: discountCode || null,
+        discount_code: priced.discountCode,
         discount_amount: discountAmount || 0,
         final_amount: finalAmount,
         currency: 'USDT',

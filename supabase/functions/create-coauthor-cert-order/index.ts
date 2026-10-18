@@ -40,9 +40,9 @@ serve(async (req) => {
     const user = { id: claimsData.claims.sub as string };
     console.log("Authenticated user for co-author cert order:", user.id);
 
-    const { coAuthorId, articleId, amount, currency } = await req.json();
+    const { coAuthorId, articleId, currency } = await req.json();
 
-    if (!coAuthorId || !articleId || !amount || !currency) {
+    if (!coAuthorId || !articleId || !currency) {
       throw new Error("Missing required fields");
     }
 
@@ -91,6 +91,12 @@ serve(async (req) => {
     if (existingCert?.payment_status === "paid") {
       throw new Error("Certificate already paid for this co-author");
     }
+
+    // Certificate price always comes from the configured fees.
+    const { data: fees } = await serviceClient.from("publication_fees").select("indian_coauthor_fee, international_coauthor_fee").limit(1).maybeSingle();
+    const amount = currency === "INR"
+      ? Number(fees?.indian_coauthor_fee) > 0 ? Number(fees!.indian_coauthor_fee) : 500
+      : Number(fees?.international_coauthor_fee) > 0 ? Number(fees!.international_coauthor_fee) : 10;
 
     // Create Razorpay order
     const amountInSmallestUnit = Math.round(amount * 100);

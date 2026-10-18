@@ -10,7 +10,8 @@ export function normalizeOrcid(raw: string): string {
 /** Inline ORCID badge (logo + linked iD) used inside the formatted article HTML. */
 export function orcidBadgeHtml(rawId: string): string {
   const id = normalizeOrcid(rawId);
-  if (!id) return '';
+  // Only well-formed ORCID iDs are rendered, so author input can never inject markup.
+  if (!/^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/.test(id)) return '';
   return `<span class="ww-orcid" data-orcid="${id}" style="display:inline-flex;align-items:center;gap:3px;white-space:nowrap;"><img src="${ORCID_LOGO_URL}" alt="ORCID iD" style="width:11px;height:11px;display:inline-block;vertical-align:middle;" /><a href="https://orcid.org/${id}" style="color:#a6ce39;text-decoration:none;font-size:9px;">${id}</a></span>`;
 }
 

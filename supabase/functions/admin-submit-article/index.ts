@@ -76,9 +76,21 @@ serve(async (req) => {
     const ext = (file.name.split(".").pop() || "docx").toLowerCase();
     const safeName = file.name.replace(/[^\w.\-]+/g, "_");
     const path = `${p.author_id}/admin-${Date.now()}-${safeName}`;
+    const TYPES: Record<string, string> = {
+      docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      doc: "application/msword",
+      pdf: "application/pdf",
+    };
+    if (!TYPES[ext]) return json({ error: "Only .docx, .doc or .pdf files are allowed" }, 400);
+    if (file.size > 25 * 1024 * 1024) return json({ error: "File must be 25 MB or smaller" }, 400);
     const bytes = new Uint8Array(await file.arrayBuffer());
+    const magicOk =
+      ext === "pdf" ? bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46 :
+      ext === "docx" ? bytes[0] === 0x50 && bytes[1] === 0x4b :
+      bytes[0] === 0xd0 && bytes[1] === 0xcf && bytes[2] === 0x11 && bytes[3] === 0xe0;
+    if (!magicOk) return json({ error: "File contents do not match its type" }, 400);
     const { error: upErr } = await sb.storage.from("documents").upload(path, bytes, {
-      contentType: file.type || (ext === "pdf" ? "application/pdf" : "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
+      contentType: TYPES[ext],
       upsert: false,
     });
     if (upErr) return json({ error: `Upload failed: ${upErr.message}` }, 500);
@@ -138,7 +150,7 @@ serve(async (req) => {
         .invoke("send-email", {
           body: { to, template: "article-submission", data: emailData, isAdmin: false },
         })
-        .catch((e) => console.error("send-email failed", to, e));
+        .catch((e) => console.error("send-email failed", e));
     }
 
     return json({ ok: true, article_id: article.id, reference_number: article.reference_number });

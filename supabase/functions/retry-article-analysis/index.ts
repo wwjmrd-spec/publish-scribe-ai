@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { authorizeCaller, unauthorized } from "../_shared/callerAuth.ts";
 import JSZip from "npm:jszip@3.10.1";
 
 const corsHeaders = {
@@ -60,11 +61,16 @@ serve(async (req: Request) => {
       });
     }
 
-    const { data: article, error } = await supabase
+    const caller = await authorizeCaller(req, supabase, { allowUser: true });
+    if (!caller) return unauthorized(corsHeaders);
+
+    let articleQuery = supabase
       .from("articles")
       .select("id, document_url, page_count, article_reviews(id)")
-      .eq("id", articleId)
-      .maybeSingle();
+      .eq("id", articleId);
+    // Authors may only retry analysis of their own articles.
+    if (caller.kind === "user") articleQuery = articleQuery.eq("author_id", caller.userId);
+    const { data: article, error } = await articleQuery.maybeSingle();
 
     if (error || !article) {
       return new Response(JSON.stringify({ error: "Article not found" }), {

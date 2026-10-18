@@ -1,3 +1,4 @@
+import DOMPurify from 'dompurify';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { DownloadButton } from '@/components/ui/DownloadButton';
@@ -323,7 +324,7 @@ export function ArticleContentEditor({
       const doc = iframe.contentDocument;
       if (!doc) return;
       doc.open();
-      doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><style>${EDITOR_STYLES}</style></head><body contenteditable="true">${initialContent}</body></html>`);
+      doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><style>${EDITOR_STYLES}</style></head><body contenteditable="true">${DOMPurify.sanitize(initialContent, { ADD_TAGS: ['math', 'semantics', 'annotation'], ADD_ATTR: ['contenteditable', 'data-latex', 'data-orcid', 'data-author-index', 'data-page'] })}</body></html>`);
       doc.close();
 
       doc.body.addEventListener('click', (e) => {

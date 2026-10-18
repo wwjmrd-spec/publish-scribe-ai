@@ -165,6 +165,8 @@ async function findContactByEmail(email: string) {
   };
 }
 
+const ALLOWED_SELF_SEGMENTS = ['New Sign Up', 'New Article Submitters'];
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -175,7 +177,8 @@ serve(async (req) => {
     console.log('Mautic sync action:', action);
 
     // Auth: validate JWT for all actions except get_mautic_url (public/non-sensitive)
-    if (action !== 'get_mautic_url') {
+    let restrictedEmail: string | null = null; // non-admin callers may only touch their own contact
+    if (action !== 'get_mautic_url' && req.headers.get('Authorization') !== `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`) {
       const authHeader = req.headers.get('Authorization');
       if (!authHeader?.startsWith('Bearer ')) {
         return new Response(
@@ -198,6 +201,18 @@ serve(async (req) => {
           { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+      const { data: isAdmin } = await supabase.rpc('has_role', { _user_id: claimsData.claims.sub, _role: 'admin' });
+      if (isAdmin !== true) {
+        restrictedEmail = String(claimsData.claims.email || '').toLowerCase();
+        const requested = String(data?.email || '').toLowerCase();
+        const ownOnly = ['sync_contact', 'add_to_segment'];
+        if (!ownOnly.includes(action) || !restrictedEmail || requested !== restrictedEmail) {
+          return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        if (action === 'add_to_segment' && !ALLOWED_SELF_SEGMENTS.includes(String(data?.segmentName))) {
+          return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+      }
     }
 
     // Short-circuit if Mautic is known unreachable (avoid 150s edge timeouts)
@@ -210,7 +225,7 @@ serve(async (req) => {
     switch (action) {
       case 'sync_contact': {
         const { email, firstname, lastname, country, company, phone, tags } = data;
-        console.log('sync_contact called for:', email, 'tags:', tags);
+        console.log('sync_contact called', 'tags:', tags);
 
         const createPayload = buildContactPayload(
           { email, firstname, lastname, country, company, phone, tags },
@@ -329,7 +344,7 @@ serve(async (req) => {
 
       case 'add_to_segment': {
         const { email, segmentName } = data;
-        console.log('add_to_segment called for:', email, 'segment:', segmentName);
+        console.log('add_to_segment called', 'segment:', segmentName);
 
         // Find contact by email
         const contactSearch = await mauticRequest(`contacts?search=email:${encodeURIComponent(email)}`, 'GET');
@@ -337,7 +352,7 @@ serve(async (req) => {
         const contactId = Object.keys(foundContacts)[0];
 
         if (!contactId) {
-          console.error('Contact not found for segment assignment:', email);
+          console.error('Contact not found for segment assignment');
           return new Response(JSON.stringify({ success: false, error: 'Contact not found' }), {
             status: 404,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
