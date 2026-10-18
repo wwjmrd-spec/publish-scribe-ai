@@ -152,6 +152,11 @@ serve(async (req) => {
         throw new Error('Payment gateway not configured');
       }
 
+      // The signed order must be the order this server created for this payment record.
+      if (!payment.transaction_id || razorpayOrderId !== payment.transaction_id) {
+        throw new Error('Payment does not match this order');
+      }
+
       const verified = await verifyRazorpaySignature(
         razorpayOrderId,
         razorpayPaymentId,
@@ -179,7 +184,10 @@ serve(async (req) => {
         throw new Error('PayPal gateway not configured');
       }
 
-      const orderIdToCapture = paypalOrderId || payment.transaction_id;
+      const orderIdToCapture = payment.transaction_id;
+      if (!orderIdToCapture || (paypalOrderId && paypalOrderId !== orderIdToCapture)) {
+        throw new Error('Payment does not match this order');
+      }
       if (!orderIdToCapture) {
         throw new Error('PayPal order ID missing');
       }
@@ -239,7 +247,8 @@ serve(async (req) => {
         const { error: updateArticlesError } = await serviceClient
           .from('articles')
           .update({ status: 'paid' })
-          .in('id', articleIdsFromItems);
+          .in('id', articleIdsFromItems)
+          .eq('author_id', userId);
 
         if (updateArticlesError) {
           console.error('Failed to update articles:', updateArticlesError);
@@ -358,7 +367,8 @@ serve(async (req) => {
         await serviceClient
           .from('articles')
           .update({ review_report_paid: true, review_report_paid_at: new Date().toISOString() })
-          .eq('id', rr.articleId);
+          .eq('id', rr.articleId)
+          .eq('author_id', userId);
 
         const { data: art } = await serviceClient
           .from('articles')
@@ -480,7 +490,8 @@ serve(async (req) => {
         const { error: updateArticlesError } = await serviceClient
           .from('articles')
           .update({ status: 'paid' })
-          .in('id', payment.article_ids);
+          .in('id', payment.article_ids)
+          .eq('author_id', userId);
 
         if (updateArticlesError) {
           console.error('Failed to update articles:', updateArticlesError);
