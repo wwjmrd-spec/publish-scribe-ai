@@ -1549,6 +1549,24 @@ export type Database = {
         }
         Relationships: []
       }
+      internal_job_secrets: {
+        Row: {
+          created_at: string
+          name: string
+          secret: string
+        }
+        Insert: {
+          created_at?: string
+          name: string
+          secret: string
+        }
+        Update: {
+          created_at?: string
+          name?: string
+          secret?: string
+        }
+        Relationships: []
+      }
       legacy_doi_requests: {
         Row: {
           amount: number | null
@@ -2713,6 +2731,7 @@ export type Database = {
         Args: { p_article_id: string; p_date: string }
         Returns: undefined
       }
+      verify_cron_secret: { Args: { p_secret: string }; Returns: boolean }
     }
     Enums: {
       article_status:

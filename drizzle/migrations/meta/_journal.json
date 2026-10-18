@@ -36,6 +36,13 @@
       "when": 1791819156295,
       "tag": "0004_article_acceptance_letters",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792330176996,
+      "tag": "0005_cron_secret_and_public_bucket_policies",
+      "breakpoints": true
     }
   ]
 }
