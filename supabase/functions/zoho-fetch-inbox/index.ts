@@ -1,6 +1,7 @@
 // Polls Zoho Mail Inbox (read-only), saves new messages, kicks off AI drafting.
 // Triggered by pg_cron every 5 min OR manually from admin UI.
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { authorizeCaller, unauthorized } from "../_shared/callerAuth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -147,6 +148,9 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
+
+  const caller = await authorizeCaller(req, supabase, { allowCron: true });
+  if (!caller) return unauthorized(corsHeaders);
 
   try {
     const config = await getZohoConfig(supabase);

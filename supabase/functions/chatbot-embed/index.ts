@@ -5,6 +5,7 @@
 // Without id/all it embeds every row missing an embedding.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { authorizeCaller, unauthorized } from "../_shared/callerAuth.ts";
 import { embedText, toVectorLiteral } from "../_shared/embeddings.ts";
 
 const corsHeaders = {
@@ -38,6 +39,9 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
+
+    const caller = await authorizeCaller(req, sb);
+    if (!caller) return unauthorized(corsHeaders);
 
     const body = await req.json().catch(() => ({}));
     const table = (body.table ?? "ai_knowledge_base") as Table;
