@@ -43,6 +43,13 @@
       "when": 1792330176996,
       "tag": "0005_cron_secret_and_public_bucket_policies",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792330383095,
+      "tag": "0006_contact_question_insert_validation",
+      "breakpoints": true
     }
   ]
 }
