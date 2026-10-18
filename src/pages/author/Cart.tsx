@@ -13,7 +13,7 @@ import { useRazorpay } from '@/hooks/useRazorpay';
 import { usePayment, PaymentGateway, BinanceOrderResult } from '@/hooks/usePayment';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { PriceTag } from '@/components/ui/PriceTag';
+import { PriceTag, getOldPrice } from '@/components/ui/PriceTag';
 import { supabase } from '@/integrations/supabase/client';
 import { queryTimeout } from '@/lib/queryTimeout';
 import { useSearchParams } from 'react-router-dom';
@@ -434,6 +434,25 @@ export default function Cart() {
 
   const total = subtotal - discountAmountValue;
   const totalItemCount = selectedArticles.length + validCartItems.length;
+
+  // Old-price savings for each selected article (publication fee + its DOI add-on).
+  const oldPriceSavings = useMemo(() => {
+    const feeKey = preferredCurrency === 'USDT' ? 'usdt_fee' : useIndianFees ? 'indian_fee' : 'international_fee';
+    const doiKey = preferredCurrency === 'USDT' ? 'usdt_doi_fee' : useIndianFees ? 'indian_doi_fee' : 'international_doi_fee';
+    const feeOld = getOldPrice(fees as any, feeKey, feePerArticle) ?? feePerArticle;
+    const doiOld = getOldPrice(fees as any, doiKey, doiFee) ?? doiFee;
+    const feeSaving = Math.max(0, feeOld - feePerArticle);
+    const doiSaving = Math.max(0, doiOld - doiFee);
+    return (pendingArticles || [])
+      .filter((a) => selectedArticles.includes(a.id))
+      .map((a) => ({
+        id: a.id,
+        title: a.title,
+        saving: feeSaving + (doiArticles.includes(a.id) ? doiSaving : 0),
+      }));
+  }, [pendingArticles, selectedArticles, doiArticles, fees, preferredCurrency, useIndianFees, feePerArticle, doiFee]);
+
+  const totalSaving = oldPriceSavings.reduce((sum, a) => sum + a.saving, 0);
 
   const toggleArticle = (articleId: string) => {
     setSelectedArticles((prev) =>
@@ -933,7 +952,7 @@ export default function Cart() {
                     <div className="flex items-center gap-2 min-w-0">
                       <FileText className="w-5 h-5 text-primary shrink-0" />
                       <h2 className="font-display text-lg sm:text-xl font-semibold truncate">
-                        Article Publication Fees ({pendingArticles?.length})
+                        Articles ({pendingArticles?.length})
                       </h2>
                     </div>
                     <Button variant="ghost" size="sm" onClick={selectAll} className="shrink-0 self-start sm:self-auto">
@@ -1122,6 +1141,23 @@ export default function Cart() {
                           )}
                         </span>
                         <span>-{currencySymbol}{discountAmountValue.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {totalSaving > 0 && (
+                      <div className="flex justify-between text-sm text-emerald-500">
+                        <span>
+                          You are saving
+                          {selectedArticles.length > 1 && (
+                            <span className="block text-xs text-muted-foreground mt-0.5 space-y-0.5">
+                              {oldPriceSavings.filter((a) => a.saving > 0).map((a) => (
+                                <span key={a.id} className="block truncate max-w-[240px]">
+                                  “{a.title}” — {currencySymbol}{a.saving.toLocaleString()}
+                                </span>
+                              ))}
+                            </span>
+                          )}
+                        </span>
+                        <span className="flex-shrink-0">{currencySymbol}{totalSaving.toLocaleString()}</span>
                       </div>
                     )}
                     <div className="flex justify-between text-lg font-bold pt-3 border-t border-[hsl(var(--glass-border))]">
