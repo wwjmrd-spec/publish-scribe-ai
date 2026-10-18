@@ -13,6 +13,7 @@ import { useRazorpay } from '@/hooks/useRazorpay';
 import { usePayment, PaymentGateway, BinanceOrderResult } from '@/hooks/usePayment';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { PriceTag } from '@/components/ui/PriceTag';
 import { supabase } from '@/integrations/supabase/client';
 import { queryTimeout } from '@/lib/queryTimeout';
 import { useSearchParams } from 'react-router-dom';
@@ -962,9 +963,7 @@ export default function Cart() {
                           <p className="font-medium text-sm sm:text-base line-clamp-2 sm:truncate">{article.title}</p>
                           <div className="flex items-center justify-between gap-2 mt-1">
                             <p className="text-xs sm:text-sm text-muted-foreground">{article.reference_number}</p>
-                            <p className="font-semibold text-sm sm:text-base shrink-0">
-                              {currencySymbol}{feePerArticle.toLocaleString()}
-                            </p>
+                            <PriceTag settings={fees as any} feeKey={(preferredCurrency === 'USDT' ? 'usdt_fee' : useIndianFees ? 'indian_fee' : 'international_fee')} price={feePerArticle} symbol={currencySymbol} className="font-semibold text-sm sm:text-base shrink-0" />
                           </div>
                           {!(article as any).doi_paid && (
                             <label
@@ -1225,7 +1224,7 @@ export default function Cart() {
                   <div className="space-y-1">
                     <p className="font-medium">Payment Information</p>
                     <p className="text-muted-foreground">
-                      Publication fee per article: {currencySymbol}{feePerArticle.toLocaleString()}
+                      Publication fee per article: <PriceTag settings={fees as any} feeKey={(preferredCurrency === 'USDT' ? 'usdt_fee' : useIndianFees ? 'indian_fee' : 'international_fee')} price={feePerArticle} symbol={currencySymbol} className="inline-flex align-middle" />
                     </p>
                     {preferredCurrency === 'USDT' && (
                       <p className="text-muted-foreground">

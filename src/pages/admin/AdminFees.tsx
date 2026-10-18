@@ -21,6 +21,15 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 
+const OLD_PRICE_FIELDS: [string, string][] = [
+  ['indian_fee', 'Publication (₹)'], ['indian_fast_track_fee', 'Fast Track (₹)'], ['indian_coauthor_fee', 'Co-Author Cert (₹)'],
+  ['indian_doi_fee', 'DOI (₹)'], ['indian_pro_fee', 'Pro Plan (₹)'],
+  ['international_fee', 'Publication ($)'], ['international_fast_track_fee', 'Fast Track ($)'], ['international_coauthor_fee', 'Co-Author Cert ($)'],
+  ['international_doi_fee', 'DOI ($)'], ['international_pro_fee', 'Pro Plan ($)'],
+  ['usdt_fee', 'Publication (USDT)'], ['usdt_fast_track_fee', 'Fast Track (USDT)'], ['usdt_coauthor_fee', 'Co-Author Cert (USDT)'],
+  ['usdt_doi_fee', 'DOI (USDT)'], ['usdt_pro_fee', 'Pro Plan (USDT)'],
+];
+
 export default function AdminFees() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -69,6 +78,9 @@ export default function AdminFees() {
   });
 
   const [twoPageFreeEnabled, setTwoPageFreeEnabled] = useState(true);
+  const [oldPrices, setOldPrices] = useState<Record<string, string>>({});
+  const [showOldPrice, setShowOldPrice] = useState(false);
+  const [newPriceLabel, setNewPriceLabel] = useState('');
 
   useEffect(() => {
     if (twoPageFreeSetting !== undefined) setTwoPageFreeEnabled(twoPageFreeSetting);
@@ -122,6 +134,10 @@ export default function AdminFees() {
         usdt_doi_fee: (currentFees as any).usdt_doi_fee?.toString() || '',
         binance_wallet_address: (currentFees as any).binance_wallet_address?.toString() || '',
       });
+      const op = ((currentFees as any).old_prices || {}) as Record<string, any>;
+      setOldPrices(Object.fromEntries(Object.entries(op).map(([k, v]) => [k, v == null ? '' : String(v)])));
+      setShowOldPrice(!!(currentFees as any).show_old_price);
+      setNewPriceLabel((currentFees as any).new_price_label || '');
     }
   }, [currentFees]);
 
@@ -146,6 +162,11 @@ export default function AdminFees() {
         international_doi_fee: parseFloat(fees.international_doi_fee) || 0,
         usdt_doi_fee: parseFloat(fees.usdt_doi_fee) || 0,
         binance_wallet_address: fees.binance_wallet_address || null,
+        old_prices: Object.fromEntries(
+          Object.entries(oldPrices).filter(([, v]) => parseFloat(v) > 0).map(([k, v]) => [k, parseFloat(v)]),
+        ),
+        show_old_price: showOldPrice,
+        new_price_label: newPriceLabel.trim() || null,
         updated_by: user?.id,
         updated_at: new Date().toISOString(),
       };
@@ -415,6 +436,39 @@ export default function AdminFees() {
                 toggleTwoPageFree.mutate(checked);
               }}
             />
+          </div>
+        </GlassCard>
+      </motion.div>
+
+      {/* Old vs new price display */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mt-6">
+        <GlassCard>
+          <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
+            <div>
+              <h2 className="font-display text-xl font-semibold">Old Price &amp; New Price</h2>
+              <p className="text-sm text-muted-foreground">
+                The fees above are the <b>new prices</b> and are always what authors are charged. Old prices are for display only.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch checked={showOldPrice} onCheckedChange={setShowOldPrice} id="show-old-price" />
+              <Label htmlFor="show-old-price">{showOldPrice ? 'Showing old + new price' : 'Showing only new price'}</Label>
+            </div>
+          </div>
+          <div className="mb-4">
+            <Label>New price line (shown under the new price)</Label>
+            <Input value={newPriceLabel} onChange={(e) => setNewPriceLabel(e.target.value)} className="glass-input mt-1" placeholder="e.g. Limited time offer — valid till 31 Oct" maxLength={80} />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {OLD_PRICE_FIELDS.map(([key, label]) => (
+              <div key={key}>
+                <Label className="text-xs">{label} — old price</Label>
+                <div className="flex items-center gap-2 mt-1">
+                  <Input type="number" value={oldPrices[key] ?? ''} onChange={(e) => setOldPrices({ ...oldPrices, [key]: e.target.value })} className="glass-input" placeholder="Old" />
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">new: {(fees as any)[key] || '—'}</span>
+                </div>
+              </div>
+            ))}
           </div>
         </GlassCard>
       </motion.div>
