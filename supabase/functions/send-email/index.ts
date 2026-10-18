@@ -1502,7 +1502,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    console.log(`Sending ${template} email to: ${to}, subject: ${emailSubject}, isAdmin: ${isAdmin}, providerOverride: ${providerOverride || "(default)"}`);
+    console.log(`Sending ${template} email, isAdmin: ${isAdmin}, providerOverride: ${providerOverride || "(default)"}`);
 
     let emailResponse: any = null;
     let sendError: any = null;

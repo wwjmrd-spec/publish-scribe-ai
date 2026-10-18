@@ -138,7 +138,7 @@ serve(async (req) => {
         .invoke("send-email", {
           body: { to, template: "article-submission", data: emailData, isAdmin: false },
         })
-        .catch((e) => console.error("send-email failed", to, e));
+        .catch((e) => console.error("send-email failed", e));
     }
 
     return json({ ok: true, article_id: article.id, reference_number: article.reference_number });
