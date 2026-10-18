@@ -107,23 +107,23 @@ Deno.serve(async (req) => {
         return json({ error: "Too many messages. Please wait a moment." }, 429);
       }
 
-      const resp = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/chatbot-chat`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-        },
-        body: JSON.stringify({
-          message: body.message,
-          sessionId,
-          conversationId: body.conversationId ?? null,
-          channel: "sdk",
-          site: site.slug,
-          memory: body.memory ?? {},
-        }),
+      // AI replies are disabled for the embedded widget: every message becomes a support ticket.
+      const text = String(body.message ?? "").trim().slice(0, 4000);
+      if (!text) return json({ error: "Message is required" }, 400);
+      const memory = body.memory ?? {};
+      await sb.from("support_tickets").insert({
+        question: text,
+        author_name: memory.author_name ? String(memory.author_name).slice(0, 120) : null,
+        author_email: memory.author_email ? String(memory.author_email).slice(0, 200) : null,
+        status: "open",
       });
-      const data = await resp.json();
-      return json(data, resp.status);
+      return json({
+        conversationId: body.conversationId ?? null,
+        memory,
+        reply: "Thanks for your message! Our editorial team has received it and will reply by email. You can also write to support@wwjmrd.com.",
+        escalated: true,
+        sources: [],
+      });
     }
 
     return json({ error: `Unknown action: ${action}` }, 400);
