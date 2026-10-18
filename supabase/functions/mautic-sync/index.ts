@@ -205,7 +205,7 @@ serve(async (req) => {
       if (isAdmin !== true) {
         restrictedEmail = String(claimsData.claims.email || '').toLowerCase();
         const requested = String(data?.email || '').toLowerCase();
-        const ownOnly = ['sync_contact', 'add_to_segment'];
+        const ownOnly = ['sync_contact', 'add_to_segment', 'track_event'];
         if (!ownOnly.includes(action) || !restrictedEmail || requested !== restrictedEmail) {
           return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
