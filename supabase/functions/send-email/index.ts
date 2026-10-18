@@ -1436,7 +1436,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Non-admin users may only email themselves or the editorial/admin inbox.
     if (!isServiceRole && !callerIsAdmin) {
       const target = String(to).toLowerCase();
-      const sbCheck = createClient(supabaseUrl, serviceRoleKey!);
+      const sbCheck = createClient(Deno.env.get("SUPABASE_URL")!, serviceRoleKey!);
       const allowed = new Set<string>([callerEmail, "shubhmeena23@gmail.com", "support@wwjmrd.com"]);
       const [{ data: prof }, { data: setting }, { data: admins }] = await Promise.all([
         sbCheck.from("profiles").select("email").eq("id", callerUserId).maybeSingle(),
