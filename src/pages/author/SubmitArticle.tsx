@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useGenerateSubject } from '@/hooks/useGenerateSubject';
 import { useRazorpay } from '@/hooks/useRazorpay';
 import { usePayment, type PaymentGateway } from '@/hooks/usePayment';
+import { PriceTag } from '@/components/ui/PriceTag';
 import { supabase } from '@/integrations/supabase/client';
 import { useMauticSync } from '@/hooks/useMautic';
 import { ArticleDetailsSection } from '@/components/submit/ArticleDetailsSection';
@@ -1189,11 +1190,11 @@ export default function SubmitArticle() {
                         <div className="p-3 rounded-lg bg-muted/50 space-y-1">
                           <div className="flex justify-between text-sm">
                             <span>Article Publication Fee</span>
-                            <span className="font-medium text-foreground">{currencySymbol}{articleFee.toLocaleString()}</span>
+                            <PriceTag settings={fees as any} feeKey={isIndian ? 'indian_fee' : 'international_fee'} price={articleFee} symbol={currencySymbol} className="font-medium text-foreground" />
                           </div>
                           <div className="flex justify-between text-sm">
                             <span>Fast Track Fee (24hr publication)</span>
-                            <span className="font-medium text-foreground">{currencySymbol}{fastTrackFee.toLocaleString()}</span>
+                            <PriceTag settings={fees as any} feeKey={isIndian ? 'indian_fast_track_fee' : 'international_fast_track_fee'} price={fastTrackFee} symbol={currencySymbol} className="font-medium text-foreground" showLabel={false} />
                           </div>
                           <div className="border-t border-border pt-1 flex justify-between text-sm font-semibold">
                             <span>Total</span>

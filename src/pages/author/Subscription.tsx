@@ -11,6 +11,7 @@ import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useRazorpay } from '@/hooks/useRazorpay';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { PriceTag } from '@/components/ui/PriceTag';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import {
@@ -373,7 +374,7 @@ export default function Subscription() {
                 </div>
                 <h2 className="font-display text-2xl font-bold">Pro</h2>
                 <p className="text-3xl font-bold mt-2">
-                  {currencySymbol}{proFee}
+                  <PriceTag settings={fees as any} feeKey={isIndian ? 'indian_pro_fee' : 'international_pro_fee'} price={proFee} symbol={currencySymbol} />
                   <span className="text-sm font-normal text-muted-foreground">/month</span>
                 </p>
               </div>

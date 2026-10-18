@@ -50,6 +50,13 @@
       "when": 1792330383095,
       "tag": "0006_contact_question_insert_validation",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792332821182,
+      "tag": "0007_fee_old_prices",
+      "breakpoints": true
     }
   ]
 }

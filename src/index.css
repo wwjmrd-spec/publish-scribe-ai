@@ -381,3 +381,16 @@
     color: hsl(var(--foreground) / 0.5);
   }
 }
+
+/* Shining "new price" text used by PriceTag */
+.price-shine {
+  background: linear-gradient(90deg, hsl(var(--primary)) 0%, hsl(var(--foreground)) 45%, hsl(var(--primary)) 55%, hsl(var(--primary)) 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: price-shine 2.5s linear infinite;
+}
+@keyframes price-shine {
+  to { background-position: -200% center; }
+}
