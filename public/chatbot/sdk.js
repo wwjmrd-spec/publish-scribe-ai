@@ -73,7 +73,7 @@
     [["👍", 1], ["👎", -1]].forEach(function (p) {
       var b = el("button", null, p[0]);
       b.onclick = function () {
-        api({ action: "feedback", messageId: messageId, rating: p[1] });
+        api({ action: "feedback", messageId: messageId, rating: p[1], conversationId: state.conversationId, sessionId: state.sessionId });
         row.innerHTML = "<span style='font-size:11px;color:#888'>Thanks for the feedback</span>";
       };
       row.appendChild(b);
