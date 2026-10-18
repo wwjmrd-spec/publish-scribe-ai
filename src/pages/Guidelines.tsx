@@ -6,8 +6,21 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, FileText } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useAuth } from "@/contexts/AuthContext";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { PriceTag } from "@/components/ui/PriceTag";
 
 function GuidelinesBody() {
+  const { data: fees } = useQuery({
+    queryKey: ["publication-fees"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("publication_fees_public").select("*").limit(1).single();
+      if (error) throw error;
+      return data;
+    },
+  });
+  const inr = Number(fees?.indian_fee ?? 1199);
+  const usd = Number(fees?.international_fee ?? 29);
   return (
     <div className="prose prose-invert max-w-none space-y-6">
       <section>
@@ -68,8 +81,8 @@ function GuidelinesBody() {
             <tbody>
               <tr className="border-t border-[hsl(var(--glass-border))]">
                 <td className="px-4 py-2">Publication Fee for 1 Article</td>
-                <td className="px-4 py-2">Rs 1199</td>
-                <td className="px-4 py-2">$29</td>
+                <td className="px-4 py-2"><PriceTag settings={fees as any} feeKey="indian_fee" price={inr} symbol="Rs " className="items-start" /></td>
+                <td className="px-4 py-2"><PriceTag settings={fees as any} feeKey="international_fee" price={usd} symbol="$" className="items-start" /></td>
               </tr>
             </tbody>
           </table>
