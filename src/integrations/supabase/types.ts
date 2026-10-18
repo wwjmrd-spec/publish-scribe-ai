@@ -1933,6 +1933,9 @@ export type Database = {
           international_fast_track_fee: number | null
           international_fee: number | null
           international_pro_fee: number | null
+          new_price_label: string | null
+          old_prices: Json
+          show_old_price: boolean
           updated_at: string | null
           updated_by: string | null
           usdt_coauthor_fee: number | null
@@ -1954,6 +1957,9 @@ export type Database = {
           international_fast_track_fee?: number | null
           international_fee?: number | null
           international_pro_fee?: number | null
+          new_price_label?: string | null
+          old_prices?: Json
+          show_old_price?: boolean
           updated_at?: string | null
           updated_by?: string | null
           usdt_coauthor_fee?: number | null
@@ -1975,6 +1981,9 @@ export type Database = {
           international_fast_track_fee?: number | null
           international_fee?: number | null
           international_pro_fee?: number | null
+          new_price_label?: string | null
+          old_prices?: Json
+          show_old_price?: boolean
           updated_at?: string | null
           updated_by?: string | null
           usdt_coauthor_fee?: number | null
@@ -2480,6 +2489,9 @@ export type Database = {
           international_fast_track_fee: number | null
           international_fee: number | null
           international_pro_fee: number | null
+          new_price_label: string | null
+          old_prices: Json | null
+          show_old_price: boolean | null
           updated_at: string | null
           usdt_coauthor_fee: number | null
           usdt_doi_fee: number | null
@@ -2499,6 +2511,9 @@ export type Database = {
           international_fast_track_fee?: number | null
           international_fee?: number | null
           international_pro_fee?: number | null
+          new_price_label?: string | null
+          old_prices?: Json | null
+          show_old_price?: boolean | null
           updated_at?: string | null
           usdt_coauthor_fee?: number | null
           usdt_doi_fee?: number | null
@@ -2518,6 +2533,9 @@ export type Database = {
           international_fast_track_fee?: number | null
           international_fee?: number | null
           international_pro_fee?: number | null
+          new_price_label?: string | null
+          old_prices?: Json | null
+          show_old_price?: boolean | null
           updated_at?: string | null
           usdt_coauthor_fee?: number | null
           usdt_doi_fee?: number | null
