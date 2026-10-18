@@ -395,7 +395,8 @@ serve(async (req) => {
             edit_lock_reason: 'Paid edit unlock (2 saves)',
             edit_lock_updated_at: new Date().toISOString(),
           })
-          .eq('id', it.articleId);
+          .eq('id', it.articleId)
+          .eq('author_id', userId);
         if (art) itemDescriptions.push(`Article Detail Edit: ${art.title}`);
       }
 
@@ -410,7 +411,8 @@ serve(async (req) => {
             doi_paid: true,
             doi_paid_at: new Date().toISOString(),
           })
-          .eq('id', it.articleId);
+          .eq('id', it.articleId)
+          .eq('author_id', userId);
 
         const { data: art } = await serviceClient
           .from('articles')
