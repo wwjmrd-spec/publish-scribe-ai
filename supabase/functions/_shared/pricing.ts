@@ -215,7 +215,7 @@ export async function priceCart(
         const part = partOf(p.type);
         if (!parts.includes(part)) return s;
         if (eligibleArticleIds && (p.type === "article_fee" || p.type === "doi")) {
-          return p.articleId && eligibleArticleIds.has(p.articleId) && (p.type === "article_fee" || true) ? s + p.price : s;
+          return p.articleId && eligibleArticleIds.has(p.articleId) ? s + p.price : s;
         }
         if (eligibleArticleIds && (p.type === "legacy_doi" || p.type === "fast_track_fee")) return s;
         return s + p.price;
