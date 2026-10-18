@@ -1,3 +1,4 @@
+import DOMPurify from 'dompurify';
 import React from 'react';
 import { GlassCard } from '@/components/layout/GlassCard';
 import { Button } from '@/components/ui/button';
@@ -102,7 +103,7 @@ export function AuthorUpdateReviewSection({ article, invalidateKeys = [] }: Prop
       )}
       <div
         className="prose prose-sm max-w-none dark:prose-invert overflow-x-auto p-3 rounded-lg bg-[hsl(var(--glass-bg))]"
-        dangerouslySetInnerHTML={{ __html: article.author_update_html }}
+        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(article.author_update_html) }}
       />
 
       {state === 'pending' && (

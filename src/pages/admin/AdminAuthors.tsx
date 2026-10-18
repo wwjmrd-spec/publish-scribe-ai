@@ -322,8 +322,10 @@ export default function AdminAuthors() {
               });
               if (!rows.length) { toast.error('No authors match this filter'); return; }
               const esc = (v: any) => {
-                const s = v === null || v === undefined ? '' : String(v);
-                return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+                let s = v === null || v === undefined ? '' : String(v);
+                // Neutralise spreadsheet formulas (CSV injection).
+                if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+                return /[",\n']/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
               };
               const header = ['Full Name','Email','Country','Affiliation','Currency','Plan','Articles','Paid Fee','Joined'];
               const lines = [header.join(',')];
