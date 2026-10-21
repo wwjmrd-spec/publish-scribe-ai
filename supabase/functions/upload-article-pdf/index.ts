@@ -196,13 +196,15 @@ Deno.serve(async (req) => {
             console.log("FTPS login succeeded", { variant: login.label });
             break outer;
           } catch (e) {
-            lastError = e;
             const msg = e instanceof Error ? e.message : String(e);
             console.warn("FTPS attempt failed", { name: servername, variant: login.label, message: msg });
-            if (/NotValidForName|certificate/i.test(msg)) continue outer;
-            // Only a site/home-folder refusal is worth retrying with the site name.
-            // A rejected HOST command just means that variant is unsupported.
-            if (!/home directory inaccessible|HOST|500|501|502|504/i.test(msg)) throw e;
+            if (/NotValidForName|certificate/i.test(msg)) { lastError = e; continue outer; }
+            // Only FTP replies (4xx/5xx) are worth retrying with another site-name
+            // form; network failures and timeouts are reported immediately.
+            const code = Number((e as { code?: unknown })?.code);
+            if (!(code >= 400 && code < 600)) throw e;
+            // Report the plain login's answer unless a later variant says more.
+            if (!lastError || /home directory inaccessible/i.test(msg)) lastError = e;
           }
         }
         if (certOk) break;
