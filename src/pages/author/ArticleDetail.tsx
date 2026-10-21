@@ -688,7 +688,12 @@ export default function AuthorArticleDetail() {
               </p>
             </div>
           ) : (
-            <div>
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Kindly note that the DOI fee for this article has not been paid. If the DOI fee is not paid, your
+                article will be published without a DOI (Digital Object Identifier). We respectfully recommend
+                paying it so your work can be permanently identified and cited.
+              </p>
               <Button size="sm" className="gradient-primary" onClick={() => setDoiPayOpen(true)}>
                 <Link2 className="w-4 h-4 mr-1" /> Pay fee for DOI — {doiPriceLabel}
               </Button>
