@@ -169,25 +169,52 @@ Deno.serve(async (req) => {
       // When the host is an IP address the server's certificate is issued to a
       // name (the domain or the hosting server). Verify against that name.
       const names = await certificateNameCandidates(ftpHost);
+      // Windows/IIS hosting (GoDaddy Plesk) serves many sites on one IP. Reached
+      // by IP, IIS cannot tell which site the user belongs to and answers
+      // "530 home directory inaccessible". Name the site with the FTP HOST
+      // command, or the IIS "site|user" username form.
+      // The live server rejects wwjmrd.com as a site name, so only try the
+      // site-name forms when the hosting provider's FTP site name is configured.
+      const site = Deno.env.get("WWJMRD_FTP_SITE_NAME")?.trim();
+      const logins: { label: string; user: string; hostCmd?: string; hostFirst?: boolean }[] = [{ label: "plain", user }];
+      if (site && !user.includes("|")) {
+        logins.push({ label: "HOST site", user, hostCmd: site });
+        logins.push({ label: "site|user", user: `${site}|${user}` });
+      }
       let lastError: unknown = null;
       let connected = false;
-      for (const servername of names) {
-        try {
-          await client.access({
-            host: ftpHost, port: ftpPort, user, password, secure: true,
-            secureOptions: servername === ftpHost ? undefined : { servername },
-          });
-          connected = true;
-          break;
-        } catch (e) {
-          lastError = e;
-          const msg = e instanceof Error ? e.message : String(e);
-          console.warn("FTPS attempt failed", { name: servername, message: msg });
-          if (!/NotValidForName|certificate/i.test(msg)) throw e;
+      let certOk = false;
+      outer: for (const servername of names) {
+        for (const login of logins) {
+          try {
+            const welcome = await client.connect(ftpHost, ftpPort);
+            if (login.label === "plain") console.log("FTP server greeting", { message: welcome.message?.slice(0, 120) });
+            if (login.hostFirst && login.hostCmd) await client.send(`HOST ${login.hostCmd}`);
+            await client.useTLS({ host: ftpHost, ...(servername === ftpHost ? {} : { servername }) });
+            certOk = true;
+            if (!login.hostFirst && login.hostCmd) await client.send(`HOST ${login.hostCmd}`);
+            await client.sendIgnoringError("OPTS UTF8 ON");
+            await client.login(login.user, password);
+            await client.useDefaultSettings();
+            connected = true;
+            console.log("FTPS login succeeded", { variant: login.label });
+            break outer;
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            console.warn("FTPS attempt failed", { name: servername, variant: login.label, message: msg });
+            if (/NotValidForName|certificate/i.test(msg)) { lastError = e; continue outer; }
+            // Only FTP replies (4xx/5xx) are worth retrying with another site-name
+            // form; network failures and timeouts are reported immediately.
+            const code = Number((e as { code?: unknown })?.code);
+            if (!(code >= 400 && code < 600)) throw e;
+            // Report the plain login's answer unless a later variant says more.
+            if (!lastError || /home directory inaccessible/i.test(msg)) lastError = e;
+          }
         }
+        if (certOk) break;
       }
       if (!connected) {
-        stage = "certificate check";
+        if (!certOk) stage = "certificate check";
         throw lastError ?? new Error("TLS certificate name mismatch");
       }
       stage = "upload folder";
@@ -209,7 +236,7 @@ Deno.serve(async (req) => {
       const hint = stage === "certificate check"
         ? "The file server's security certificate does not match its address. Save the certificate's server name (for example your hosting server name) as the FTP certificate name."
         : /home directory inaccessible/i.test(raw)
-          ? "The file server accepted the connection but refused this FTP user because its home folder is missing or not accessible. In your hosting control panel (GoDaddy/Plesk), open FTP accounts, make sure this FTP user exists, its home folder is the website folder (httpdocs or the folder containing upload2) and it has read/write permission."
+          ? "The Windows file server (Microsoft FTP Service) accepted the FTP username and password, but it has no home folder for this user, so it refuses the login. This must be fixed in GoDaddy hosting: open FTP accounts (or FTP Users), set this user's folder to the website folder that contains upload2 with read/write permission, or create a new FTP user there and save its details here. If it still fails, ask GoDaddy support to repair the FTP user's home directory (IIS user isolation)."
         : /530|login|auth/i.test(raw)
           ? "The FTP username or password was rejected."
           : "Check the FTP account, FTPS support, upload2 folder permissions and passive data ports.";
