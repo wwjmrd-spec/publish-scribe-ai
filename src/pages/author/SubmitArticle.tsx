@@ -1462,7 +1462,7 @@ export default function SubmitArticle() {
                   ) : publicationType === 'fast_track' ? (
                     <>
                       <CreditCard className="w-4 h-4 mr-1" />
-                      Pay {currencySymbol}{(fastTrackFee + (isIndian ? Number(fees?.indian_fee || 2500) : Number(fees?.international_fee || 79))).toLocaleString()} & Submit
+                      Pay {currencySymbol}{fastTrackTotal.toLocaleString()} & Submit
                       <ArrowRight className="w-4 h-4 ml-2" />
                     </>
                   ) : (
