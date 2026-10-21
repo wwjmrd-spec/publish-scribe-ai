@@ -33,7 +33,7 @@ import {
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { uploadFormattedPdfToWwjmrd } from '@/lib/uploadFormattedPdf';
+import { publishArticleToWwjmrd } from '@/lib/publishToWwjmrd';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import {
   Dialog,
@@ -454,17 +454,8 @@ export default function AdminArticleDetail() {
 
   const publishToWwjmrdMutation = useMutation({
     mutationFn: async (mode?: 'update') => {
-      // Upload the finalised formatted PDF to wwjmrd.com/upload2 first so the
-      // publish payload links the journal-hosted file (not a Cloud storage URL).
       if (!article) throw new Error('Article not found');
-      await uploadFormattedPdfToWwjmrd(article.id);
-      const { data, error } = await supabase.functions.invoke('publish-to-wwjmrd', {
-        body: { articleId: article.id, ...(mode ? { mode } : {}) },
-      });
-      console.log('publish-to-wwjmrd response:', { data, error });
-      if (error) throw await resolveEdgeFunctionError(error, 'Publish failed');
-      if (!data?.success) throw new Error(data?.error || 'Publish failed');
-      return data;
+      return publishArticleToWwjmrd(article.id, mode);
     },
     onSuccess: (data) => {
       if (data.warning) {

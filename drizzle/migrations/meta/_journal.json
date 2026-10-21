@@ -64,6 +64,13 @@
       "when": 1792548727959,
       "tag": "0008_claim_fast_track_payment",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792551889983,
+      "tag": "0009_add_published_pdf_uploaded_at",
+      "breakpoints": true
     }
   ]
 }

@@ -1,7 +1,8 @@
 # Project Architecture Rules
 
 - Store acceptance letters as immutable server-generated PDFs with owner/admin read access and server-validated admin generation; downloads reuse get-document-url to prevent public document access.
-- Require successful journal PDF upload before publishing metadata; never swallow upload errors or use an old PDF as a silent fallback.
+- Publish to WWJMRD with the journal-hosted PDF from a confirmed upload; only after an upload failure and explicit admin confirmation may publish-to-wwjmrd use a signed Cloud PDF link (allowCloudPdf), never silently.
+- Confirm journal PDF uploads from published_pdf_uploaded_at when the browser loses the reply, because large uploads can finish server-side after the client connection drops.
 - Reuse DeleteCoAuthorButton with saved-row confirmation and owner/admin RLS for co-author deletion so all views invalidate consistently and cascade certificate removal is explicit.
 - Queue DOI-fee acceptance emails on the persisted free-status transition and claim each event server-side before sending so manual and automatic acceptance share retry-safe delivery.
 - Generate article status filter options from ARTICLE_STATUS_LABELS so every lifecycle state remains available.

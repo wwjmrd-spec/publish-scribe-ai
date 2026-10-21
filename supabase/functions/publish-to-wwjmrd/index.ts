@@ -54,9 +54,10 @@ serve(async (req) => {
       .maybeSingle();
     if (role?.role !== "admin") return json({ error: "Forbidden" }, 403);
 
-    const { articleId, mode } = await req.json().catch(() => ({}));
+    const { articleId, mode, allowCloudPdf: rawAllowCloud } = await req.json().catch(() => ({}));
     if (!articleId) return json({ error: "articleId is required" }, 400);
     const isUpdate = mode === "update";
+    const allowCloudPdf = rawAllowCloud === true;
 
     // Load article + co-authors
     const { data: article, error: artErr } = await admin
@@ -147,14 +148,42 @@ serve(async (req) => {
       orderNumber = isUpdate && existingIdx >= 0 ? existingIdx + 1 : list.length + 1;
     }
 
-    // Publishing must use the successfully uploaded journal file, not a stale
-    // abstract link or a silent long-lived Cloud URL fallback.
-    const pdfUrl = String(article.published_pdf_url || "");
-    if (!/^https:\/\/wwjmrd\.com\/upload2\/[^/?]+\.pdf$/.test(pdfUrl)) {
-      return json(
-        { error: "Upload the final PDF to WWJMRD successfully before publishing this article." },
-        400,
+    // Publishing uses the journal-hosted file from the upload that just
+    // succeeded. Only when the admin explicitly confirms (allowCloudPdf) after
+    // a failed upload is a long-lived Cloud storage link used instead.
+    const journalBase = (Deno.env.get("WWJMRD_FTP_PUBLIC_BASE")?.trim() || "https://wwjmrd.com/upload2").replace(/\/+$/, "");
+    const isJournalPdf = (u: string) =>
+      /^https:\/\/wwjmrd\.com\/(upload2|pdf)\/[^/?]+\.pdf$/.test(u) || (u.startsWith(`${journalBase}/`) && /\.pdf$/i.test(u));
+    let pdfUrl = String(article.published_pdf_url || "");
+    let pdfSource: "journal" | "cloud" = "journal";
+    if (allowCloudPdf || !isJournalPdf(pdfUrl)) {
+      if (!allowCloudPdf) {
+        return json(
+          { error: "Upload the final PDF to WWJMRD successfully before publishing this article." },
+          400,
+        );
+      }
+      const pdfPath = String(
+        pubForm?.final_pdf_url || (article as any).galley_proof_pdf_url || (article as any).formatted_document_url || "",
       );
+      if (/^https:\/\//i.test(pdfPath)) {
+        pdfUrl = pdfPath;
+      } else if (pdfPath) {
+        const { data: signed, error: signErr } = await admin.storage
+          .from("formatted-articles")
+          .createSignedUrl(pdfPath, 60 * 60 * 24 * 365 * 5);
+        if (signErr) console.error("Failed to sign Cloud PDF", { articleId, message: signErr.message });
+        pdfUrl = signed?.signedUrl || "";
+      } else {
+        pdfUrl = "";
+      }
+      if (!pdfUrl) {
+        return json(
+          { error: "The journal PDF upload failed and no stored galley proof or formatted PDF exists for this article. Generate the galley proof first." },
+          400,
+        );
+      }
+      pdfSource = "cloud";
     }
 
     const monthNumber = String(
@@ -336,11 +365,15 @@ serve(async (req) => {
       duplicated,
       doi_sent: doiMode === "sent",
       previous_wwjmrd_article_id: Number.isFinite(previousId) ? previousId : null,
+      pdf_source: pdfSource,
+      pdf_url: pdfUrl,
       warning: duplicated
         ? `WWJMRD created a new entry (ID ${remoteId}) instead of updating ID ${previousId}. The remote API ignored the update request — the old entry ${previousId} must be removed on wwjmrd.com.`
         : doiMode !== "sent"
           ? "Published, but WWJMRD's server crashed when the DOI was included (their duplicate-DOI check table is missing), so the article was published without the DOI. Ask WWJMRD to fix their publish_article endpoint (MySQL error 1146: table 'gst.article_up' doesn't exist), then use Update to re-send the DOI."
-          : undefined,
+          : pdfSource === "cloud"
+            ? "Published to WWJMRD using the Cloud storage PDF link, because the PDF could not be uploaded to wwjmrd.com. Use Update on WWJMRD later to switch it to a journal-hosted PDF."
+            : undefined,
       order_number: orderNumber,
       month,
       year,

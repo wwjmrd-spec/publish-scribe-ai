@@ -1,0 +1,1 @@
+ALTER TABLE public.articles ADD COLUMN IF NOT EXISTS published_pdf_uploaded_at timestamptz;

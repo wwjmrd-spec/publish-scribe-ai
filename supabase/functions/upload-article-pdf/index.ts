@@ -294,7 +294,7 @@ Deno.serve(async (req) => {
     if (new TextDecoder().decode(publicBytes.subarray(0, 5)) !== "%PDF-") throw new Error("FTP transfer completed but the website did not return a PDF. Check the FTP website root.");
     const { error: saveError, data: saved } = await supabase
       .from("articles")
-      .update({ published_pdf_url: publicUrl })
+      .update({ published_pdf_url: publicUrl, published_pdf_uploaded_at: new Date().toISOString() })
       .eq("id", articleId).select("id").single();
     if (saveError || !saved) throw new Error("PDF uploaded but its article link could not be saved. Retry before publishing.");
 
