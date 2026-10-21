@@ -4,6 +4,14 @@ import { z } from "npm:zod@3";
 import { Client as FtpClient } from "npm:basic-ftp@5.0.5";
 import { Buffer } from "node:buffer";
 import { Readable } from "node:stream";
+import tls from "node:tls";
+
+// Deno's Node TLS layer lacks a few methods basic-ftp calls after the FTPS
+// upgrade ("socket.getProtocol is not a function"). They are informational
+// (logging) or optional (TLS session reuse), so safe fallbacks suffice.
+const tlsProto = (tls as any).TLSSocket?.prototype;
+if (tlsProto && typeof tlsProto.getProtocol !== "function") tlsProto.getProtocol = () => "TLS";
+if (tlsProto && typeof tlsProto.getSession !== "function") tlsProto.getSession = () => undefined;
 
 const bodySchema = z.object({ articleId: z.string().uuid(), pdfBase64: z.string().min(1).max(40_000_000) });
 
