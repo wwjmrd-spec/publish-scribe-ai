@@ -14,9 +14,40 @@ async function blobToBase64(blob: Blob): Promise<string> {
   return btoa(binary);
 }
 
+const isNoResponseError = (error: any) =>
+  error?.name === 'FunctionsFetchError' || /Failed to send a request/i.test(error?.message || '');
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 /**
- * Builds the finalised formatted-article PDF and uploads it over FTP to
- * wwjmrd.com/upload2, named `article-title_1234.pdf`. Returns the public URL,
+ * The upload can finish on the server even when the browser loses the reply
+ * (slow or unstable connections). Confirm it from the saved upload time,
+ * which only the upload service writes after the file is verified online.
+ */
+export async function waitForConfirmedUpload(
+  articleId: string,
+  startedAt: number,
+  { timeoutMs = 60_000, intervalMs = 4_000 } = {},
+): Promise<string | null> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const { data } = await supabase
+      .from('articles')
+      .select('published_pdf_url, published_pdf_uploaded_at')
+      .eq('id', articleId)
+      .maybeSingle();
+    const at = (data as any)?.published_pdf_uploaded_at as string | null | undefined;
+    const url = (data as any)?.published_pdf_url as string | null | undefined;
+    // Allow small clock differences between this device and the server.
+    if (at && url && new Date(at).getTime() >= startedAt - 120_000) return url;
+    await sleep(intervalMs);
+  }
+  return null;
+}
+
+/**
+ * Builds the finalised formatted-article PDF and uploads it over FTP to the
+ * journal website, named `article-title_1234.pdf`. Returns the public URL,
  * which the WWJMRD publish API call then uses as the article file link.
  */
 export async function uploadFormattedPdfToWwjmrd(
@@ -36,10 +67,17 @@ export async function uploadFormattedPdfToWwjmrd(
   const blob = await buildFormattedPdfBlob(html, options);
   const pdfBase64 = await blobToBase64(blob);
 
+  const startedAt = Date.now();
   const response = await supabase.functions.invoke('upload-article-pdf', {
     body: { articleId, pdfBase64 },
   });
-  if (response.error) throw await resolveEdgeFunctionError(response.error, 'PDF upload failed');
+  if (response.error) {
+    if (isNoResponseError(response.error)) {
+      const url = await waitForConfirmedUpload(articleId, startedAt);
+      if (url) return { url, fileName: url.split('/').pop() || '' };
+    }
+    throw await resolveEdgeFunctionError(response.error, 'PDF upload failed');
+  }
   if (!response.data?.success) throw new Error(response.data?.error || 'PDF upload failed');
 
   return { url: response.data.url as string, fileName: response.data.fileName as string };

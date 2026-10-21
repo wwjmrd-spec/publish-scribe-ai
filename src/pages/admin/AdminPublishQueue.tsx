@@ -108,18 +108,7 @@ export default function AdminPublishQueue() {
   });
 
   const publishToWwjmrdMutation = useMutation({
-    mutationFn: async ({ id, mode }: { id: string; mode?: 'update' }) => {
-      // Upload the finalised formatted PDF to wwjmrd.com/upload2 first so the
-      // publish payload links the journal-hosted file (not a Cloud storage URL).
-      await uploadFormattedPdfToWwjmrd(id);
-      const { data, error } = await supabase.functions.invoke('publish-to-wwjmrd', {
-        body: { articleId: id, ...(mode ? { mode } : {}) },
-      });
-      console.log('publish-to-wwjmrd response:', { data, error });
-      if (error) throw await resolveEdgeFunctionError(error, 'Publish failed');
-      if (!data?.success) throw new Error(data?.error || 'Publish failed');
-      return data;
-    },
+    mutationFn: async ({ id, mode }: { id: string; mode?: 'update' }) => publishArticleToWwjmrd(id, mode),
     onSuccess: (data) => {
       if (data.warning) {
         toast.warning(data.warning, { duration: 12000 });
