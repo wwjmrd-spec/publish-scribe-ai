@@ -194,7 +194,7 @@ Deno.serve(async (req) => {
       // FTP accounts may be rooted at the site or its hosting home directory.
       // Only use an existing folder; ensureDir could silently create the wrong one.
       let found = false;
-      for (const directory of ["/upload2", "/public_html/upload2", "/www/upload2", "/httpdocs/upload2"]) {
+      for (const directory of ["/upload2", "/public_html/upload2", "/www/upload2", "/httpdocs/upload2", "/wwwroot/upload2"]) {
         try { await client.cd(directory); found = true; break; } catch { /* try the next existing web root */ }
       }
       if (!found) throw new Error("The existing website upload2 folder is not accessible to the FTP account");
@@ -208,6 +208,8 @@ Deno.serve(async (req) => {
       const raw = error instanceof Error ? error.message : String(error);
       const hint = stage === "certificate check"
         ? "The file server's security certificate does not match its address. Save the certificate's server name (for example your hosting server name) as the FTP certificate name."
+        : /home directory inaccessible/i.test(raw)
+          ? "The file server accepted the connection but refused this FTP user because its home folder is missing or not accessible. In your hosting control panel (GoDaddy/Plesk), open FTP accounts, make sure this FTP user exists, its home folder is the website folder (httpdocs or the folder containing upload2) and it has read/write permission."
         : /530|login|auth/i.test(raw)
           ? "The FTP username or password was rejected."
           : "Check the FTP account, FTPS support, upload2 folder permissions and passive data ports.";
