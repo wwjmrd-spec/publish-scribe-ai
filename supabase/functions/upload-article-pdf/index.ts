@@ -4,6 +4,14 @@ import { z } from "npm:zod@3";
 import { Client as FtpClient } from "npm:basic-ftp@5.0.5";
 import { Buffer } from "node:buffer";
 import { Readable } from "node:stream";
+import tls from "node:tls";
+
+// Deno's Node TLS layer lacks a few methods basic-ftp calls after the FTPS
+// upgrade ("socket.getProtocol is not a function"). They are informational
+// (logging) or optional (TLS session reuse), so safe fallbacks suffice.
+const tlsProto = (tls as any).TLSSocket?.prototype;
+if (tlsProto && typeof tlsProto.getProtocol !== "function") tlsProto.getProtocol = () => "TLS";
+if (tlsProto && typeof tlsProto.getSession !== "function") tlsProto.getSession = () => undefined;
 
 const bodySchema = z.object({ articleId: z.string().uuid(), pdfBase64: z.string().min(1).max(40_000_000) });
 
@@ -61,6 +69,23 @@ async function resolvesToCloudflare(hostname: string): Promise<boolean> {
     try { ips.push(...(await Deno.resolveDns(hostname, type))); } catch { /* record type may not exist */ }
   }
   return ips.length > 0 && ips.every(isCloudflareIp);
+}
+
+async function certificateNameCandidates(host: string): Promise<string[]> {
+  const names: string[] = [];
+  const configured = Deno.env.get("WWJMRD_FTP_TLS_NAME")?.trim();
+  if (configured) names.push(configured);
+  const isIp = /^\d+\.\d+\.\d+\.\d+$/.test(host) || host.includes(":");
+  if (!isIp) names.push(host);
+  else {
+    // The reverse-DNS name is usually the hosting server whose certificate FTP uses.
+    try {
+      const ptr = await Deno.resolveDns(host.split(".").reverse().join(".") + ".in-addr.arpa", "PTR");
+      for (const p of ptr) names.push(p.replace(/\.$/, ""));
+    } catch { /* no reverse DNS */ }
+    names.push("wwjmrd.com", "ftp.wwjmrd.com", "www.wwjmrd.com");
+  }
+  return [...new Set(names)];
 }
 
 async function canOpenTcp(hostname: string, port: number, timeoutMs: number): Promise<boolean> {
@@ -141,12 +166,35 @@ Deno.serve(async (req) => {
     client.ftp.verbose = false;
     let stage = "connection";
     try {
-      await client.access({ host: ftpHost, port: ftpPort, user, password, secure: true });
+      // When the host is an IP address the server's certificate is issued to a
+      // name (the domain or the hosting server). Verify against that name.
+      const names = await certificateNameCandidates(ftpHost);
+      let lastError: unknown = null;
+      let connected = false;
+      for (const servername of names) {
+        try {
+          await client.access({
+            host: ftpHost, port: ftpPort, user, password, secure: true,
+            secureOptions: servername === ftpHost ? undefined : { servername },
+          });
+          connected = true;
+          break;
+        } catch (e) {
+          lastError = e;
+          const msg = e instanceof Error ? e.message : String(e);
+          console.warn("FTPS attempt failed", { name: servername, message: msg });
+          if (!/NotValidForName|certificate/i.test(msg)) throw e;
+        }
+      }
+      if (!connected) {
+        stage = "certificate check";
+        throw lastError ?? new Error("TLS certificate name mismatch");
+      }
       stage = "upload folder";
       // FTP accounts may be rooted at the site or its hosting home directory.
       // Only use an existing folder; ensureDir could silently create the wrong one.
       let found = false;
-      for (const directory of ["/upload2", "/public_html/upload2", "/www/upload2", "/httpdocs/upload2"]) {
+      for (const directory of ["/upload2", "/public_html/upload2", "/www/upload2", "/httpdocs/upload2", "/wwwroot/upload2"]) {
         try { await client.cd(directory); found = true; break; } catch { /* try the next existing web root */ }
       }
       if (!found) throw new Error("The existing website upload2 folder is not accessible to the FTP account");
@@ -157,7 +205,15 @@ Deno.serve(async (req) => {
     } catch (error) {
       console.error("Journal FTP failure", { articleId, stage, message: error instanceof Error ? error.message : String(error) });
       // Do not return remote server messages, which may contain login details.
-      return json({ error: `WWJMRD PDF upload failed during ${stage}. Check the FTP account, FTPS support, upload2 folder permissions and passive data ports. The article has not been published.` }, 502);
+      const raw = error instanceof Error ? error.message : String(error);
+      const hint = stage === "certificate check"
+        ? "The file server's security certificate does not match its address. Save the certificate's server name (for example your hosting server name) as the FTP certificate name."
+        : /home directory inaccessible/i.test(raw)
+          ? "The file server accepted the connection but refused this FTP user because its home folder is missing or not accessible. In your hosting control panel (GoDaddy/Plesk), open FTP accounts, make sure this FTP user exists, its home folder is the website folder (httpdocs or the folder containing upload2) and it has read/write permission."
+        : /530|login|auth/i.test(raw)
+          ? "The FTP username or password was rejected."
+          : "Check the FTP account, FTPS support, upload2 folder permissions and passive data ports.";
+      return json({ error: `WWJMRD PDF upload failed during ${stage}. ${hint} The article has not been published.` }, 502);
     } finally {
       client.close();
     }
