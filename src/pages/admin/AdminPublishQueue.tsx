@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { uploadFormattedPdfToWwjmrd } from '@/lib/uploadFormattedPdf';
+import { publishArticleToWwjmrd } from '@/lib/publishToWwjmrd';
 import { resolveEdgeFunctionError } from '@/lib/edgeFunctionError';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { GlassCard } from '@/components/layout/GlassCard';

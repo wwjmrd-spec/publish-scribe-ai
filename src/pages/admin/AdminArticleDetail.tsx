@@ -33,7 +33,7 @@ import {
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { uploadFormattedPdfToWwjmrd } from '@/lib/uploadFormattedPdf';
+import { publishArticleToWwjmrd } from '@/lib/publishToWwjmrd';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import {
   Dialog,
