@@ -173,9 +173,10 @@ Deno.serve(async (req) => {
       // by IP, IIS cannot tell which site the user belongs to and answers
       // "530 home directory inaccessible". Name the site with the FTP HOST
       // command, or the IIS "site|user" username form.
-      const sites = [...new Set([Deno.env.get("WWJMRD_FTP_SITE_NAME")?.trim(), "wwjmrd.com", "www.wwjmrd.com"].filter(Boolean) as string[])];
-      const logins: { label: string; user: string; hostCmd?: string }[] = [{ label: "plain", user }];
+      const sites = [...new Set([Deno.env.get("WWJMRD_FTP_SITE_NAME")?.trim(), "wwjmrd.com", "ftp.wwjmrd.com", "www.wwjmrd.com"].filter(Boolean) as string[])];
+      const logins: { label: string; user: string; hostCmd?: string; hostFirst?: boolean }[] = [{ label: "plain", user }];
       if (!user.includes("|")) {
+        logins.push({ label: `HOST ${sites[0]} before TLS`, user, hostCmd: sites[0], hostFirst: true });
         for (const site of sites) logins.push({ label: `HOST ${site}`, user, hostCmd: site });
         for (const site of sites) logins.push({ label: `${site}|user`, user: `${site}|${user}` });
       }
@@ -185,10 +186,12 @@ Deno.serve(async (req) => {
       outer: for (const servername of names) {
         for (const login of logins) {
           try {
-            await client.connect(ftpHost, ftpPort);
+            const welcome = await client.connect(ftpHost, ftpPort);
+            if (login.label === "plain") console.log("FTP server greeting", { message: welcome.message?.slice(0, 120) });
+            if (login.hostFirst && login.hostCmd) await client.send(`HOST ${login.hostCmd}`);
             await client.useTLS({ host: ftpHost, ...(servername === ftpHost ? {} : { servername }) });
             certOk = true;
-            if (login.hostCmd) await client.send(`HOST ${login.hostCmd}`);
+            if (!login.hostFirst && login.hostCmd) await client.send(`HOST ${login.hostCmd}`);
             await client.sendIgnoringError("OPTS UTF8 ON");
             await client.login(login.user, password);
             await client.useDefaultSettings();
