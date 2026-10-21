@@ -173,12 +173,13 @@ Deno.serve(async (req) => {
       // by IP, IIS cannot tell which site the user belongs to and answers
       // "530 home directory inaccessible". Name the site with the FTP HOST
       // command, or the IIS "site|user" username form.
-      const sites = [...new Set([Deno.env.get("WWJMRD_FTP_SITE_NAME")?.trim(), "wwjmrd.com", "ftp.wwjmrd.com", "www.wwjmrd.com"].filter(Boolean) as string[])];
+      // The live server rejects wwjmrd.com as a site name, so only try the
+      // site-name forms when the hosting provider's FTP site name is configured.
+      const site = Deno.env.get("WWJMRD_FTP_SITE_NAME")?.trim();
       const logins: { label: string; user: string; hostCmd?: string; hostFirst?: boolean }[] = [{ label: "plain", user }];
-      if (!user.includes("|")) {
-        logins.push({ label: `HOST ${sites[0]} before TLS`, user, hostCmd: sites[0], hostFirst: true });
-        for (const site of sites) logins.push({ label: `HOST ${site}`, user, hostCmd: site });
-        for (const site of sites) logins.push({ label: `${site}|user`, user: `${site}|${user}` });
+      if (site && !user.includes("|")) {
+        logins.push({ label: "HOST site", user, hostCmd: site });
+        logins.push({ label: "site|user", user: `${site}|${user}` });
       }
       let lastError: unknown = null;
       let connected = false;
