@@ -205,7 +205,13 @@ Deno.serve(async (req) => {
     } catch (error) {
       console.error("Journal FTP failure", { articleId, stage, message: error instanceof Error ? error.message : String(error) });
       // Do not return remote server messages, which may contain login details.
-      return json({ error: `WWJMRD PDF upload failed during ${stage}. Check the FTP account, FTPS support, upload2 folder permissions and passive data ports. The article has not been published.` }, 502);
+      const raw = error instanceof Error ? error.message : String(error);
+      const hint = stage === "certificate check"
+        ? "The file server's security certificate does not match its address. Save the certificate's server name (for example your hosting server name) as the FTP certificate name."
+        : /530|login|auth/i.test(raw)
+          ? "The FTP username or password was rejected."
+          : "Check the FTP account, FTPS support, upload2 folder permissions and passive data ports.";
+      return json({ error: `WWJMRD PDF upload failed during ${stage}. ${hint} The article has not been published.` }, 502);
     } finally {
       client.close();
     }
