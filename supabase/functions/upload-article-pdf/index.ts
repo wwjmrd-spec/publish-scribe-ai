@@ -220,11 +220,34 @@ Deno.serve(async (req) => {
       stage = "upload folder";
       // FTP accounts may be rooted at the site or its hosting home directory.
       // Only use an existing folder; ensureDir could silently create the wrong one.
+      const startDir = await client.pwd().catch(() => "/");
+      const configuredDir = Deno.env.get("WWJMRD_FTP_UPLOAD_DIR")?.trim();
+      const candidates = [
+        ...(configuredDir ? [configuredDir] : []),
+        "upload2", "/upload2", "/public_html/upload2", "/www/upload2", "/httpdocs/upload2", "/wwwroot/upload2",
+        "/wwjmrd.com/upload2", "/wwjmrd.com/httpdocs/upload2", "/wwjmrd.com/wwwroot/upload2",
+      ];
       let found = false;
-      for (const directory of ["/upload2", "/public_html/upload2", "/www/upload2", "/httpdocs/upload2", "/wwwroot/upload2"]) {
-        try { await client.cd(directory); found = true; break; } catch { /* try the next existing web root */ }
+      for (const directory of candidates) {
+        try {
+          if (!directory.startsWith("/")) await client.cd(startDir);
+          await client.cd(directory);
+          found = true;
+          console.log("FTP upload folder found", { directory });
+          break;
+        } catch { /* try the next existing web root */ }
       }
-      if (!found) throw new Error("The existing website upload2 folder is not accessible to the FTP account");
+      if (!found) {
+        // Log only folder names (never file contents) so the right path can be configured.
+        try {
+          await client.cd(startDir);
+          const top = (await client.list()).filter((f) => f.isDirectory).map((f) => f.name).slice(0, 40);
+          console.warn("FTP upload2 folder not found", { startDir, folders: top });
+        } catch (e) {
+          console.warn("FTP folder listing failed", { startDir, message: e instanceof Error ? e.message : String(e) });
+        }
+        throw new Error("The existing website upload2 folder is not accessible to the FTP account");
+      }
       stage = "PDF transfer";
       await client.uploadFrom(Readable.from(bytes), fileName);
       const remoteSize = await client.size(fileName);
