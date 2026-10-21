@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/collapsible';
 import { ArticleContentEditor } from '@/components/admin/ArticleContentEditor';
 import { downloadFormattedAsPdf, downloadFormattedAsDocx } from '@/lib/exportFormattedArticle';
+import { startPageFromRange } from '@/lib/uploadFormattedPdf';
 import { SimplePager } from '@/components/ui/SimplePager';
 import { queryTimeout } from '@/lib/queryTimeout';
 import { resolveEdgeFunctionError } from '@/lib/edgeFunctionError';
@@ -60,7 +61,7 @@ export default function AdminFormatting() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('articles')
-        .select('id, reference_number, title, created_at, updated_at, formatting_status, formatting_suggestions, formatted_document_url, formatted_docx_url, profiles:author_id (full_name, email)')
+        .select('id, reference_number, title, created_at, updated_at, formatting_status, formatting_suggestions, page_number, formatted_document_url, formatted_docx_url, profiles:author_id (full_name, email)')
         .order('created_at', { ascending: false })
         .abortSignal(queryTimeout());
       if (error) throw error;
@@ -114,10 +115,11 @@ export default function AdminFormatting() {
     try {
       toast.info(fileType === 'formatted_word' ? 'Building Word file…' : 'Building PDF…');
       const html = await loadFormattedContent(article.id);
+      const pageOpts = { startPage: startPageFromRange(article.page_number), showFirstPageNumber: true };
       if (fileType === 'formatted_word') {
-        await downloadFormattedAsDocx(html, baseName);
+        await downloadFormattedAsDocx(html, baseName, pageOpts);
       } else {
-        await downloadFormattedAsPdf(html, baseName);
+        await downloadFormattedAsPdf(html, baseName, pageOpts);
       }
       toast.success('Download ready');
     } catch (err: any) {

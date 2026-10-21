@@ -16,6 +16,7 @@ import { injectOrcidsIntoFormattedHtml, type OrcidAuthorEntry } from '@/lib/orci
 import { injectCcLicenseIntoFormattedHtml } from '@/lib/ccLicense';
 import { injectDoiIntoFormattedHtml } from '@/lib/doi';
 import { resolveEdgeFunctionError } from '@/lib/edgeFunctionError';
+import { startPageFromRange } from '@/lib/uploadFormattedPdf';
 
 interface Props { articleId: string }
 
@@ -179,8 +180,9 @@ export function FormattingSection({ articleId }: Props) {
     const baseName = `formatted-${(article as any)?.reference_number || 'article'}`;
     try {
       toast.info(kind === 'word' ? 'Building Word file…' : 'Building PDF…');
-      if (kind === 'word') await downloadFormattedAsDocx(formattedContent, baseName);
-      else await downloadFormattedAsPdf(formattedContent, baseName);
+      const pageOpts = { startPage: startPageFromRange((article as any)?.page_number), showFirstPageNumber: true };
+      if (kind === 'word') await downloadFormattedAsDocx(formattedContent, baseName, pageOpts);
+      else await downloadFormattedAsPdf(formattedContent, baseName, pageOpts);
       toast.success('Download ready');
     } catch (err: any) {
       toast.error('Failed to generate file: ' + (err?.message || 'unknown'));
