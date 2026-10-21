@@ -461,6 +461,13 @@ export default function SubmitArticle() {
       throw articleError;
     }
 
+    // Fast Track is paid before the article exists: link that payment (and
+    // its optional DOI fee) to the new article on the server.
+    if (articlePublicationType === 'fast_track') {
+      const { error: claimError } = await supabase.rpc('claim_fast_track_payment', { _article_id: article.id });
+      if (claimError) console.error('Failed to link Fast Track payment:', claimError);
+    }
+
     // Add co-authors
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const validCoAuthors = articleCoAuthors.filter(
