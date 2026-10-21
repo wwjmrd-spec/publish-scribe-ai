@@ -236,7 +236,7 @@ Deno.serve(async (req) => {
       const hint = stage === "certificate check"
         ? "The file server's security certificate does not match its address. Save the certificate's server name (for example your hosting server name) as the FTP certificate name."
         : /home directory inaccessible/i.test(raw)
-          ? "The file server accepted the connection but refused this FTP user because its home folder is missing or not accessible. In your hosting control panel (GoDaddy/Plesk), open FTP accounts, make sure this FTP user exists, its home folder is the website folder (httpdocs or the folder containing upload2) and it has read/write permission."
+          ? "The Windows file server (Microsoft FTP Service) accepted the FTP username and password, but it has no home folder for this user, so it refuses the login. This must be fixed in GoDaddy hosting: open FTP accounts (or FTP Users), set this user's folder to the website folder that contains upload2 with read/write permission, or create a new FTP user there and save its details here. If it still fails, ask GoDaddy support to repair the FTP user's home directory (IIS user isolation)."
         : /530|login|auth/i.test(raw)
           ? "The FTP username or password was rejected."
           : "Check the FTP account, FTPS support, upload2 folder permissions and passive data ports.";
