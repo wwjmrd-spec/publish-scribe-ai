@@ -365,11 +365,15 @@ serve(async (req) => {
       duplicated,
       doi_sent: doiMode === "sent",
       previous_wwjmrd_article_id: Number.isFinite(previousId) ? previousId : null,
+      pdf_source: pdfSource,
+      pdf_url: pdfUrl,
       warning: duplicated
         ? `WWJMRD created a new entry (ID ${remoteId}) instead of updating ID ${previousId}. The remote API ignored the update request — the old entry ${previousId} must be removed on wwjmrd.com.`
         : doiMode !== "sent"
           ? "Published, but WWJMRD's server crashed when the DOI was included (their duplicate-DOI check table is missing), so the article was published without the DOI. Ask WWJMRD to fix their publish_article endpoint (MySQL error 1146: table 'gst.article_up' doesn't exist), then use Update to re-send the DOI."
-          : undefined,
+          : pdfSource === "cloud"
+            ? "Published to WWJMRD using the Cloud storage PDF link, because the PDF could not be uploaded to wwjmrd.com. Use Update on WWJMRD later to switch it to a journal-hosted PDF."
+            : undefined,
       order_number: orderNumber,
       month,
       year,
