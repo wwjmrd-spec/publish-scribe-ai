@@ -215,7 +215,10 @@ Deno.serve(async (req) => {
               await client.sendIgnoringError("OPTS UTF8 ON");
               await client.login(login.user, password);
               await client.useDefaultSettings();
-              if (clearDataChannel) await client.send("PROT C");
+              if (clearDataChannel) {
+                const prot = await client.sendIgnoringError("PROT C");
+                console.log("Clear data channel requested", { reply: String((prot as { message?: string })?.message ?? prot).slice(0, 120) });
+              }
               working = { servername, login };
               console.log("FTPS login succeeded", { variant: login.label, clearData: clearDataChannel });
               return;
@@ -251,6 +254,7 @@ Deno.serve(async (req) => {
         console.warn("Encrypted FTP data channel failed; retrying with clear data channel");
         client.close();
         clearDataChannel = true;
+        client.ftp.verbose = true; // diagnostic: FTP replies only (password is masked)
         await openSession();
         rootEntries = await client.list();
       }
