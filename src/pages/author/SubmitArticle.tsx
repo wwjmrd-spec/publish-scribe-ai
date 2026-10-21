@@ -24,6 +24,7 @@ import { useDiscoveryAnswer } from '@/hooks/useDiscoveryAnswer';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowRight, ArrowLeft, Upload, FileText, CheckCircle, Sparkles, Bot, CreditCard, IndianRupee, DollarSign, AlertTriangle, XCircle } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import mammoth from 'mammoth';
@@ -127,6 +128,15 @@ export default function SubmitArticle() {
     if (!fees) return isIndian ? 500 : 10;
     return isIndian ? Number(fees.indian_fast_track_fee) : Number(fees.international_fast_track_fee);
   }, [fees, isIndian]);
+
+  // Fast Track includes the DOI fee by default; authors may untick it.
+  const [includeDoi, setIncludeDoi] = useState(true);
+  const doiFee = useMemo(() => {
+    const f = (fees || {}) as any;
+    return isIndian ? Number(f.indian_doi_fee ?? 500) : Number(f.international_doi_fee ?? 10);
+  }, [fees, isIndian]);
+  const articleFeeAmount = isIndian ? Number(fees?.indian_fee || 2500) : Number(fees?.international_fee || 79);
+  const fastTrackTotal = articleFeeAmount + fastTrackFee + (includeDoi ? doiFee : 0);
 
   const { data: submissionQuota, refetch: refetchSubmissionQuota } = useQuery({
     queryKey: ['article-submission-quota', user?.id],
@@ -459,6 +469,13 @@ export default function SubmitArticle() {
         throw new Error(limitMessage);
       }
       throw articleError;
+    }
+
+    // Fast Track is paid before the article exists: link that payment (and
+    // its optional DOI fee) to the new article on the server.
+    if (articlePublicationType === 'fast_track') {
+      const { error: claimError } = await supabase.rpc('claim_fast_track_payment', { _article_id: article.id });
+      if (claimError) console.error('Failed to link Fast Track payment:', claimError);
     }
 
     // Add co-authors
@@ -834,16 +851,15 @@ export default function SubmitArticle() {
         (ca) => ca.name.trim() && ca.email.trim() && emailRegex.test(ca.email.trim())
       );
 
-      // Calculate full amount: article publication fee + fast track fee
-      const articleFee = isIndian ? Number(fees?.indian_fee || 2500) : Number(fees?.international_fee || 79);
-      const totalAmount = articleFee + fastTrackFee;
-
+      // Full amount: publication fee + fast track fee (+ DOI fee unless unticked).
+      // The server re-prices these items; this amount is display-only.
       const paymentData = {
         items: [
           { type: 'article_fee' as const },
           { type: 'fast_track_fee' as const },
+          ...(includeDoi ? [{ type: 'doi' as const }] : []),
         ],
-        amount: totalAmount,
+        amount: fastTrackTotal,
         currency: currency as 'INR' | 'USD',
       };
 
@@ -1182,8 +1198,8 @@ export default function SubmitArticle() {
                     Payment Method
                   </h2>
                   {(() => {
-                    const articleFee = isIndian ? Number(fees?.indian_fee || 2500) : Number(fees?.international_fee || 79);
-                    const totalAmount = articleFee + fastTrackFee;
+                    const articleFee = articleFeeAmount;
+                    const totalAmount = fastTrackTotal;
                     return (
                       <div className="text-sm text-muted-foreground mb-4 space-y-1">
                         <p>Fast track requires full upfront payment before submission:</p>
@@ -1196,6 +1212,30 @@ export default function SubmitArticle() {
                             <span>Fast Track Fee (24hr publication)</span>
                             <PriceTag settings={fees as any} feeKey={isIndian ? 'indian_fast_track_fee' : 'international_fast_track_fee'} price={fastTrackFee} symbol={currencySymbol} className="font-medium text-foreground" showLabel={false} />
                           </div>
+                          <label className="flex items-center justify-between gap-2 text-sm cursor-pointer">
+                            <span className="flex items-center gap-2">
+                              <Checkbox
+                                checked={includeDoi}
+                                onCheckedChange={(c) => setIncludeDoi(c === true)}
+                                aria-label="Include DOI fee"
+                                className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                              />
+                              <span>DOI Fee</span>
+                            </span>
+                            <span className={includeDoi ? 'font-medium text-foreground' : 'line-through'}>
+                              {currencySymbol}{doiFee.toLocaleString()}
+                            </span>
+                          </label>
+                          {!includeDoi && (
+                            <div role="alert" className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-2 text-xs text-amber-700 dark:text-amber-400">
+                              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                              <p>
+                                Kindly note that you have not selected the DOI fee. If the DOI fee is not paid, your
+                                article will be published without a DOI (Digital Object Identifier). We respectfully
+                                recommend including it so your work can be permanently identified and cited.
+                              </p>
+                            </div>
+                          )}
                           <div className="border-t border-border pt-1 flex justify-between text-sm font-semibold">
                             <span>Total</span>
                             <span className="text-primary">{currencySymbol}{totalAmount.toLocaleString()}</span>
@@ -1422,7 +1462,7 @@ export default function SubmitArticle() {
                   ) : publicationType === 'fast_track' ? (
                     <>
                       <CreditCard className="w-4 h-4 mr-1" />
-                      Pay {currencySymbol}{(fastTrackFee + (isIndian ? Number(fees?.indian_fee || 2500) : Number(fees?.international_fee || 79))).toLocaleString()} & Submit
+                      Pay {currencySymbol}{fastTrackTotal.toLocaleString()} & Submit
                       <ArrowRight className="w-4 h-4 ml-2" />
                     </>
                   ) : (

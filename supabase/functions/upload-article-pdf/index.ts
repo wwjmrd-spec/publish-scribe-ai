@@ -28,6 +28,57 @@ function buildFileName(title: string, reference: string) {
   return `${slug || "article"}_${digits}.pdf`;
 }
 
+const CLOUDFLARE_FTP_ERROR =
+  "The saved FTP address points to Cloudflare, which only carries website traffic and cannot carry FTP, so the PDF upload can never connect. " +
+  "Fix: in Cloudflare DNS set the 'ftp' record to 'DNS only' (grey cloud), or replace the saved FTP host with the hosting server's direct IP address. The article has not been published.";
+
+// Published Cloudflare ranges (https://www.cloudflare.com/ips/).
+const CF_V4 = [
+  "173.245.48.0/20", "103.21.244.0/22", "103.22.200.0/22", "103.31.4.0/22", "141.101.64.0/18",
+  "108.162.192.0/18", "190.93.240.0/20", "188.114.96.0/20", "197.234.240.0/22", "198.41.128.0/17",
+  "162.158.0.0/15", "104.16.0.0/13", "104.24.0.0/14", "172.64.0.0/13", "131.0.72.0/22",
+];
+const CF_V6_PREFIXES = ["2400:cb00:", "2606:4700:", "2803:f800:", "2405:b500:", "2405:8100:", "2c0f:f248:", "2a06:98c"];
+
+function ipv4ToInt(ip: string) {
+  return ip.split(".").reduce((acc, part) => (acc << 8) + Number(part), 0) >>> 0;
+}
+function inCidr(ip: string, cidr: string) {
+  const [base, bits] = cidr.split("/");
+  const mask = bits === "0" ? 0 : (~0 << (32 - Number(bits))) >>> 0;
+  return (ipv4ToInt(ip) & mask) === (ipv4ToInt(base) & mask);
+}
+export function isCloudflareIp(ip: string) {
+  if (/^\d+\.\d+\.\d+\.\d+$/.test(ip)) return CF_V4.some((c) => inCidr(ip, c));
+  const lower = ip.toLowerCase();
+  return CF_V6_PREFIXES.some((p) => lower.startsWith(p));
+}
+
+async function resolvesToCloudflare(hostname: string): Promise<boolean> {
+  if (/^\d+\.\d+\.\d+\.\d+$/.test(hostname) || hostname.includes(":")) return isCloudflareIp(hostname);
+  const ips: string[] = [];
+  for (const type of ["A", "AAAA"] as const) {
+    try { ips.push(...(await Deno.resolveDns(hostname, type))); } catch { /* record type may not exist */ }
+  }
+  return ips.length > 0 && ips.every(isCloudflareIp);
+}
+
+async function canOpenTcp(hostname: string, port: number, timeoutMs: number): Promise<boolean> {
+  let timer: number | undefined;
+  try {
+    const conn = await Promise.race([
+      Deno.connect({ hostname, port }),
+      new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("timeout")), timeoutMs); }),
+    ]);
+    conn.close();
+    return true;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -64,18 +115,33 @@ Deno.serve(async (req) => {
     const bytes = Buffer.from(pdfBase64.replace(/^data:[^,]+,/, ""), "base64");
     if (bytes.subarray(0, 5).toString() !== "%PDF-") return json({ error: "The uploaded file is not a PDF" }, 400);
 
-    const client = new FtpClient(30_000);
+    const ftpUrl = new URL(/^ftps?:\/\//i.test(host) ? host : `ftp://${host}`);
+    const ftpHost = ftpUrl.hostname;
+    const ftpPort = ftpUrl.port ? Number(ftpUrl.port) : 21;
+
+    // Cloudflare's proxy only carries website traffic, never FTP. If the saved
+    // FTP address points at Cloudflare, every attempt hangs until it times out.
+    const cf = await resolvesToCloudflare(ftpHost);
+    if (cf) {
+      console.error("Journal FTP host is behind Cloudflare", { articleId });
+      return json({ error: CLOUDFLARE_FTP_ERROR, code: "FTP_HOST_PROXIED" }, 502);
+    }
+
+    // Fail fast when the server is unreachable instead of hanging the request.
+    const reachable = await canOpenTcp(ftpHost, ftpPort, 10_000);
+    if (!reachable) {
+      console.error("Journal FTP host unreachable", { articleId, port: ftpPort });
+      return json({
+        error: `The WWJMRD file server did not answer on port ${ftpPort} within 10 seconds. Check that FTP is enabled on the hosting account and that the saved FTP address is the hosting server (not the website address). The article has not been published.`,
+        code: "FTP_UNREACHABLE",
+      }, 502);
+    }
+
+    const client = new FtpClient(25_000);
     client.ftp.verbose = false;
     let stage = "connection";
     try {
-      const ftpUrl = new URL(/^ftps?:\/\//i.test(host) ? host : `ftp://${host}`);
-      await client.access({
-        host: ftpUrl.hostname,
-        port: ftpUrl.port ? Number(ftpUrl.port) : 21,
-        user,
-        password,
-        secure: true,
-      });
+      await client.access({ host: ftpHost, port: ftpPort, user, password, secure: true });
       stage = "upload folder";
       // FTP accounts may be rooted at the site or its hosting home directory.
       // Only use an existing folder; ensureDir could silently create the wrong one.

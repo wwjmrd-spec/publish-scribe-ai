@@ -80,7 +80,7 @@ export function PublicationTypeSection({
             <p className="text-sm text-muted-foreground">
               Priority review with <span className="font-semibold text-amber-600">publication within 24 hours</span>.
               Full payment (article publication fee + fast track fee of{' '}
-              {isIndian ? '₹500' : '$10'}) is required before submission.
+              {isIndian ? '₹500' : '$10'} + DOI fee, included by default) is required before submission.
             </p>
           </div>
         </label>

@@ -149,7 +149,13 @@ export async function priceCart(
         break;
       }
       case "doi": {
-        if (!item.articleId) throw new Error("Invalid DOI item");
+        if (!item.articleId) {
+          // Fast Track pays before the article exists; the DOI is linked to the
+          // new article afterwards by claim_fast_track_payment.
+          if (!hasFastTrack) throw new Error("Invalid DOI item");
+          price = feeFor(fees, "doi_fee", currency);
+          break;
+        }
         const { data: art } = await sb.from("articles").select("id, doi_paid").eq("id", item.articleId).eq("author_id", userId).maybeSingle();
         if (!art) throw new Error("Article not found or not yours");
         if (art.doi_paid) throw new Error("The DOI fee for this article is already paid");

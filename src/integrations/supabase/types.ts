@@ -2632,6 +2632,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      claim_fast_track_payment: { Args: { _article_id: string }; Returns: Json }
       compute_article_doi: { Args: { ref: string }; Returns: string }
       get_article_submission_quota: {
         Args: { _user_id?: string }
