@@ -169,25 +169,46 @@ Deno.serve(async (req) => {
       // When the host is an IP address the server's certificate is issued to a
       // name (the domain or the hosting server). Verify against that name.
       const names = await certificateNameCandidates(ftpHost);
+      // Windows/IIS hosting (GoDaddy Plesk) serves many sites on one IP. Reached
+      // by IP, IIS cannot tell which site the user belongs to and answers
+      // "530 home directory inaccessible". Name the site with the FTP HOST
+      // command, or the IIS "site|user" username form.
+      const sites = [...new Set([Deno.env.get("WWJMRD_FTP_SITE_NAME")?.trim(), "wwjmrd.com", "www.wwjmrd.com"].filter(Boolean) as string[])];
+      const logins: { label: string; user: string; hostCmd?: string }[] = [{ label: "plain", user }];
+      if (!user.includes("|")) {
+        for (const site of sites) logins.push({ label: `HOST ${site}`, user, hostCmd: site });
+        for (const site of sites) logins.push({ label: `${site}|user`, user: `${site}|${user}` });
+      }
       let lastError: unknown = null;
       let connected = false;
-      for (const servername of names) {
-        try {
-          await client.access({
-            host: ftpHost, port: ftpPort, user, password, secure: true,
-            secureOptions: servername === ftpHost ? undefined : { servername },
-          });
-          connected = true;
-          break;
-        } catch (e) {
-          lastError = e;
-          const msg = e instanceof Error ? e.message : String(e);
-          console.warn("FTPS attempt failed", { name: servername, message: msg });
-          if (!/NotValidForName|certificate/i.test(msg)) throw e;
+      let certOk = false;
+      outer: for (const servername of names) {
+        for (const login of logins) {
+          try {
+            await client.connect(ftpHost, ftpPort);
+            await client.useTLS({ host: ftpHost, ...(servername === ftpHost ? {} : { servername }) });
+            certOk = true;
+            if (login.hostCmd) await client.send(`HOST ${login.hostCmd}`);
+            await client.sendIgnoringError("OPTS UTF8 ON");
+            await client.login(login.user, password);
+            await client.useDefaultSettings();
+            connected = true;
+            console.log("FTPS login succeeded", { variant: login.label });
+            break outer;
+          } catch (e) {
+            lastError = e;
+            const msg = e instanceof Error ? e.message : String(e);
+            console.warn("FTPS attempt failed", { name: servername, variant: login.label, message: msg });
+            if (/NotValidForName|certificate/i.test(msg)) continue outer;
+            // Only a site/home-folder refusal is worth retrying with the site name.
+            // A rejected HOST command just means that variant is unsupported.
+            if (!/home directory inaccessible|HOST|500|501|502|504/i.test(msg)) throw e;
+          }
         }
+        if (certOk) break;
       }
       if (!connected) {
-        stage = "certificate check";
+        if (!certOk) stage = "certificate check";
         throw lastError ?? new Error("TLS certificate name mismatch");
       }
       stage = "upload folder";
