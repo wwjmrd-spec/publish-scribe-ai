@@ -1,7 +1,7 @@
 # Roadmap
 
-- [x] Diagnose "Publish to WWJMRD failed: Failed to send a request": saved FTP host points to Cloudflare (FTP impossible); upload now fails fast with a clear fix message.
-- [ ] Journal PDF FTP upload working; blocked on the admin setting the ftp DNS record to DNS-only or providing the hosting server's direct IP.
+- [x] Fix "Failed to send a request": FTP host was Cloudflare-proxied (now direct server IP), Deno FTPS compatibility patched, certificate name configured; errors now explain the fix.
+- [ ] Journal PDF FTP upload working; blocked on the hosting FTP account: server answers "530 User cannot log in, home directory inaccessible" (fix FTP user/home folder in GoDaddy control panel).
 - [x] Fast Track total includes DOI fee (ticked by default, can be unticked) with polite no-DOI notice; DOI fee linked to the new article after payment.
 - [x] Polite "published without a DOI" note in the author's DOI fee box.
 
