@@ -220,6 +220,7 @@ Deno.serve(async (req) => {
       stage = "upload folder";
       // FTP accounts may be rooted at the site or its hosting home directory.
       // Only use an existing folder; ensureDir could silently create the wrong one.
+      client.ftp.verbose = true; // diagnostic: logs FTP replies after login (no password)
       const startDir = await client.pwd().catch(() => "/");
       const configuredDir = Deno.env.get("WWJMRD_FTP_UPLOAD_DIR")?.trim();
       const candidates = [
