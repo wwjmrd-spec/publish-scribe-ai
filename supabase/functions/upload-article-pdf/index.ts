@@ -282,7 +282,10 @@ Deno.serve(async (req) => {
       client.close();
     }
 
-    const publicUrl = `https://wwjmrd.com/upload2/${fileName}`;
+    // WWJMRD_FTP_PUBLIC_BASE is the website address of the FTP upload folder
+    // (default wwjmrd.com/upload2); it must match WWJMRD_FTP_UPLOAD_DIR.
+    const publicBase = (Deno.env.get("WWJMRD_FTP_PUBLIC_BASE")?.trim() || "https://wwjmrd.com/upload2").replace(/\/+$/, "");
+    const publicUrl = `${publicBase}/${fileName}`;
     const publicResponse = await fetch(publicUrl, { headers: { Range: "bytes=0-4" }, signal: AbortSignal.timeout(15000) });
     if (!publicResponse.ok) throw new Error("FTP transfer completed but the PDF is not accessible in the website upload2 folder. Check the FTP website root.");
     const publicBytes = new Uint8Array(await publicResponse.arrayBuffer());
