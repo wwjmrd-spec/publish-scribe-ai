@@ -19,6 +19,12 @@ const isNoResponseError = (error: any) =>
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** First page of a saved range such as "216-226" or "12" (defaults to 1). */
+export function startPageFromRange(range: unknown): number {
+  const first = String(range ?? '').match(/\d+/)?.[0];
+  return Math.max(1, parseInt(first || '1', 10) || 1);
+}
+
 /**
  * The upload can finish on the server even when the browser loses the reply
  * (slow or unstable connections). Confirm it from the saved upload time,
@@ -56,7 +62,7 @@ export async function uploadFormattedPdfToWwjmrd(
 ): Promise<{ url: string; fileName: string }> {
   const { data, error } = await supabase
     .from('articles')
-    .select('formatted_content, author_revision_html')
+    .select('formatted_content, author_revision_html, page_number')
     .eq('id', articleId)
     .maybeSingle();
   if (error) throw error;
@@ -64,7 +70,13 @@ export async function uploadFormattedPdfToWwjmrd(
   const html = ((data as any)?.author_revision_html || (data as any)?.formatted_content || '') as string;
   if (!html) throw new Error('No formatted article content found. Format the article first.');
 
-  const blob = await buildFormattedPdfBlob(html, options);
+  // The journal PDF must carry the same page numbers as the approved final
+  // version / galley proof, so number pages from the saved page range.
+  const blob = await buildFormattedPdfBlob(html, {
+    startPage: startPageFromRange((data as any)?.page_number),
+    showFirstPageNumber: true,
+    ...options,
+  });
   const pdfBase64 = await blobToBase64(blob);
 
   const startedAt = Date.now();
