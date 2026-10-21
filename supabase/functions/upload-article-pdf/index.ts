@@ -197,47 +197,67 @@ Deno.serve(async (req) => {
         logins.push({ label: "HOST site", user, hostCmd: site });
         logins.push({ label: "site|user", user: `${site}|${user}` });
       }
-      let lastError: unknown = null;
-      let connected = false;
-      let certOk = false;
-      outer: for (const servername of names) {
-        for (const login of logins) {
-          try {
-            const welcome = await client.connect(ftpHost, ftpPort);
-            if (login.label === "plain") console.log("FTP server greeting", { message: welcome.message?.slice(0, 120) });
-            if (login.hostFirst && login.hostCmd) await client.send(`HOST ${login.hostCmd}`);
-            await client.useTLS({ host: ftpHost, ...(servername === ftpHost ? {} : { servername }) });
-            certOk = true;
-            if (!login.hostFirst && login.hostCmd) await client.send(`HOST ${login.hostCmd}`);
-            await client.sendIgnoringError("OPTS UTF8 ON");
-            await client.login(login.user, password);
-            await client.useDefaultSettings();
-            connected = true;
-            console.log("FTPS login succeeded", { variant: login.label });
-            break outer;
-          } catch (e) {
-            const msg = e instanceof Error ? e.message : String(e);
-            console.warn("FTPS attempt failed", { name: servername, variant: login.label, message: msg });
-            if (/NotValidForName|certificate/i.test(msg)) { lastError = e; continue outer; }
-            // Only FTP replies (4xx/5xx) are worth retrying with another site-name
-            // form; network failures and timeouts are reported immediately.
-            const code = Number((e as { code?: unknown })?.code);
-            if (!(code >= 400 && code < 600)) throw e;
-            // Report the plain login's answer unless a later variant says more.
-            if (!lastError || /home directory inaccessible/i.test(msg)) lastError = e;
+      // Remember which login worked so a reconnect (for the data-channel fallback) reuses it.
+      let working: { servername: string; login: (typeof logins)[number] } | null = null;
+      const openSession = async () => {
+        let lastError: unknown = null;
+        let certOk = false;
+        const order = working ? [working.servername] : names;
+        outer: for (const servername of order) {
+          for (const login of working ? [working.login] : logins) {
+            try {
+              const welcome = await client.connect(ftpHost, ftpPort);
+              if (login.label === "plain") console.log("FTP server greeting", { message: welcome.message?.slice(0, 120) });
+              if (login.hostFirst && login.hostCmd) await client.send(`HOST ${login.hostCmd}`);
+              await client.useTLS({ host: ftpHost, ...(servername === ftpHost ? {} : { servername }) });
+              certOk = true;
+              if (!login.hostFirst && login.hostCmd) await client.send(`HOST ${login.hostCmd}`);
+              await client.sendIgnoringError("OPTS UTF8 ON");
+              await client.login(login.user, password);
+              await client.useDefaultSettings();
+              if (clearDataChannel) await client.send("PROT C");
+              working = { servername, login };
+              console.log("FTPS login succeeded", { variant: login.label, clearData: clearDataChannel });
+              return;
+            } catch (e) {
+              const msg = e instanceof Error ? e.message : String(e);
+              console.warn("FTPS attempt failed", { name: servername, variant: login.label, message: msg });
+              if (/NotValidForName|certificate/i.test(msg)) { lastError = e; continue outer; }
+              // Only FTP replies (4xx/5xx) are worth retrying with another site-name
+              // form; network failures and timeouts are reported immediately.
+              const code = Number((e as { code?: unknown })?.code);
+              if (!(code >= 400 && code < 600)) throw e;
+              // Report the plain login's answer unless a later variant says more.
+              if (!lastError || /home directory inaccessible/i.test(msg)) lastError = e;
+            }
           }
+          if (certOk) break;
         }
-        if (certOk) break;
-      }
-      if (!connected) {
         if (!certOk) stage = "certificate check";
         throw lastError ?? new Error("TLS certificate name mismatch");
+      };
+      clearDataChannel = false;
+      await openSession();
+      const startDir = await client.pwd().catch(() => "/");
+
+      // Probe the data channel once. If Deno cannot secure it, reconnect and use
+      // a clear data channel (PROT C); the login itself stays encrypted.
+      stage = "data connection";
+      let rootEntries: { name: string; isDirectory: boolean }[] = [];
+      try {
+        rootEntries = await client.list();
+      } catch (e) {
+        if (!isDataTlsError(e)) throw e;
+        console.warn("Encrypted FTP data channel failed; retrying with clear data channel");
+        client.close();
+        clearDataChannel = true;
+        await openSession();
+        rootEntries = await client.list();
       }
+
       stage = "upload folder";
       // FTP accounts may be rooted at the site or its hosting home directory.
       // Only use an existing folder; ensureDir could silently create the wrong one.
-      client.ftp.verbose = true; // diagnostic: logs FTP replies after login (no password)
-      const startDir = await client.pwd().catch(() => "/");
       const configuredDir = Deno.env.get("WWJMRD_FTP_UPLOAD_DIR")?.trim();
       const candidates = [
         ...(configuredDir ? [configuredDir] : []),
@@ -255,14 +275,12 @@ Deno.serve(async (req) => {
         } catch { /* try the next existing web root */ }
       }
       if (!found) {
-        // Log only folder names (never file contents) so the right path can be configured.
-        try {
-          await client.cd(startDir);
-          const top = (await client.list()).filter((f) => f.isDirectory).map((f) => f.name).slice(0, 40);
-          console.warn("FTP upload2 folder not found", { startDir, folders: top });
-        } catch (e) {
-          console.warn("FTP folder listing failed", { startDir, message: e instanceof Error ? e.message : String(e) });
-        }
+        // Log only entry names so the right upload folder can be configured.
+        console.warn("FTP upload2 folder not found", {
+          startDir,
+          folders: rootEntries.filter((f) => f.isDirectory).map((f) => f.name).slice(0, 40),
+          files: rootEntries.filter((f) => !f.isDirectory).map((f) => f.name).slice(0, 20),
+        });
         throw new Error("The existing website upload2 folder is not accessible to the FTP account");
       }
       stage = "PDF transfer";
