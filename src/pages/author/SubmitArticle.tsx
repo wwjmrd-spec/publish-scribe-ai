@@ -128,6 +128,15 @@ export default function SubmitArticle() {
     return isIndian ? Number(fees.indian_fast_track_fee) : Number(fees.international_fast_track_fee);
   }, [fees, isIndian]);
 
+  // Fast Track includes the DOI fee by default; authors may untick it.
+  const [includeDoi, setIncludeDoi] = useState(true);
+  const doiFee = useMemo(() => {
+    const f = (fees || {}) as any;
+    return isIndian ? Number(f.indian_doi_fee ?? 500) : Number(f.international_doi_fee ?? 10);
+  }, [fees, isIndian]);
+  const articleFeeAmount = isIndian ? Number(fees?.indian_fee || 2500) : Number(fees?.international_fee || 79);
+  const fastTrackTotal = articleFeeAmount + fastTrackFee + (includeDoi ? doiFee : 0);
+
   const { data: submissionQuota, refetch: refetchSubmissionQuota } = useQuery({
     queryKey: ['article-submission-quota', user?.id],
     queryFn: async () => {
