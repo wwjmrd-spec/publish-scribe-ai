@@ -64,18 +64,40 @@ Deno.serve(async (req) => {
     const bytes = Buffer.from(pdfBase64.replace(/^data:[^,]+,/, ""), "base64");
     if (bytes.subarray(0, 5).toString() !== "%PDF-") return json({ error: "The uploaded file is not a PDF" }, 400);
 
-    const client = new FtpClient(30_000);
+    const ftpUrl = new URL(/^ftps?:\/\//i.test(host) ? host : `ftp://${host}`);
+    const ftpHost = ftpUrl.hostname;
+    const ftpPort = ftpUrl.port ? Number(ftpUrl.port) : 21;
+
+    // Cloudflare's proxy only carries website traffic, never FTP. If the saved
+    // FTP address points at Cloudflare, every attempt hangs until it times out.
+    const cf = await resolvesToCloudflare(ftpHost);
+    if (cf) {
+      console.error("Journal FTP host is behind Cloudflare", { articleId });
+      return json({ error: CLOUDFLARE_FTP_ERROR, code: "FTP_HOST_PROXIED" }, 502);
+    }
+
+    // Fail fast when the server is unreachable instead of hanging the request.
+    const reachable = await canOpenTcp(ftpHost, ftpPort, 10_000);
+    if (!reachable) {
+      console.error("Journal FTP host unreachable", { articleId, port: ftpPort });
+      return json({
+        error: `The WWJMRD file server did not answer on port ${ftpPort} within 10 seconds. Check that FTP is enabled on the hosting account and that the saved FTP address is the hosting server (not the website address). The article has not been published.`,
+        code: "FTP_UNREACHABLE",
+      }, 502);
+    }
+
+    const client = new FtpClient(25_000);
     client.ftp.verbose = false;
     let stage = "connection";
     try {
-      const ftpUrl = new URL(/^ftps?:\/\//i.test(host) ? host : `ftp://${host}`);
-      await client.access({
-        host: ftpUrl.hostname,
-        port: ftpUrl.port ? Number(ftpUrl.port) : 21,
-        user,
-        password,
-        secure: true,
-      });
+      try {
+        await client.access({ host: ftpHost, port: ftpPort, user, password, secure: true });
+      } catch (tlsError) {
+        // Some shared hosts do not offer FTPS. Retry once with plain FTP.
+        console.warn("FTPS login failed, retrying plain FTP", { message: tlsError instanceof Error ? tlsError.message : String(tlsError) });
+        client.close();
+        await client.access({ host: ftpHost, port: ftpPort, user, password, secure: false });
+      }
       stage = "upload folder";
       // FTP accounts may be rooted at the site or its hosting home directory.
       // Only use an existing folder; ensureDir could silently create the wrong one.
