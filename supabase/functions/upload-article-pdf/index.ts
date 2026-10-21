@@ -13,6 +13,22 @@ const tlsProto = (tls as any).TLSSocket?.prototype;
 if (tlsProto && typeof tlsProto.getProtocol !== "function") tlsProto.getProtocol = () => "TLS";
 if (tlsProto && typeof tlsProto.getSession !== "function") tlsProto.getSession = () => undefined;
 
+// Deno cannot complete the TLS handshake on IIS FTP data connections
+// ("InvalidContentType (data socket)"). basic-ftp upgrades the data socket
+// whenever the control socket is a TLSSocket, so this flag lets a transfer
+// fall back to a clear data channel (PROT C) while login stays encrypted.
+let clearDataChannel = false;
+const TLSSocketCtor = (tls as any).TLSSocket;
+if (TLSSocketCtor) {
+  Object.defineProperty(TLSSocketCtor, Symbol.hasInstance, {
+    configurable: true,
+    value(obj: unknown) {
+      return clearDataChannel ? false : Function.prototype[Symbol.hasInstance].call(this, obj);
+    },
+  });
+}
+const isDataTlsError = (e: unknown) => /InvalidContentType|data socket|corrupt message/i.test(e instanceof Error ? e.message : String(e));
+
 const bodySchema = z.object({ articleId: z.string().uuid(), pdfBase64: z.string().min(1).max(40_000_000) });
 
 const json = (body: unknown, status = 200) =>
