@@ -651,6 +651,7 @@ export type Database = {
           publication_year: string | null
           publish_queue_added_at: string | null
           published_link: string | null
+          published_pdf_uploaded_at: string | null
           published_pdf_url: string | null
           published_tier: string | null
           published_to_wwjmrd_at: string | null
@@ -733,6 +734,7 @@ export type Database = {
           publication_year?: string | null
           publish_queue_added_at?: string | null
           published_link?: string | null
+          published_pdf_uploaded_at?: string | null
           published_pdf_url?: string | null
           published_tier?: string | null
           published_to_wwjmrd_at?: string | null
@@ -815,6 +817,7 @@ export type Database = {
           publication_year?: string | null
           publish_queue_added_at?: string | null
           published_link?: string | null
+          published_pdf_uploaded_at?: string | null
           published_pdf_url?: string | null
           published_tier?: string | null
           published_to_wwjmrd_at?: string | null
