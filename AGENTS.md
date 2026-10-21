@@ -10,5 +10,6 @@
 - Re-format requests explicitly bypass the completed-format idempotency guard, while automatic formatting remains idempotent to prevent duplicate jobs.
 - Record manual DOI payments through the admin-validated atomic database function, preserving article status, to prevent partial payment/assignment updates.
 - Derive author DOI visibility with getAuthorDoiState so assigned numbers do not bypass payment and publication requirements.
-- Persist formatted manuscript writes through saveFormattedArticle with a dedicated deadline and saved-row confirmation because large HTML updates can exceed short dashboard request timeouts.- Link pre-paid Fast Track payments (including the optional DOI item) to the new article through claim_fast_track_payment, because the payment is made before the article row exists and authors cannot set doi_paid themselves.
+- Persist formatted manuscript writes through saveFormattedArticle with a dedicated deadline and saved-row confirmation because large HTML updates can exceed short dashboard request timeouts.
+- Link pre-paid Fast Track payments (including the optional DOI item) to the new article through claim_fast_track_payment, because the payment is made before the article row exists and authors cannot set doi_paid themselves.
 - Preflight journal FTP uploads (Cloudflare-proxied host, TCP reachability) before connecting, because proxied or unreachable hosts otherwise hang until the browser drops the request.
