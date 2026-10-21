@@ -850,16 +850,15 @@ export default function SubmitArticle() {
         (ca) => ca.name.trim() && ca.email.trim() && emailRegex.test(ca.email.trim())
       );
 
-      // Calculate full amount: article publication fee + fast track fee
-      const articleFee = isIndian ? Number(fees?.indian_fee || 2500) : Number(fees?.international_fee || 79);
-      const totalAmount = articleFee + fastTrackFee;
-
+      // Full amount: publication fee + fast track fee (+ DOI fee unless unticked).
+      // The server re-prices these items; this amount is display-only.
       const paymentData = {
         items: [
           { type: 'article_fee' as const },
           { type: 'fast_track_fee' as const },
+          ...(includeDoi ? [{ type: 'doi' as const }] : []),
         ],
-        amount: totalAmount,
+        amount: fastTrackTotal,
         currency: currency as 'INR' | 'USD',
       };
 
