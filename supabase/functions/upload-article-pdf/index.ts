@@ -71,6 +71,23 @@ async function resolvesToCloudflare(hostname: string): Promise<boolean> {
   return ips.length > 0 && ips.every(isCloudflareIp);
 }
 
+async function certificateNameCandidates(host: string): Promise<string[]> {
+  const names: string[] = [];
+  const configured = Deno.env.get("WWJMRD_FTP_TLS_NAME")?.trim();
+  if (configured) names.push(configured);
+  const isIp = /^\d+\.\d+\.\d+\.\d+$/.test(host) || host.includes(":");
+  if (!isIp) names.push(host);
+  else {
+    // The reverse-DNS name is usually the hosting server whose certificate FTP uses.
+    try {
+      const ptr = await Deno.resolveDns(host.split(".").reverse().join(".") + ".in-addr.arpa", "PTR");
+      for (const p of ptr) names.push(p.replace(/\.$/, ""));
+    } catch { /* no reverse DNS */ }
+    names.push("wwjmrd.com", "ftp.wwjmrd.com", "www.wwjmrd.com");
+  }
+  return [...new Set(names)];
+}
+
 async function canOpenTcp(hostname: string, port: number, timeoutMs: number): Promise<boolean> {
   let timer: number | undefined;
   try {
@@ -149,7 +166,30 @@ Deno.serve(async (req) => {
     client.ftp.verbose = false;
     let stage = "connection";
     try {
-      await client.access({ host: ftpHost, port: ftpPort, user, password, secure: true });
+      // When the host is an IP address the server's certificate is issued to a
+      // name (the domain or the hosting server). Verify against that name.
+      const names = await certificateNameCandidates(ftpHost);
+      let lastError: unknown = null;
+      let connected = false;
+      for (const servername of names) {
+        try {
+          await client.access({
+            host: ftpHost, port: ftpPort, user, password, secure: true,
+            secureOptions: servername === ftpHost ? undefined : { servername },
+          });
+          connected = true;
+          break;
+        } catch (e) {
+          lastError = e;
+          const msg = e instanceof Error ? e.message : String(e);
+          console.warn("FTPS attempt failed", { name: servername, message: msg });
+          if (!/NotValidForName|certificate/i.test(msg)) throw e;
+        }
+      }
+      if (!connected) {
+        stage = "certificate check";
+        throw lastError ?? new Error("TLS certificate name mismatch");
+      }
       stage = "upload folder";
       // FTP accounts may be rooted at the site or its hosting home directory.
       // Only use an existing folder; ensureDir could silently create the wrong one.
