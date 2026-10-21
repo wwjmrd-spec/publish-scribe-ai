@@ -1,5 +1,10 @@
 # Roadmap
 
+- [x] Diagnose "Publish to WWJMRD failed: Failed to send a request": saved FTP host points to Cloudflare (FTP impossible); upload now fails fast with a clear fix message.
+- [ ] Journal PDF FTP upload working; blocked on the admin setting the ftp DNS record to DNS-only or providing the hosting server's direct IP.
+- [x] Fast Track total includes DOI fee (ticked by default, can be unticked) with polite no-DOI notice; DOI fee linked to the new article after payment.
+- [x] Polite "published without a DOI" note in the author's DOI fee box.
+
 - [x] Add one-click admin acceptance letter generation and admin/author PDF downloads; deployed letter and download functions.
 - [x] Stop publication after failed PDF transfers; add admin validation, secure FTP, existing website-folder discovery, transfer verification and actionable errors.
 - [x] Verify PDF generation, long-title pagination and upload failure handling with four passing tests; preview builds successfully.
