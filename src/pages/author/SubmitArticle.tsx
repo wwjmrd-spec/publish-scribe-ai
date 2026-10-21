@@ -24,6 +24,7 @@ import { useDiscoveryAnswer } from '@/hooks/useDiscoveryAnswer';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowRight, ArrowLeft, Upload, FileText, CheckCircle, Sparkles, Bot, CreditCard, IndianRupee, DollarSign, AlertTriangle, XCircle } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import mammoth from 'mammoth';
