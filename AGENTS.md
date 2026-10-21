@@ -15,3 +15,4 @@
 - Link pre-paid Fast Track payments (including the optional DOI item) to the new article through claim_fast_track_payment, because the payment is made before the article row exists and authors cannot set doi_paid themselves.
 - Preflight journal FTP uploads (Cloudflare-proxied host, TCP reachability) before connecting, because proxied or unreachable hosts otherwise hang until the browser drops the request.
 - Send PBSZ 0 / PROT P manually after FTPS login and take the upload folder and its public URL base from config, because basic-ftp skips PROT P on Deno TLS sockets (data channel then fails) and the FTP user's root differs per hosting account.
+- Number every formatted PDF/Word export and the journal upload from the article's saved page_number range (startPageFromRange), because the approved final version's page numbers must never change after approval.
