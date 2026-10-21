@@ -13,21 +13,6 @@ const tlsProto = (tls as any).TLSSocket?.prototype;
 if (tlsProto && typeof tlsProto.getProtocol !== "function") tlsProto.getProtocol = () => "TLS";
 if (tlsProto && typeof tlsProto.getSession !== "function") tlsProto.getSession = () => undefined;
 
-// Deno cannot complete the TLS handshake on IIS FTP data connections
-// ("InvalidContentType (data socket)"). basic-ftp upgrades the data socket
-// whenever the control socket is a TLSSocket, so this flag lets a transfer
-// fall back to a clear data channel (PROT C) while login stays encrypted.
-let clearDataChannel = false;
-const TLSSocketCtor = (tls as any).TLSSocket;
-if (TLSSocketCtor) {
-  Object.defineProperty(TLSSocketCtor, Symbol.hasInstance, {
-    configurable: true,
-    value(obj: unknown) {
-      return clearDataChannel ? false : Function.prototype[Symbol.hasInstance].call(this, obj);
-    },
-  });
-}
-const isDataTlsError = (e: unknown) => /InvalidContentType|data socket|corrupt message/i.test(e instanceof Error ? e.message : String(e));
 
 const bodySchema = z.object({ articleId: z.string().uuid(), pdfBase64: z.string().min(1).max(40_000_000) });
 
@@ -215,12 +200,16 @@ Deno.serve(async (req) => {
               await client.sendIgnoringError("OPTS UTF8 ON");
               await client.login(login.user, password);
               await client.useDefaultSettings();
-              if (clearDataChannel) {
-                const prot = await client.sendIgnoringError("PROT C");
-                console.log("Clear data channel requested", { reply: String((prot as { message?: string })?.message ?? prot).slice(0, 120) });
+              // basic-ftp only sends PBSZ/PROT P when the socket has an
+              // "encrypted" property, which Deno's TLS socket lacks. Without
+              // them the server sends data unencrypted while basic-ftp expects
+              // TLS ("InvalidContentType (data socket)"), so protect it here.
+              if (!client.ftp.hasTLS) {
+                await client.send("PBSZ 0");
+                await client.send("PROT P");
               }
               working = { servername, login };
-              console.log("FTPS login succeeded", { variant: login.label, clearData: clearDataChannel });
+              console.log("FTPS login succeeded", { variant: login.label });
               return;
             } catch (e) {
               const msg = e instanceof Error ? e.message : String(e);
@@ -239,25 +228,11 @@ Deno.serve(async (req) => {
         if (!certOk) stage = "certificate check";
         throw lastError ?? new Error("TLS certificate name mismatch");
       };
-      clearDataChannel = false;
       await openSession();
       const startDir = await client.pwd().catch(() => "/");
 
-      // Probe the data channel once. If Deno cannot secure it, reconnect and use
-      // a clear data channel (PROT C); the login itself stays encrypted.
       stage = "data connection";
-      let rootEntries: { name: string; isDirectory: boolean }[] = [];
-      try {
-        rootEntries = await client.list();
-      } catch (e) {
-        if (!isDataTlsError(e)) throw e;
-        console.warn("Encrypted FTP data channel failed; retrying with clear data channel");
-        client.close();
-        clearDataChannel = true;
-        client.ftp.verbose = true; // diagnostic: FTP replies only (password is masked)
-        await openSession();
-        rootEntries = await client.list();
-      }
+      const rootEntries = await client.list();
 
       stage = "upload folder";
       // FTP accounts may be rooted at the site or its hosting home directory.
