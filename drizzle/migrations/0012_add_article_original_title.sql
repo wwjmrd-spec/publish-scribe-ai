@@ -1,0 +1,2 @@
+ALTER TABLE public.articles ADD COLUMN IF NOT EXISTS original_title text;
+COMMENT ON COLUMN public.articles.original_title IS 'Author''s title exactly as submitted, kept when an editor accepts a re-capitalized title so it can be restored. NULL means the title was never re-capitalized.';

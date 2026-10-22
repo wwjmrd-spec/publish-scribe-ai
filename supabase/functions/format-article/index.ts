@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { aiChatCompletion, getAiGatewayConfig, type AiGatewayConfig } from "../_shared/ai-gateway.ts";
+import { formatAcademicTitle, parseTerminology, parseTitlePolicy } from "../_shared/academicTitle.ts";
 import mammoth from "npm:mammoth@1.6.0";
 import { jsPDF } from "npm:jspdf@2.5.2";
 import {
@@ -225,6 +226,8 @@ function parseHtmlToBlocks(html: string): Block[] {
 interface ArticleMetadata {
   header: { year: string; volume: string; issue: string; page_range: string; doi?: string };
   title: string;
+  /** Escaped title HTML (scientific names in <em>) produced by the journal's capitalization policy. */
+  titleHtml?: string;
   authors: { name: string; designation: string }[];
   correspondence: { name: string; designation: string };
   abstract: string;
@@ -1223,7 +1226,7 @@ function generateEditorHtml(meta: ArticleMetadata, body: Block[], images: Map<st
     </div>
     <table style="width:100%;border-collapse:collapse;"><tr style="vertical-align:top;">
       <td style="padding:14px 12px 8px 24px;">
-        <h1 style="font-family:Georgia,serif;font-size:18px;font-weight:bold;color:#0f172a;line-height:1.3;margin:0 0 10px;">${esc(meta.title)}</h1>
+        <h1 style="font-family:Georgia,serif;font-size:18px;font-weight:bold;color:#0f172a;line-height:1.3;margin:0 0 10px;">${meta.titleHtml || esc(meta.title)}</h1>
         <p style="font-size:11px;color:#1e3a8a;font-weight:600;margin:0 0 6px;line-height:1.5;">${authorsInline}</p>
         
         <div style="margin:0 0 12px;font-size:9px;color:#333;">${affiliationsList}</div>
@@ -1389,6 +1392,38 @@ serve(async (req) => {
             article.title || "Untitled",
             article.author_name || article.profiles?.full_name,
           );
+        }
+
+        // Apply the journal's title capitalization policy to the formatted output.
+        // The author's stored title is not changed; editors accept/restore it in the
+        // Title Capitalization panel.
+        try {
+          const { data: titleSettings } = await supabase
+            .from("admin_settings")
+            .select("setting_key, setting_value")
+            .in("setting_key", ["title_case_policy", "title_terminology"]);
+          const sv = (k: string) => (titleSettings || []).find((r: any) => r.setting_key === k)?.setting_value;
+          const before = (meta.title || "").replace(/\s+/g, " ").trim();
+          const tr = formatAcademicTitle(before, {
+            mode: "custom",
+            policy: parseTitlePolicy(sv("title_case_policy")),
+            terms: parseTerminology(sv("title_terminology")),
+          });
+          meta.title = tr.text;
+          meta.titleHtml = tr.html;
+          meta.suggestions = meta.suggestions || [];
+          if (tr.text !== before) {
+            meta.suggestions.push({
+              type: "title_capitalization",
+              message: `Title capitalized using the journal policy: "${before}" → "${tr.text}". Use Title Capitalization to change the style or restore the original.`,
+              severity: "info",
+            });
+          }
+          for (const f of tr.flags) {
+            meta.suggestions.push({ type: "title_check", message: f.message, severity: "warning" });
+          }
+        } catch (e) {
+          console.error("Title capitalization skipped:", e instanceof Error ? e.message : e);
         }
 
         const profile: any = article.profiles || {};
