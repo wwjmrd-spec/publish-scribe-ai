@@ -121,7 +121,10 @@ function buildIndex(extra: TermEntry[] = []) {
   const byForm = new Map<string, IndexedTerm>();
   for (const t of withAbbreviations([...BUILTIN, ...extra])) {
     const words = t.form.split(" ").filter(Boolean);
-    byForm.set(words.join(" ").toLowerCase(), { ...t, words });
+    const key = words.join(" ").toLowerCase();
+    // AI suggestions never override the built-in or journal spelling of a term.
+    if (t.source === "ai" && byForm.has(key)) continue;
+    byForm.set(key, { ...t, words });
   }
   const byFirst = new Map<string, IndexedTerm[]>();
   for (const t of byForm.values()) {

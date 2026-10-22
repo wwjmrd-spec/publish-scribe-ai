@@ -42,6 +42,7 @@ Title: """${title}"""
    acronyms/abbreviations (e.g. DNA, COVID-19, eGFR), proper nouns (people, places, organisations, languages),
    brand or officially styled names (e.g. ChatGPT, iPhone), and scientific names (genus, binomial species names).
    "form" must be the term's standard spelling and must contain exactly the same letters as in the title (only letter case may differ).
+   If the title is written in capital letters, still give the standard spelling (e.g. "Christian", "Escherichia coli"), not capitals.
    Do NOT list ordinary words. If you are not sure a word is a special term, leave it out.
 2. Separately list recommendations the editor may consider, without applying them: spelling mistakes, scientific nomenclature
    problems, or style points. Never suggest changing the meaning of the title.
@@ -69,6 +70,8 @@ Reply with JSON only: {"terms":[{"form":"...","kind":"acronym|proper|brand|speci
       .map((t: any) => ({ form: String(t?.form ?? "").replace(/\s+/g, " ").trim(), kind: String(t?.kind ?? "") }))
       // Only keep terms that literally appear in the title (case-insensitive) — the AI may not respell anything.
       .filter((t: any) => t.form && t.form.length <= 120 && KINDS.has(t.kind) && lowerTitle.includes(t.form.toLowerCase()))
+      // An all-capitals name or scientific term is the title's styling copied back, not a standard spelling.
+      .filter((t: any) => t.kind === "acronym" || t.form !== t.form.toUpperCase())
       .slice(0, 40);
 
     const recommendations = (Array.isArray(parsed?.recommendations) ? parsed.recommendations : [])

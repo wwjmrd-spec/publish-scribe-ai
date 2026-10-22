@@ -99,6 +99,11 @@ describe('academic title capitalization', () => {
     expect(formatAcademicTitle('naac accreditation of colleges', { mode: 'title', terms }).text).toBe('NAAC Accreditation of Colleges');
   });
 
+  it('AI terms cannot override the built-in spelling', () => {
+    const r = formatAcademicTitle('DEATH RITES AND CHRISTIAN MISSION', { mode: 'title', terms: [{ form: 'CHRISTIAN', kind: 'proper', source: 'ai' }] });
+    expect(r.text).toBe('Death Rites and Christian Mission');
+  });
+
   it('flags lowercase ambiguous genus names instead of guessing', () => {
     const r = tc('aloe vera gel in burns');
     expect(r.html).not.toContain('<em>');
