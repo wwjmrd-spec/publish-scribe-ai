@@ -90,6 +90,7 @@ export default function AdminArticleDetail() {
     keywords: '',
     subject: '',
     author_name: '',
+    author_affiliation: '',
     country: '',
     reason_of_research: '',
     page_count: '',
@@ -403,6 +404,7 @@ export default function AdminArticleDetail() {
         abstract: editDetails.abstract.trim() || null,
         subject: editDetails.subject.trim() || null,
         author_name: editDetails.author_name.trim() || null,
+        author_affiliation: editDetails.author_affiliation.trim().slice(0, 300) || null,
         country: editDetails.country.trim() || null,
         reason_of_research: editDetails.reason_of_research.trim() || null,
         page_count: editDetails.page_count ? parseInt(editDetails.page_count, 10) : null,
@@ -429,6 +431,7 @@ export default function AdminArticleDetail() {
       keywords: (article.keywords || []).join(', '),
       subject: article.subject || '',
       author_name: article.author_name || '',
+      author_affiliation: (article as any).author_affiliation ?? (article.profiles as any)?.affiliation ?? '',
       country: article.country || '',
       reason_of_research: article.reason_of_research || '',
       page_count: (article as any).page_count ? String((article as any).page_count) : '',
@@ -562,7 +565,7 @@ export default function AdminArticleDetail() {
                   <p className="text-sm">{(article.profiles as any)?.country || 'N/A'}</p>
                 </div>
                 <div>
-                  <label className="text-xs text-muted-foreground">Affiliation</label>
+                  <label className="text-xs text-muted-foreground">Account Affiliation</label>
                   <p className="text-sm">{(article.profiles as any)?.affiliation || 'N/A'}</p>
                 </div>
               </div>
@@ -633,6 +636,10 @@ export default function AdminArticleDetail() {
                       <p className="text-sm">{article.author_name}</p>
                     </div>
                   )}
+                  <div>
+                    <label className="text-xs text-muted-foreground">Author Affiliation (on article)</label>
+                    <p className="text-sm">{(article as any).author_affiliation || (article.profiles as any)?.affiliation || 'N/A'}</p>
+                  </div>
                   {(article as any).page_count && (
                     <div>
                       <label className="text-xs text-muted-foreground">Page Count</label>
@@ -1428,6 +1435,11 @@ export default function AdminArticleDetail() {
             <div className="space-y-2">
               <Label htmlFor="ed-author">Author Name (on article)</Label>
               <Input id="ed-author" className="glass-input" value={editDetails.author_name} onChange={(e) => setEditDetails(p => ({ ...p, author_name: e.target.value }))} />
+              <p className="text-xs text-muted-foreground">Can differ from the account that submitted the article. Used on certificates and the published article.</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ed-author-aff">Author Affiliation (on article)</Label>
+              <Input id="ed-author-aff" className="glass-input" maxLength={300} value={editDetails.author_affiliation} onChange={(e) => setEditDetails(p => ({ ...p, author_affiliation: e.target.value }))} />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">

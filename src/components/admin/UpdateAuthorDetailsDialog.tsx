@@ -44,7 +44,7 @@ export function UpdateAuthorDetailsDialog({ open, onOpenChange, articleId, onApp
         const [{ data: article, error: aErr }, { data: coAuthors, error: cErr }] = await Promise.all([
           supabase
             .from('articles')
-            .select('author_name, author_id, profiles:author_id (full_name, first_name, last_name, affiliation, orcid)')
+            .select('author_name, author_affiliation, author_id, profiles:author_id (full_name, first_name, last_name, affiliation, orcid)')
             .eq('id', articleId)
             .maybeSingle(),
           supabase
@@ -70,7 +70,7 @@ export function UpdateAuthorDetailsDialog({ open, onOpenChange, articleId, onApp
             firstName: (profile?.first_name || primaryParts.firstName).toString(),
             lastName: (profile?.last_name || primaryParts.lastName).toString(),
             name: primaryName,
-            affiliation: (profile?.affiliation || '').toString(),
+            affiliation: ((article as any)?.author_affiliation ?? profile?.affiliation ?? '').toString(),
             orcid: (profile?.orcid || '').toString(),
           },
           ...((coAuthors || []) as any[]).map((c) => {
@@ -108,18 +108,19 @@ export function UpdateAuthorDetailsDialog({ open, onOpenChange, articleId, onApp
 
       const { error: artErr } = await supabase
         .from('articles')
-        .update({ author_name: primaryName.slice(0, 200) } as any)
+        .update({
+          author_name: primaryName.slice(0, 200),
+          author_affiliation: primary.affiliation.trim().slice(0, 300) || null,
+        } as any)
         .eq('id', articleId);
       if (artErr) throw artErr;
 
       if (authorProfileId) {
+        // The main author on the article can be a different person from the
+        // submitting account, so only the ORCID iD is kept on the profile.
         const { error: profErr } = await supabase
           .from('profiles')
           .update({
-            first_name: primary.firstName.trim().slice(0, 100),
-            last_name: primary.lastName.trim().slice(0, 100),
-            full_name: primaryName.slice(0, 200),
-            affiliation: primary.affiliation.trim().slice(0, 300) || null,
             orcid: primary.orcid.trim().slice(0, 50) || null,
           } as any)
           .eq('id', authorProfileId);
@@ -172,7 +173,7 @@ export function UpdateAuthorDetailsDialog({ open, onOpenChange, articleId, onApp
             {authors.map((a, i) => (
               <div key={a.coAuthorId || 'primary'} className="p-3 rounded-lg bg-[hsl(var(--glass-bg))] space-y-2">
                 <p className="text-xs font-semibold text-primary">
-                  {a.isPrimary ? 'Corresponding Author' : `Co-Author ${i}`}
+                  {a.isPrimary ? 'Main Author (on article)' : `Co-Author ${i}`}
                 </p>
                 <div className="grid md:grid-cols-2 gap-2">
                   <div>
