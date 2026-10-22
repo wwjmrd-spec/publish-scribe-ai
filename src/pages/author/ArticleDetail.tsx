@@ -105,7 +105,7 @@ export default function AuthorArticleDetail() {
         keywords: (article.keywords || []).join(', '),
         subject: article.subject || '',
         author_name: article.author_name || '',
-        author_affiliation: profile?.affiliation || '',
+        author_affiliation: article.author_affiliation ?? profile?.affiliation ?? '',
         co_authors: (article.co_authors || []).map((c: any) => {
           const fallback = splitName(c.name);
           return {
@@ -145,7 +145,7 @@ export default function AuthorArticleDetail() {
     add('Keywords', (article.keywords || []).join(', '), form.keywords);
     add('Subject', article.subject, form.subject);
     add('Corresponding Author', article.author_name, form.author_name);
-    add('Corresponding Author Affiliation', profile?.affiliation || '', form.author_affiliation);
+    add('Corresponding Author Affiliation', article.author_affiliation ?? profile?.affiliation ?? '', form.author_affiliation);
     (form.co_authors || []).forEach((c: any, i: number) => {
       const orig = (article.co_authors || []).find((o: any) => o.id === c.id);
       if (!orig) {
@@ -190,7 +190,7 @@ export default function AuthorArticleDetail() {
   const detailsTouched = () => {
     if (!article || !form) return false;
     if ((article.author_name || '') !== form.author_name) return true;
-    if ((profile?.affiliation || '') !== (form.author_affiliation || '')) return true;
+    if ((article.author_affiliation ?? profile?.affiliation ?? '') !== (form.author_affiliation || '')) return true;
     if ((article.co_authors || []).length !== (form.co_authors || []).length) return true;
     if ((article.co_authors || []).some((o: any) => !(form.co_authors || []).some((c: any) => c.id === o.id)))
       return true;
@@ -235,6 +235,7 @@ export default function AuthorArticleDetail() {
       };
       if (changedPeople) {
         update.author_name = form.author_name;
+        update.author_affiliation = (form.author_affiliation || '').trim().slice(0, 300) || null;
         update.author_details_changed_once = true;
         update.allow_author_edit = false;
         update.edit_lock_reason = 'One-time author details change used';
@@ -249,14 +250,6 @@ export default function AuthorArticleDetail() {
       if (error) throw error;
 
       if (changedPeople) {
-        // Affiliation of the corresponding author lives on the profile
-        if ((profile?.affiliation || '') !== (form.author_affiliation || '')) {
-          await supabase
-            .from('profiles')
-            .update({ affiliation: (form.author_affiliation || '').slice(0, 200) })
-            .eq('id', user!.id);
-        }
-
         const removed = (article.co_authors || []).filter(
           (o: any) => !(form.co_authors || []).some((c: any) => c.id === o.id),
         );
@@ -450,7 +443,7 @@ export default function AuthorArticleDetail() {
           <div className="space-y-3">
             <div className="grid sm:grid-cols-2 gap-3">
               <div>
-                <Label>Corresponding Author</Label>
+                <Label>Author Name (on article)</Label>
                 {editing && !detailsChangedOnce ? (
                   <Input value={form.author_name} onChange={(e) => setForm({ ...form, author_name: e.target.value })} />
                 ) : (
@@ -458,7 +451,7 @@ export default function AuthorArticleDetail() {
                 )}
               </div>
               <div>
-                <Label>Affiliation</Label>
+                <Label>Affiliation (on article)</Label>
                 {editing && !detailsChangedOnce ? (
                   <Input
                     value={form.author_affiliation}
@@ -466,7 +459,7 @@ export default function AuthorArticleDetail() {
                     onChange={(e) => setForm({ ...form, author_affiliation: e.target.value })}
                   />
                 ) : (
-                  <p className="text-sm mt-1 text-muted-foreground">{profile?.affiliation || '—'}</p>
+                  <p className="text-sm mt-1 text-muted-foreground">{article.author_affiliation || profile?.affiliation || '—'}</p>
                 )}
               </div>
             </div>

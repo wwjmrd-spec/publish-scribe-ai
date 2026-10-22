@@ -295,7 +295,7 @@ serve(async (req) => {
         *,
         co_authors (name, email, affiliation, article_id),
         articles:article_id (
-          author_id, title, reference_number, volume, issue, page_number, publication_year, published_link,
+          author_id, author_name, title, reference_number, volume, issue, page_number, publication_year, published_link,
           profiles:author_id (full_name, affiliation)
         )
       `
@@ -360,7 +360,7 @@ serve(async (req) => {
     const issue = article?.issue || "N/A";
     const pageNumber = article?.page_number || "N/A";
     const publicationYear = article?.publication_year || "N/A";
-    const mainAuthorName = mainAuthor?.full_name || "Unknown";
+    const mainAuthorName = ((certRecord as any)?.articles?.author_name || "").trim() || mainAuthor?.full_name || "Unknown";
 
     const certificateNumber = `CA-${volume}-${issue}-${(pageNumber as string).split("-")[0] || pageNumber}`;
     const currentDate = new Date().toLocaleDateString("en-GB", {

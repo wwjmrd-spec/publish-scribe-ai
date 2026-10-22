@@ -299,7 +299,7 @@ serve(async (req) => {
     // Verify article belongs to user and is published
     const { data: article, error: articleError } = await serviceClient
       .from("articles")
-      .select("id, author_id, status, title, reference_number, volume, issue, page_number, publication_year, profiles:author_id (full_name, affiliation)")
+      .select("id, author_id, author_name, status, title, reference_number, volume, issue, page_number, publication_year, profiles:author_id (full_name, affiliation)")
       .eq("id", articleId)
       .eq("author_id", userId)
       .eq("status", "published")
@@ -346,7 +346,7 @@ serve(async (req) => {
     const issue = article.issue || "N/A";
     const pageNumber = article.page_number || "N/A";
     const publicationYear = article.publication_year || "N/A";
-    const mainAuthorName = mainAuthor?.full_name || "Unknown";
+    const mainAuthorName = ((article as any).author_name || "").trim() || mainAuthor?.full_name || "Unknown";
 
     const certificateNumber = refNumber || `CA-${volume}-${issue}-${(pageNumber as string).split("-")[0] || pageNumber}`;
     const currentDate = new Date().toLocaleDateString("en-GB", {

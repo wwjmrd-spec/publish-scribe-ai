@@ -31,6 +31,9 @@ const PayloadSchema = z.object({
   submission_target: z.string().max(200).optional().default(""),
   publication_type: z.enum(["normal", "fast_track"]).optional().default("normal"),
   co_authors: z.array(CoAuthorSchema).max(20).optional().default([]),
+  // Main author as written on the article; may differ from the account owner.
+  author_name: z.string().max(200).optional().default(""),
+  author_affiliation: z.string().max(300).optional().default(""),
   notification_email: z.string().email().max(254).optional().nullable(),
 });
 
@@ -67,7 +70,7 @@ serve(async (req) => {
     // Fetch author profile
     const { data: profile, error: profErr } = await sb
       .from("profiles")
-      .select("id, full_name, email, country")
+      .select("id, full_name, email, country, affiliation")
       .eq("id", p.author_id)
       .maybeSingle();
     if (profErr || !profile) return json({ error: "Author not found" }, 404);
@@ -99,7 +102,8 @@ serve(async (req) => {
       .from("articles")
       .insert({
         author_id: p.author_id,
-        author_name: profile.full_name,
+        author_name: p.author_name.trim() || profile.full_name,
+        author_affiliation: p.author_affiliation.trim() || profile.affiliation || null,
         country: profile.country,
         title: p.title,
         abstract: p.abstract,
@@ -139,7 +143,7 @@ serve(async (req) => {
     const emailData = {
       articleTitle: p.title,
       referenceNumber: article.reference_number,
-      authorName: profile.full_name || "Author",
+      authorName: p.author_name.trim() || profile.full_name || "Author",
       authorEmail: profile.email,
       submissionDate: new Date().toLocaleDateString(),
       coAuthors: p.co_authors.map((c) => c.name),

@@ -394,7 +394,11 @@ serve(async (req) => {
       (article.author_name && String(article.author_name).trim()) ||
       (article.profiles as any)?.full_name ||
       "Unknown Author";
-    const authorAffiliation = (article.profiles as any)?.affiliation || "Unknown Affiliation";
+    // Affiliation as written on the article (the submitting account may be a different person).
+    const authorAffiliation =
+      (article.author_affiliation && String(article.author_affiliation).trim()) ||
+      (article.profiles as any)?.affiliation ||
+      "Unknown Affiliation";
 
     // Fetch publisher stamp image
     let stampImageBase64: string | null = null;

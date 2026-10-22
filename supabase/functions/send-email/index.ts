@@ -908,8 +908,9 @@ const getAdminCreatedCredentialsTemplate = (data: EmailRequest["data"]): string 
   const body = `
     ${emailH1("Your WWJMRD Account is Ready 🎉")}
     ${emailP(`Hi ${escapeHtml(userName)},`)}
-    ${emailP("An admin at WWJMRD has just created an author account for you. Use the credentials below to sign in.")}
+    ${emailP("An admin at WWJMRD has created an author account for you. Your username is your email address. Use the details below to sign in.")}
     ${emailInfoBox("Your sign-in details:", [
+      emailInfoRow("Username", escapeHtml(email)),
       emailInfoRow("Email", escapeHtml(email)),
       emailInfoRow(isTemp ? "Temporary password" : "Password", `<code style="font-family:monospace; color:#00d4ff;">${escapeHtml(tempPassword)}</code>`),
     ].join(""))}

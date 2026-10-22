@@ -1394,7 +1394,7 @@ serve(async (req) => {
         const profile: any = article.profiles || {};
         const primaryName = (article.author_name || profile.full_name || meta.authors?.[0]?.name || "Author").trim();
         const primaryDesignation = [
-          profile.affiliation,
+          article.author_affiliation || profile.affiliation,
           article.country || profile.country,
           profile.orcid ? `ORCID: ${profile.orcid}` : "",
         ].filter(Boolean).join(", ");

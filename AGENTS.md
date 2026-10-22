@@ -16,3 +16,4 @@
 - Preflight journal FTP uploads (Cloudflare-proxied host, TCP reachability) before connecting, because proxied or unreachable hosts otherwise hang until the browser drops the request.
 - Send PBSZ 0 / PROT P manually after FTPS login and take the upload folder and its public URL base from config, because basic-ftp skips PROT P on Deno TLS sockets (data channel then fails) and the FTP user's root differs per hosting account.
 - Number every formatted PDF/Word export and the journal upload from the article's saved page_number range (startPageFromRange), because the approved final version's page numbers must never change after approval.
+- Store the main author's name and affiliation as printed on the article in articles.author_name/author_affiliation and use them (with co_authors) on certificates, letters and formatted output, because the submitting account can be a different person from the article's authors.

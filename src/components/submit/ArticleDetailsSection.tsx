@@ -29,6 +29,8 @@ interface ArticleDetailsSectionProps {
   setKeywords: (v: string) => void;
   authorName: string;
   setAuthorName: (v: string) => void;
+  authorAffiliation: string;
+  setAuthorAffiliation: (v: string) => void;
   country: string;
   setCountry: (v: string) => void;
   subject: string;
@@ -50,6 +52,8 @@ export function ArticleDetailsSection({
   setKeywords,
   authorName,
   setAuthorName,
+  authorAffiliation,
+  setAuthorAffiliation,
   country,
   setCountry,
   subject,
@@ -69,7 +73,14 @@ export function ArticleDetailsSection({
       </h2>
 
       <div className="space-y-5">
-        {/* Author Name & Country Row */}
+        {/* Main author as written on the article */}
+        <div className="rounded-lg border border-[hsl(var(--glass-border))] p-3 space-y-1">
+          <p className="text-sm font-semibold">Main Author (as written on the article)</p>
+          <p className="text-xs text-muted-foreground">
+            This can be a different person from the account submitting the article. Certificates and the
+            published article use these names and affiliations. Add the other authors in the Co-Authors section below.
+          </p>
+        </div>
         <div className="grid sm:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="authorFirstName">First Name *</Label>
@@ -89,6 +100,17 @@ export function ArticleDetailsSection({
               onChange={(e) => setAuthorName(joinName(splitName(authorName).firstName, e.target.value))}
               placeholder="Last name"
               className="glass-input"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="authorAffiliation">Affiliation (on article)</Label>
+            <Input
+              id="authorAffiliation"
+              value={authorAffiliation}
+              onChange={(e) => setAuthorAffiliation(e.target.value)}
+              placeholder="Department, University / Institute, City"
+              className="glass-input"
+              maxLength={300}
             />
           </div>
           <div className="space-y-2">

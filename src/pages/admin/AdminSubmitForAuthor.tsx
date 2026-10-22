@@ -73,6 +73,9 @@ export default function AdminSubmitForAuthor() {
   const [target, setTarget] = useState('');
   const [pubType, setPubType] = useState<'normal' | 'fast_track'>('normal');
   const [coAuthors, setCoAuthors] = useState<AdminCoAuthor[]>([]);
+  // Main author as written on the article (can differ from the selected account).
+  const [articleAuthorName, setArticleAuthorName] = useState('');
+  const [articleAuthorAffiliation, setArticleAuthorAffiliation] = useState('');
   const [notificationEmail, setNotificationEmail] = useState('');
   const [pageCount, setPageCount] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -83,7 +86,7 @@ export default function AdminSubmitForAuthor() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, email')
+        .select('id, full_name, email, affiliation')
         .order('full_name');
       if (error) throw error;
       return data;
@@ -96,7 +99,22 @@ export default function AdminSubmitForAuthor() {
     return a.full_name?.toLowerCase().includes(q) || a.email?.toLowerCase().includes(q);
   }).slice(0, 50);
 
-  const [generatedTemp, setGeneratedTemp] = useState<{ email: string; password: string } | null>(null);
+  const [generatedTemp, setGeneratedTemp] = useState<{
+    email: string;
+    password: string;
+    isTemp: boolean;
+    emailSent: boolean;
+    emailError: string | null;
+  } | null>(null);
+
+  // Default the article's main author to the selected account until the scan
+  // or the admin fills in the names printed on the article.
+  const prefillMainAuthorFromAccount = () => {
+    const acc = (authors || []).find((a) => a.id === authorId) as any;
+    if (!acc) return;
+    setArticleAuthorName((prev) => prev || acc.full_name || '');
+    setArticleAuthorAffiliation((prev) => prev || acc.affiliation || '');
+  };
 
   const handleCreateAuthor = async () => {
     if (!cEmail || !cFirstName.trim() || !cLastName.trim()) {
@@ -123,11 +141,19 @@ export default function AdminSubmitForAuthor() {
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
       const tempPwd = (data as any)?.temp_password as string | null;
-      if (tempPwd) {
-        setGeneratedTemp({ email: cEmail.trim(), password: tempPwd });
-        toast.success('Author account created. Temporary password emailed and shown below.');
+      const emailSent = !!(data as any)?.credentials_email_sent;
+      const emailError = ((data as any)?.credentials_email_error as string | null) || null;
+      setGeneratedTemp({
+        email: cEmail.trim(),
+        password: tempPwd || cPassword,
+        isTemp: !!tempPwd,
+        emailSent,
+        emailError,
+      });
+      if (emailSent) {
+        toast.success(`Author account created. Username and password emailed to ${cEmail.trim()}.`);
       } else {
-        toast.success('Author account created');
+        toast.warning('Author account created, but the confirmation email could not be sent. Share the details shown below.');
       }
       setCEmail(''); setCPassword(''); setCFirstName(''); setCLastName(''); setCCountry(''); setCAffiliation(''); setCIsIndian('auto');
       queryClient.invalidateQueries({ queryKey: ['admin-all-authors-min'] });
@@ -146,6 +172,7 @@ export default function AdminSubmitForAuthor() {
     setTitle(''); setAbstract(''); setKeywords(''); setSubject('');
     setReason(''); setTarget(''); setPubType('normal'); setCoAuthors([]);
     setNotificationEmail(''); setPageCount(null); setSubmittedRef('');
+    setArticleAuthorName(''); setArticleAuthorAffiliation('');
   };
 
   const handleScan = async () => {
@@ -156,6 +183,7 @@ export default function AdminSubmitForAuthor() {
     const isLegacyDoc = lower.endsWith('.doc');
     if (!isDocx && !isLegacyDoc) {
       toast.message('Automatic scan supports .docx and .doc — fill details manually.');
+      prefillMainAuthorFromAccount();
       setStep(2);
       return;
     }
@@ -177,6 +205,7 @@ export default function AdminSubmitForAuthor() {
       setScanProgress(55);
       if (text.length < 50) {
         toast.message('Document looks empty — fill details manually.');
+        prefillMainAuthorFromAccount();
         setStep(2); return;
       }
       const { data, error } = await supabase.functions.invoke('scan-article', {
@@ -185,6 +214,7 @@ export default function AdminSubmitForAuthor() {
       setScanProgress(90);
       if (error || !data?.metadata) {
         toast.message('AI scan limited — please review the form.');
+        prefillMainAuthorFromAccount();
         setStep(2); return;
       }
       const m = data.metadata;
@@ -194,6 +224,12 @@ export default function AdminSubmitForAuthor() {
       if (m.subject) setSubject(m.subject);
       if (m.reason_of_research) setReason(m.reason_of_research);
       if (m.page_count) setPageCount(m.page_count);
+      {
+        const scannedName = (m.author_name || joinName(m.author_first_name || '', m.author_last_name || '')).trim();
+        if (scannedName) setArticleAuthorName(scannedName);
+        if (m.author_affiliation) setArticleAuthorAffiliation(String(m.author_affiliation).trim());
+      }
+      prefillMainAuthorFromAccount();
       if (Array.isArray(m.co_authors) && m.co_authors.length > 0) {
         setCoAuthors(m.co_authors.map((ca: any) => {
           const full = ca.name || joinName(ca.first_name, ca.last_name);
@@ -217,6 +253,7 @@ export default function AdminSubmitForAuthor() {
     } catch (e: any) {
       console.error(e);
       toast.error('Scan failed — fill details manually');
+      prefillMainAuthorFromAccount();
       setStep(2);
     } finally {
       setScanning(false); setScanProgress(0);
@@ -273,6 +310,7 @@ export default function AdminSubmitForAuthor() {
     if (!authorId) { toast.error('Select an author'); return; }
     if (!title.trim() || title.trim().length < 3) { toast.error('Enter a title'); return; }
     if (!file) { toast.error('Attach the manuscript file'); return; }
+    if (!articleAuthorName.trim()) { toast.error('Enter the main author name as written on the article'); return; }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const filledCoAuthors = coAuthors.filter((c) => c.name.trim() || c.email.trim());
@@ -297,6 +335,8 @@ export default function AdminSubmitForAuthor() {
         reason_of_research: reason.trim(),
         submission_target: target.trim(),
         publication_type: pubType,
+        author_name: articleAuthorName.trim(),
+        author_affiliation: articleAuthorAffiliation.trim(),
         co_authors: filledCoAuthors.map((c) => ({
           name: (c.name || joinName(c.firstName, c.lastName)).trim(),
           first_name: (c.firstName || splitName(c.name).firstName).trim(),
@@ -431,7 +471,7 @@ export default function AdminSubmitForAuthor() {
                 )}
 
                 <div className="flex justify-between">
-                  <Button variant="outline" onClick={() => { setStep(2); }} disabled={!file || !authorId}>
+                  <Button variant="outline" onClick={() => { prefillMainAuthorFromAccount(); setStep(2); }} disabled={!file || !authorId}>
                     Skip AI Scan
                   </Button>
                   <Button onClick={handleScan} disabled={!file || !authorId || scanning} className="gradient-primary">
@@ -450,6 +490,22 @@ export default function AdminSubmitForAuthor() {
                   <FileText className="w-5 h-5 text-primary" /> Article Details
                 </h2>
                 <div className="space-y-4">
+                  <div className="rounded-lg border border-[hsl(var(--glass-border))] p-3 space-y-3">
+                    <div>
+                      <p className="text-sm font-semibold">Main Author (as written on the article)</p>
+                      <p className="text-xs text-muted-foreground">Can be a different person from the selected account. Used on certificates and the published article. Add the other authors under Co-Authors.</p>
+                    </div>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <Label>Author Name (on article) *</Label>
+                        <Input value={articleAuthorName} onChange={(e) => setArticleAuthorName(e.target.value)} className="glass-input mt-1" maxLength={200} />
+                      </div>
+                      <div>
+                        <Label>Affiliation (on article)</Label>
+                        <Input value={articleAuthorAffiliation} onChange={(e) => setArticleAuthorAffiliation(e.target.value)} className="glass-input mt-1" maxLength={300} placeholder="Department, University / Institute, City" />
+                      </div>
+                    </div>
+                  </div>
                   <div className="grid md:grid-cols-2 gap-4">
                     <div>
                       <Label>Title *</Label>
@@ -671,14 +727,19 @@ export default function AdminSubmitForAuthor() {
               </div>
 
               <p className="text-xs text-muted-foreground">
-                If you leave the password blank, a one-time temporary password is generated, emailed to the author, and shown here. The author will be forced to set a new password and verify their email on first sign-in.
+                A confirmation email with the username (their email address) and password is sent to the author. If you leave the password blank, a one-time temporary password is generated and the author must set a new password on first sign-in.
               </p>
 
               {generatedTemp && (
-                <div className="p-3 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-sm space-y-1">
-                  <p className="font-semibold text-emerald-400">Temporary credentials (also emailed to the author)</p>
-                  <p><span className="text-muted-foreground">Email:</span> <code className="font-mono">{generatedTemp.email}</code></p>
-                  <p><span className="text-muted-foreground">Temp password:</span> <code className="font-mono text-primary">{generatedTemp.password}</code></p>
+                <div className={`p-3 rounded-md border text-sm space-y-1 ${generatedTemp.emailSent ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-amber-500/10 border-amber-500/30'}`}>
+                  <p className={`font-semibold ${generatedTemp.emailSent ? 'text-emerald-400' : 'text-amber-400'}`}>
+                    {generatedTemp.emailSent
+                      ? `Confirmation email sent to ${generatedTemp.email}`
+                      : 'Confirmation email could not be sent — please share these details with the author'}
+                  </p>
+                  <p><span className="text-muted-foreground">Username:</span> <code className="font-mono">{generatedTemp.email}</code></p>
+                  <p><span className="text-muted-foreground">{generatedTemp.isTemp ? 'Temp password' : 'Password'}:</span> <code className="font-mono text-primary">{generatedTemp.password}</code></p>
+                  {generatedTemp.emailError && <p className="text-xs text-muted-foreground">Reason: {generatedTemp.emailError}</p>}
                 </div>
               )}
 
