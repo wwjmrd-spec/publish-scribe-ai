@@ -40,7 +40,8 @@ export function EditCoAuthorDialog({ open, onOpenChange, coAuthor, articleId, in
       const firstName = form.first_name.trim().slice(0, 100);
       const lastName = form.last_name.trim().slice(0, 100);
       const name = joinName(firstName, lastName);
-      if (!firstName || !lastName || !form.email.trim()) throw new Error('First name, last name, and email are required');
+      if (!firstName || !lastName) throw new Error('First name and last name are required');
+      if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) throw new Error('Please enter a valid email or leave it blank');
       if (!coAuthor?.id && !articleId) throw new Error('Article ID is required');
       const values = {
         first_name: firstName, last_name: lastName, name,
@@ -81,7 +82,7 @@ export function EditCoAuthorDialog({ open, onOpenChange, coAuthor, articleId, in
             </div>
           </div>
           <div>
-            <Label>Email</Label>
+            <Label>Email (optional)</Label>
             <Input className="glass-input" type="email" value={form.email} onChange={(e) => setForm(f => ({ ...f, email: e.target.value }))} />
           </div>
           <div>

@@ -316,7 +316,8 @@ export default function AdminSubmitForAuthor() {
     const filledCoAuthors = coAuthors.filter((c) => c.name.trim() || c.email.trim());
     for (const c of filledCoAuthors) {
       if (!c.name.trim()) { toast.error('Co-author name is required'); return; }
-      if (!c.email.trim() || !emailRegex.test(c.email.trim())) {
+      // Email is optional when an admin submits; only check it when entered.
+      if (c.email.trim() && !emailRegex.test(c.email.trim())) {
         toast.error(`Invalid email for co-author: ${c.name || '(unnamed)'}`); return;
       }
     }
@@ -589,7 +590,7 @@ export default function AdminSubmitForAuthor() {
                             </div>
                           </div>
                           <div>
-                            <Label className="text-xs">Email *</Label>
+                            <Label className="text-xs">Email (optional)</Label>
                             <div className="relative mt-1">
                               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                               <Input type="email" className="glass-input pl-9 h-9 text-sm" value={ca.email}

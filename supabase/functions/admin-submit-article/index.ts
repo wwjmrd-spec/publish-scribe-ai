@@ -16,7 +16,8 @@ const CoAuthorSchema = z.object({
   name: z.string().min(1).max(200),
   first_name: z.string().max(100).optional().default(""),
   last_name: z.string().max(100).optional().default(""),
-  email: z.string().email().max(254),
+  // Optional for admin submissions: many manuscripts don't print co-author emails.
+  email: z.union([z.string().trim().email().max(254), z.literal("")]).optional().default(""),
   affiliation: z.string().max(300).optional().default(""),
   orcid: z.string().max(50).optional().default(""),
 });
@@ -122,17 +123,18 @@ serve(async (req) => {
 
     // Insert co-authors
     if (p.co_authors.length > 0) {
-      await sb.from("co_authors").insert(
+      const { error: coErr } = await sb.from("co_authors").insert(
         p.co_authors.map((ca) => ({
           article_id: article.id,
           name: ca.name.trim(),
           first_name: ca.first_name?.trim() || ca.name.trim().split(/\s+/)[0] || null,
           last_name: ca.last_name?.trim() || ca.name.trim().split(/\s+/).slice(1).join(" ") || null,
-          email: ca.email.trim(),
+          email: (ca.email || "").trim(),
           affiliation: ca.affiliation?.trim() || null,
           orcid: ca.orcid?.trim() || null,
         })),
       );
+      if (coErr) console.error("co-author insert failed", coErr.message);
     }
 
     // Send notification emails to the addresses the admin specified
