@@ -65,8 +65,8 @@ describe('academic title capitalization', () => {
   });
 
   it('keeps colons, parentheses, hyphens, Greek letters and formulae intact', () => {
-    const r = tc('β-lactamase activity of co2-treated cells (in vitro): a self-report study');
-    expect(r.text).toBe('β-lactamase Activity of co2-treated Cells (In Vitro): A Self-Report Study');
+    const r = tc('β-lactamase activity of CO2-treated cells (in vitro): a self-report study');
+    expect(r.text).toBe('β-lactamase Activity of CO2-Treated Cells (in vitro): A Self-Report Study');
     expect(tc('effect of H2O2 on NaCl uptake').text).toBe('Effect of H2O2 on NaCl Uptake');
   });
 

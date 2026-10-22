@@ -69,6 +69,9 @@ const PROPER_NOUNS = [
   "Google", "Microsoft", "Facebook", "Instagram", "Twitter", "Amazon", "Netflix", "Flipkart", "Paytm",
 ];
 
+// Latin and fixed lowercase expressions that keep their form inside titles.
+const LOWERCASE_TERMS = ["in vitro", "in vivo", "in silico", "in situ", "ex vivo", "et al.", "per se", "vis-à-vis"];
+
 const AMBIGUOUS_PROPER = ["May", "March", "Turkey", "Chile", "Jordan", "Apple", "Polish", "Georgia"];
 
 // Binomial (genus + species) names. The genus list is derived from these.
@@ -112,6 +115,7 @@ export function builtinTerms(): TermEntry[] {
   for (const form of ACRONYMS) out.push({ form, kind: /^[a-z]|[a-z][A-Z]/.test(form) && form !== form.toUpperCase() ? "brand" : "acronym", source: "builtin" });
   for (const form of AMBIGUOUS_ACRONYMS) out.push({ form, kind: "acronym", ambiguous: true, source: "builtin" });
   for (const form of PROPER_NOUNS) out.push({ form, kind: "proper", source: "builtin" });
+  for (const form of LOWERCASE_TERMS) out.push({ form, kind: "term", source: "builtin" });
   for (const form of AMBIGUOUS_PROPER) out.push({ form, kind: "proper", ambiguous: true, source: "builtin" });
   const genera = new Set<string>();
   for (const form of BINOMIALS) {
