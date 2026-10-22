@@ -201,7 +201,7 @@ export const handler = async (req: Request) => {
       messages: [
             {
               role: "system",
-              content: `You are an academic article metadata extractor. Extract structured metadata from the article text. You MUST call the extract_article_metadata function. For page_count: look for page numbers, headers, footers, or "Page X" indicators. ${pageCountGuidance} Only return a different page_count if the text contains clear explicit evidence.`,
+              content: `You are an academic article metadata extractor. Extract structured metadata from the article text. You MUST call the extract_article_metadata function. Authors: list EVERY author printed on the article (usually under the title). The first listed author is author_name with author_affiliation; every other author goes into co_authors, each with their own affiliation (department, institution, city/country as written) and email if printed. Do not invent authors, emails or affiliations. For page_count: look for page numbers, headers, footers, or "Page X" indicators. ${pageCountGuidance} Only return a different page_count if the text contains clear explicit evidence.`,
             },
             {
               role: "user",
@@ -224,8 +224,11 @@ export const handler = async (req: Request) => {
                     author_name: { type: "string", description: "Primary author's full name" },
                     author_first_name: { type: "string", description: "Primary author's first (given) name only" },
                     author_last_name: { type: "string", description: "Primary author's last (family) name, including any middle names" },
+                    author_affiliation: { type: "string", description: "Primary (first-listed) author's affiliation exactly as written on the article" },
+                    author_email: { type: "string", description: "Primary author's email if printed on the article" },
                     co_authors: {
                       type: "array",
+                      description: "All other authors printed on the article, in order",
                       items: {
                         type: "object",
                         properties: {
