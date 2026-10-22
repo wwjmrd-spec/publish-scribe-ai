@@ -593,6 +593,7 @@ export type Database = {
           ai_autocorrected_at: string | null
           allow_author_edit: boolean
           allow_withdrawal: boolean
+          author_affiliation: string | null
           author_details_changed_once: boolean
           author_edits_remaining: number
           author_id: string
@@ -676,6 +677,7 @@ export type Database = {
           ai_autocorrected_at?: string | null
           allow_author_edit?: boolean
           allow_withdrawal?: boolean
+          author_affiliation?: string | null
           author_details_changed_once?: boolean
           author_edits_remaining?: number
           author_id: string
@@ -759,6 +761,7 @@ export type Database = {
           ai_autocorrected_at?: string | null
           allow_author_edit?: boolean
           allow_withdrawal?: boolean
+          author_affiliation?: string | null
           author_details_changed_once?: boolean
           author_edits_remaining?: number
           author_id?: string

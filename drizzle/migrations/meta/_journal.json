@@ -71,6 +71,13 @@
       "when": 1792551889983,
       "tag": "0009_add_published_pdf_uploaded_at",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792700612534,
+      "tag": "0010_add_article_author_affiliation",
+      "breakpoints": true
     }
   ]
 }
