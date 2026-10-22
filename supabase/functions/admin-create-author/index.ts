@@ -121,10 +121,12 @@ serve(async (req) => {
       console.error("generateLink failed", e);
     }
 
-    // Fire-and-forget welcome email with temp credentials + reset link.
+    // Welcome email with the username (email) + password + reset link.
+    let credentialsEmailSent = false;
+    let credentialsEmailError: string | null = null;
     if (b.send_credentials_email) {
       try {
-        await sb.functions.invoke("send-email", {
+        const { data: sendData, error: sendErr } = await sb.functions.invoke("send-email", {
           body: {
             to: b.email,
             template: "admin-created-credentials",
@@ -139,8 +141,14 @@ serve(async (req) => {
           },
           headers: { Authorization: `Bearer ${serviceKey}` },
         });
+        if (sendErr || (sendData as any)?.error) {
+          credentialsEmailError = String((sendData as any)?.error || sendErr?.message || "Email failed");
+        } else {
+          credentialsEmailSent = true;
+        }
       } catch (e) {
-        console.error("Welcome email failed (non-fatal)", e);
+        credentialsEmailError = String((e as Error).message || e);
+        console.error("Welcome email failed (non-fatal)", credentialsEmailError);
       }
     }
 
@@ -150,6 +158,8 @@ serve(async (req) => {
       temp_password: isGeneratedTemp ? tempPassword : null,
       reset_link: resetLink || null,
       must_reset_password: isGeneratedTemp,
+      credentials_email_sent: credentialsEmailSent,
+      credentials_email_error: credentialsEmailError,
     });
   } catch (e) {
     return json({ error: String((e as Error).message || e) }, 500);

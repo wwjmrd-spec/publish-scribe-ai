@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
     const parsed = schema.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return json({ error: 'A valid article ID is required' }, 400);
     const { articleId } = parsed.data;
-    const { data: article, error } = await db.from('articles').select('id, title, reference_number, author_name, country, status, profiles:author_id(full_name, affiliation, country), co_authors(name, first_name, last_name)').eq('id', articleId).single();
+    const { data: article, error } = await db.from('articles').select('id, title, reference_number, author_name, author_affiliation, country, status, profiles:author_id(full_name, affiliation, country), co_authors(name, first_name, last_name)').eq('id', articleId).single();
     if (error || !article) return json({ error: 'Article not found' }, 404);
     if (!accepted.has(article.status || '')) return json({ error: 'Accept the manuscript before creating its acceptance letter.' }, 400);
     const { data: existing } = await db.from('article_acceptance_letters').select('file_path').eq('article_id', articleId).maybeSingle();
@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
     const filePath = `acceptance-letters/${articleId}.pdf`;
     const pdf = renderAcceptanceLetter(new jsPDF({ unit: 'mm', format: 'a4' }), {
       letterNumber, acceptanceDate: date.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric', timeZone: 'UTC' }),
-      authorName: name, affiliation: profile?.affiliation || '', country: article.country || profile?.country || '',
+      authorName: name, affiliation: (article as any).author_affiliation || profile?.affiliation || '', country: article.country || profile?.country || '',
       reference: article.reference_number, title: article.title,
       authors: [name, ...(article.co_authors || []).map((c: any) => [c.first_name, c.last_name].filter(Boolean).join(' ') || c.name)].filter(Boolean),
     });
