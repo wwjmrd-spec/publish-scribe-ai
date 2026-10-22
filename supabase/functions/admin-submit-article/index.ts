@@ -16,7 +16,8 @@ const CoAuthorSchema = z.object({
   name: z.string().min(1).max(200),
   first_name: z.string().max(100).optional().default(""),
   last_name: z.string().max(100).optional().default(""),
-  email: z.string().email().max(254),
+  // Optional for admin submissions: many manuscripts don't print co-author emails.
+  email: z.union([z.string().trim().email().max(254), z.literal("")]).optional().default(""),
   affiliation: z.string().max(300).optional().default(""),
   orcid: z.string().max(50).optional().default(""),
 });
@@ -128,7 +129,7 @@ serve(async (req) => {
           name: ca.name.trim(),
           first_name: ca.first_name?.trim() || ca.name.trim().split(/\s+/)[0] || null,
           last_name: ca.last_name?.trim() || ca.name.trim().split(/\s+/).slice(1).join(" ") || null,
-          email: ca.email.trim(),
+          email: (ca.email || "").trim(),
           affiliation: ca.affiliation?.trim() || null,
           orcid: ca.orcid?.trim() || null,
         })),
