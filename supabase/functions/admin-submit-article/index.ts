@@ -123,7 +123,7 @@ serve(async (req) => {
 
     // Insert co-authors
     if (p.co_authors.length > 0) {
-      await sb.from("co_authors").insert(
+      const { error: coErr } = await sb.from("co_authors").insert(
         p.co_authors.map((ca) => ({
           article_id: article.id,
           name: ca.name.trim(),
@@ -134,6 +134,7 @@ serve(async (req) => {
           orcid: ca.orcid?.trim() || null,
         })),
       );
+      if (coErr) console.error("co-author insert failed", coErr.message);
     }
 
     // Send notification emails to the addresses the admin specified
