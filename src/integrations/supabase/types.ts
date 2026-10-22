@@ -646,6 +646,7 @@ export type Database = {
           manuscript_accepted_email_sent_at: string | null
           missing_section_samples: Json | null
           missing_sections: string[] | null
+          original_title: string | null
           page_count: number | null
           page_number: string | null
           publication_type: string
@@ -730,6 +731,7 @@ export type Database = {
           manuscript_accepted_email_sent_at?: string | null
           missing_section_samples?: Json | null
           missing_sections?: string[] | null
+          original_title?: string | null
           page_count?: number | null
           page_number?: string | null
           publication_type?: string
@@ -814,6 +816,7 @@ export type Database = {
           manuscript_accepted_email_sent_at?: string | null
           missing_section_samples?: Json | null
           missing_sections?: string[] | null
+          original_title?: string | null
           page_count?: number | null
           page_number?: string | null
           publication_type?: string
