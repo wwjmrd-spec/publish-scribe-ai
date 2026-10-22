@@ -78,6 +78,13 @@
       "when": 1792700612534,
       "tag": "0010_add_article_author_affiliation",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792701314938,
+      "tag": "0011_allow_blank_coauthor_email",
+      "breakpoints": true
     }
   ]
 }
