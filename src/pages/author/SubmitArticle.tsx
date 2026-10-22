@@ -80,6 +80,7 @@ export default function SubmitArticle() {
   const [coAuthors, setCoAuthors] = useState<CoAuthor[]>([]);
 
   const [authorName, setAuthorName] = useState('');
+  const [authorAffiliation, setAuthorAffiliation] = useState('');
   const [country, setCountry] = useState('');
   const [subject, setSubject] = useState('');
   const [reasonOfResearch, setReasonOfResearch] = useState('');
@@ -169,12 +170,13 @@ export default function SubmitArticle() {
     if (!user?.id) return;
     supabase
       .from('profiles')
-      .select('full_name, country')
+      .select('full_name, country, affiliation')
       .eq('id', user.id)
       .single()
       .then(({ data }) => {
         if (data) {
-          if (data.full_name) setAuthorName(data.full_name);
+          if (data.full_name) setAuthorName((prev) => prev || data.full_name);
+          if ((data as any).affiliation) setAuthorAffiliation((prev) => prev || (data as any).affiliation);
           if (data.country) setCountry(data.country);
         }
       });
@@ -225,6 +227,7 @@ export default function SubmitArticle() {
               articleData.submissionTarget,
               articleData.publicationType,
               articleData.coAuthors,
+              articleData.authorAffiliation || '',
             );
           } catch (err: any) {
             console.error('Article submission after PayPal failed:', err);
@@ -327,7 +330,13 @@ export default function SubmitArticle() {
       if (meta.abstract) setAbstract(meta.abstract);
       if (meta.keywords) setKeywords(meta.keywords);
       if (meta.subject) setSubject(meta.subject);
-      if (meta.author_name && !authorName) setAuthorName(meta.author_name);
+      // Authors printed on the article replace the account defaults; the
+      // submitter can still correct them before submitting.
+      {
+        const scannedName = (meta.author_name || joinName(meta.author_first_name || '', meta.author_last_name || '')).trim();
+        if (scannedName) setAuthorName(scannedName);
+        if (meta.author_affiliation) setAuthorAffiliation(String(meta.author_affiliation).trim());
+      }
       if (meta.reason_of_research) setReasonOfResearch(meta.reason_of_research);
       if (meta.page_count) setPageCount(meta.page_count);
 
@@ -414,6 +423,7 @@ export default function SubmitArticle() {
     articleSubmissionTarget: string,
     articlePublicationType: string,
     articleCoAuthors: CoAuthor[],
+    articleAuthorAffiliation: string = '',
   ) => {
     if (!user?.id) throw new Error('Not logged in');
 
@@ -438,6 +448,7 @@ export default function SubmitArticle() {
         document_url: filePath,
         reference_number: '',
         author_name: articleAuthorName.trim(),
+        author_affiliation: articleAuthorAffiliation.trim().slice(0, 300) || null,
         country: articleCountry.trim() || null,
         subject: articleSubject.trim() || null,
         reason_of_research: articleReasonOfResearch.trim() || null,
@@ -730,6 +741,7 @@ export default function SubmitArticle() {
           keywords: keywordArray,
           document_url: filePath,
           author_name: authorName.trim(),
+          author_affiliation: authorAffiliation.trim().slice(0, 300) || null,
           country: country.trim() || null,
           subject: subject.trim() || null,
           reason_of_research: reasonOfResearch.trim() || null,
@@ -806,6 +818,7 @@ export default function SubmitArticle() {
         submissionTarget,
         publicationType,
         filledCoAuthors,
+        authorAffiliation,
       );
     } catch (error: any) {
       console.error('Submission error:', error);
@@ -885,6 +898,7 @@ export default function SubmitArticle() {
                 submissionTarget,
                 publicationType,
                 filledCoAuthors,
+                authorAffiliation,
               );
             } catch (err: any) {
               console.error('Article submission after payment failed:', err);
@@ -906,6 +920,7 @@ export default function SubmitArticle() {
           abstract,
           keywords,
           authorName,
+          authorAffiliation,
           country,
           subject,
           reasonOfResearch,
@@ -1172,6 +1187,8 @@ export default function SubmitArticle() {
                 setKeywords={setKeywords}
                 authorName={authorName}
                 setAuthorName={setAuthorName}
+                authorAffiliation={authorAffiliation}
+                setAuthorAffiliation={setAuthorAffiliation}
                 country={country}
                 setCountry={setCountry}
                 subject={subject}
