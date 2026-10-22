@@ -17,6 +17,7 @@ import { injectCcLicenseIntoFormattedHtml } from '@/lib/ccLicense';
 import { injectDoiIntoFormattedHtml } from '@/lib/doi';
 import { resolveEdgeFunctionError } from '@/lib/edgeFunctionError';
 import { startPageFromRange } from '@/lib/uploadFormattedPdf';
+import { TitleCapitalizationPanel } from '@/components/admin/TitleCapitalizationPanel';
 
 interface Props { articleId: string }
 
@@ -280,6 +281,13 @@ export function FormattingSection({ articleId }: Props) {
             onClose={() => setEditorOpen(false)}
           />
         </div>
+      )}
+
+      {article && (
+        <TitleCapitalizationPanel
+          article={article}
+          onSaved={() => qc.invalidateQueries({ queryKey: ['admin-article-formatting', articleId] })}
+        />
       )}
 
       {suggestions.length > 0 && (

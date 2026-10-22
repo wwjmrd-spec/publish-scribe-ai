@@ -105,3 +105,30 @@ describe('academic title capitalization', () => {
     expect(r.flags.some((f) => f.message.includes('Aloe vera'))).toBe(true);
   });
 });
+
+import { applyTitleToFormattedHtml, readFormattedTitle } from './academicTitle';
+
+describe('writing the title into formatted HTML', () => {
+  const html = '<style>.x{}</style><section class="ww-first-page"><h1>the role of co<sub>2</sub> in plants</h1><p>Rao A. the role of co2 in plants. <em>WWJMRD</em></p></section>';
+
+  it('keeps subscripts when only letter case changes and updates the citation', () => {
+    const r = applyTitleToFormattedHtml(html, 'The Role of Co2 in Plants', 'The Role of Co2 in Plants', ['the role of co2 in plants']);
+    expect(r.markupReset).toBe(false);
+    expect(r.html).toContain('<h1>The Role of Co<sub>2</sub> in Plants</h1>');
+    expect(r.html).toContain('Rao A. The Role of Co2 in Plants.');
+    expect(r.html).toContain('<style>');
+    expect(readFormattedTitle(r.html)).toBe('The Role of Co2 in Plants');
+  });
+
+  it('restoring puts the original title back without data loss', () => {
+    const accepted = applyTitleToFormattedHtml(html, 'The Role of Co2 in Plants', 'The Role of Co2 in Plants', ['the role of co2 in plants']).html;
+    const restored = applyTitleToFormattedHtml(accepted, 'the role of co2 in plants', 'the role of co2 in plants', ['The Role of Co2 in Plants']).html;
+    expect(restored).toBe(html);
+  });
+
+  it('writes italics for scientific names into a plain heading', () => {
+    const plain = '<h1>activity of escherichia coli</h1>';
+    const t = formatAcademicTitle('activity of escherichia coli', { mode: 'title' });
+    expect(applyTitleToFormattedHtml(plain, t.text, t.html).html).toBe('<h1>Activity of <em>Escherichia coli</em></h1>');
+  });
+});
