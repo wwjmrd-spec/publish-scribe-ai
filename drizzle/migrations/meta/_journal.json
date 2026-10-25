@@ -92,6 +92,13 @@
       "when": 1792702517272,
       "tag": "0012_add_article_original_title",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1792962824915,
+      "tag": "0013_manuscript_replacement",
+      "breakpoints": true
     }
   ]
 }
