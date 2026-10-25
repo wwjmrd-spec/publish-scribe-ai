@@ -29,6 +29,7 @@ import {
   Globe,
   RefreshCw,
   Plus,
+  Upload,
 } from 'lucide-react';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -56,6 +57,7 @@ import { EditCoAuthorDialog } from '@/components/admin/EditCoAuthorDialog';
 import { DeleteCoAuthorButton } from '@/components/articles/DeleteCoAuthorButton';
 import { AcceptanceLetterButton } from '@/components/articles/AcceptanceLetterButton';
 import { AuthorUpdateReviewSection } from '@/components/admin/AuthorUpdateReviewSection';
+import { ReplaceManuscriptDialog } from '@/components/articles/ReplaceManuscriptDialog';
 
 
 type ArticleStatus = Database['public']['Enums']['article_status'];
@@ -67,6 +69,7 @@ export default function AdminArticleDetail() {
   const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
   const [isEditPublishDialogOpen, setIsEditPublishDialogOpen] = useState(false);
   const [isGalleyProofDialogOpen, setIsGalleyProofDialogOpen] = useState(false);
+  const [isReplaceOpen, setIsReplaceOpen] = useState(false);
   const [publishDetails, setPublishDetails] = useState({
     volume: '',
     issue: '',
@@ -1358,6 +1361,15 @@ export default function AdminArticleDetail() {
           </div>
         </div>
       </motion.div>
+
+      <ReplaceManuscriptDialog
+        open={isReplaceOpen}
+        onOpenChange={setIsReplaceOpen}
+        article={article}
+        coAuthors={(article as any).co_authors || []}
+        isAdmin
+        invalidateKeys={[['admin-article-detail', articleId]]}
+      />
 
       {/* Publish Dialog */}
       <Dialog open={isPublishDialogOpen} onOpenChange={setIsPublishDialogOpen}>
