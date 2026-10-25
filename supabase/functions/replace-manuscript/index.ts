@@ -82,9 +82,7 @@ Deno.serve(async (req) => {
 
     if (!canReplaceManuscript({ isAdmin, isOwner: article.author_id === userId, allowedByAdmin: !!article.allow_manuscript_replace })) {
       if (article.author_id !== userId) return json({ error: "Forbidden" }, 403);
-      {
-        return json({ error: "Uploading an updated manuscript is not enabled for this article. Please contact the editorial office." }, 403);
-      }
+      return json({ error: "Uploading an updated manuscript is not enabled for this article. Please contact the editorial office." }, 403);
     }
 
     // A formatting run that is still going would overwrite the new file's result.
