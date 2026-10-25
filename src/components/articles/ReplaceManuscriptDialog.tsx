@@ -34,6 +34,8 @@ interface Props {
   isAdmin: boolean;
   /** Query keys to refresh after a successful replacement. */
   invalidateKeys?: unknown[][];
+  /** Called after the refreshed article data has loaded. */
+  onSaved?: () => void;
 }
 
 const emptyForm = (article: any, coAuthors: any[]) => ({
@@ -58,7 +60,7 @@ const emptyForm = (article: any, coAuthors: any[]) => ({
   }),
 });
 
-export function ReplaceManuscriptDialog({ open, onOpenChange, article, coAuthors, isAdmin, invalidateKeys = [] }: Props) {
+export function ReplaceManuscriptDialog({ open, onOpenChange, article, coAuthors, isAdmin, invalidateKeys = [], onSaved }: Props) {
   const qc = useQueryClient();
   const [file, setFile] = React.useState<File | null>(null);
   const [scanning, setScanning] = React.useState(false);
@@ -223,9 +225,12 @@ export function ReplaceManuscriptDialog({ open, onOpenChange, article, coAuthors
         toast.success('New manuscript saved.');
         if (body.formatting_error && isAdmin) toast.warning('Formatting did not start: ' + body.formatting_error);
       }
-      for (const key of invalidateKeys) qc.invalidateQueries({ queryKey: key });
-      qc.invalidateQueries({ queryKey: ['admin-article-formatting', article.id] });
       onOpenChange(false);
+      await Promise.all([
+        ...invalidateKeys.map((key) => qc.invalidateQueries({ queryKey: key })),
+        qc.invalidateQueries({ queryKey: ['admin-article-formatting', article.id] }),
+      ]);
+      onSaved?.();
     } catch (e: any) {
       toast.error(e?.message || 'Could not upload the new manuscript');
     } finally {

@@ -647,6 +647,7 @@ export default function AuthorArticleDetail() {
             coAuthors={article.co_authors || []}
             isAdmin={false}
             invalidateKeys={[['author-article', articleId as string]]}
+            onSaved={() => setForm(null)}
           />
         )}
 
