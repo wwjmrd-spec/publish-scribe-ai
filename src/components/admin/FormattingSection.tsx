@@ -265,6 +265,17 @@ export function FormattingSection({ articleId }: Props) {
         </div>
       </div>
 
+      {(article as any)?.manuscript_needs_reformat && status !== 'formatting' && (
+        <div className="mb-3 p-3 rounded-lg border border-amber-500/40 bg-amber-500/10 text-sm flex items-start gap-2">
+          <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+          <span>
+            An updated manuscript file was uploaded
+            {(article as any)?.manuscript_replaced_at ? ` on ${new Date((article as any).manuscript_replaced_at).toLocaleString()}` : ''}.
+            The formatted version below is still from the old file — click <strong>Re-format</strong> to format the new file.
+          </span>
+        </div>
+      )}
+
       {isLoading && <div className="py-6 flex justify-center"><GlassSpinner /></div>}
 
       {!isLoading && !formattedContent && status !== 'formatting' && (

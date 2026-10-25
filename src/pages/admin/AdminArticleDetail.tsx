@@ -1263,6 +1263,41 @@ export default function AdminArticleDetail() {
                   />
                 </div>
 
+                <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                  <div className="flex flex-col">
+                    <span className="text-sm text-muted-foreground">Author Can Upload Updated Manuscript</span>
+                    <span className="text-xs text-muted-foreground/70">
+                      {(article as any).allow_manuscript_replace
+                        ? 'Allowed — the author can replace the file once'
+                        : 'Off — only admins can replace the file'}
+                    </span>
+                  </div>
+                  <Switch
+                    checked={!!(article as any).allow_manuscript_replace}
+                    onCheckedChange={async (checked) => {
+                      const { error } = await supabase
+                        .from('articles')
+                        .update({ allow_manuscript_replace: checked } as any)
+                        .eq('id', article.id);
+                      if (error) {
+                        toast.error('Failed to update permission: ' + error.message);
+                        return;
+                      }
+                      if (checked) {
+                        await supabase.from('notifications').insert({
+                          user_id: article.author_id,
+                          title: 'You can upload an updated manuscript 📄',
+                          message: `You can now upload an updated manuscript file for "${article.title}" (${article.reference_number}) from the article details page.`,
+                          type: 'info',
+                          link: `/author/articles/${article.id}`,
+                        });
+                      }
+                      toast.success(checked ? 'Author can now upload an updated manuscript' : 'Manuscript upload turned off for author');
+                      queryClient.invalidateQueries({ queryKey: ['admin-article-detail', articleId] });
+                    }}
+                  />
+                </div>
+
               </div>
             </GlassCard>
 
@@ -1273,6 +1308,14 @@ export default function AdminArticleDetail() {
                   <DownloadButton size="sm" onDownload={() => downloadMutation.mutateAsync({ fileType: 'document' } as any)}>
                     Document
                   </DownloadButton>
+                )}
+                <Button variant="outline" size="sm" onClick={() => setIsReplaceOpen(true)}>
+                  <Upload className="w-4 h-4 mr-2" /> Upload Updated Manuscript
+                </Button>
+                {(article as any).manuscript_replaced_at && (
+                  <span className="text-xs text-muted-foreground px-1">
+                    File last replaced {new Date((article as any).manuscript_replaced_at).toLocaleString()}
+                  </span>
                 )}
                 {(article as any).copyright_form_url && (
                   <DownloadButton size="sm" onDownload={() => downloadMutation.mutateAsync({ fileType: 'copyright_form' } as any)}>
