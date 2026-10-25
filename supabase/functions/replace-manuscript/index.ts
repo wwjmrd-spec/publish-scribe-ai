@@ -189,6 +189,10 @@ Deno.serve(async (req) => {
     let formattingStarted = false;
     let formattingError: string | null = null;
     if (!formattingDone) {
+      if (article.formatting_status === "formatting") {
+        // Stalled earlier run (older than 10 minutes): clear it so the new file can be formatted.
+        await sb.from("articles").update({ formatting_status: "pending" }).eq("id", article.id);
+      }
       try {
         const r = await fetch(`${url}/functions/v1/format-article`, {
           method: "POST",
