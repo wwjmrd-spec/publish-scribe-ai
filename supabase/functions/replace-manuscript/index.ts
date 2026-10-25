@@ -5,6 +5,7 @@
 // Multipart form: file (.docx) + JSON-stringified "payload" field.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { z } from "npm:zod@3.23.8";
+import { canReplaceManuscript, isFormattingDone, revokesAuthorPermission } from "../_shared/manuscriptReplace.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -38,7 +39,6 @@ const PayloadSchema = z.object({
   co_authors: z.array(CoAuthorSchema).max(20).optional().default([]),
 });
 
-const DONE_FORMATTING = ["ready_for_review", "approved"];
 const MAX_BYTES = 25 * 1024 * 1024;
 
 Deno.serve(async (req) => {
@@ -80,9 +80,9 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (artErr || !article) return json({ error: "Article not found" }, 404);
 
-    if (!isAdmin) {
+    if (!canReplaceManuscript({ isAdmin, isOwner: article.author_id === userId, allowedByAdmin: !!article.allow_manuscript_replace })) {
       if (article.author_id !== userId) return json({ error: "Forbidden" }, 403);
-      if (!article.allow_manuscript_replace) {
+      {
         return json({ error: "Uploading an updated manuscript is not enabled for this article. Please contact the editorial office." }, 403);
       }
     }
@@ -137,8 +137,7 @@ Deno.serve(async (req) => {
     });
     if (upErr) return json({ error: `Upload failed: ${upErr.message}` }, 500);
 
-    const formattingDone =
-      DONE_FORMATTING.includes(String(article.formatting_status || "")) || !!article.formatted_content;
+    const formattingDone = isFormattingDone(article.formatting_status, !!article.formatted_content);
 
     const { error: rpcErr } = await sb.rpc("replace_article_manuscript", {
       p_article_id: article.id,
@@ -153,7 +152,7 @@ Deno.serve(async (req) => {
       p_page_count: p.page_count ?? null,
       p_needs_reformat: formattingDone,
       p_replaced_by: userId,
-      p_revoke_author_permission: !isAdmin,
+      p_revoke_author_permission: revokesAuthorPermission(isAdmin),
     } as any);
     if (rpcErr) {
       await sb.storage.from("documents").remove([path]).catch(() => {});
