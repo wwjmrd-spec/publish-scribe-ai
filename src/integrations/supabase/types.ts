@@ -592,6 +592,7 @@ export type Database = {
           ai_autocorrected: boolean
           ai_autocorrected_at: string | null
           allow_author_edit: boolean
+          allow_manuscript_replace: boolean
           allow_withdrawal: boolean
           author_affiliation: string | null
           author_details_changed_once: boolean
@@ -644,6 +645,9 @@ export type Database = {
           keywords: string[] | null
           low_score_email_sent_at: string | null
           manuscript_accepted_email_sent_at: string | null
+          manuscript_needs_reformat: boolean
+          manuscript_replaced_at: string | null
+          manuscript_replaced_by: string | null
           missing_section_samples: Json | null
           missing_sections: string[] | null
           original_title: string | null
@@ -677,6 +681,7 @@ export type Database = {
           ai_autocorrected?: boolean
           ai_autocorrected_at?: string | null
           allow_author_edit?: boolean
+          allow_manuscript_replace?: boolean
           allow_withdrawal?: boolean
           author_affiliation?: string | null
           author_details_changed_once?: boolean
@@ -729,6 +734,9 @@ export type Database = {
           keywords?: string[] | null
           low_score_email_sent_at?: string | null
           manuscript_accepted_email_sent_at?: string | null
+          manuscript_needs_reformat?: boolean
+          manuscript_replaced_at?: string | null
+          manuscript_replaced_by?: string | null
           missing_section_samples?: Json | null
           missing_sections?: string[] | null
           original_title?: string | null
@@ -762,6 +770,7 @@ export type Database = {
           ai_autocorrected?: boolean
           ai_autocorrected_at?: string | null
           allow_author_edit?: boolean
+          allow_manuscript_replace?: boolean
           allow_withdrawal?: boolean
           author_affiliation?: string | null
           author_details_changed_once?: boolean
@@ -814,6 +823,9 @@ export type Database = {
           keywords?: string[] | null
           low_score_email_sent_at?: string | null
           manuscript_accepted_email_sent_at?: string | null
+          manuscript_needs_reformat?: boolean
+          manuscript_replaced_at?: string | null
+          manuscript_replaced_by?: string | null
           missing_section_samples?: Json | null
           missing_sections?: string[] | null
           original_title?: string | null
@@ -2754,6 +2766,24 @@ export type Database = {
           p_transaction_id: string
         }
         Returns: string
+      }
+      replace_article_manuscript: {
+        Args: {
+          p_abstract: string
+          p_article_id: string
+          p_author_affiliation: string
+          p_author_name: string
+          p_document_url: string
+          p_keywords: string[]
+          p_needs_reformat: boolean
+          p_page_count: number
+          p_reason_of_research: string
+          p_replaced_by: string
+          p_revoke_author_permission: boolean
+          p_subject: string
+          p_title: string
+        }
+        Returns: undefined
       }
       set_fee_promise: {
         Args: { p_article_id: string; p_date: string }

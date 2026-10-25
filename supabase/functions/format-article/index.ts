@@ -1518,6 +1518,8 @@ serve(async (req) => {
           formatted_document_url: savedPdfName,
           formatted_docx_url: savedDocxName,
           formatting_status: "ready_for_review",
+          // The latest uploaded manuscript has now been formatted.
+          manuscript_needs_reformat: false,
           formatting_suggestions: meta.suggestions || [],
           formatted_content: htmlContent,
           // A fresh format is rebuilt from the author's original submitted DOCX,

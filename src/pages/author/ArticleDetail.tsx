@@ -14,6 +14,7 @@ import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import { PayOptionsDialog } from '@/components/articles/PayOptionsDialog';
 import { DeleteCoAuthorButton } from '@/components/articles/DeleteCoAuthorButton';
 import { AcceptanceLetterButton } from '@/components/articles/AcceptanceLetterButton';
+import { ReplaceManuscriptDialog } from '@/components/articles/ReplaceManuscriptDialog';
 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -26,7 +27,7 @@ import { CopyrightFormSection } from '@/components/articles/CopyrightFormSection
 import { PublicationCard } from '@/components/articles/PublicationCard';
 import { FeePromiseBadge } from '@/components/articles/FeePromiseBadge';
 import {
-  ArrowLeft, Award, ChevronDown, Lock, Pencil, Plus, Save, Share2, Users, AlertCircle, X, Link2, CheckCircle2,
+  ArrowLeft, Award, ChevronDown, Lock, Pencil, Plus, Save, Share2, Users, AlertCircle, X, Link2, CheckCircle2, Upload,
 } from 'lucide-react';
 
 const PUBLISHED_STATUSES = ['published', 'published_to_wwjmrd', 'updated_published'];
@@ -47,6 +48,7 @@ export default function AuthorArticleDetail() {
   const currency: 'INR' | 'USD' = isIndian ? 'INR' : 'USD';
   const editFee = currency === 'INR' ? 100 : 5;
   const [doiPayOpen, setDoiPayOpen] = React.useState(false);
+  const [replaceOpen, setReplaceOpen] = React.useState(false);
 
   const { data: doiFees } = useQuery({
     queryKey: ['doi-fees'],
@@ -619,6 +621,11 @@ export default function AuthorArticleDetail() {
                 Manuscript
               </DownloadButton>
             )}
+            {article.allow_manuscript_replace && (
+              <Button size="sm" variant="outline" onClick={() => setReplaceOpen(true)}>
+                <Upload className="w-4 h-4 mr-1" /> Upload Updated Manuscript
+              </Button>
+            )}
             {article.review_report_url && (
               <DownloadButton size="sm" onDownload={() => downloadDoc('review_report', `review-report-${article.reference_number}.pdf`)}>
                 Review Report
@@ -631,6 +638,18 @@ export default function AuthorArticleDetail() {
             )}
           </div>
         </GlassCard>
+
+        {article.allow_manuscript_replace && (
+          <ReplaceManuscriptDialog
+            open={replaceOpen}
+            onOpenChange={setReplaceOpen}
+            article={article}
+            coAuthors={article.co_authors || []}
+            isAdmin={false}
+            invalidateKeys={[['author-article', articleId as string]]}
+            onSaved={() => setForm(null)}
+          />
+        )}
 
         {article.galley_proof_status && <GalleyProofReviewSection article={article} />}
 
