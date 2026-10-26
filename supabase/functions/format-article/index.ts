@@ -1060,23 +1060,26 @@ function generateDocx(meta: ArticleMetadata, body: Block[], images: Map<string, 
         }
       }
     } else if (block.kind === "table") {
-      const cols = Math.max(...block.rows.map(r => r.length));
+      const cols = block.grid.columnCount;
       const tblWidth = 9000; // ~6.25" in DXA
       const colW = Math.floor(tblWidth / cols);
-      const docxRows = block.rows.map((r, ri) => new DocxTableRow({
-        children: Array.from({ length: cols }).map((_, ci) => new DocxTableCell({
-          width: { size: colW, type: WidthType.DXA },
+      const border = { style: BorderStyle.SINGLE, size: 4, color: "808080" };
+      // Only the origin box of a merged cell is listed; docx fills the
+      // continuation boxes for rowSpan, so every box keeps its column.
+      const docxRows = block.grid.rows.map((r, ri) => new DocxTableRow({
+        tableHeader: ri < block.grid.headerRows,
+        cantSplit: true,
+        children: r.map((cell) => new DocxTableCell({
+          width: { size: colW * cell.colspan, type: WidthType.DXA },
+          columnSpan: cell.colspan > 1 ? cell.colspan : undefined,
+          rowSpan: cell.rowspan > 1 ? cell.rowspan : undefined,
           margins: { top: 60, bottom: 60, left: 100, right: 100 },
-          shading: ri === 0 ? { fill: "D9D9D9", type: ShadingType.CLEAR } : undefined,
-          borders: {
-            top: { style: BorderStyle.SINGLE, size: 4, color: "808080" },
-            bottom: { style: BorderStyle.SINGLE, size: 4, color: "808080" },
-            left: { style: BorderStyle.SINGLE, size: 4, color: "808080" },
-            right: { style: BorderStyle.SINGLE, size: 4, color: "808080" },
-          },
-          children: [new Paragraph({
-            children: [new TextRun({ text: r[ci] || "", bold: ri === 0, size: 18, font: "Times New Roman" })],
-          })],
+          shading: cell.header ? { fill: "D9D9D9", type: ShadingType.CLEAR } : undefined,
+          borders: { top: border, bottom: border, left: border, right: border },
+          children: (cell.lines.length ? cell.lines : [""]).map((line) => new Paragraph({
+            alignment: AlignmentType.LEFT,
+            children: [new TextRun({ text: line, bold: cell.header, size: 18, font: "Times New Roman" })],
+          })),
         })),
       }));
       children.push(new DocxTable({
