@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { aiChatCompletion, getAiGatewayConfig, type AiGatewayConfig } from "../_shared/ai-gateway.ts";
 import { formatAcademicTitle, parseTerminology, parseTitlePolicy } from "../_shared/academicTitle.ts";
+import { findTopLevelTables, parseTableHtml, renderTableGridHtml, type TableGrid } from "../_shared/tableGrid.ts";
 import mammoth from "npm:mammoth@1.6.0";
 import { jsPDF } from "npm:jspdf@2.5.2";
 import {
@@ -101,7 +102,7 @@ type Block =
   | { kind: "heading"; level: 1 | 2 | 3; text: string }
   | { kind: "paragraph"; html: string; text: string }
   | { kind: "image"; id: string; caption?: string }
-  | { kind: "table"; rows: string[][] }
+  | { kind: "table"; grid: TableGrid }
   | { kind: "list"; ordered: boolean; items: string[] };
 
 function decodeEntities(s: string): string {
@@ -132,7 +133,21 @@ function safeInlineHtml(html: string): string {
 function parseHtmlToBlocks(html: string): Block[] {
   const blocks: Block[] = [];
   // Normalize whitespace
-  const cleaned = html.replace(/\r?\n/g, " ").replace(/\s{2,}/g, " ");
+  let cleaned = html.replace(/\r?\n/g, " ").replace(/\s{2,}/g, " ");
+  // Pull out whole tables first (nested tables included) so merged / empty
+  // boxes keep their exact place; the main scan only sees a placeholder.
+  const tableGrids: TableGrid[] = [];
+  const tableRanges = findTopLevelTables(cleaned);
+  if (tableRanges.length) {
+    let rebuilt = "";
+    let last = 0;
+    for (const r of tableRanges) {
+      rebuilt += cleaned.slice(last, r.start) + `<table data-ww-table="${tableGrids.length}"></table>`;
+      tableGrids.push(parseTableHtml(cleaned.slice(r.start, r.end)));
+      last = r.end;
+    }
+    cleaned = rebuilt + cleaned.slice(last);
+  }
   // Match top-level elements: h1-h3, p, ul, ol, table, img
   const tagRe = /<(h[1-6]|p|ul|ol|table)([^>]*)>([\s\S]*?)<\/\1>|<img([^>]*)\/?>/gi;
   let m: RegExpExecArray | null;
@@ -181,19 +196,9 @@ function parseHtmlToBlocks(html: string): Block[] {
         }
         if (items.length) blocks.push({ kind: "list", ordered: tag === "ol", items });
       } else if (tag === "table") {
-        const rows: string[][] = [];
-        const trRe = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
-        let tr: RegExpExecArray | null;
-        while ((tr = trRe.exec(inner)) !== null) {
-          const cells: string[] = [];
-          const cellRe = /<(td|th)[^>]*>([\s\S]*?)<\/\1>/gi;
-          let c: RegExpExecArray | null;
-          while ((c = cellRe.exec(tr[1])) !== null) {
-            cells.push(stripTags(c[2]));
-          }
-          if (cells.length) rows.push(cells);
-        }
-        if (rows.length) blocks.push({ kind: "table", rows });
+        const idx = (m[2] || "").match(/data-ww-table="(\d+)"/);
+        const grid = idx ? tableGrids[parseInt(idx[1], 10)] : parseTableHtml(m[0]);
+        if (grid && grid.rows.length && grid.columnCount > 0) blocks.push({ kind: "table", grid });
       }
     } else if (m[4]) {
       // Top-level <img/>
@@ -418,7 +423,7 @@ function blockText(b: Block): string {
   if (b.kind === "heading") return b.text;
   if (b.kind === "paragraph") return b.text;
   if (b.kind === "list") return b.items.join(" ");
-  if (b.kind === "table") return b.rows.flat().join(" ");
+  if (b.kind === "table") return b.grid.rows.flat().map(c => c.text).join(" ");
   return b.caption || "";
 }
 
@@ -863,7 +868,7 @@ function generatePdf(meta: ArticleMetadata, body: Block[], images: Map<string, E
       const img = images.get(block.id);
       if (img) drawImage(img, block.caption);
     } else if (block.kind === "table") {
-      drawTableBlock(block.rows);
+      drawTableBlock(block.grid);
     } else if (block.kind === "list") {
       for (let i = 0; i < block.items.length; i++) {
         const prefix = block.ordered ? `${i + 1}. ` : "• ";
@@ -1133,18 +1138,13 @@ function generateEditorHtml(meta: ArticleMetadata, body: Block[], images: Map<st
     return `<figure class="ww-figure"><img src="${dataUrl}" alt="figure" />${cap}</figure>`;
   };
 
-  const renderTable = (rows: string[][]) => {
-    const trs = rows.map((r, ri) =>
-      `<tr>${r.map(c => `<${ri === 0 ? "th" : "td"}>${esc(c)}</${ri === 0 ? "th" : "td"}>`).join("")}</tr>`
-    ).join("");
-    return `<table class="ww-data-table">${trs}</table>`;
-  };
+  const renderTable = (grid: TableGrid) => renderTableGridHtml(grid, "ww-data-table");
 
   const bodyHtml = body.map(b => {
     if (b.kind === "heading") return `<h${b.level}>${esc(b.text)}</h${b.level}>`;
     if (b.kind === "paragraph") return `<p>${safeInlineHtml(b.html)}</p>`;
     if (b.kind === "image") return renderImage(b.id, b.caption);
-    if (b.kind === "table") return renderTable(b.rows);
+    if (b.kind === "table") return renderTable(b.grid);
     if (b.kind === "list") {
       const tag = b.ordered ? "ol" : "ul";
       return `<${tag}>${b.items.map(i => `<li>${esc(i)}</li>`).join("")}</${tag}>`;
@@ -1205,9 +1205,11 @@ function generateEditorHtml(meta: ArticleMetadata, body: Block[], images: Map<st
   .ww-figure { page-break-inside:avoid; break-inside:avoid; text-align:center; margin:10px 0 12px; }
   .ww-figure img { max-width:100%; height:auto; display:inline-block; }
   .ww-caption { text-align:center !important; font-weight:bold; font-style:italic; font-size:10px; margin:3px 0 0 !important; }
-  .ww-data-table { page-break-inside:avoid; break-inside:avoid; border-collapse:collapse; width:100%; margin:9px 0 12px; table-layout:fixed; word-wrap:break-word; }
+  .ww-data-table { border-collapse:collapse; border:1px solid #94a3b8; width:100%; margin:9px auto 12px 0; table-layout:fixed; word-wrap:break-word; empty-cells:show; }
+  .ww-data-table tr { page-break-inside:avoid; break-inside:avoid; }
+  .ww-data-table thead { display:table-header-group; }
   .ww-data-table th, .ww-data-table td { border:1px solid #94a3b8; padding:5px 6px; font-size:9.2px; vertical-align:top; overflow-wrap:anywhere; word-break:break-word; text-align:left; }
-  .ww-data-table th { background:#e2e8f0; font-weight:bold; text-align:center; }
+  .ww-data-table th { background:#e2e8f0; font-weight:bold; }
   .ww-references-h { font-size:13px; font-weight:bold; margin:10px 0 4px; page-break-before:auto; break-before:auto; page-break-after:avoid; break-after:avoid; }
   .ww-references { font-size:9.5px; line-height:1.4; list-style:none; padding-left:0; margin:0; counter-reset:wwref; }
   .ww-references li { text-align:justify; padding-left:18px; text-indent:-18px; margin:1px 0; counter-increment:wwref; page-break-inside:avoid; break-inside:avoid; }
