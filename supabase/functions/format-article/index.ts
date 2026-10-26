@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { aiChatCompletion, getAiGatewayConfig, type AiGatewayConfig } from "../_shared/ai-gateway.ts";
 import { formatAcademicTitle, parseTerminology, parseTitlePolicy } from "../_shared/academicTitle.ts";
+import { findTopLevelTables, parseTableHtml, renderTableGridHtml, type TableGrid } from "../_shared/tableGrid.ts";
 import mammoth from "npm:mammoth@1.6.0";
 import { jsPDF } from "npm:jspdf@2.5.2";
 import {
@@ -101,7 +102,7 @@ type Block =
   | { kind: "heading"; level: 1 | 2 | 3; text: string }
   | { kind: "paragraph"; html: string; text: string }
   | { kind: "image"; id: string; caption?: string }
-  | { kind: "table"; rows: string[][] }
+  | { kind: "table"; grid: TableGrid }
   | { kind: "list"; ordered: boolean; items: string[] };
 
 function decodeEntities(s: string): string {
@@ -132,7 +133,21 @@ function safeInlineHtml(html: string): string {
 function parseHtmlToBlocks(html: string): Block[] {
   const blocks: Block[] = [];
   // Normalize whitespace
-  const cleaned = html.replace(/\r?\n/g, " ").replace(/\s{2,}/g, " ");
+  let cleaned = html.replace(/\r?\n/g, " ").replace(/\s{2,}/g, " ");
+  // Pull out whole tables first (nested tables included) so merged / empty
+  // boxes keep their exact place; the main scan only sees a placeholder.
+  const tableGrids: TableGrid[] = [];
+  const tableRanges = findTopLevelTables(cleaned);
+  if (tableRanges.length) {
+    let rebuilt = "";
+    let last = 0;
+    for (const r of tableRanges) {
+      rebuilt += cleaned.slice(last, r.start) + `<table data-ww-table="${tableGrids.length}"></table>`;
+      tableGrids.push(parseTableHtml(cleaned.slice(r.start, r.end)));
+      last = r.end;
+    }
+    cleaned = rebuilt + cleaned.slice(last);
+  }
   // Match top-level elements: h1-h3, p, ul, ol, table, img
   const tagRe = /<(h[1-6]|p|ul|ol|table)([^>]*)>([\s\S]*?)<\/\1>|<img([^>]*)\/?>/gi;
   let m: RegExpExecArray | null;
@@ -181,19 +196,9 @@ function parseHtmlToBlocks(html: string): Block[] {
         }
         if (items.length) blocks.push({ kind: "list", ordered: tag === "ol", items });
       } else if (tag === "table") {
-        const rows: string[][] = [];
-        const trRe = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
-        let tr: RegExpExecArray | null;
-        while ((tr = trRe.exec(inner)) !== null) {
-          const cells: string[] = [];
-          const cellRe = /<(td|th)[^>]*>([\s\S]*?)<\/\1>/gi;
-          let c: RegExpExecArray | null;
-          while ((c = cellRe.exec(tr[1])) !== null) {
-            cells.push(stripTags(c[2]));
-          }
-          if (cells.length) rows.push(cells);
-        }
-        if (rows.length) blocks.push({ kind: "table", rows });
+        const idx = (m[2] || "").match(/data-ww-table="(\d+)"/);
+        const grid = idx ? tableGrids[parseInt(idx[1], 10)] : parseTableHtml(m[0]);
+        if (grid && grid.rows.length && grid.columnCount > 0) blocks.push({ kind: "table", grid });
       }
     } else if (m[4]) {
       // Top-level <img/>
@@ -418,7 +423,7 @@ function blockText(b: Block): string {
   if (b.kind === "heading") return b.text;
   if (b.kind === "paragraph") return b.text;
   if (b.kind === "list") return b.items.join(" ");
-  if (b.kind === "table") return b.rows.flat().join(" ");
+  if (b.kind === "table") return b.grid.rows.flat().map(c => c.text).join(" ");
   return b.caption || "";
 }
 
@@ -828,26 +833,59 @@ function generatePdf(meta: ArticleMetadata, body: Block[], images: Map<string, E
     }
   }
 
-  function drawTableBlock(rows: string[][]) {
-    if (rows.length === 0) return;
-    const cols = Math.max(...rows.map(r => r.length));
+  function drawTableBlock(grid: TableGrid) {
+    const rows = grid.rows;
+    const cols = grid.columnCount;
+    if (rows.length === 0 || cols === 0) return;
     const cellW = colW / cols;
-    const rowH = 6;
-    for (let r = 0; r < rows.length; r++) {
-      ensureSpace(rowH);
-      const x0 = colX[curCol];
-      doc.setLineWidth(0.2);
-      doc.setDrawColor(80, 80, 80);
-      for (let c = 0; c < cols; c++) {
-        const cellX = x0 + c * cellW;
-        doc.rect(cellX, y, cellW, rowH);
-        const txt = (rows[r][c] || "").substring(0, 60);
-        doc.setFontSize(8);
-        doc.setFont("times", r === 0 ? "bold" : "normal");
-        doc.setTextColor(...black);
-        doc.text(txt, cellX + 1, y + 4, { maxWidth: cellW - 2 });
+    const lineH = 3.4;
+    doc.setFontSize(8);
+
+    // Place every box on the grid (respecting merged boxes) and wrap its text.
+    type Placed = { r: number; c: number; cs: number; rs: number; lines: string[]; header: boolean };
+    const placed: Placed[] = [];
+    const occ: boolean[][] = rows.map(() => []);
+    rows.forEach((row, r) => {
+      let c = 0;
+      for (const cell of row) {
+        while (occ[r][c]) c++;
+        for (let dr = 0; dr < cell.rowspan; dr++) for (let dc = 0; dc < cell.colspan; dc++) occ[r + dr][c + dc] = true;
+        doc.setFont("times", cell.header ? "bold" : "normal");
+        const wrapped = cell.lines.flatMap(l => doc.splitTextToSize(l, cellW * cell.colspan - 2) as string[]);
+        placed.push({ r, c, cs: cell.colspan, rs: cell.rowspan, lines: wrapped, header: cell.header });
+        c += cell.colspan;
       }
-      y += rowH;
+    });
+    const rowH = rows.map(() => 6);
+    for (const p of placed) if (p.rs === 1) rowH[p.r] = Math.max(rowH[p.r], p.lines.length * lineH + 2.6);
+    for (const p of placed) {
+      if (p.rs === 1) continue;
+      const need = p.lines.length * lineH + 2.6;
+      const have = rowH.slice(p.r, p.r + p.rs).reduce((a, b) => a + b, 0);
+      if (need > have) rowH[p.r + p.rs - 1] += need - have;
+    }
+
+    const rowTop: number[] = [];
+    doc.setLineWidth(0.2);
+    doc.setDrawColor(80, 80, 80);
+    for (let r = 0; r < rows.length; r++) {
+      // Keep a merged group together on one page.
+      const groupH = Math.max(
+        rowH[r],
+        ...placed.filter(p => p.r === r).map(p => rowH.slice(r, r + p.rs).reduce((a, b) => a + b, 0)),
+      );
+      ensureSpace(groupH);
+      rowTop[r] = y;
+      const x0 = colX[curCol];
+      for (const p of placed.filter(p => p.r === r)) {
+        const h = rowH.slice(r, r + p.rs).reduce((a, b) => a + b, 0);
+        const cellX = x0 + p.c * cellW;
+        doc.rect(cellX, y, cellW * p.cs, h);
+        doc.setFont("times", p.header ? "bold" : "normal");
+        doc.setTextColor(...black);
+        p.lines.forEach((l, i) => doc.text(l, cellX + 1, y + 3.8 + i * lineH));
+      }
+      y += rowH[r];
     }
     y += 2;
   }
@@ -863,7 +901,7 @@ function generatePdf(meta: ArticleMetadata, body: Block[], images: Map<string, E
       const img = images.get(block.id);
       if (img) drawImage(img, block.caption);
     } else if (block.kind === "table") {
-      drawTableBlock(block.rows);
+      drawTableBlock(block.grid);
     } else if (block.kind === "list") {
       for (let i = 0; i < block.items.length; i++) {
         const prefix = block.ordered ? `${i + 1}. ` : "• ";
@@ -1022,23 +1060,26 @@ function generateDocx(meta: ArticleMetadata, body: Block[], images: Map<string, 
         }
       }
     } else if (block.kind === "table") {
-      const cols = Math.max(...block.rows.map(r => r.length));
+      const cols = block.grid.columnCount;
       const tblWidth = 9000; // ~6.25" in DXA
       const colW = Math.floor(tblWidth / cols);
-      const docxRows = block.rows.map((r, ri) => new DocxTableRow({
-        children: Array.from({ length: cols }).map((_, ci) => new DocxTableCell({
-          width: { size: colW, type: WidthType.DXA },
+      const border = { style: BorderStyle.SINGLE, size: 4, color: "808080" };
+      // Only the origin box of a merged cell is listed; docx fills the
+      // continuation boxes for rowSpan, so every box keeps its column.
+      const docxRows = block.grid.rows.map((r, ri) => new DocxTableRow({
+        tableHeader: ri < block.grid.headerRows,
+        cantSplit: true,
+        children: r.map((cell) => new DocxTableCell({
+          width: { size: colW * cell.colspan, type: WidthType.DXA },
+          columnSpan: cell.colspan > 1 ? cell.colspan : undefined,
+          rowSpan: cell.rowspan > 1 ? cell.rowspan : undefined,
           margins: { top: 60, bottom: 60, left: 100, right: 100 },
-          shading: ri === 0 ? { fill: "D9D9D9", type: ShadingType.CLEAR } : undefined,
-          borders: {
-            top: { style: BorderStyle.SINGLE, size: 4, color: "808080" },
-            bottom: { style: BorderStyle.SINGLE, size: 4, color: "808080" },
-            left: { style: BorderStyle.SINGLE, size: 4, color: "808080" },
-            right: { style: BorderStyle.SINGLE, size: 4, color: "808080" },
-          },
-          children: [new Paragraph({
-            children: [new TextRun({ text: r[ci] || "", bold: ri === 0, size: 18, font: "Times New Roman" })],
-          })],
+          shading: cell.header ? { fill: "D9D9D9", type: ShadingType.CLEAR } : undefined,
+          borders: { top: border, bottom: border, left: border, right: border },
+          children: (cell.lines.length ? cell.lines : [""]).map((line) => new Paragraph({
+            alignment: AlignmentType.LEFT,
+            children: [new TextRun({ text: line, bold: cell.header, size: 18, font: "Times New Roman" })],
+          })),
         })),
       }));
       children.push(new DocxTable({
@@ -1133,18 +1174,13 @@ function generateEditorHtml(meta: ArticleMetadata, body: Block[], images: Map<st
     return `<figure class="ww-figure"><img src="${dataUrl}" alt="figure" />${cap}</figure>`;
   };
 
-  const renderTable = (rows: string[][]) => {
-    const trs = rows.map((r, ri) =>
-      `<tr>${r.map(c => `<${ri === 0 ? "th" : "td"}>${esc(c)}</${ri === 0 ? "th" : "td"}>`).join("")}</tr>`
-    ).join("");
-    return `<table class="ww-data-table">${trs}</table>`;
-  };
+  const renderTable = (grid: TableGrid) => renderTableGridHtml(grid, "ww-data-table");
 
   const bodyHtml = body.map(b => {
     if (b.kind === "heading") return `<h${b.level}>${esc(b.text)}</h${b.level}>`;
     if (b.kind === "paragraph") return `<p>${safeInlineHtml(b.html)}</p>`;
     if (b.kind === "image") return renderImage(b.id, b.caption);
-    if (b.kind === "table") return renderTable(b.rows);
+    if (b.kind === "table") return renderTable(b.grid);
     if (b.kind === "list") {
       const tag = b.ordered ? "ol" : "ul";
       return `<${tag}>${b.items.map(i => `<li>${esc(i)}</li>`).join("")}</${tag}>`;
@@ -1205,9 +1241,11 @@ function generateEditorHtml(meta: ArticleMetadata, body: Block[], images: Map<st
   .ww-figure { page-break-inside:avoid; break-inside:avoid; text-align:center; margin:10px 0 12px; }
   .ww-figure img { max-width:100%; height:auto; display:inline-block; }
   .ww-caption { text-align:center !important; font-weight:bold; font-style:italic; font-size:10px; margin:3px 0 0 !important; }
-  .ww-data-table { page-break-inside:avoid; break-inside:avoid; border-collapse:collapse; width:100%; margin:9px 0 12px; table-layout:fixed; word-wrap:break-word; }
+  .ww-data-table { border-collapse:collapse; border:1px solid #94a3b8; width:100%; margin:9px auto 12px 0; table-layout:fixed; word-wrap:break-word; empty-cells:show; }
+  .ww-data-table tr { page-break-inside:avoid; break-inside:avoid; }
+  .ww-data-table thead { display:table-header-group; }
   .ww-data-table th, .ww-data-table td { border:1px solid #94a3b8; padding:5px 6px; font-size:9.2px; vertical-align:top; overflow-wrap:anywhere; word-break:break-word; text-align:left; }
-  .ww-data-table th { background:#e2e8f0; font-weight:bold; text-align:center; }
+  .ww-data-table th { background:#e2e8f0; font-weight:bold; }
   .ww-references-h { font-size:13px; font-weight:bold; margin:10px 0 4px; page-break-before:auto; break-before:auto; page-break-after:avoid; break-after:avoid; }
   .ww-references { font-size:9.5px; line-height:1.4; list-style:none; padding-left:0; margin:0; counter-reset:wwref; }
   .ww-references li { text-align:justify; padding-left:18px; text-indent:-18px; margin:1px 0; counter-increment:wwref; page-break-inside:avoid; break-inside:avoid; }
