@@ -62,7 +62,8 @@ const pageCss = `
     .formatted-body-content img { max-width: 100%; max-height: 210mm; height: auto; object-fit: contain; }
     .formatted-body-content table { border-collapse: collapse; width: 100%; margin: 9px 0 12px; table-layout: fixed; word-wrap: break-word; }
     .formatted-body-content th, .formatted-body-content td { border: 1px solid #94a3b8; padding: 5px 6px; font-size: 9.2px; vertical-align: top; overflow-wrap: anywhere; word-break: break-word; text-align: left; }
-    .formatted-body-content th { background: #e2e8f0; font-weight: 700; text-align: center; }
+    .formatted-body-content th { background: #e2e8f0; font-weight: 700; text-align: left; }
+    .formatted-body-content table { border: 1px solid #94a3b8; margin-left: 0; margin-right: auto; empty-cells: show; }
     .formatted-body-content .ww-references-materialized { font-size: 9.5px; line-height: 1.4; margin: 2px 0 6px; }
     .formatted-body-content .ww-reference-item { display: block; margin: 1px 0; padding-left: 18px; text-indent: -18px; text-align: justify; font-size: 9.5px; line-height: 1.4; }
     .formatted-body-content .ww-reference-number { display: inline-block; min-width: 16px; font-weight: 700; text-indent: 0; }
@@ -336,36 +337,95 @@ function splitListIntoElements(el: HTMLElement, measure: HTMLElement, maxHeightP
   return parts;
 }
 
-function splitTableIntoElements(el: HTMLElement, measure: HTMLElement, maxHeightPx: number) {
-  const rows = Array.from(el.querySelectorAll(':scope > thead > tr, :scope > tbody > tr, :scope > tr')) as HTMLTableRowElement[];
-  if (rows.length <= 1) return [el.outerHTML];
+interface TableParts {
+  header: string;
+  groups: string[];
+  shell: (rowsHtml: string[]) => string;
+}
 
-  const firstRowIsHeader = Array.from(rows[0].children).some((cell) => cell.tagName.toLowerCase() === 'th');
-  const header = firstRowIsHeader ? rows[0].outerHTML : '';
-  const bodyRows = firstRowIsHeader ? rows.slice(1) : rows;
-  const parts: string[] = [];
-  let current: string[] = [];
-
-  const makeTable = (rowHtml: string[]) => {
-    const table = el.cloneNode(false) as HTMLElement;
-    table.innerHTML = `${header}${rowHtml.join('')}`;
-    return table.outerHTML;
-  };
-
-  for (const row of bodyRows) {
-    const next = [...current, row.outerHTML];
-    measure.innerHTML = makeTable(next);
-
-    if (measure.scrollHeight > maxHeightPx && current.length) {
-      parts.push(makeTable(current));
-      current = [row.outerHTML];
-    } else {
-      current = next;
+/**
+ * Break a table into header rows + "row groups". A group is one row, or a set
+ * of rows tied together by a merged (rowspan) box — we never cut through one.
+ */
+function tableParts(el: HTMLElement): TableParts | null {
+  const thead = el.querySelector(':scope > thead');
+  const headRows = thead ? (Array.from(thead.querySelectorAll(':scope > tr')) as HTMLTableRowElement[]) : [];
+  const bodyRows = Array.from(el.querySelectorAll(':scope > tbody > tr, :scope > tr')) as HTMLTableRowElement[];
+  let header = headRows.map((r) => r.outerHTML).join('');
+  let rows = bodyRows;
+  if (!headRows.length && rows.length > 1) {
+    const first = rows[0];
+    const isHeader = Array.from(first.children).every((cell) => cell.tagName.toLowerCase() === 'th')
+      && Array.from(first.children).every((cell) => ((cell as HTMLTableCellElement).rowSpan || 1) <= 1);
+    if (isHeader) {
+      header = first.outerHTML;
+      rows = rows.slice(1);
     }
   }
+  if (!rows.length) return null;
 
-  if (current.length) parts.push(makeTable(current));
-  return parts.length ? parts : [el.outerHTML];
+  const groups: string[] = [];
+  let group: string[] = [];
+  let reach = -1;
+  rows.forEach((row, index) => {
+    group.push(row.outerHTML);
+    Array.from(row.children).forEach((cell) => {
+      const span = Math.max(1, (cell as HTMLTableCellElement).rowSpan || 1);
+      reach = Math.max(reach, index + span - 1);
+    });
+    if (reach <= index) {
+      groups.push(group.join(''));
+      group = [];
+    }
+  });
+  if (group.length) groups.push(group.join(''));
+
+  const colgroup = el.querySelector(':scope > colgroup')?.outerHTML || '';
+  const shell = (rowsHtml: string[]) => {
+    const table = el.cloneNode(false) as HTMLElement;
+    table.innerHTML = `${colgroup}${header ? `<thead>${header}</thead>` : ''}<tbody>${rowsHtml.join('')}</tbody>`;
+    return table.outerHTML;
+  };
+  return { header, groups, shell };
+}
+
+/**
+ * Take as many leading row groups as fit in `maxHeightPx` and return the rest
+ * as ONE table, so a table only breaks where a page actually ends.
+ */
+export function splitTableAtHeight(
+  el: HTMLElement,
+  measure: HTMLElement,
+  maxHeightPx: number,
+): { first: string | null; rest: string | null } {
+  const parts = tableParts(el);
+  if (!parts || parts.groups.length <= 1) return { first: null, rest: el.outerHTML };
+  let count = 0;
+  for (let i = 1; i <= parts.groups.length; i++) {
+    measure.innerHTML = parts.shell(parts.groups.slice(0, i));
+    if (measure.scrollHeight <= maxHeightPx) count = i;
+    else break;
+  }
+  if (count === 0) return { first: null, rest: el.outerHTML };
+  if (count >= parts.groups.length) return { first: el.outerHTML, rest: null };
+  return { first: parts.shell(parts.groups.slice(0, count)), rest: parts.shell(parts.groups.slice(count)) };
+}
+
+function splitTableIntoElements(el: HTMLElement, measure: HTMLElement, maxHeightPx: number) {
+  const pieces: string[] = [];
+  let remainder: string | null = el.outerHTML;
+  let guard = 0;
+  while (remainder && guard++ < 200) {
+    const tpl = document.createElement('template');
+    tpl.innerHTML = remainder.trim();
+    const current = tpl.content.firstElementChild as HTMLElement | null;
+    if (!current) break;
+    const { first, rest } = splitTableAtHeight(current, measure, maxHeightPx);
+    if (!first) { pieces.push(remainder); break; }
+    pieces.push(first);
+    remainder = rest;
+  }
+  return pieces.length ? pieces : [el.outerHTML];
 }
 
 function splitOversizedBlock(block: string, measure: HTMLElement, maxHeightPx: number): string[] {
@@ -495,12 +555,14 @@ export async function buildPagedFormattedArticleHtml(
         tpl.innerHTML = block.trim();
         const el = tpl.content.firstElementChild as HTMLElement | null;
         if (el) {
-          const parts = splitTableIntoElements(el, measure, remainingPx);
-          if (parts.length > 1) {
-            current += parts[0];
+          // Fill the rest of this page, then carry the remaining rows over as
+          // ONE table (it only breaks again if it is longer than a full page).
+          const { first, rest } = splitTableAtHeight(el, measure, remainingPx);
+          if (first && rest) {
+            current += first;
             pages.push(current);
             current = '';
-            for (let i = 1; i < parts.length; i++) enqueueBlock(parts[i]);
+            enqueueBlock(rest);
             return;
           }
         }
@@ -530,8 +592,9 @@ export async function buildPagedFormattedArticleHtml(
   };
 
   for (const originalBlock of blocks) {
-    // If a single block is bigger than a full page, slice it first.
-    const candidateBlocks = measureHeight(originalBlock) > maxHeightPx
+    // If a single block is bigger than a full page, slice it first. Tables are
+    // left whole: enqueueBlock breaks them only where each page ends.
+    const candidateBlocks = getTag(originalBlock) !== 'table' && measureHeight(originalBlock) > maxHeightPx
       ? splitOversizedBlock(originalBlock, measure, maxHeightPx)
       : [originalBlock];
     for (const block of candidateBlocks) enqueueBlock(block);
