@@ -833,26 +833,59 @@ function generatePdf(meta: ArticleMetadata, body: Block[], images: Map<string, E
     }
   }
 
-  function drawTableBlock(rows: string[][]) {
-    if (rows.length === 0) return;
-    const cols = Math.max(...rows.map(r => r.length));
+  function drawTableBlock(grid: TableGrid) {
+    const rows = grid.rows;
+    const cols = grid.columnCount;
+    if (rows.length === 0 || cols === 0) return;
     const cellW = colW / cols;
-    const rowH = 6;
-    for (let r = 0; r < rows.length; r++) {
-      ensureSpace(rowH);
-      const x0 = colX[curCol];
-      doc.setLineWidth(0.2);
-      doc.setDrawColor(80, 80, 80);
-      for (let c = 0; c < cols; c++) {
-        const cellX = x0 + c * cellW;
-        doc.rect(cellX, y, cellW, rowH);
-        const txt = (rows[r][c] || "").substring(0, 60);
-        doc.setFontSize(8);
-        doc.setFont("times", r === 0 ? "bold" : "normal");
-        doc.setTextColor(...black);
-        doc.text(txt, cellX + 1, y + 4, { maxWidth: cellW - 2 });
+    const lineH = 3.4;
+    doc.setFontSize(8);
+
+    // Place every box on the grid (respecting merged boxes) and wrap its text.
+    type Placed = { r: number; c: number; cs: number; rs: number; lines: string[]; header: boolean };
+    const placed: Placed[] = [];
+    const occ: boolean[][] = rows.map(() => []);
+    rows.forEach((row, r) => {
+      let c = 0;
+      for (const cell of row) {
+        while (occ[r][c]) c++;
+        for (let dr = 0; dr < cell.rowspan; dr++) for (let dc = 0; dc < cell.colspan; dc++) occ[r + dr][c + dc] = true;
+        doc.setFont("times", cell.header ? "bold" : "normal");
+        const wrapped = cell.lines.flatMap(l => doc.splitTextToSize(l, cellW * cell.colspan - 2) as string[]);
+        placed.push({ r, c, cs: cell.colspan, rs: cell.rowspan, lines: wrapped, header: cell.header });
+        c += cell.colspan;
       }
-      y += rowH;
+    });
+    const rowH = rows.map(() => 6);
+    for (const p of placed) if (p.rs === 1) rowH[p.r] = Math.max(rowH[p.r], p.lines.length * lineH + 2.6);
+    for (const p of placed) {
+      if (p.rs === 1) continue;
+      const need = p.lines.length * lineH + 2.6;
+      const have = rowH.slice(p.r, p.r + p.rs).reduce((a, b) => a + b, 0);
+      if (need > have) rowH[p.r + p.rs - 1] += need - have;
+    }
+
+    const rowTop: number[] = [];
+    doc.setLineWidth(0.2);
+    doc.setDrawColor(80, 80, 80);
+    for (let r = 0; r < rows.length; r++) {
+      // Keep a merged group together on one page.
+      const groupH = Math.max(
+        rowH[r],
+        ...placed.filter(p => p.r === r).map(p => rowH.slice(r, r + p.rs).reduce((a, b) => a + b, 0)),
+      );
+      ensureSpace(groupH);
+      rowTop[r] = y;
+      const x0 = colX[curCol];
+      for (const p of placed.filter(p => p.r === r)) {
+        const h = rowH.slice(r, r + p.rs).reduce((a, b) => a + b, 0);
+        const cellX = x0 + p.c * cellW;
+        doc.rect(cellX, y, cellW * p.cs, h);
+        doc.setFont("times", p.header ? "bold" : "normal");
+        doc.setTextColor(...black);
+        p.lines.forEach((l, i) => doc.text(l, cellX + 1, y + 3.8 + i * lineH));
+      }
+      y += rowH[r];
     }
     y += 2;
   }
