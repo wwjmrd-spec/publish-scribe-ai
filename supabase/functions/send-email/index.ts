@@ -1103,6 +1103,11 @@ function getEmailContent(
         subject: `Action Required: Manuscript File Not Readable (${data?.referenceNumber || "Your Article"}) - WWJMRD`,
         html: getFileNotReadableTemplate(data),
       };
+    case "missing-sections":
+      return {
+        subject: `Action Required: Missing Required Sections (${data?.referenceNumber || "Your Article"}) - WWJMRD`,
+        html: getMissingSectionsTemplate(data),
+      };
     case "manuscript-revise":
       return {
         subject: `Manuscript Revision Required: ${data?.articleTitle || "Your Article"} - WWJMRD`,
