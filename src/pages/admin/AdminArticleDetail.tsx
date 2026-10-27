@@ -70,6 +70,8 @@ export default function AdminArticleDetail() {
   const [isEditPublishDialogOpen, setIsEditPublishDialogOpen] = useState(false);
   const [isGalleyProofDialogOpen, setIsGalleyProofDialogOpen] = useState(false);
   const [isReplaceOpen, setIsReplaceOpen] = useState(false);
+  const [isMissingDialogOpen, setIsMissingDialogOpen] = useState(false);
+  const [missingNote, setMissingNote] = useState('');
   const [publishDetails, setPublishDetails] = useState({
     volume: '',
     issue: '',
@@ -399,6 +401,49 @@ export default function AdminArticleDetail() {
     onError: (err: any) => toast.error(err.message || 'Failed to send email'),
   });
 
+  const missingSectionsMutation = useMutation({
+    mutationFn: async () => {
+      const authorProfile = article!.profiles as any;
+      const to = authorProfile?.email;
+      if (!to) throw new Error('This author has no email address on file');
+      const sections: string[] = ((article as any).missing_sections || []).map((s: string) => String(s));
+      if (!sections.length) throw new Error('No missing sections are recorded for this article');
+      const note = missingNote.trim().slice(0, 1000);
+      const { error } = await supabase.functions.invoke('send-email', {
+        body: {
+          to,
+          template: 'missing-sections',
+          data: {
+            authorName: article!.author_name || authorProfile?.full_name || 'Author',
+            authorEmail: to,
+            articleTitle: article!.title,
+            referenceNumber: article!.reference_number,
+            articleId: article!.id,
+            articleUrl: `https://wwjmrdai.online/author/articles/${article!.id}`,
+            missingSections: sections,
+            missingSectionsText: sections.join(', '),
+            adminNote: note || undefined,
+          },
+        },
+      });
+      if (error) throw await resolveEdgeFunctionError(error, 'Failed to send email');
+
+      const { error: notifError } = await supabase.from('notifications').insert({
+        user_id: article!.author_id,
+        title: 'Missing required sections in your manuscript ⚠️',
+        message: `Our screening of "${article!.title}" (${article!.reference_number}) could not find these required sections: ${sections.join(', ')}. Kindly add them and upload the revised manuscript from My Articles.${note ? ` Note from the editorial office: ${note}` : ''}`,
+        type: 'warning',
+        link: `/author/articles/${article!.id}`,
+      });
+      if (notifError) throw new Error('Email sent, but the notification could not be saved: ' + notifError.message);
+    },
+    onSuccess: () => {
+      toast.success('Missing sections email and notification sent to the author');
+      setIsMissingDialogOpen(false);
+    },
+    onError: (err: any) => toast.error(err.message || 'Failed to send'),
+  });
+
 
   const updateDetailsMutation = useMutation({
     mutationFn: async () => {
@@ -526,7 +571,17 @@ export default function AdminArticleDetail() {
             <div className="flex items-start gap-3">
               <div className="w-2 h-2 rounded-full bg-destructive mt-2" />
               <div className="flex-1">
-                <h3 className="font-display font-semibold text-destructive">Missing Required Sections (flagged at submission)</h3>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <h3 className="font-display font-semibold text-destructive">Missing Required Sections (flagged at submission)</h3>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => { setMissingNote(''); setIsMissingDialogOpen(true); }}
+                    disabled={missingSectionsMutation.isPending}
+                  >
+                    <Send className="w-4 h-4 mr-2" /> Email &amp; Notify Author
+                  </Button>
+                </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   The author chose to submit even though the AI scanner did not detect these sections in the manuscript:
                 </p>
@@ -539,6 +594,43 @@ export default function AdminArticleDetail() {
             </div>
           </GlassCard>
         )}
+
+        <Dialog open={isMissingDialogOpen} onOpenChange={setIsMissingDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Send missing sections request</DialogTitle>
+              <DialogDescription>
+                A formal email and a dashboard notification will be sent to{' '}
+                {(article.profiles as any)?.email || 'the author'}, listing every missing section and asking them to upload a revised manuscript.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div>
+                <Label className="text-xs text-muted-foreground">Sections that will be listed</Label>
+                <ul className="list-disc pl-5 mt-1 text-sm space-y-0.5">
+                  {((article as any).missing_sections || []).map((s: string) => <li key={s}>{s}</li>)}
+                </ul>
+              </div>
+              <div>
+                <Label htmlFor="missing-note">Note to the author (optional)</Label>
+                <Textarea
+                  id="missing-note"
+                  value={missingNote}
+                  maxLength={1000}
+                  onChange={(e) => setMissingNote(e.target.value)}
+                  placeholder="e.g. Please also add a conflict of interest statement."
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsMissingDialogOpen(false)}>Cancel</Button>
+              <Button onClick={() => missingSectionsMutation.mutate()} disabled={missingSectionsMutation.isPending}>
+                <Send className="w-4 h-4 mr-2" />
+                {missingSectionsMutation.isPending ? 'Sending…' : 'Send Email & Notification'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Content */}
