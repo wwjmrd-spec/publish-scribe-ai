@@ -47,6 +47,7 @@ type EmailTemplate =
   | "upgrade-to-pro"
   | "manuscript-revise"
   | "file-not-readable"
+  | "missing-sections"
   | "manuscript-update"
   | "galley-proof-revision"
   | "galley-proof-approved"
@@ -758,6 +759,50 @@ const getFileNotReadableTemplate = (data: EmailRequest["data"]): string => {
     ${emailFooterText("If the problem continues or you are unsure which format to use, simply reply to this email or write to support@wwjmrd.com and our team will assist you.")}
   `;
   return wrapEmail("Manuscript File Not Readable - WWJMRD", body);
+};
+
+const getMissingSectionsTemplate = (data: EmailRequest["data"]): string => {
+  const d = (data || {}) as any;
+  const sections: string[] = Array.isArray(d.missingSections)
+    ? d.missingSections.map((s: unknown) => String(s).trim()).filter(Boolean).slice(0, 30)
+    : [];
+  const infoRows = [
+    emailInfoRow("Reference Number", escapeHtml(d.referenceNumber || "N/A")),
+    emailInfoRow("Article Title", escapeHtml(d.articleTitle || "N/A")),
+    emailInfoRow("Sections Missing", String(sections.length)),
+  ].join("");
+  const articleUrl = escapeHtml(d.articleUrl || "https://wwjmrdai.online/author/articles");
+
+  const body = `
+    ${emailH1("Action Required: Missing Required Sections in Your Manuscript")}
+    ${emailP(`Dear ${escapeHtml(d.authorName || "Author")},`)}
+    ${emailP(`Thank you for submitting your manuscript <strong style="color:#ffffff;">"${escapeHtml(d.articleTitle || "")}"</strong> to WWJMRD. During the initial screening at the time of submission, our system was unable to identify certain sections that are mandatory for all manuscripts published in the journal.`)}
+    ${emailInfoBox("Submission Details:", infoRows)}
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#2a1a24" style="background-color:#2a1a24; border-radius:8px; margin:20px 0; border:1px solid rgba(248,113,113,0.35);">
+      <tr><td style="padding:20px;">
+        <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif; font-size:16px; font-weight:700; color:#ffffff; margin:0 0 12px;">Missing Required Sections</p>
+        ${sections.length
+          ? sections.map((s, i) => emailFeatureItem(`<strong style="color:#ffffff;">${i + 1}.</strong> ${escapeHtml(s)}`)).join("")
+          : emailFeatureItem("One or more required sections")}
+      </td></tr>
+    </table>
+    ${d.adminNote ? emailP(`<strong style="color:#ffffff;">Note from the editorial office:</strong> ${escapeHtml(String(d.adminNote))}`) : ""}
+    ${emailP("We kindly request that you add the sections listed above to your manuscript, so that it fully meets the journal's submission requirements. If any of these sections are already present under a different heading, we would be grateful if you could rename the heading accordingly so that it can be identified clearly.")}
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#1a2340" style="background-color:#1a2340; border-radius:8px; margin:20px 0;">
+      <tr><td style="padding:20px;">
+        <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif; font-size:16px; font-weight:700; color:#ffffff; margin:0 0 12px;">How to submit the revised manuscript</p>
+        ${emailFeatureItem('<strong style="color:#ffffff;">Step 1 —</strong> Open your manuscript and add each missing section with a clear heading.')}
+        ${emailFeatureItem('<strong style="color:#ffffff;">Step 2 —</strong> Save the file in <strong style="color:#ffffff;">.docx</strong> format.')}
+        ${emailFeatureItem('<strong style="color:#ffffff;">Step 3 —</strong> Sign in to your author dashboard at wwjmrdai.online and open <strong style="color:#ffffff;">My Articles</strong>.')}
+        ${emailFeatureItem(`<strong style="color:#ffffff;">Step 4 —</strong> Find reference <strong style="color:#ffffff;">${escapeHtml(d.referenceNumber || "your article")}</strong> and click <strong style="color:#ffffff;">Update Manuscript</strong> (or <strong style="color:#ffffff;">Resubmit</strong>) to upload the revised file.`)}
+      </td></tr>
+    </table>
+    ${emailP("You do not need to create a new submission or pay again; your reference number and all other details will remain the same.")}
+    ${emailButton(articleUrl, "View My Article")}
+    ${emailP("Should you require any clarification, please reply to this email or write to support@wwjmrd.com. We appreciate your cooperation and look forward to receiving your revised manuscript.")}
+    ${emailP("Yours sincerely,<br />Editorial Office<br />WWJMRD<br />support@wwjmrd.com")}
+  `;
+  return wrapEmail("Missing Required Sections - WWJMRD", body);
 };
 
 
