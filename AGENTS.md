@@ -1,5 +1,7 @@
 # Project Architecture Rules
 
+- Build WWJMRD `authors`/`references` arrays only via publish-to-wwjmrd/wwjmrdPayload.ts (co-authors ordered by co_authors.sort_order, references from saved formatted_content) and send them as JSON strings inside the existing form-urlencoded request, because the PHP API reads form fields and batch-inserted co-authors share created_at.
+
 - Store acceptance letters as immutable server-generated PDFs with owner/admin read access and server-validated admin generation; downloads reuse get-document-url to prevent public document access.
 - Publish to WWJMRD with the journal-hosted PDF from a confirmed upload; only after an upload failure and explicit admin confirmation may publish-to-wwjmrd use a signed Cloud PDF link (allowCloudPdf), never silently.
 - Confirm journal PDF uploads from published_pdf_uploaded_at when the browser loses the reply, because large uploads can finish server-side after the client connection drops.
