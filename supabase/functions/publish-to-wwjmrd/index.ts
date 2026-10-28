@@ -406,6 +406,9 @@ serve(async (req) => {
             ? "Published to WWJMRD using the Cloud storage PDF link, because the PDF could not be uploaded to wwjmrd.com. Use Update on WWJMRD later to switch it to a journal-hosted PDF."
             : undefined,
       order_number: orderNumber,
+      // What was sent; WWJMRD does not yet confirm that it stored these rows.
+      authors_sent: authors.length,
+      references_sent: references.length,
       month,
       year,
       wwjmrd_article_id: remoteId,
