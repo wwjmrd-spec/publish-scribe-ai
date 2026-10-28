@@ -219,8 +219,9 @@ export function extractReferenceTexts(html: string | null | undefined): string[]
   }
   if (start < 0) return [];
   let tail = src.slice(start);
-  // Stop at the next real section heading (e.g. Appendix) or the end of the page section.
-  const next = tail.search(/<h[1-6]\b|<\/section>/i);
+  // Stop at the next real section heading (e.g. Appendix), the end of the page
+  // section, or the journal's own page chrome (licence box, cover footer).
+  const next = tail.search(/<h[1-6]\b|<\/section>|<!--|<[a-z][^>]*class=["'][^"']*\b(?:ww-cc-license|ww-cover-bottom|ww-footer)\b/i);
   if (next >= 0) tail = tail.slice(0, next);
   return itemsFromBlocks(tail);
 }
