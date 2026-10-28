@@ -99,6 +99,13 @@
       "when": 1792962824915,
       "tag": "0013_manuscript_replacement",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1793221620911,
+      "tag": "0014_co_authors_sort_order",
+      "breakpoints": true
     }
   ]
 }
