@@ -79,3 +79,12 @@ describe('buildReferences', () => {
     expect(parseReference('X. Title. https://site.org/paper?id=1, 10.5555/abc').url).toBe('https://site.org/paper?id=1');
   });
 });
+
+describe('buildReferences inside wrapper blocks', () => {
+  it('finds the heading even when it sits inside an outer div', () => {
+    const html = '<div class="wwjmrd-article"><section><div class="ww-body-page"><p>Body</p>'
+      + '<h2 class="ww-references-h">References</h2><div class="ww-body-flow"><span>1. First ref.</span></div>'
+      + '<div class="ww-body-flow"><span>2. Second ref.</span></div></div></section></div>';
+    expect(buildReferences(html).map((r) => r.reference_text)).toEqual(['First ref.', 'Second ref.']);
+  });
+});

@@ -206,7 +206,9 @@ export function extractReferenceTexts(html: string | null | undefined): string[]
   }
 
   // 2) Edited content: a "References" heading followed by one block per reference.
-  const headingRe = /<(h[1-6]|p|div|strong|b)\b[^>]*>([\s\S]*?)<\/\1>/gi;
+  // Inner content may hold inline tags only, so an outer wrapper <div> never
+  // swallows the heading inside it.
+  const headingRe = /<(h[1-6]|p|div|strong|b)\b[^>]*>((?:(?!<\/?(?:h[1-6]|p|div|section|ol|ul|li|table)\b)[\s\S])*?)<\/\1>/gi;
   let start = -1;
   for (const m of src.matchAll(headingRe)) {
     const text = stripTags(m[2]);
