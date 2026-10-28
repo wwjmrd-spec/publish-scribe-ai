@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { buildAuthors, buildReferences } from "./wwjmrdPayload.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -63,7 +64,7 @@ serve(async (req) => {
     const { data: article, error: artErr } = await admin
       .from("articles")
       .select(
-        "published_pdf_url, id, title, author_name, country, subject, abstract, reason_of_research, keywords, publication_year, volume, issue, page_number, published_link, galley_proof_pdf_url, formatted_document_url, status, wwjmrd_article_id, published_to_wwjmrd_at, author_id, doi_number, doi_paid, co_authors(name, orcid)"
+        "published_pdf_url, id, title, author_name, country, subject, abstract, reason_of_research, keywords, publication_year, volume, issue, page_number, published_link, galley_proof_pdf_url, formatted_document_url, status, wwjmrd_article_id, published_to_wwjmrd_at, author_id, author_affiliation, formatted_content, doi_number, doi_paid"
       )
       .eq("id", articleId)
       .maybeSingle();
@@ -84,9 +85,28 @@ serve(async (req) => {
 
     const { data: authorProfile } = await admin
       .from("profiles")
-      .select("orcid")
+      .select("full_name, first_name, last_name, email, affiliation, orcid")
       .eq("id", (article as any).author_id)
       .maybeSingle();
+
+    // Co-authors in their saved order (sort_order records insertion order).
+    const { data: coAuthorRows, error: coErr } = await admin
+      .from("co_authors")
+      .select("name, first_name, last_name, email, affiliation, orcid, sort_order")
+      .eq("article_id", articleId)
+      .order("sort_order", { ascending: true });
+    if (coErr) return json({ error: "Could not load co-authors: " + coErr.message }, 500);
+    (article as any).co_authors = coAuthorRows ?? [];
+
+    const authors = buildAuthors(
+      {
+        name: pubForm?.correspondence_author_name || article.author_name,
+        affiliation: (article as any).author_affiliation,
+      },
+      authorProfile as any,
+      coAuthorRows ?? [],
+    );
+    const references = buildReferences((article as any).formatted_content);
 
     const coAuthorOrcids = Array.isArray((article as any).co_authors)
       ? (article as any).co_authors.map((c: any) => c.orcid).filter(Boolean).join(", ")
@@ -213,6 +233,8 @@ serve(async (req) => {
       article_order: String(orderNumber),
       // DOI is only sent when the author paid the DOI fee.
       doi: pubForm?.doi || ((article as any).doi_paid ? (article as any).doi_number || "" : ""),
+      orcid_id: authorProfile?.orcid?.trim() || "",
+      page_number: String(article.page_number ?? "").trim(),
       pdf_url: pdfUrl,
       ...(authorProfile?.orcid?.trim()
         ? { orcid: authorProfile.orcid.trim(), author_orcid: authorProfile.orcid.trim() }
@@ -220,6 +242,11 @@ serve(async (req) => {
       ...(coAuthorOrcids ? { co_author_orcids: coAuthorOrcids } : {}),
       pdf: pdfUrl,
       file_url: pdfUrl,
+      // Structured data for article_article_authors / article_article_references.
+      // The request is form-urlencoded, so each array travels as a JSON string
+      // (PHP: json_decode($this->input->post('authors'), true)).
+      authors: JSON.stringify(authors),
+      references: JSON.stringify(references),
     };
 
     if (isUpdate) {
@@ -239,8 +266,12 @@ serve(async (req) => {
 
 
     // Log payload WITHOUT the secret
-    const { secret: _omit, ...loggable } = payload;
-    console.log("WWJMRD publish payload:", JSON.stringify(loggable));
+    const { secret: _omit, authors: _a, references: _r, ...loggable } = payload;
+    console.log("WWJMRD publish payload:", JSON.stringify({
+      ...loggable,
+      authors_count: authors.length,
+      references_count: references.length,
+    }));
 
     const postPayload = async (p: Record<string, string>): Promise<Response> => {
       const form = new URLSearchParams();
