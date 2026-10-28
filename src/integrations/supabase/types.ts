@@ -1205,6 +1205,7 @@ export type Database = {
           last_name: string | null
           name: string
           orcid: string | null
+          sort_order: number
         }
         Insert: {
           affiliation?: string | null
@@ -1216,6 +1217,7 @@ export type Database = {
           last_name?: string | null
           name: string
           orcid?: string | null
+          sort_order?: number
         }
         Update: {
           affiliation?: string | null
@@ -1227,6 +1229,7 @@ export type Database = {
           last_name?: string | null
           name?: string
           orcid?: string | null
+          sort_order?: number
         }
         Relationships: [
           {
