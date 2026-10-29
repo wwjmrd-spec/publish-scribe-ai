@@ -147,7 +147,7 @@ const HIGHLIGHT_PALETTE = [
 function contentWithoutOverlay(body: HTMLElement | null | undefined): string {
   if (!body) return '';
   const clone = body.cloneNode(true) as HTMLElement;
-  clone.querySelector('#ww-page-num-overlay')?.remove();
+  clone.querySelectorAll('#ww-page-num-overlay').forEach((n) => n.remove());
   return clone.innerHTML;
 }
 
@@ -302,7 +302,7 @@ export function ArticleContentEditor({
     if (!body) return;
     const seq = ++measureSeqRef.current;
     const clone = body.cloneNode(true) as HTMLElement;
-    clone.querySelector('#ww-page-num-overlay')?.remove();
+    clone.querySelectorAll('#ww-page-num-overlay').forEach((n) => n.remove());
     clone.querySelectorAll('*').forEach((el, i) => el.setAttribute(PAGE_MARK_ATTR, String(i)));
     try {
       const map = await measureFormattedPageStarts(clone.innerHTML, { startPage: 1, showFirstPageNumber: true });
@@ -415,6 +415,8 @@ export function ArticleContentEditor({
       // Page-number overlay: one absolutely-positioned label per A4 page,
       // mirroring the dashed page-break background. Stays in sync with content
       // height and the admin's "Start page #" input.
+      // Older saves may still contain a stale overlay — drop it first.
+      doc.querySelectorAll('#ww-page-num-overlay').forEach((n) => n.remove());
       const overlay = doc.createElement('div');
       overlay.id = 'ww-page-num-overlay';
       overlay.setAttribute('contenteditable', 'false');
