@@ -211,7 +211,7 @@ export function ArticleContentEditor({
 
   /** Replace ONLY the author block (names + affiliations + copyright name) inside the
    *  already formatted article. Nothing else is touched, so no re-formatting is needed. */
-  const applyAuthorDetails = useCallback(async (authors: AuthorDetail[]) => {
+  const applyAuthorDetails = useCallback(async (authors: AuthorDetail[], opts: { showEmails: boolean } = { showEmails: false }) => {
     const doc = iframeRef.current?.contentDocument;
     const body = doc?.body;
     if (!doc || !body) throw new Error('Editor is not ready');
@@ -222,16 +222,24 @@ export function ArticleContentEditor({
       !id.trim() ? '' :
       `<span class="ww-orcid" data-orcid="${esc(id.trim())}" style="display:inline-flex;align-items:center;gap:3px;white-space:nowrap;"><img src="https://orcid.org/sites/default/files/images/orcid_16x16.png" alt="ORCID iD" style="width:11px;height:11px;display:inline-block;vertical-align:middle;" /><a href="https://orcid.org/${esc(id.trim())}" style="color:#a6ce39;text-decoration:none;font-size:9px;">${esc(id.trim())}</a></span>`;
 
+    const emailOf = (a: AuthorDetail) => (opts.showEmails ? (a.email || '').trim() : '');
+    const hasNote = (a: AuthorDetail) => !!(a.affiliation.trim() || emailOf(a));
     const namesHtml = authors
       .filter(a => a.name.trim())
-      .map((a, i) => `${esc(a.name.trim())}${a.affiliation.trim() ? `<sup>${i + 1}</sup>` : ''}`)
+      .map((a, i) => `${esc(a.name.trim())}${hasNote(a) ? `<sup>${i + 1}</sup>` : ''}`)
       .join(', ');
 
     const affilHtml = authors
       .map((a, i) => ({ a, i }))
-      .filter(({ a }) => a.affiliation.trim())
-      .map(({ a, i }) =>
-        `<p class="ww-affil" data-author-index="${i + 1}" style="font-size:8px;line-height:1.4;margin:0;color:#334155;"><sup>${i + 1}</sup> ${esc(a.affiliation.trim())}${a.orcid.trim() ? ` ${orcidBadge(a.orcid)}` : ''}</p>`)
+      .filter(({ a }) => hasNote(a))
+      .map(({ a, i }) => {
+        const aff = esc(a.affiliation.trim());
+        const email = emailOf(a);
+        const emailHtml = email
+          ? `${aff ? ', ' : ''}<span class="ww-author-email">Email: <a href="mailto:${esc(email)}" style="color:#1e3a8a;text-decoration:none;">${esc(email)}</a></span>`
+          : '';
+        return `<p class="ww-affil" data-author-index="${i + 1}" style="font-size:8px;line-height:1.4;margin:0;color:#334155;"><sup>${i + 1}</sup> ${aff}${emailHtml}${a.orcid.trim() ? ` ${orcidBadge(a.orcid)}` : ''}</p>`;
+      })
       .join('');
 
     // 1. Author names line — tagged with .ww-authors, or detected by the formatter's blue style.
