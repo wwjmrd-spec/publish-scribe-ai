@@ -357,9 +357,13 @@ serve(async (req) => {
         payload.doi && doiMode !== "sent"
           ? " WWJMRD's endpoint cannot accept a DOI right now (their duplicate-DOI check table 'gst.article_up' doesn't exist — MySQL 1146) and their insert rejects a missing DOI (MySQL 1048). Their publish_article endpoint is broken; ask WWJMRD support to fix it, then retry."
           : "";
+      const duplicateNote =
+        res.status === 409 && /already exists/i.test(String(remoteDetail))
+          ? " This article is already on wwjmrd.com but its WWJMRD ID is not saved here, so it cannot be updated automatically. Remove the existing entry on wwjmrd.com, or ask WWJMRD for its ID, then publish again."
+          : "";
       return json(
         {
-          error: `WWJMRD returned HTTP ${res.status}${remoteDetail ? `: ${remoteDetail}` : ""}.${doiNote}`,
+          error: `WWJMRD returned HTTP ${res.status}${remoteDetail ? `: ${remoteDetail}` : ""}.${doiNote}${duplicateNote}`,
           httpStatus: res.status,
           response: body ?? summarizeRemoteError(text),
         },
