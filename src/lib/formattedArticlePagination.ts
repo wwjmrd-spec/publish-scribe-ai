@@ -8,6 +8,9 @@ const BODY_FOOTER_MM = 8;
 const BODY_CONTENT_HEIGHT_MM = CONTENT_HEIGHT_MM - BODY_HEADER_MM - BODY_FOOTER_MM;
 const MM_TO_PX = 96 / 25.4;
 
+/** Marker attribute used to map PDF pages back onto the editor's elements. */
+export const PAGE_MARK_ATTR = 'data-ww-pidx';
+
 const waitForImages = async (root: ParentNode) => {
   const images = Array.from(root.querySelectorAll('img')) as HTMLImageElement[];
   await Promise.all(
@@ -187,6 +190,8 @@ function materializeReferenceNumbers(root: HTMLElement) {
       if (child.tagName.toLowerCase() !== 'li') return;
       const item = document.createElement('p');
       item.className = 'ww-reference-item';
+      const mark = child.getAttribute(PAGE_MARK_ATTR);
+      if (mark) item.setAttribute(PAGE_MARK_ATTR, mark);
       item.innerHTML = `<span class="ww-reference-number">${index + 1}.</span><span class="ww-reference-text">${(child as HTMLElement).innerHTML}</span>`;
       items.push(item);
     });
@@ -697,4 +702,56 @@ export async function buildPagedFormattedArticleHtml(
 
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8">${pageCss}${styleTags}</head><body>${doc}</body></html>`;
+}
+
+/** Where one PDF/A4 page starts in the editor: the marked element plus how many
+ *  non-space characters of it were already printed on earlier pages. */
+export interface PageStart { pidx: number; charOffset: number }
+
+export interface PageStartsMap {
+  totalPages: number;
+  /** One entry per page; null = top of the document (the cover page). */
+  pageStarts: Array<PageStart | null>;
+}
+
+const countVisibleChars = (el: Element): number => {
+  let n = 0;
+  const walker = el.ownerDocument.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  let node: Node | null;
+  while ((node = walker.nextNode())) {
+    if ((node.parentElement as HTMLElement | null)?.closest('.ww-reference-number')) continue;
+    n += (node.textContent || '').replace(/\s+/g, '').length;
+  }
+  return n;
+};
+
+/**
+ * Runs the SAME pagination as Preview A4 / PDF / Word on HTML whose elements
+ * carry PAGE_MARK_ATTR indexes, and reports where each page begins so the
+ * editor can show exactly the page numbers the PDF will have.
+ */
+export async function measureFormattedPageStarts(
+  markedHtml: string,
+  options: PaginationOptions = {},
+): Promise<PageStartsMap> {
+  const paged = await buildPagedFormattedArticleHtml(markedHtml, options);
+  const doc = new DOMParser().parseFromString(paged, 'text/html');
+  const sections = Array.from(doc.querySelectorAll('section.formatted-a4-page'));
+  const printed = new Map<string, number>();
+  const pageStarts: Array<PageStart | null> = [];
+  for (const section of sections) {
+    if (section.classList.contains('formatted-cover-page')) {
+      pageStarts.push(null);
+      continue;
+    }
+    const content = section.querySelector('.formatted-body-content') || section;
+    const first = content.querySelector(`[${PAGE_MARK_ATTR}]`);
+    const key = first?.getAttribute(PAGE_MARK_ATTR);
+    pageStarts.push(key != null ? { pidx: Number(key), charOffset: printed.get(key) || 0 } : null);
+    content.querySelectorAll(`[${PAGE_MARK_ATTR}]`).forEach((el) => {
+      const k = el.getAttribute(PAGE_MARK_ATTR)!;
+      printed.set(k, (printed.get(k) || 0) + countVisibleChars(el));
+    });
+  }
+  return { totalPages: Math.max(1, sections.length), pageStarts };
 }
