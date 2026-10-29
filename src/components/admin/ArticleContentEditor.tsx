@@ -461,8 +461,9 @@ export function ArticleContentEditor({
           const top = tops[i];
           if (i > 0 && Number.isFinite(top) && top >= prevTop) {
             // Footer of the previous page, then the break line + new page tag.
-            html += label(top - 20, start + i - 1);
-            html += `<div style="position:absolute;left:0;right:0;top:${top - 4}px;border-top:2px dashed #94a3b8;"></div>`;
+            // Break line with the previous page's footer number sitting on it.
+            html += `<div style="position:absolute;left:0;right:0;top:${top - 3}px;border-top:2px dashed #94a3b8;"></div>`;
+            html += `<div style="position:absolute;left:50%;transform:translateX(-50%);top:${top - 9}px;padding:0 6px;background:#fff;font-family:'Times New Roman',serif;font-size:9px;line-height:11px;color:#475569;">— ${start + i - 1} —</div>`;
             html += `<div style="position:absolute;right:4px;top:${top - 2}px;font-family:Arial,sans-serif;font-size:9px;color:#fff;background:#64748b;border-radius:3px;padding:0 4px;">Page ${start + i}</div>`;
             prevTop = top;
           }
