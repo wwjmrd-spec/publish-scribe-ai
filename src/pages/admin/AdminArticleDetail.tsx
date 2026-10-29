@@ -1169,6 +1169,26 @@ export default function AdminArticleDetail() {
                     {publishToWwjmrdMutation.isPending ? 'Updating…' : 'Update on WWJMRD'}
                   </Button>
                 )}
+                <label
+                  className="flex items-center gap-2 text-xs text-muted-foreground px-2 py-1 rounded-md border border-border"
+                  title="When on, author emails are sent to WWJMRD. To print them on the article too, use Update Author Details in the formatting editor."
+                >
+                  <Switch
+                    checked={(article as any).include_author_emails === true}
+                    onCheckedChange={async (val) => {
+                      const { error } = await supabase
+                        .from('articles')
+                        .update({ include_author_emails: val } as any)
+                        .eq('id', article.id);
+                      if (error) { toast.error(error.message); return; }
+                      toast.success(val
+                        ? 'Author emails will be sent to WWJMRD. Use Update Author Details in the editor to print them on the article.'
+                        : 'Author emails will not be sent to WWJMRD. Use Update Author Details in the editor to remove them from the article.');
+                      queryClient.invalidateQueries({ queryKey: ['admin-article-detail', articleId] });
+                    }}
+                  />
+                  Add author emails
+                </label>
 
                 <Button
                   variant="outline"
