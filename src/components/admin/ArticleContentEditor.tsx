@@ -462,8 +462,8 @@ export function ArticleContentEditor({
           if (i > 0 && Number.isFinite(top) && top >= prevTop) {
             // Footer of the previous page, then the break line + new page tag.
             // Break line with "end of page N / start of page N+1" sitting on it.
-            html += `<div style="position:absolute;left:0;right:0;top:${top - 5}px;border-top:1px dashed #64748b;"></div>`;
-            html += `<div style="position:absolute;left:50%;transform:translateX(-50%);top:${top - 11}px;padding:0 6px;background:#fff;white-space:nowrap;font-family:Arial,sans-serif;font-size:9px;line-height:11px;color:#475569;">— ${start + i - 1} — &nbsp;|&nbsp; Page ${start + i}</div>`;
+            html += `<div style="position:absolute;left:0;right:0;top:${top - 6}px;border-top:1px dashed #64748b;"></div>`;
+            html += `<div style="position:absolute;left:50%;transform:translateX(-50%);top:${top - 12}px;padding:0 6px;background:#fff;white-space:nowrap;font-family:Arial,sans-serif;font-size:9px;line-height:11px;color:#475569;">— ${start + i - 1} — &nbsp;|&nbsp; Page ${start + i}</div>`;
             prevTop = top;
           }
         }
