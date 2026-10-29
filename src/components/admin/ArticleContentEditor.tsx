@@ -271,6 +271,7 @@ export function ArticleContentEditor({
     }
 
     renderPageNumbersRef.current?.();
+    scheduleMeasureRef.current(200);
 
     await saveFormattedArticle(articleId, { formatted_content: body.innerHTML });
   }, [articleId]);
