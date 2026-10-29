@@ -597,6 +597,7 @@ export type Database = {
           author_affiliation: string | null
           author_details_changed_once: boolean
           author_edits_remaining: number
+          author_email: string | null
           author_id: string
           author_name: string | null
           author_revision_html: string | null
@@ -641,6 +642,7 @@ export type Database = {
           galley_proof_word_url: string | null
           id: string
           in_publish_queue: boolean
+          include_author_emails: boolean
           issue: string | null
           keywords: string[] | null
           low_score_email_sent_at: string | null
@@ -686,6 +688,7 @@ export type Database = {
           author_affiliation?: string | null
           author_details_changed_once?: boolean
           author_edits_remaining?: number
+          author_email?: string | null
           author_id: string
           author_name?: string | null
           author_revision_html?: string | null
@@ -730,6 +733,7 @@ export type Database = {
           galley_proof_word_url?: string | null
           id?: string
           in_publish_queue?: boolean
+          include_author_emails?: boolean
           issue?: string | null
           keywords?: string[] | null
           low_score_email_sent_at?: string | null
@@ -775,6 +779,7 @@ export type Database = {
           author_affiliation?: string | null
           author_details_changed_once?: boolean
           author_edits_remaining?: number
+          author_email?: string | null
           author_id?: string
           author_name?: string | null
           author_revision_html?: string | null
@@ -819,6 +824,7 @@ export type Database = {
           galley_proof_word_url?: string | null
           id?: string
           in_publish_queue?: boolean
+          include_author_emails?: boolean
           issue?: string | null
           keywords?: string[] | null
           low_score_email_sent_at?: string | null

@@ -98,11 +98,20 @@ const normalizeEmail = (v: unknown): string | null => {
  * The main author's affiliation is never copied to co-authors.
  * No designation is captured anywhere in the app yet, so it is always null.
  */
+export type BuildAuthorsOptions = {
+  /** Admin's per-article choice; when false every email is sent as null. */
+  includeEmails?: boolean;
+  /** Main author's email as printed on the article (articles.author_email). */
+  mainEmail?: string | null;
+};
+
 export function buildAuthors(
   main: MainAuthorSource,
   profile: ProfileSource,
   coAuthors: CoAuthorSource[],
+  options: BuildAuthorsOptions = {},
 ): WwjmrdAuthor[] {
+  const includeEmails = options.includeEmails ?? true;
   const authors: WwjmrdAuthor[] = [];
   const same = isSamePerson(main.name, profile);
   const mainName = clean(main.name) || (same ? clean(profile?.full_name) : null);
@@ -115,7 +124,9 @@ export function buildAuthors(
       last_name: useProfileParts ? clean(profile?.last_name) : split.last,
       author_name: mainName,
       author_role: "corresponding_author",
-      email: same ? normalizeEmail(profile?.email) : null,
+      email: includeEmails
+        ? normalizeEmail(options.mainEmail) || (same ? normalizeEmail(profile?.email) : null)
+        : null,
       affiliation: clean(main.affiliation) || (same ? clean(profile?.affiliation) : null),
       designation: null,
       // The app stores the main author's ORCID on the submitting profile
@@ -135,7 +146,7 @@ export function buildAuthors(
       last_name: split.last,
       author_name: fullName,
       author_role: "co_author",
-      email: normalizeEmail(c.email),
+      email: includeEmails ? normalizeEmail(c.email) : null,
       affiliation: clean(c.affiliation),
       designation: null,
       orcid_id: normalizeOrcid(c.orcid),
@@ -253,4 +264,57 @@ export function parseReference(text: string): WwjmrdReference {
 
 export function buildReferences(formattedHtml: string | null | undefined): WwjmrdReference[] {
   return extractReferenceTexts(formattedHtml).map(parseReference);
+}
+
+// ---------------------------------------------------------------- monthly order
+
+export type PublishedArticleRow = {
+  id: string;
+  issue?: string | null;
+  volume?: string | null;
+  publication_year?: string | null;
+  published_to_wwjmrd_at?: string | null;
+  wwjmrd_article_id?: number | null;
+};
+
+/**
+ * "YYYY-MM" publication month of an article: issue NN = month NN, the year
+ * from publication_year (or volume N = 2014 + N), falling back to the date it
+ * was published to WWJMRD.
+ */
+export function publicationMonthKey(row: PublishedArticleRow): string | null {
+  const issue = parseInt(String(row.issue ?? "").trim(), 10);
+  let month = issue >= 1 && issue <= 12 ? issue : NaN;
+  let year = parseInt(String(row.publication_year ?? "").trim(), 10);
+  if (!(year > 1900)) {
+    const vol = parseInt(String(row.volume ?? "").trim(), 10);
+    if (vol >= 1) year = 2014 + vol;
+  }
+  const d = row.published_to_wwjmrd_at ? new Date(row.published_to_wwjmrd_at) : null;
+  const validDate = d && !Number.isNaN(d.getTime());
+  if (!Number.isFinite(month) && validDate) month = d!.getUTCMonth() + 1;
+  if (!(year > 1900) && validDate) year = d!.getUTCFullYear();
+  if (!Number.isFinite(month) || !(year > 1900)) return null;
+  return `${year}-${String(month).padStart(2, "0")}`;
+}
+
+/**
+ * Order of an article within its publication month: 1 for the first article
+ * published in that month, 2 for the second, and so on. An article that is
+ * already published keeps its own position; a new one goes after the others.
+ */
+export function computeMonthlyOrder(
+  monthKey: string,
+  articleId: string,
+  published: PublishedArticleRow[],
+): number {
+  const time = (r: PublishedArticleRow) => {
+    const t = r.published_to_wwjmrd_at ? new Date(r.published_to_wwjmrd_at).getTime() : NaN;
+    return Number.isFinite(t) ? t : Number.MAX_SAFE_INTEGER;
+  };
+  const sameMonth = published
+    .filter((r) => publicationMonthKey(r) === monthKey)
+    .sort((a, b) => time(a) - time(b) || Number(a.wwjmrd_article_id ?? 0) - Number(b.wwjmrd_article_id ?? 0));
+  const own = sameMonth.findIndex((r) => r.id === articleId);
+  return own >= 0 ? own + 1 : sameMonth.length + 1;
 }

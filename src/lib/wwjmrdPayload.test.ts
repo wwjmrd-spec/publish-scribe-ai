@@ -88,3 +88,42 @@ describe('buildReferences inside wrapper blocks', () => {
     expect(buildReferences(html).map((r) => r.reference_text)).toEqual(['First ref.', 'Second ref.']);
   });
 });
+
+import { computeMonthlyOrder, publicationMonthKey } from '../../supabase/functions/publish-to-wwjmrd/wwjmrdPayload';
+
+describe('author email option', () => {
+  const co = [{ name: 'Priya Sharma', email: 'priya@uni.edu', affiliation: 'B' }];
+  it('sends no emails when the admin has not chosen to add them', () => {
+    const authors = buildAuthors({ name: 'Shubham Meena', affiliation: 'A' }, profile, co, { includeEmails: false });
+    expect(authors.map((a) => a.email)).toEqual([null, null]);
+  });
+  it('sends every author email when the option is on, preferring the email printed for the main author', () => {
+    const authors = buildAuthors({ name: 'Shubham Meena', affiliation: 'A' }, profile, co, {
+      includeEmails: true,
+      mainEmail: 'Main@Journal.org',
+    });
+    expect(authors.map((a) => a.email)).toEqual(['main@journal.org', 'priya@uni.edu']);
+  });
+});
+
+describe('monthly order', () => {
+  const rows = [
+    { id: 'a', issue: '10', volume: '12', publication_year: '2026', published_to_wwjmrd_at: '2026-10-02T10:00:00Z', wwjmrd_article_id: 1 },
+    { id: 'b', issue: '10', volume: '12', publication_year: null, published_to_wwjmrd_at: '2026-10-05T10:00:00Z', wwjmrd_article_id: 2 },
+    { id: 'c', issue: '09', volume: '12', publication_year: '2026', published_to_wwjmrd_at: '2026-09-20T10:00:00Z', wwjmrd_article_id: 3 },
+  ];
+  it('is 1 for the first article of a month with nothing published yet', () => {
+    expect(computeMonthlyOrder('2026-11', 'new', rows)).toBe(1);
+  });
+  it('counts the articles already published in the same month', () => {
+    expect(computeMonthlyOrder('2026-10', 'new', rows)).toBe(3);
+    expect(computeMonthlyOrder('2026-09', 'new', rows)).toBe(2);
+  });
+  it('keeps the position of an article that is already published', () => {
+    expect(computeMonthlyOrder('2026-10', 'a', rows)).toBe(1);
+    expect(computeMonthlyOrder('2026-10', 'b', rows)).toBe(2);
+  });
+  it('reads issue 10 / volume 12 as October 2026', () => {
+    expect(publicationMonthKey({ id: 'x', issue: '10', volume: '12' })).toBe('2026-10');
+  });
+});

@@ -32,3 +32,7 @@
 - [x] Add manual DOI payments and assignment without changing publication status.
 - [x] Rename Get DOI and gate author DOI visibility on payment and publication.
 - [x] Verify DOI visibility with five tests and the manual payment form in the browser; no real payment recorded.
+
+- [x] Editor page numbers and range follow the PDF / Preview A4 pagination.
+- [x] "Add author emails" option (article + WWJMRD publish); main author email field.
+- [x] WWJMRD order = position within the publication month; republishing an already-published article updates it.

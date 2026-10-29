@@ -27,7 +27,7 @@ import {
   DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
 import { Label } from '@/components/ui/label';
-import { buildPagedFormattedArticleHtml } from '@/lib/formattedArticlePagination';
+import { buildPagedFormattedArticleHtml, measureFormattedPageStarts, PAGE_MARK_ATTR, type PageStartsMap } from '@/lib/formattedArticlePagination';
 import { downloadFormattedAsPdf, downloadFormattedAsDocx, buildFormattedPdfBlob } from '@/lib/exportFormattedArticle';
 import { resolveEdgeFunctionError } from '@/lib/edgeFunctionError';
 import { saveFormattedArticle } from '@/lib/saveFormattedArticle';
@@ -58,17 +58,9 @@ const EDITOR_STYLES = `
     font-size: 12px;
     line-height: var(--ww-line-height, 1.6);
     color: #000;
-    background:
-      repeating-linear-gradient(
-        to bottom,
-        #ffffff 0,
-        #ffffff calc(${PAGE_HEIGHT_MM}mm - 2px),
-        #cbd5e1 calc(${PAGE_HEIGHT_MM}mm - 2px),
-        #cbd5e1 ${PAGE_HEIGHT_MM}mm,
-        #f1f5f9 ${PAGE_HEIGHT_MM}mm,
-        #f1f5f9 calc(${PAGE_HEIGHT_MM}mm + 14px),
-        #ffffff calc(${PAGE_HEIGHT_MM}mm + 14px)
-      );
+    /* Page breaks are drawn by the page-number overlay at the exact places
+       the PDF / Preview A4 pages break, not at fixed 297mm steps. */
+    background: #ffffff;
     padding: 0;
     margin: 0;
     min-height: ${PAGE_HEIGHT_MM}mm;
@@ -152,6 +144,40 @@ const HIGHLIGHT_PALETTE = [
 ];
 
 
+function contentWithoutOverlay(body: HTMLElement | null | undefined): string {
+  if (!body) return '';
+  const clone = body.cloneNode(true) as HTMLElement;
+  clone.querySelectorAll('#ww-page-num-overlay').forEach((n) => n.remove());
+  return clone.innerHTML;
+}
+
+/** Vertical position (iframe document coordinates) where a PDF page starts:
+ *  the marked element's top, or the line holding its `charOffset`-th visible
+ *  character when the element was split across pages. */
+function pageStartY(doc: Document, el: Element, charOffset: number): number {
+  const scrollY = doc.defaultView?.scrollY || 0;
+  const top = el.getBoundingClientRect().top + scrollY;
+  if (!charOffset) return top;
+  const walker = doc.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  let remaining = charOffset;
+  let node: Node | null;
+  while ((node = walker.nextNode())) {
+    const text = (node as Text).data;
+    for (let i = 0; i < text.length; i++) {
+      if (/\s/.test(text[i])) continue;
+      if (remaining === 0) {
+        const range = doc.createRange();
+        range.setStart(node, i);
+        range.setEnd(node, i + 1);
+        const rect = range.getBoundingClientRect();
+        return rect.height ? rect.top + scrollY : top;
+      }
+      remaining--;
+    }
+  }
+  return top;
+}
+
 export function ArticleContentEditor({
   articleId, initialContent, articleTitle, referenceNumber, onClose,
   mode = 'admin', articleMeta,
@@ -192,7 +218,7 @@ export function ArticleContentEditor({
 
   /** Replace ONLY the author block (names + affiliations + copyright name) inside the
    *  already formatted article. Nothing else is touched, so no re-formatting is needed. */
-  const applyAuthorDetails = useCallback(async (authors: AuthorDetail[]) => {
+  const applyAuthorDetails = useCallback(async (authors: AuthorDetail[], opts: { showEmails: boolean } = { showEmails: false }) => {
     const doc = iframeRef.current?.contentDocument;
     const body = doc?.body;
     if (!doc || !body) throw new Error('Editor is not ready');
@@ -203,16 +229,24 @@ export function ArticleContentEditor({
       !id.trim() ? '' :
       `<span class="ww-orcid" data-orcid="${esc(id.trim())}" style="display:inline-flex;align-items:center;gap:3px;white-space:nowrap;"><img src="https://orcid.org/sites/default/files/images/orcid_16x16.png" alt="ORCID iD" style="width:11px;height:11px;display:inline-block;vertical-align:middle;" /><a href="https://orcid.org/${esc(id.trim())}" style="color:#a6ce39;text-decoration:none;font-size:9px;">${esc(id.trim())}</a></span>`;
 
+    const emailOf = (a: AuthorDetail) => (opts.showEmails ? (a.email || '').trim() : '');
+    const hasNote = (a: AuthorDetail) => !!(a.affiliation.trim() || emailOf(a));
     const namesHtml = authors
       .filter(a => a.name.trim())
-      .map((a, i) => `${esc(a.name.trim())}${a.affiliation.trim() ? `<sup>${i + 1}</sup>` : ''}`)
+      .map((a, i) => `${esc(a.name.trim())}${hasNote(a) ? `<sup>${i + 1}</sup>` : ''}`)
       .join(', ');
 
     const affilHtml = authors
       .map((a, i) => ({ a, i }))
-      .filter(({ a }) => a.affiliation.trim())
-      .map(({ a, i }) =>
-        `<p class="ww-affil" data-author-index="${i + 1}" style="font-size:8px;line-height:1.4;margin:0;color:#334155;"><sup>${i + 1}</sup> ${esc(a.affiliation.trim())}${a.orcid.trim() ? ` ${orcidBadge(a.orcid)}` : ''}</p>`)
+      .filter(({ a }) => hasNote(a))
+      .map(({ a, i }) => {
+        const aff = esc(a.affiliation.trim());
+        const email = emailOf(a);
+        const emailHtml = email
+          ? `${aff ? ', ' : ''}<span class="ww-author-email">Email: <a href="mailto:${esc(email)}" style="color:#1e3a8a;text-decoration:none;">${esc(email)}</a></span>`
+          : '';
+        return `<p class="ww-affil" data-author-index="${i + 1}" style="font-size:8px;line-height:1.4;margin:0;color:#334155;"><sup>${i + 1}</sup> ${aff}${emailHtml}${a.orcid.trim() ? ` ${orcidBadge(a.orcid)}` : ''}</p>`;
+      })
       .join('');
 
     // 1. Author names line — tagged with .ww-authors, or detected by the formatter's blue style.
@@ -244,8 +278,9 @@ export function ArticleContentEditor({
     }
 
     renderPageNumbersRef.current?.();
+    scheduleMeasureRef.current(200);
 
-    await saveFormattedArticle(articleId, { formatted_content: body.innerHTML });
+    await saveFormattedArticle(articleId, { formatted_content: contentWithoutOverlay(body) });
   }, [articleId]);
 
 
@@ -254,6 +289,38 @@ export function ArticleContentEditor({
   useEffect(() => { startPageRef.current = startPage; }, [startPage]);
 
   const renderPageNumbersRef = useRef<() => void>(() => {});
+  /** Real page layout from the PDF pagination; null until first measured. */
+  const pageMapRef = useRef<PageStartsMap | null>(null);
+  const [pagesMeasured, setPagesMeasured] = useState(false);
+  const measureSeqRef = useRef(0);
+  const measureTimerRef = useRef<number | undefined>(undefined);
+
+  /** Paginate the current content exactly like Preview A4 / PDF and remember
+   *  where every page starts, so editor page numbers match the PDF. */
+  const measurePages = useCallback(async () => {
+    const body = iframeRef.current?.contentDocument?.body;
+    if (!body) return;
+    const seq = ++measureSeqRef.current;
+    const clone = body.cloneNode(true) as HTMLElement;
+    clone.querySelectorAll('#ww-page-num-overlay').forEach((n) => n.remove());
+    clone.querySelectorAll('*').forEach((el, i) => el.setAttribute(PAGE_MARK_ATTR, String(i)));
+    try {
+      const map = await measureFormattedPageStarts(clone.innerHTML, { startPage: 1, showFirstPageNumber: true });
+      if (seq !== measureSeqRef.current) return;
+      pageMapRef.current = map;
+      setPageCount(map.totalPages);
+      setPagesMeasured(true);
+      renderPageNumbersRef.current?.();
+    } catch (e) {
+      console.warn('Page measurement failed', e);
+    }
+  }, []);
+  const scheduleMeasureRef = useRef<(delay?: number) => void>(() => {});
+  scheduleMeasureRef.current = (delay = 1500) => {
+    window.clearTimeout(measureTimerRef.current);
+    measureTimerRef.current = window.setTimeout(() => { void measurePages(); }, delay);
+  };
+  useEffect(() => () => window.clearTimeout(measureTimerRef.current), []);
 
   // Auto-continue page numbers from the last published article OF THE SAME ISSUE
   // (= same publication month). When a new issue/month starts, numbering resets to 1.
@@ -348,6 +415,8 @@ export function ArticleContentEditor({
       // Page-number overlay: one absolutely-positioned label per A4 page,
       // mirroring the dashed page-break background. Stays in sync with content
       // height and the admin's "Start page #" input.
+      // Older saves may still contain a stale overlay — drop it first.
+      doc.querySelectorAll('#ww-page-num-overlay').forEach((n) => n.remove());
       const overlay = doc.createElement('div');
       overlay.id = 'ww-page-num-overlay';
       overlay.setAttribute('contenteditable', 'false');
@@ -361,21 +430,45 @@ export function ArticleContentEditor({
         const pageHeightPx = PAGE_HEIGHT_MM * mmToPx;
         // IMPORTANT: clear the overlay before measuring. Absolutely-positioned
         // children still contribute to the parent's scrollHeight, so leaving
-        // stale labels in place pins the height at the old (larger) value and
-        // the page count would "keep counting" instead of shrinking when the
-        // author deletes content.
+        // stale labels in place pins the height at the old (larger) value.
         overlay.innerHTML = '';
         overlay.style.height = '0px';
         const contentHeight = Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight);
-        const pages = Math.max(1, Math.ceil(contentHeight / pageHeightPx));
         const start = startPageRef.current || 1;
-        let html = '';
-        for (let i = 0; i < pages; i++) {
-          const top = (i + 1) * pageHeightPx - 22; // sit just above the dashed divider
-          html += `<div style="position:absolute;left:0;right:0;top:${top}px;text-align:center;font-family:'Times New Roman',serif;font-size:10px;color:#475569;">— ${start + i} —</div>`;
+        const map = pageMapRef.current;
+
+        // Page start positions: measured from the real PDF pagination when
+        // available, otherwise a rough estimate until the first measurement.
+        let tops: number[];
+        if (map) {
+          const live = Array.from(doc.body.querySelectorAll('*')).filter((el) => !overlay.contains(el));
+          tops = map.pageStarts.map((ps, i) => {
+            if (i === 0) return 0;
+            const el = ps ? live[ps.pidx] : undefined;
+            return el ? pageStartY(doc, el, ps!.charOffset) : NaN;
+          });
+        } else {
+          const pages = Math.max(1, Math.ceil(contentHeight / pageHeightPx));
+          tops = Array.from({ length: pages }, (_, i) => i * pageHeightPx);
+          setPageCount((prev) => (prev === pages ? prev : pages));
         }
+
+        const label = (top: number, n: number) =>
+          `<div style="position:absolute;left:0;right:0;top:${Math.max(0, top)}px;text-align:center;font-family:'Times New Roman',serif;font-size:10px;color:#475569;">— ${n} —</div>`;
+        let html = '';
+        let prevTop = 0;
+        for (let i = 0; i < tops.length; i++) {
+          const top = tops[i];
+          if (i > 0 && Number.isFinite(top) && top >= prevTop) {
+            // Footer of the previous page, then the break line + new page tag.
+            // Break line with "end of page N / start of page N+1" sitting on it.
+            html += `<div style="position:absolute;left:0;right:0;top:${top - 6}px;border-top:1px dashed #64748b;"></div>`;
+            html += `<div style="position:absolute;left:50%;transform:translateX(-50%);top:${top - 12}px;padding:0 6px;background:#fff;white-space:nowrap;font-family:Arial,sans-serif;font-size:9px;line-height:11px;color:#475569;">— ${start + i - 1} — &nbsp;|&nbsp; Page ${start + i}</div>`;
+            prevTop = top;
+          }
+        }
+        html += label(contentHeight - 16, start + tops.length - 1);
         overlay.innerHTML = html;
-        setPageCount((prev) => (prev === pages ? prev : pages));
       };
       renderPageNumbersRef.current = renderPageNumbers;
 
@@ -383,6 +476,7 @@ export function ArticleContentEditor({
       // shows full A4 pages instead of one long scrollable block.
       const resize = () => {
         renderPageNumbers();
+        scheduleMeasureRef.current();
         const h = Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight);
         iframe.style.height = `${h + 24}px`;
       };
@@ -392,6 +486,7 @@ export function ArticleContentEditor({
       doc.body.addEventListener('input', resize);
 
       setReady(true);
+      scheduleMeasureRef.current(300);
     };
     iframe.addEventListener('load', onLoad);
     iframe.src = 'about:blank';
@@ -417,9 +512,8 @@ export function ArticleContentEditor({
 
 
 
-  const getContent = useCallback(() => {
-    return iframeRef.current?.contentDocument?.body?.innerHTML || '';
-  }, []);
+  // Saved / exported HTML never includes the editor-only page-number overlay.
+  const getContent = useCallback(() => contentWithoutOverlay(iframeRef.current?.contentDocument?.body), []);
 
   const execCmd = useCallback((cmd: string, value?: string) => {
     const doc = iframeRef.current?.contentDocument;
@@ -786,12 +880,14 @@ export function ArticleContentEditor({
   // Build the canonical page range string (e.g. "12-18" or "12").
   // If the admin has already saved a page range, that saved value is FINAL and
   // is returned as-is so approving/sending never re-numbers the article.
+  // The start page is final once saved; the end page always comes from the
+  // real PDF pagination so the range matches the PDF / Preview A4 pages.
   const computedPageRange = useCallback(() => {
-    if (savedPageRange) return savedPageRange;
+    if (savedPageRange && !pagesMeasured) return savedPageRange;
     const start = Math.max(1, startPage || 1);
     const end = start + Math.max(1, pageCount) - 1;
     return end > start ? `${start}-${end}` : `${start}`;
-  }, [savedPageRange, startPage, pageCount]);
+  }, [savedPageRange, startPage, pageCount, pagesMeasured]);
 
   const handleSave = async () => {
     if (saving || approving || sending) return;

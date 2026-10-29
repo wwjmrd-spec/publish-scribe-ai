@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -18,6 +19,7 @@ export interface AuthorDetail {
   name: string;
   affiliation: string;
   orcid: string;
+  email: string;
 }
 
 interface Props {
@@ -25,7 +27,7 @@ interface Props {
   onOpenChange: (v: boolean) => void;
   articleId: string;
   /** Patches the currently open formatted article with the new author details. */
-  onApply: (authors: AuthorDetail[]) => Promise<void> | void;
+  onApply: (authors: AuthorDetail[], opts: { showEmails: boolean }) => Promise<void> | void;
 }
 
 export function UpdateAuthorDetailsDialog({ open, onOpenChange, articleId, onApply }: Props) {
@@ -34,6 +36,7 @@ export function UpdateAuthorDetailsDialog({ open, onOpenChange, articleId, onApp
   const [saving, setSaving] = useState(false);
   const [authorProfileId, setAuthorProfileId] = useState<string | null>(null);
   const [authors, setAuthors] = useState<AuthorDetail[]>([]);
+  const [showEmails, setShowEmails] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -44,14 +47,14 @@ export function UpdateAuthorDetailsDialog({ open, onOpenChange, articleId, onApp
         const [{ data: article, error: aErr }, { data: coAuthors, error: cErr }] = await Promise.all([
           supabase
             .from('articles')
-            .select('author_name, author_affiliation, author_id, profiles:author_id (full_name, first_name, last_name, affiliation, orcid)')
+            .select('author_name, author_affiliation, author_email, include_author_emails, author_id, profiles:author_id (full_name, email, first_name, last_name, affiliation, orcid)')
             .eq('id', articleId)
             .maybeSingle(),
           supabase
             .from('co_authors')
-            .select('id, first_name, last_name, name, affiliation, orcid')
+            .select('id, first_name, last_name, name, affiliation, orcid, email')
             .eq('article_id', articleId)
-            .order('created_at', { ascending: true }),
+            .order('sort_order', { ascending: true }),
         ]);
         if (aErr) throw aErr;
         if (cErr) throw cErr;
@@ -64,6 +67,12 @@ export function UpdateAuthorDetailsDialog({ open, onOpenChange, articleId, onApp
         setAuthorProfileId(((article as any)?.author_id as string) || null);
         const primaryName = ((article as any)?.author_name || profile?.full_name || '').toString();
         const primaryParts = splitName(primaryName);
+        // The account email is only a default when the account holder is the
+        // main author printed on the article.
+        const sameAsAccount =
+          !(article as any)?.author_name ||
+          String((article as any).author_name).trim().toLowerCase() === String(profile?.full_name || '').trim().toLowerCase();
+        setShowEmails((article as any)?.include_author_emails === true);
         setAuthors([
           {
             isPrimary: true,
@@ -72,6 +81,7 @@ export function UpdateAuthorDetailsDialog({ open, onOpenChange, articleId, onApp
             name: primaryName,
             affiliation: ((article as any)?.author_affiliation ?? profile?.affiliation ?? '').toString(),
             orcid: (profile?.orcid || '').toString(),
+            email: ((article as any)?.author_email || (sameAsAccount ? profile?.email : '') || '').toString(),
           },
           ...((coAuthors || []) as any[]).map((c) => {
             const parts = splitName(c.name);
@@ -83,6 +93,7 @@ export function UpdateAuthorDetailsDialog({ open, onOpenChange, articleId, onApp
               name: (c.name || '').toString(),
               affiliation: (c.affiliation || '').toString(),
               orcid: (c.orcid || '').toString(),
+              email: (c.email || '').toString(),
             };
           }),
         ]);
@@ -101,6 +112,8 @@ export function UpdateAuthorDetailsDialog({ open, onOpenChange, articleId, onApp
   const handleSave = async () => {
     if (!authors.length) return;
     if (!authors[0].firstName.trim() || !authors[0].lastName.trim()) { toast.error('Corresponding author first and last names are required'); return; }
+    const badEmail = authors.find((a) => a.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(a.email.trim()));
+    if (badEmail) { toast.error(`Please enter a valid email for ${joinName(badEmail.firstName, badEmail.lastName) || 'each author'}`); return; }
     setSaving(true);
     try {
       const primary = authors[0];
@@ -111,6 +124,8 @@ export function UpdateAuthorDetailsDialog({ open, onOpenChange, articleId, onApp
         .update({
           author_name: primaryName.slice(0, 200),
           author_affiliation: primary.affiliation.trim().slice(0, 300) || null,
+          author_email: primary.email.trim().toLowerCase().slice(0, 255) || null,
+          include_author_emails: showEmails,
         } as any)
         .eq('id', articleId);
       if (artErr) throw artErr;
@@ -137,12 +152,16 @@ export function UpdateAuthorDetailsDialog({ open, onOpenChange, articleId, onApp
             name: joinName(co.firstName, co.lastName).slice(0, 200),
             affiliation: co.affiliation.trim().slice(0, 300) || null,
             orcid: co.orcid.trim().slice(0, 50) || null,
+            email: co.email.trim().toLowerCase().slice(0, 255),
           } as any)
           .eq('id', co.coAuthorId);
         if (coErr) throw coErr;
       }
 
-       await onApply(authors.map((author) => ({ ...author, name: joinName(author.firstName, author.lastName) })));
+      await onApply(
+        authors.map((author) => ({ ...author, name: joinName(author.firstName, author.lastName) })),
+        { showEmails },
+      );
 
       qc.invalidateQueries({ queryKey: ['admin-article-detail'] });
       qc.invalidateQueries({ queryKey: ['admin-articles'] });
@@ -161,7 +180,7 @@ export function UpdateAuthorDetailsDialog({ open, onOpenChange, articleId, onApp
         <DialogHeader>
           <DialogTitle className="gradient-text">Update Author Details</DialogTitle>
           <DialogDescription>
-            Changes the author names, affiliations and ORCID iDs inside the already formatted article.
+            Changes the author names, affiliations, emails and ORCID iDs inside the already formatted article.
             The article is not re-formatted, so all other content and page numbers stay exactly as they are.
           </DialogDescription>
         </DialogHeader>
@@ -170,6 +189,16 @@ export function UpdateAuthorDetailsDialog({ open, onOpenChange, articleId, onApp
           <div className="flex justify-center py-10"><GlassSpinner size="lg" /></div>
         ) : (
           <div className="space-y-4 py-1">
+            <div className="flex items-start justify-between gap-3 p-3 rounded-lg border border-primary/30 bg-primary/5">
+              <div>
+                <Label htmlFor="show-author-emails" className="text-sm font-medium">Add author emails</Label>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  On: emails are printed under the authors on the article and sent to WWJMRD when publishing.
+                  Off: no emails are printed or sent.
+                </p>
+              </div>
+              <Switch id="show-author-emails" checked={showEmails} onCheckedChange={setShowEmails} />
+            </div>
             {authors.map((a, i) => (
               <div key={a.coAuthorId || 'primary'} className="p-3 rounded-lg bg-[hsl(var(--glass-bg))] space-y-2">
                 <p className="text-xs font-semibold text-primary">
@@ -186,6 +215,16 @@ export function UpdateAuthorDetailsDialog({ open, onOpenChange, articleId, onApp
                   </div>
                 </div>
                 <div className="grid md:grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs">Email</Label>
+                    <Input
+                      className="glass-input"
+                      type="email"
+                      placeholder="name@university.edu"
+                      value={a.email}
+                      onChange={(e) => setField(i, 'email', e.target.value)}
+                    />
+                  </div>
                   <div>
                     <Label className="text-xs">ORCID iD</Label>
                     <Input

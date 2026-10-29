@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { buildAuthors, buildReferences } from "./wwjmrdPayload.ts";
+import { buildAuthors, buildReferences, computeMonthlyOrder } from "./wwjmrdPayload.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -57,18 +57,22 @@ serve(async (req) => {
 
     const { articleId, mode, allowCloudPdf: rawAllowCloud } = await req.json().catch(() => ({}));
     if (!articleId) return json({ error: "articleId is required" }, 400);
-    const isUpdate = mode === "update";
+    let isUpdate = mode === "update";
     const allowCloudPdf = rawAllowCloud === true;
 
     // Load article + co-authors
     const { data: article, error: artErr } = await admin
       .from("articles")
       .select(
-        "published_pdf_url, id, title, author_name, country, subject, abstract, reason_of_research, keywords, publication_year, volume, issue, page_number, published_link, galley_proof_pdf_url, formatted_document_url, status, wwjmrd_article_id, published_to_wwjmrd_at, author_id, author_affiliation, formatted_content, doi_number, doi_paid"
+        "published_pdf_url, id, title, author_name, country, subject, abstract, reason_of_research, keywords, publication_year, volume, issue, page_number, published_link, galley_proof_pdf_url, formatted_document_url, status, wwjmrd_article_id, published_to_wwjmrd_at, author_id, author_affiliation, formatted_content, doi_number, doi_paid, include_author_emails, author_email"
       )
       .eq("id", articleId)
       .maybeSingle();
     if (artErr || !article) return json({ error: "Article not found" }, 404);
+
+    // Already on WWJMRD (e.g. its status was changed back afterwards): publishing
+    // again must update that entry, otherwise WWJMRD rejects the duplicate DOI.
+    if (!isUpdate && (article as any).wwjmrd_article_id) isUpdate = true;
 
     if (isUpdate && !(article as any).wwjmrd_article_id) {
       return json({ error: "This article has not been published to WWJMRD yet, so it cannot be updated." }, 400);
@@ -105,6 +109,10 @@ serve(async (req) => {
       },
       authorProfile as any,
       coAuthorRows ?? [],
+      {
+        includeEmails: (article as any).include_author_emails === true,
+        mainEmail: (article as any).author_email,
+      },
     );
     const references = buildReferences((article as any).formatted_content);
 
@@ -153,21 +161,6 @@ serve(async (req) => {
     if (!year) year = String(now.getFullYear());
     if (!month) month = monthName(now.getMonth() + 1);
 
-    // Order number = position of this article within its volume/issue on WWJMRD.
-    let orderNumber = 1;
-    if (issueRaw) {
-      const { data: siblings } = await admin
-        .from("articles")
-        .select("id, published_to_wwjmrd_at, wwjmrd_article_id")
-        .eq("issue", issueRaw)
-        .eq("publication_year", article.publication_year)
-        .not("wwjmrd_article_id", "is", null)
-        .order("published_to_wwjmrd_at", { ascending: true });
-      const list = (siblings ?? []).filter((s: any) => s.id !== articleId);
-      const existingIdx = (siblings ?? []).findIndex((s: any) => s.id === articleId);
-      orderNumber = isUpdate && existingIdx >= 0 ? existingIdx + 1 : list.length + 1;
-    }
-
     // Publishing uses the journal-hosted file from the upload that just
     // succeeded. Only when the admin explicitly confirms (allowCloudPdf) after
     // a failed upload is a long-lived Cloud storage link used instead.
@@ -211,6 +204,17 @@ serve(async (req) => {
     );
     const issueValue = issueRaw || monthNumber;
 
+    // Order = position of this article among those published in the same
+    // publication month: the first article of a month is 1, the next 2, ...
+    const { data: publishedRows, error: orderErr } = await admin
+      .from("articles")
+      .select("id, issue, volume, publication_year, published_to_wwjmrd_at, wwjmrd_article_id")
+      .not("wwjmrd_article_id", "is", null)
+      .limit(10000);
+    if (orderErr) return json({ error: "Could not work out the article order: " + orderErr.message }, 500);
+    const monthKey = `${year}-${monthNumber.padStart(2, "0")}`;
+    const orderNumber = computeMonthlyOrder(monthKey, articleId, (publishedRows ?? []) as any);
+
     const payload: Record<string, string> = {
       secret: wwjmrdSecret,
       title: pubForm?.article_title || article.title || "",
@@ -229,6 +233,7 @@ serve(async (req) => {
       volume_number: String(article.volume ?? ""),
       issue: issueValue,
       issue_number: issueValue,
+      order: String(orderNumber),
       order_number: String(orderNumber),
       article_order: String(orderNumber),
       // DOI is only sent when the author paid the DOI fee.
@@ -352,9 +357,13 @@ serve(async (req) => {
         payload.doi && doiMode !== "sent"
           ? " WWJMRD's endpoint cannot accept a DOI right now (their duplicate-DOI check table 'gst.article_up' doesn't exist — MySQL 1146) and their insert rejects a missing DOI (MySQL 1048). Their publish_article endpoint is broken; ask WWJMRD support to fix it, then retry."
           : "";
+      const duplicateNote =
+        res.status === 409 && /already exists/i.test(String(remoteDetail))
+          ? " This article is already on wwjmrd.com but its WWJMRD ID is not saved here, so it cannot be updated automatically. Remove the existing entry on wwjmrd.com, or ask WWJMRD for its ID, then publish again."
+          : "";
       return json(
         {
-          error: `WWJMRD returned HTTP ${res.status}${remoteDetail ? `: ${remoteDetail}` : ""}.${doiNote}`,
+          error: `WWJMRD returned HTTP ${res.status}${remoteDetail ? `: ${remoteDetail}` : ""}.${doiNote}${duplicateNote}`,
           httpStatus: res.status,
           response: body ?? summarizeRemoteError(text),
         },
