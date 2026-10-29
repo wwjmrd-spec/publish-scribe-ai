@@ -144,6 +144,13 @@ const HIGHLIGHT_PALETTE = [
 ];
 
 
+function contentWithoutOverlay(body: HTMLElement | null | undefined): string {
+  if (!body) return '';
+  const clone = body.cloneNode(true) as HTMLElement;
+  clone.querySelector('#ww-page-num-overlay')?.remove();
+  return clone.innerHTML;
+}
+
 /** Vertical position (iframe document coordinates) where a PDF page starts:
  *  the marked element's top, or the line holding its `charOffset`-th visible
  *  character when the element was split across pages. */
@@ -273,7 +280,7 @@ export function ArticleContentEditor({
     renderPageNumbersRef.current?.();
     scheduleMeasureRef.current(200);
 
-    await saveFormattedArticle(articleId, { formatted_content: body.innerHTML });
+    await saveFormattedArticle(articleId, { formatted_content: contentWithoutOverlay(body) });
   }, [articleId]);
 
 
@@ -503,9 +510,8 @@ export function ArticleContentEditor({
 
 
 
-  const getContent = useCallback(() => {
-    return iframeRef.current?.contentDocument?.body?.innerHTML || '';
-  }, []);
+  // Saved / exported HTML never includes the editor-only page-number overlay.
+  const getContent = useCallback(() => contentWithoutOverlay(iframeRef.current?.contentDocument?.body), []);
 
   const execCmd = useCallback((cmd: string, value?: string) => {
     const doc = iframeRef.current?.contentDocument;
