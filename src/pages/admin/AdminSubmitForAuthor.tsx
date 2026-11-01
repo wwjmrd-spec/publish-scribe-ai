@@ -172,7 +172,7 @@ export default function AdminSubmitForAuthor() {
     setStep(1); setAuthorId(''); setAuthorSearch(''); setFile(null);
     setTitle(''); setAbstract(''); setKeywords(''); setSubject('');
     setReason(''); setTarget(''); setPubType('normal'); setCoAuthors([]);
-    setNotificationEmail(''); setPageCount(null); setSubmittedRef('');
+    setNotificationEmail(''); setPageCount(null); setPagesInput(''); setSubmittedRef('');
     setArticleAuthorName(''); setArticleAuthorAffiliation('');
   };
 
