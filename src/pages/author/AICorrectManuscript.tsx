@@ -10,6 +10,7 @@ import { GlassCard } from '@/components/layout/GlassCard';
 import { Button } from '@/components/ui/button';
 import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import { toast } from 'sonner';
+import { useTwoPageFreeEnabled } from '@/hooks/useTwoPageFreeEnabled';
 import {
   Sparkles,
   Wand2,
@@ -36,6 +37,7 @@ export default function AICorrectManuscript() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { subscription, isLoading: subLoading } = useSubscription();
+  const twoPageFreeEnabled = useTwoPageFreeEnabled();
 
   const [running, setRunning] = useState(false);
   const [processing, setProcessing] = useState(false);
