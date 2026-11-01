@@ -9,7 +9,8 @@ import { GlassSpinner } from '@/components/ui/GlassSpinner';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { FileUploadSection } from '@/components/submit/FileUploadSection';
-import { extractDocxPageCount } from '@/lib/docxPageCount';
+import { extractDocxPageCount, qualifiesForTwoPageFree } from '@/lib/docxPageCount';
+import { useTwoPageFreeEnabled } from '@/hooks/useTwoPageFreeEnabled';
 import { ArrowRight, ArrowLeft, FileText, AlertTriangle } from 'lucide-react';
 
 export default function ResubmitArticle() {
@@ -18,6 +19,7 @@ export default function ResubmitArticle() {
   const location = useLocation();
   const article = (location.state as any)?.resubmit;
   const { toast } = useToast();
+  const twoPageFreeEnabled = useTwoPageFreeEnabled();
 
   const [loading, setLoading] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -52,7 +54,7 @@ export default function ResubmitArticle() {
     try {
       // Detect page count of the revised file
       const newPageCount = (await extractDocxPageCount(file)) || article.page_count || null;
-      const wasFreeTier = (article.page_count ?? 0) > 0 && (article.page_count ?? 0) <= 2;
+      const wasFreeTier = qualifiesForTwoPageFree(article.page_count, twoPageFreeEnabled);
       const exceedsFreeLimit = wasFreeTier && newPageCount && newPageCount > 2;
 
       if (exceedsFreeLimit) {
@@ -79,7 +81,7 @@ export default function ResubmitArticle() {
         status: 'under_review',
         review_report_url: null,
       };
-      if (newPageCount) updates.page_count = newPageCount;
+      if (newPageCount) { updates.page_count = newPageCount; updates.detected_page_count = newPageCount; }
       const { error: updateError } = await supabase
         .from('articles')
         .update(updates)
@@ -209,7 +211,7 @@ export default function ResubmitArticle() {
         </GlassCard>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {(article.page_count ?? 0) > 0 && (article.page_count ?? 0) <= 2 && (
+          {qualifiesForTwoPageFree(article.page_count, twoPageFreeEnabled) && (
             <GlassCard className="mb-2 border border-amber-500/30">
               <div className="flex gap-3 items-start text-sm">
                 <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />

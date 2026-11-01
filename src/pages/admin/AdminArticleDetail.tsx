@@ -735,10 +735,19 @@ export default function AdminArticleDetail() {
                     <label className="text-xs text-muted-foreground">Author Affiliation (on article)</label>
                     <p className="text-sm">{(article as any).author_affiliation || (article.profiles as any)?.affiliation || 'N/A'}</p>
                   </div>
-                  {(article as any).page_count && (
+                  {((article as any).page_count || (article as any).author_declared_page_count) && (
                     <div>
                       <label className="text-xs text-muted-foreground">Page Count</label>
-                      <p className="text-sm">📄 {(article as any).page_count} pages</p>
+                      <p className="text-sm">📄 {(article as any).page_count ?? '—'} pages</p>
+                      {((article as any).author_declared_page_count || (article as any).detected_page_count) && (
+                        <p className="text-xs text-muted-foreground">
+                          Author stated: {(article as any).author_declared_page_count ?? '—'} · Detected: {(article as any).detected_page_count ?? '—'}
+                          {(article as any).author_declared_page_count && (article as any).detected_page_count
+                            && (article as any).author_declared_page_count !== (article as any).detected_page_count && (
+                            <span className="text-destructive font-medium"> · Please verify (use Edit Details to correct)</span>
+                          )}
+                        </p>
+                      )}
                     </div>
                   )}
                   {article.country && (

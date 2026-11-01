@@ -35,6 +35,10 @@ serve(async (req: Request) => {
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
+    // 2-page free publication applies only when the admin switch is on.
+    const { data: twoPageFreeFlag } = await supabase.rpc("is_two_page_free_enabled");
+    const twoPageFreeEnabled = twoPageFreeFlag === true;
+
     // Direct fetch to send-email using the service-role Authorization header.
     // supabase.functions.invoke() does not always forward Authorization from a
     // service-role client, which caused send-email to reject calls as 401.
@@ -135,7 +139,7 @@ serve(async (req: Request) => {
                 articleTitle: (art as any).title,
                 referenceNumber: (art as any).reference_number,
                 status: "pending_fee",
-                extraMessage: pageCount > 2 ? `Your article has ${pageCount} pages and exceeds the 2-page free publication limit.` : "",
+                extraMessage: twoPageFreeEnabled && pageCount > 2 ? `Your article has ${pageCount} pages and exceeds the 2-page free publication limit.` : "",
               },
             });
             if (!r2.error) {
@@ -213,7 +217,7 @@ serve(async (req: Request) => {
         .select("id, title, reference_number, author_id, status, updated_at, page_count, fee_promise_date, profiles:author_id (full_name, email)")
         .in("status", ["pending_fee", "manuscript_accepted"]);
 
-      if (!(isAdminUser && all)) {
+      if (!(isAdminUser && all) && twoPageFreeEnabled) {
         query = query.gt("page_count", 2);
       }
 
@@ -305,7 +309,7 @@ serve(async (req: Request) => {
         const unsubUrl = await getUnsubscribeUrl(supabase, article.author_id, "fee_reminder");
 
         const pageCount = (article as any).page_count || 0;
-        const pageMessage = pageCount > 2
+        const pageMessage = twoPageFreeEnabled && pageCount > 2
           ? ` Your article has ${pageCount} pages, which exceeds the 2-page free publication limit.`
           : "";
         const deadlineText = lastFeeDate

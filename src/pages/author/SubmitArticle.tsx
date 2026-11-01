@@ -28,7 +28,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowRight, ArrowLeft, Upload, FileText, CheckCircle, Sparkles, Bot, CreditCard, IndianRupee, DollarSign, AlertTriangle, XCircle } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import mammoth from 'mammoth';
-import { extractDocxPageCountFromArrayBuffer } from '@/lib/docxPageCount';
+import { extractDocxPageCountFromArrayBuffer, resolveSubmissionPageCount } from '@/lib/docxPageCount';
+import { useTwoPageFreeEnabled } from '@/hooks/useTwoPageFreeEnabled';
 import { extractTextFromLegacyDoc } from '@/lib/legacyDoc';
 import { joinName, splitName } from '@/lib/nameParts';
 import { isHoneypotFilled, isSubmissionTooFast, validateArticleContent } from '@/lib/antispam';
@@ -102,7 +103,12 @@ export default function SubmitArticle() {
   const [referrerName, setReferrerName] = useState('');
   const [referrerEmail, setReferrerEmail] = useState('');
   const [discoveryEmailSubject, setDiscoveryEmailSubject] = useState('');
+  // Detected from the uploaded file; the author also states the page count.
   const [pageCount, setPageCount] = useState<number | null>(null);
+  const [declaredPages, setDeclaredPages] = useState('');
+  const twoPageFreeEnabled = useTwoPageFreeEnabled();
+  const declaredPageCount = /^\d+$/.test(declaredPages.trim()) ? parseInt(declaredPages.trim(), 10) : null;
+  const finalPageCount = resolveSubmissionPageCount(declaredPageCount, pageCount);
   const [createdVia, setCreatedVia] = useState<string>('manual');
   const [validationWarnings, setValidationWarnings] = useState<{ missing: string[]; samples: Record<string, string> } | null>(null);
   const [duplicateArticle, setDuplicateArticle] = useState<any>(null);
@@ -228,6 +234,7 @@ export default function SubmitArticle() {
               articleData.publicationType,
               articleData.coAuthors,
               articleData.authorAffiliation || '',
+              { declared: articleData.declaredPageCount ?? null, detected: articleData.detectedPageCount ?? null },
             );
           } catch (err: any) {
             console.error('Article submission after PayPal failed:', err);
@@ -284,6 +291,7 @@ export default function SubmitArticle() {
         ]);
       }
 
+      if (detectedDocxPageCount) setPageCount(detectedDocxPageCount);
       setScanProgress(40);
 
       if (extractedText.length < 50) {
@@ -338,7 +346,7 @@ export default function SubmitArticle() {
         if (meta.author_affiliation) setAuthorAffiliation(String(meta.author_affiliation).trim());
       }
       if (meta.reason_of_research) setReasonOfResearch(meta.reason_of_research);
-      if (meta.page_count) setPageCount(meta.page_count);
+      if (meta.page_count) setPageCount(detectedDocxPageCount ?? meta.page_count);
 
       if (meta.co_authors && Array.isArray(meta.co_authors) && meta.co_authors.length > 0) {
         const newCoAuthors: CoAuthor[] = meta.co_authors.map((ca: any) => {
@@ -424,6 +432,7 @@ export default function SubmitArticle() {
     articlePublicationType: string,
     articleCoAuthors: CoAuthor[],
     articleAuthorAffiliation: string = '',
+    pages: { declared: number | null; detected: number | null } = { declared: declaredPageCount, detected: pageCount },
   ) => {
     if (!user?.id) throw new Error('Not logged in');
 
@@ -454,7 +463,9 @@ export default function SubmitArticle() {
         reason_of_research: articleReasonOfResearch.trim() || null,
         submission_target: articleSubmissionTarget.trim() || null,
         publication_type: articlePublicationType,
-        page_count: pageCount,
+        page_count: resolveSubmissionPageCount(pages.declared, pages.detected),
+        author_declared_page_count: pages.declared,
+        detected_page_count: pages.detected,
         discovery_source: (discoveryAnswered ? savedDiscoverySource : discoverySource) || null,
         discovery_details: discoveryAnswered
           ? savedDiscoveryDetails ?? null
@@ -574,6 +585,11 @@ export default function SubmitArticle() {
     }
     if (!file) {
       toast({ title: 'Please upload a document', variant: 'destructive' });
+      return false;
+    }
+    if (!declaredPageCount || declaredPageCount < 1 || declaredPageCount > 500) {
+      toast({ title: 'Please enter how many pages your article has', description: 'Enter a whole number between 1 and 500.', variant: 'destructive' });
+      document.getElementById('declared-pages')?.focus();
       return false;
     }
     if (!user?.id) {
@@ -747,7 +763,9 @@ export default function SubmitArticle() {
           reason_of_research: reasonOfResearch.trim() || null,
           submission_target: submissionTarget.trim() || null,
           publication_type: publicationType,
-          page_count: pageCount,
+          page_count: finalPageCount,
+          author_declared_page_count: declaredPageCount,
+          detected_page_count: pageCount,
           status: 'submitted' as any,
         })
         .eq('id', duplicateArticle.id);
@@ -927,6 +945,8 @@ export default function SubmitArticle() {
           submissionTarget,
           publicationType,
           coAuthors: filledCoAuthors,
+          declaredPageCount,
+          detectedPageCount: pageCount,
         };
         localStorage.setItem('wwjmrd-fast-track-article', JSON.stringify(articleData));
 
@@ -1167,11 +1187,33 @@ export default function SubmitArticle() {
               </div>
 
               {/* Page count info */}
-              {pageCount && (
-                <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border border-border/50 text-sm">
-                  📄 <span className="text-foreground"><span className="font-semibold">{pageCount} pages</span> detected in your document</span>
-                </div>
-              )}
+              {/* Author-stated page count (required) */}
+              <div className="p-4 rounded-lg bg-muted/50 border border-border/50 space-y-2">
+                <Label htmlFor="declared-pages" className="text-sm font-semibold">
+                  How many pages does your article have? <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="declared-pages"
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={500}
+                  step={1}
+                  value={declaredPages}
+                  onChange={(e) => setDeclaredPages(e.target.value.replace(/[^0-9]/g, '').slice(0, 3))}
+                  placeholder="e.g. 8"
+                  className="glass-input max-w-[160px]"
+                  required
+                />
+                <p className="text-xs text-muted-foreground">
+                  {pageCount
+                    ? <>📄 We detected about <span className="font-semibold text-foreground">{pageCount} page{pageCount === 1 ? '' : 's'}</span> in your document.</>
+                    : 'We could not detect the page count automatically. Please enter it as shown in your Word file.'}
+                  {declaredPageCount && pageCount && declaredPageCount !== pageCount && (
+                    <> Your number differs from what we detected; the editorial office will verify it, and the higher number ({Math.max(declaredPageCount, pageCount)}) is used until then.</>
+                  )}
+                </p>
+              </div>
 
               {/* Honeypot - hidden from real users */}
               <div className="absolute opacity-0 h-0 overflow-hidden" aria-hidden="true" tabIndex={-1}>
@@ -1453,9 +1495,11 @@ export default function SubmitArticle() {
 
 
 
-              {pageCount && pageCount > 2 && (
+              {finalPageCount && (!twoPageFreeEnabled || finalPageCount > 2) && (
                 <div className="flex items-center gap-2 p-3 rounded-lg bg-yellow-100 border border-yellow-400 text-sm text-yellow-800 dark:bg-yellow-900/30 dark:border-yellow-600 dark:text-yellow-300">
-                  ⚠️ <span>Your article has more than 2 pages. It will <strong>not</strong> be considered under free publication. A publication fee will be required after manuscript acceptance.</span>
+                  ⚠️ <span>{twoPageFreeEnabled
+                    ? <>Your article has more than 2 pages. It will <strong>not</strong> be considered under free publication. A publication fee will be required after manuscript acceptance.</>
+                    : <>A publication fee will be required after manuscript acceptance.</>}</span>
                 </div>
               )}
 

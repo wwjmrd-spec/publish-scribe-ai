@@ -77,7 +77,7 @@ export default function AdminFees() {
     },
   });
 
-  const [twoPageFreeEnabled, setTwoPageFreeEnabled] = useState(true);
+  const [twoPageFreeEnabled, setTwoPageFreeEnabled] = useState(false);
   const [oldPrices, setOldPrices] = useState<Record<string, string>>({});
   const [showOldPrice, setShowOldPrice] = useState(false);
   const [newPriceLabel, setNewPriceLabel] = useState('');
@@ -107,11 +107,15 @@ export default function AdminFees() {
         if (error) throw error;
       }
     },
-    onSuccess: () => {
+    onSuccess: (_data, enabled) => {
       queryClient.invalidateQueries({ queryKey: ['admin-setting-two-page-free'] });
-      toast.success(`2-page free publication ${twoPageFreeEnabled ? 'enabled' : 'disabled'}`);
+      queryClient.invalidateQueries({ queryKey: ['two-page-free-enabled'] });
+      toast.success(`2-page free publication ${enabled ? 'enabled' : 'disabled'}`);
     },
-    onError: (err: any) => toast.error('Failed: ' + err.message),
+    onError: (err: any, enabled) => {
+      setTwoPageFreeEnabled(!enabled);
+      toast.error('Failed: ' + err.message);
+    },
   });
 
   useEffect(() => {
@@ -425,7 +429,7 @@ export default function AdminFees() {
               <div>
                 <h2 className="font-display text-xl font-semibold">2-Page Free Publication</h2>
                 <p className="text-sm text-muted-foreground">
-                  When enabled, articles with 2 or fewer pages are published free (no fee required). When disabled, all articles require a publication fee.
+                  When enabled, articles with 2 or fewer pages are published free (no fee required). When disabled, no article is free — all articles require a publication fee.
                 </p>
               </div>
             </div>

@@ -36,6 +36,9 @@ const PayloadSchema = z.object({
   author_name: z.string().max(200).optional().default(""),
   author_affiliation: z.string().max(300).optional().default(""),
   notification_email: z.string().email().max(254).optional().nullable(),
+  // Page count stated by the admin (pre-filled from detection) and the detected value.
+  page_count: z.number().int().min(1).max(500).optional().nullable(),
+  detected_page_count: z.number().int().min(1).max(500).optional().nullable(),
 });
 
 serve(async (req) => {
@@ -113,6 +116,9 @@ serve(async (req) => {
         reason_of_research: p.reason_of_research,
         submission_target: p.submission_target,
         publication_type: p.publication_type,
+        page_count: p.page_count ?? p.detected_page_count ?? null,
+        author_declared_page_count: p.page_count ?? null,
+        detected_page_count: p.detected_page_count ?? null,
         document_url: path,
         status: "submitted",
         created_via: "admin",

@@ -113,6 +113,20 @@
       "when": 1793300462097,
       "tag": "0015_article_author_email_option",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1793522223662,
+      "tag": "0016_two_page_free_respects_setting",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1793522299696,
+      "tag": "0017_two_page_free_use_final_page_count",
+      "breakpoints": true
     }
   ]
 }

@@ -692,12 +692,14 @@ async function processCorrectionInBackground({ supabase, cfg, userId, article, r
     combined = ensureMarkersPresent(combined, serialized);
 
     // Free-tier 2-page rule: if author originally fit ≤2 pages, ask AI to keep it ≤2 pages by trimming if needed.
+    const { data: twoPageFreeFlag } = await supabase.rpc("is_two_page_free_enabled");
+    const twoPageFreeEnabled = twoPageFreeFlag === true;
     const originalPageCount = article.page_count ?? estimatePageCount(blocks);
     let estimatePages = (text: string) => {
       const tmpBlocks = deserializeBlocks(text, images, tables);
       return estimatePageCount(tmpBlocks);
     };
-    if (originalPageCount <= 2 && estimatePages(combined) > 2) {
+    if (twoPageFreeEnabled && originalPageCount <= 2 && estimatePages(combined) > 2) {
       // Light condense pass: ask AI to keep it within 2 pages.
       const condensed = await polishChunk(
         cfg,
@@ -716,7 +718,7 @@ async function processCorrectionInBackground({ supabase, cfg, userId, article, r
 
     const finalBlocks = deserializeBlocks(finalText, images, tables);
     const finalPageCount = estimatePageCount(finalBlocks);
-    const exceedsFreeLimit = (article.page_count ?? originalPageCount) <= 2 && finalPageCount > 2;
+    const exceedsFreeLimit = twoPageFreeEnabled && (article.page_count ?? originalPageCount) <= 2 && finalPageCount > 2;
     if (exceedsFreeLimit) {
       summarySet.add(`⚠️ Corrected manuscript is ~${finalPageCount} pages. The original fit the 2-page free limit; publishing this revised version will require the publication fee.`);
     }
