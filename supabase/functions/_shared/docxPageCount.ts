@@ -93,8 +93,12 @@ export function resolveDocxPageCount(appXml: string | null | undefined, document
   const estimatedPages = Math.max(1, Math.ceil((words + drawings * WORDS_PER_DRAWING) / WORDS_PER_PAGE));
 
   let pageCount: number | null;
-  if (metadataPages || renderedPages) {
-    pageCount = Math.max(metadataPages ?? 0, renderedPages ?? 0, minimumPages);
+  if (metadataPages) {
+    // Word's own count at last save; floored by what the text proves when the
+    // file was produced by a tool that leaves a stale/template value.
+    pageCount = Math.max(metadataPages, minimumPages);
+  } else if (renderedPages) {
+    pageCount = Math.max(renderedPages, minimumPages);
   } else if (words > 0 || drawings > 0) {
     pageCount = Math.max(estimatedPages, minimumPages);
   } else {
