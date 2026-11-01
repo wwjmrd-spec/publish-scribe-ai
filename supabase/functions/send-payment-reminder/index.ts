@@ -36,9 +36,7 @@ serve(async (req: Request) => {
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     // 2-page free publication applies only when the admin switch is on.
-
     const { data: twoPageFreeFlag } = await supabase.rpc("is_two_page_free_enabled");
-
     const twoPageFreeEnabled = twoPageFreeFlag === true;
 
     // Direct fetch to send-email using the service-role Authorization header.
