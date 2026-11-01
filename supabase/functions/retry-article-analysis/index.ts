@@ -10,19 +10,6 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const MAX = 500;
-function norm(v: any): number | null {
-  if (typeof v === "number" && Number.isFinite(v)) {
-    const r = Math.round(v);
-    return r >= 1 && r <= MAX ? r : null;
-  }
-  if (typeof v === "string" && v.trim()) {
-    const p = parseInt(v.trim(), 10);
-    return Number.isFinite(p) && p >= 1 && p <= MAX ? p : null;
-  }
-  return null;
-}
-
 async function extractPageCount(ab: ArrayBuffer): Promise<number | null> {
   try {
     const zip = await JSZip.loadAsync(ab);
@@ -85,7 +72,7 @@ serve(async (req: Request) => {
           const ab = await fileData.arrayBuffer();
           const pc = await extractPageCount(ab);
           if (pc) {
-            await supabase.from("articles").update({ page_count: pc }).eq("id", articleId);
+            await supabase.from("articles").update({ page_count: pc, detected_page_count: pc }).eq("id", articleId);
             result.page_count_after = pc;
           }
         }
