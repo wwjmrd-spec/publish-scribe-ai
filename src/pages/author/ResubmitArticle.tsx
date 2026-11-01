@@ -19,6 +19,7 @@ export default function ResubmitArticle() {
   const location = useLocation();
   const article = (location.state as any)?.resubmit;
   const { toast } = useToast();
+  const twoPageFreeEnabled = useTwoPageFreeEnabled();
 
   const [loading, setLoading] = useState(false);
   const [file, setFile] = useState<File | null>(null);
