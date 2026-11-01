@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { authorizeCaller, unauthorized } from "../_shared/callerAuth.ts";
 import JSZip from "npm:jszip@3.10.1";
+import { resolveDocxPageCount } from "../_shared/docxPageCount.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -26,19 +27,8 @@ async function extractPageCount(ab: ArrayBuffer): Promise<number | null> {
   try {
     const zip = await JSZip.loadAsync(ab);
     const appXml = await zip.file("docProps/app.xml")?.async("string");
-    if (appXml) {
-      const m = appXml.match(/<Pages>(\d+)<\/Pages>/i);
-      const pc = norm(m?.[1]);
-      if (pc) return pc;
-    }
     const docXml = await zip.file("word/document.xml")?.async("string");
-    if (docXml) {
-      const breaks = (docXml.match(/<w:lastRenderedPageBreak\b/g) || []).length;
-      if (breaks > 0) return breaks + 1;
-      const text = docXml.replace(/<[^>]+>/g, " ");
-      const words = text.split(/\s+/).filter(Boolean).length;
-      if (words > 0) return Math.max(1, Math.ceil(words / 425));
-    }
+    return resolveDocxPageCount(appXml, docXml).pageCount;
   } catch (e) {
     console.error("docx parse failed", e);
   }

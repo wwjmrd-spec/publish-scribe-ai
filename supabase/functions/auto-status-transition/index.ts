@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { qualifiesForTwoPageFree } from "../_shared/docxPageCount.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { authorizeCaller, unauthorized } from "../_shared/callerAuth.ts";
 import { sendNextFreeArticleDoiEmail } from '../_shared/freeArticleDoiEmail.ts';
@@ -150,7 +151,8 @@ serve(async (req: Request) => {
     // Check 2-page free setting
     const { data: twoPageFreeSetting } = await supabase
       .from("admin_settings").select("setting_value").eq("setting_key", "two_page_free_enabled").maybeSingle();
-    const twoPageFreeEnabled = twoPageFreeSetting?.setting_value !== "false";
+    // Off unless the admin explicitly enabled it (same rule as the database trigger).
+    const twoPageFreeEnabled = twoPageFreeSetting?.setting_value === "true";
 
     // Load admin-configurable automation score thresholds
     const { data: thresholdRows } = await supabase
@@ -257,7 +259,7 @@ serve(async (req: Request) => {
 
               // Article stays "Manuscript Accepted" for 24 hours before the
               // pending-fee transition (handled in STEP 2b below).
-              const requiresFee = pageCount > 2 || !twoPageFreeEnabled;
+              const requiresFee = !qualifiesForTwoPageFree(pageCount, twoPageFreeEnabled);
               if (!requiresFee) {
                 // Free tier — pause automation now
                 await supabase.from("articles").update({ automation_paused: true }).eq("id", article.id);
@@ -348,7 +350,7 @@ serve(async (req: Request) => {
         for (const article of accepted as any[]) {
           try {
             const pageCount = article.page_count || 0;
-            const requiresFee = pageCount > 2 || !twoPageFreeEnabled;
+            const requiresFee = !qualifiesForTwoPageFree(pageCount, twoPageFreeEnabled);
             if (!requiresFee) {
               await supabase.from("articles").update({ automation_paused: true }).eq("id", article.id);
               continue;
