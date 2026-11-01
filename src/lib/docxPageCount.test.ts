@@ -58,7 +58,15 @@ describe('page count rules', () => {
 
   it('does not trust a stale 1-page metadata value for a 3000-word manuscript', () => {
     const result = resolveDocxPageCount('<Pages>1</Pages>', wordsXml(3000));
-    expect(result.pageCount).toBe(5);
+    expect(result.pageCount).toBe(6);
+  });
+
+  it('replaces a stale saved count of 1 with the text estimate for ~1250 words', () => {
+    expect(resolveDocxPageCount('<Pages>1</Pages>', wordsXml(1250)).pageCount).toBe(3);
+  });
+
+  it('keeps an accurate saved count from Word', () => {
+    expect(resolveDocxPageCount('<Pages>2</Pages>', wordsXml(900)).pageCount).toBe(2);
   });
 
   it('estimates from text when the file has no saved page count', () => {
