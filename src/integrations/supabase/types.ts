@@ -595,6 +595,7 @@ export type Database = {
           allow_manuscript_replace: boolean
           allow_withdrawal: boolean
           author_affiliation: string | null
+          author_declared_page_count: number | null
           author_details_changed_once: boolean
           author_edits_remaining: number
           author_email: string | null
@@ -612,6 +613,7 @@ export type Database = {
           country: string | null
           created_at: string | null
           created_via: string
+          detected_page_count: number | null
           discovery_details: Json | null
           discovery_source: string | null
           display_order: number | null
@@ -686,6 +688,7 @@ export type Database = {
           allow_manuscript_replace?: boolean
           allow_withdrawal?: boolean
           author_affiliation?: string | null
+          author_declared_page_count?: number | null
           author_details_changed_once?: boolean
           author_edits_remaining?: number
           author_email?: string | null
@@ -703,6 +706,7 @@ export type Database = {
           country?: string | null
           created_at?: string | null
           created_via?: string
+          detected_page_count?: number | null
           discovery_details?: Json | null
           discovery_source?: string | null
           display_order?: number | null
@@ -777,6 +781,7 @@ export type Database = {
           allow_manuscript_replace?: boolean
           allow_withdrawal?: boolean
           author_affiliation?: string | null
+          author_declared_page_count?: number | null
           author_details_changed_once?: boolean
           author_edits_remaining?: number
           author_email?: string | null
@@ -794,6 +799,7 @@ export type Database = {
           country?: string | null
           created_at?: string | null
           created_via?: string
+          detected_page_count?: number | null
           discovery_details?: Json | null
           discovery_source?: string | null
           display_order?: number | null
@@ -2712,6 +2718,7 @@ export type Database = {
         Args: { _author_id: string; _category: string }
         Returns: boolean
       }
+      is_two_page_free_enabled: { Args: never; Returns: boolean }
       lookup_discount_code: {
         Args: { p_code: string }
         Returns: {
