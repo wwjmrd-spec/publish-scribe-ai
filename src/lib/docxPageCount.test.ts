@@ -5,6 +5,9 @@ import {
   countRenderedDocxPages,
   extractDocxPageCountFromArrayBuffer,
   parseDocxMetadataPageCount,
+  qualifiesForTwoPageFree,
+  resolveDocxPageCount,
+  resolveSubmissionPageCount,
 } from './docxPageCount';
 
 const WORD_NAMESPACE = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
@@ -47,5 +50,42 @@ describe('docxPageCount', () => {
   it('parses helper values deterministically', () => {
     expect(parseDocxMetadataPageCount('<Pages>8</Pages>')).toBe(8);
     expect(countRenderedDocxPages('<w:lastRenderedPageBreak/><w:lastRenderedPageBreak/>')).toBe(3);
+  });
+});
+describe('page count rules', () => {
+  const wordsXml = (n: number) =>
+    `<w:document><w:body><w:p><w:r><w:t>${Array.from({ length: n }, () => 'word').join(' ')}</w:t></w:r></w:p></w:body></w:document>`;
+
+  it('does not trust a stale 1-page metadata value for a 3000-word manuscript', () => {
+    const result = resolveDocxPageCount('<Pages>1</Pages>', wordsXml(3000));
+    expect(result.pageCount).toBe(5);
+  });
+
+  it('estimates from text when the file has no saved page count', () => {
+    expect(resolveDocxPageCount(null, wordsXml(900)).pageCount).toBe(2);
+    expect(resolveDocxPageCount(null, wordsXml(1100)).pageCount).toBe(3);
+  });
+
+  it('counts a table row crossing a page only once', () => {
+    const table = '<w:tbl><w:tr><w:tc><w:p><w:lastRenderedPageBreak/></w:p></w:tc><w:tc><w:p><w:lastRenderedPageBreak/></w:p></w:tc></w:tr></w:tbl>';
+    expect(countRenderedDocxPages(`<w:body>${table}</w:body>`)).toBe(2);
+  });
+
+  it('uses the larger of the author-stated and detected page counts', () => {
+    expect(resolveSubmissionPageCount(2, 4)).toBe(4);
+    expect(resolveSubmissionPageCount(5, 2)).toBe(5);
+    expect(resolveSubmissionPageCount(2, null)).toBe(2);
+  });
+
+  it('never makes an article free when 2-page free publication is disabled', () => {
+    expect(qualifiesForTwoPageFree(1, false)).toBe(false);
+    expect(qualifiesForTwoPageFree(2, false)).toBe(false);
+  });
+
+  it('makes only 1–2 page articles free when enabled', () => {
+    expect(qualifiesForTwoPageFree(1, true)).toBe(true);
+    expect(qualifiesForTwoPageFree(2, true)).toBe(true);
+    expect(qualifiesForTwoPageFree(3, true)).toBe(false);
+    expect(qualifiesForTwoPageFree(null, true)).toBe(false);
   });
 });
