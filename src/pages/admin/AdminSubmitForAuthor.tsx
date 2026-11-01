@@ -78,6 +78,7 @@ export default function AdminSubmitForAuthor() {
   const [articleAuthorAffiliation, setArticleAuthorAffiliation] = useState('');
   const [notificationEmail, setNotificationEmail] = useState('');
   const [pageCount, setPageCount] = useState<number | null>(null);
+  const [pagesInput, setPagesInput] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submittedRef, setSubmittedRef] = useState('');
 
@@ -223,7 +224,11 @@ export default function AdminSubmitForAuthor() {
       if (m.keywords) setKeywords(m.keywords);
       if (m.subject) setSubject(m.subject);
       if (m.reason_of_research) setReason(m.reason_of_research);
-      if (m.page_count) setPageCount(m.page_count);
+      if (m.page_count || pc) {
+        const detected = pc ?? m.page_count;
+        setPageCount(detected);
+        setPagesInput(String(detected));
+      }
       {
         const scannedName = (m.author_name || joinName(m.author_first_name || '', m.author_last_name || '')).trim();
         if (scannedName) setArticleAuthorName(scannedName);
@@ -345,6 +350,8 @@ export default function AdminSubmitForAuthor() {
           email: c.email.trim(), affiliation: c.affiliation.trim(), orcid: (c.orcid || '').trim(),
         })),
         notification_email: notificationEmail.trim() || null,
+        page_count: /^\d+$/.test(pagesInput.trim()) ? Math.min(500, Math.max(1, parseInt(pagesInput.trim(), 10))) : null,
+        detected_page_count: pageCount,
       };
       const fd = new FormData();
       fd.append('file', file);
@@ -545,9 +552,22 @@ export default function AdminSubmitForAuthor() {
                       </SelectContent>
                     </Select>
                   </div>
-                  {pageCount != null && (
-                    <p className="text-xs text-muted-foreground">Detected page count: {pageCount}</p>
-                  )}
+                  <div>
+                    <Label htmlFor="admin-pages">Number of pages</Label>
+                    <Input
+                      id="admin-pages"
+                      type="number"
+                      min={1}
+                      max={500}
+                      value={pagesInput}
+                      onChange={(e) => setPagesInput(e.target.value.replace(/[^0-9]/g, '').slice(0, 3))}
+                      className="glass-input mt-1 max-w-[160px]"
+                      placeholder="e.g. 8"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {pageCount != null ? `Detected page count: ${pageCount}. Change it if the manuscript has a different number of pages.` : 'Page count could not be detected; enter it from the Word file.'}
+                    </p>
+                  </div>
                 </div>
               </GlassCard>
 
