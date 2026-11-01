@@ -161,7 +161,7 @@ export default function AICorrectManuscript() {
 
   const sendForReview = async (acceptFee = false) => {
     if (!articleId) return;
-    if (result?.exceedsFreeLimit && !acceptFee) {
+    if (twoPageFreeEnabled && result?.exceedsFreeLimit && !acceptFee) {
       const ok = window.confirm(
         `Your AI-corrected manuscript is now ~${result.pageCount} pages and exceeds the 2-page free publication limit. Publishing it will require the publication fee. Do you want to continue?`
       );
@@ -313,7 +313,7 @@ export default function AICorrectManuscript() {
         {/* Result */}
         {result && (
           <>
-            {result.exceedsFreeLimit && (
+            {twoPageFreeEnabled && result.exceedsFreeLimit && (
               <GlassCard className="mb-6 border-2 border-amber-500/40">
                 <div className="flex gap-3 items-start">
                   <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
