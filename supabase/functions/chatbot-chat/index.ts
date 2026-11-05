@@ -60,7 +60,7 @@ Deno.serve(async (req) => {
     );
 
     const body = await req.json();
-    const message: string = (body.message ?? "").toString().trim().slice(0, 2000);
+    let message: string = (body.message ?? "").toString().trim().slice(0, 2000);
     if (!message) return json({ error: "Message is required" }, 400);
 
     // ---- Identify caller (optional) ----
@@ -111,26 +111,32 @@ Deno.serve(async (req) => {
         session_id: body.sessionId ?? crypto.randomUUID(),
         channel: body.channel ?? "web",
         site: body.site ?? "wwjmrdai",
-        author_email: memory.author_email ?? userEmail,
+        author_email: memory.author_email ?? null,
         author_name: memory.author_name ?? null,
       }).select("id").single();
       if (error) throw error;
       conversationId = conv.id;
     }
 
-    // Prefill memory from the signed-in author's profile.
-    if (userId && (!memory.author_email || !memory.author_name)) {
-      const { data: profile } = await sb.from("profiles")
-        .select("full_name, email, country").eq("id", userId).maybeSingle();
+    // Load the signed-in author's profile. The email is NOT prefilled: the author
+    // must type their registered email so we can verify it before sharing account data.
+    let profile: Profile | null = null;
+    if (userId) {
+      const { data } = await sb.from("profiles")
+        .select("id, full_name, email, country, is_indian").eq("id", userId).maybeSingle();
+      profile = data ?? null;
       if (profile) {
         memory.author_name ??= profile.full_name;
-        memory.author_email ??= profile.email;
         memory.country ??= profile.country;
       }
     }
+    const isVerified = (m: Memory) =>
+      !!profile?.email && !!m.author_email && m.author_email.toLowerCase() === profile.email.toLowerCase();
+    const wasVerified = isVerified(memory);
 
     // Harvest identity details from this message.
-    memory = { ...memory, ...extractIdentity(message) };
+    const harvested = extractIdentity(message);
+    memory = { ...memory, ...harvested };
 
     await sb.from("chat_messages").insert({
       conversation_id: conversationId, role: "user", content: message,
@@ -147,6 +153,52 @@ Deno.serve(async (req) => {
     }
 
     const history = await loadHistory(sb, conversationId);
+
+    // ---- Email verification gate (signed-in authors) ----
+    let intro = "";
+    let verified = wasVerified;
+    if (profile && !wasVerified) {
+      const typed = harvested.author_email?.toLowerCase();
+      const reply = async (text: string) => {
+        await touchConversation(sb, conversationId!, memory);
+        await saveAssistant(sb, conversationId!, text, 1, [], false);
+        await logDecision(sb, { conversationId: conversationId!, message, ids: [], top: 1, confidence: 1, escalated: false, reason: "email_verification", started });
+        return json({ conversationId, memory, reply: text, confidence: 1, escalated: false, sources: [] });
+      };
+      if (!typed) {
+        memory.author_email = null;
+        return await reply(
+          `Thank you for contacting WWJMRD${memory.author_name ? `, ${memory.author_name}` : ""}.\n\nBefore I assist you, kindly share the **email address registered with your WWJMRD author account** so I can verify your account and give you accurate details about your articles and payments.`,
+        );
+      }
+      const { data: match } = await sb.from("profiles").select("id")
+        .ilike("email", typed.replace(/[%_\\]/g, "\\$&")).limit(1).maybeSingle();
+      if (!match) {
+        memory.author_email = null;
+        return await reply(`I couldn't find a WWJMRD account registered with **${typed}**.\n\nPlease check the spelling and share the exact email address you used to register. If you have not registered yet, you can create an account at ${SITE}/auth.`);
+      }
+      if (!isVerified(memory)) {
+        memory.author_email = null;
+        return await reply(`The email **${typed}** is registered with WWJMRD, but it does not match the account you are currently signed in with.\n\nFor your privacy, please share the email of the account you are signed in with, or sign in with the account registered under ${typed}.`);
+      }
+      verified = true;
+      const summary = await articleStatus(sb, { userId, memory });
+      intro = `✅ Thank you, your account has been verified.\n\n${summary.reply}`;
+      // Continue with the question the author asked before verification, if any.
+      const pending = [...history].reverse().find((m) =>
+        m.role === "user" && m.content !== message && !/^\s*[\w.+-]+@[\w-]+\.[\w.]+\s*$/.test(m.content));
+      const rest = message.replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, "").replace(/\b(my|email|is|id|mail|:)\b/gi, "").trim();
+      if (rest.length > 8) message = rest;
+      else if (pending) message = pending.content;
+      else {
+        const text = `${intro}\n\nHow may I help you today? You can ask about your article status, next steps, payment breakdown, certificates or DOI.`;
+        await touchConversation(sb, conversationId, memory);
+        await saveAssistant(sb, conversationId, text, 1, [], false);
+        await logDecision(sb, { conversationId, message, ids: [], top: 1, confidence: 1, escalated: false, reason: "email_verified", started });
+        return json({ conversationId, memory, reply: text, confidence: 1, escalated: false, sources: [] });
+      }
+    }
+    const withIntro = (r: string) => (intro ? `${intro}\n\n---\n\n${r}` : r);
     const lower = message.toLowerCase();
 
     // ---- Blocked topics ----
