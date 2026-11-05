@@ -213,8 +213,21 @@ Deno.serve(async (req) => {
     }
 
     // ---- Article status intent ----
-    if (STATUS_HINTS.some((h) => lower.includes(h)) || /\bART-\d{4}-\d+/i.test(message)) {
-      const result = await articleStatus(sb, { userId, memory });
+    const statusIntent = STATUS_HINTS.some((h) => lower.includes(h)) || STATUS_RE.test(message) || /\bART-\d{4}-\d+/i.test(message);
+    const paymentIntent = PAYMENT_RE.test(message) && !/(discount|coupon|promo)/i.test(message);
+
+    // ---- Payment breakdown intent (verified authors) ----
+    if (verified && paymentIntent) {
+      const text = withIntro(await paymentBreakdown(sb, profile!));
+      await touchConversation(sb, conversationId, memory);
+      await saveAssistant(sb, conversationId, text, 1, [], false);
+      await logDecision(sb, { conversationId, message, ids: [], top: 1, confidence: 1, escalated: false, reason: "payment_breakdown", started });
+      return json({ conversationId, memory, reply: text, confidence: 1, escalated: false, sources: [] });
+    }
+
+    // ---- Article status / next steps intent ----
+    if (statusIntent) {
+      const result = intro ? { reply: intro, confidence: 1, quickReplies: [] } : await articleStatus(sb, { userId, memory });
       await touchConversation(sb, conversationId, memory);
       await saveAssistant(sb, conversationId, result.reply, result.confidence, [], false);
       await logDecision(sb, { conversationId, message, ids: [], top: 1, confidence: result.confidence, escalated: false, reason: "article_status", started });
@@ -271,13 +284,14 @@ Deno.serve(async (req) => {
     const extras: string[] = [];
     if (/(discount|coupon|offer|promo)/i.test(message)) extras.push(await discountContext(sb));
     if (/(fee|charge|cost|price|payment|how much)/i.test(message)) extras.push(await feeContext(sb));
+    if (verified && profile) extras.push(await accountContext(sb, profile));
 
     kb.sort((a, b) => b.score - a.score);
     const top = kb.slice(0, 6);
     const topScore = top[0]?.score ?? 0;
 
     if (top.length === 0 && extras.length === 0) {
-      return await escalate(sb, { conversationId, userId, message, memory, history, confidence: 0, reason: "no_context", suggested: null, started });
+      return await escalate(sb, { conversationId, userId, message, memory, history, confidence: 0, reason: "no_context", suggested: null, started, intro });
     }
 
     // ---- Grounded generation ----
@@ -300,7 +314,7 @@ Deno.serve(async (req) => {
     if (!res.ok) {
       const txt = await res.text();
       console.error("AI error", res.status, txt.slice(0, 300));
-      return await escalate(sb, { conversationId, userId, message, memory, history, confidence: 0, reason: `ai_error_${res.status}`, suggested: null, started });
+      return await escalate(sb, { conversationId, userId, message, memory, history, confidence: 0, reason: `ai_error_${res.status}`, suggested: null, started, intro });
     }
 
     const payload = await res.json();
@@ -316,13 +330,14 @@ Deno.serve(async (req) => {
     if (!answer || confidence < 0.7) {
       return await escalate(sb, {
         conversationId, userId, message, memory, history,
-        confidence, reason: "low_confidence", suggested: answer || null, started,
+        confidence, reason: "low_confidence", suggested: answer || null, started, intro,
       });
     }
 
     if (confidence < 0.9) {
       answer += "\n\n_This information is based on our current Knowledge Base._";
     }
+    answer = withIntro(answer);
 
     await touchConversation(sb, conversationId, memory);
     const sources = top.map((d) => ({ id: d.id, kind: d.kind, title: d.title, score: Number(d.score.toFixed(3)) }));
