@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { CartProvider } from "@/contexts/CartContext";
@@ -435,6 +435,7 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+            <Route path="/admin/support-tickets" element={<Navigate to="/admin/chatbot/tickets" replace />} />
             <Route
               path="/admin/chatbot/tickets"
               element={
