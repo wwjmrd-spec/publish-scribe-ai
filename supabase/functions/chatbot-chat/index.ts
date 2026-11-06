@@ -138,11 +138,14 @@ Deno.serve(async (req) => {
     }
     const isVerified = (m: Memory) =>
       !!profile?.email && !!m.author_email && m.author_email.toLowerCase() === profile.email.toLowerCase();
+    // Signed-in authors are identified by their session: use their account email directly.
+    if (profile?.email) memory.author_email = profile.email;
     const wasVerified = isVerified(memory);
 
     // Harvest identity details from this message.
     const harvested = extractIdentity(message);
     memory = { ...memory, ...harvested };
+    if (profile?.email) memory.author_email = profile.email;
 
     await sb.from("chat_messages").insert({
       conversation_id: conversationId, role: "user", content: message,

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Send, Bot, User, ThumbsUp, ThumbsDown, Mic, Volume2, RotateCcw } from 'lucide-react';
+import { Send, Bot, User, ThumbsUp, ThumbsDown, Mic, Volume2, VolumeX, RotateCcw, CreditCard, Power, ChevronDown } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
@@ -24,6 +25,79 @@ const SUGGESTED = [
 
 const STORAGE_KEY = 'wwjmrd_support_chat';
 
+interface Faq { id: string; question: string; answer: string }
+export const DEFAULT_FAQS: Faq[] = [
+  { id: 'd1', question: 'What is the publication fee?', answer: 'The current publication fee is shown on the Guidelines and Cart pages. Payment is requested only after your article is accepted.' },
+  { id: 'd2', question: 'How long does the review take?', answer: 'Most manuscripts receive a review decision within a few days of submission. You will be notified by email.' },
+  { id: 'd3', question: 'Is a DOI included?', answer: 'A DOI can be added for a small DOI fee. It becomes visible once the fee is paid and the article is published.' },
+  { id: 'd4', question: 'How do I download my certificate?', answer: 'Open My Articles, select the published article and use the certificate download button.' },
+  { id: 'd5', question: 'Can I publish 2-page articles free?', answer: 'Only when the journal has enabled the 2-page free publication offer; otherwise the normal fee applies.' },
+  { id: 'd6', question: 'How do I contact the editorial team?', answer: 'Write to support@wwjmrd.com or use the Message Support tab.' },
+];
+
+export function stopSpeaking() {
+  if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+}
+
+export function useFaqs() {
+  const [faqs, setFaqs] = useState<Faq[]>(DEFAULT_FAQS);
+  useEffect(() => {
+    (supabase as any).from('ai_faq').select('id, question, answer').eq('is_active', true)
+      .order('priority', { ascending: false }).limit(30)
+      .then(({ data }: any) => { if (data?.length) setFaqs(data); });
+  }, []);
+  return faqs;
+}
+
+export function FaqList({ faqs, defaultOpen = false }: { faqs: Faq[]; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  return (
+    <div className="mt-2 rounded-lg border border-[hsl(var(--glass-border))]">
+      <button type="button" onClick={() => setOpen(!open)} className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium">
+        Frequently Asked Questions ({faqs.length})
+        <ChevronDown className={`w-3.5 h-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <ul className="px-3 pb-2 space-y-1">
+          {faqs.map((f) => (
+            <li key={f.id} className="text-xs">
+              <button type="button" onClick={() => setExpanded(expanded === f.id ? null : f.id)} className="text-left font-medium hover:text-primary">
+                {f.question}
+              </button>
+              {expanded === f.id && <p className="text-muted-foreground mt-1 whitespace-pre-wrap">{f.answer}</p>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+const URL_RE = /(https?:\/\/[^\s)]+)/g;
+function MessageContent({ text }: { text: string }) {
+  const parts = text.split(URL_RE);
+  return (
+    <>
+      {parts.map((p, i) => {
+        if (!/^https?:\/\//.test(p)) return <React.Fragment key={i}>{p}</React.Fragment>;
+        let path: string | null = null;
+        try { const u = new URL(p); if (u.origin === window.location.origin || /wwjmrdai\./.test(u.host)) path = u.pathname + u.search; } catch { /* ignore */ }
+        if (path && /\/(cart|payment|pay)/i.test(path)) {
+          return (
+            <Button key={i} asChild size="sm" className="gradient-primary my-1">
+              <Link to={path}><CreditCard className="w-4 h-4 mr-2" />Pay Now</Link>
+            </Button>
+          );
+        }
+        return path
+          ? <Link key={i} to={path} className="text-primary underline break-all">{p}</Link>
+          : <a key={i} href={p} target="_blank" rel="noreferrer" className="text-primary underline break-all">{p}</a>;
+      })}
+    </>
+  );
+}
+
 export function SupportChat() {
   const { toast } = useToast();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -35,6 +109,11 @@ export function SupportChat() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const sessionId = useRef<string>('');
+  const [speaking, setSpeaking] = useState(false);
+  const faqs = useFaqs();
+
+  // Stop any read-aloud when the chat window closes.
+  useEffect(() => () => stopSpeaking(), []);
 
   // Restore conversation (client-safe bootstrap).
   useEffect(() => {
@@ -157,7 +236,11 @@ export function SupportChat() {
   const speak = (text: string) => {
     if (!('speechSynthesis' in window)) return;
     window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(new SpeechSynthesisUtterance(text.replace(/[*_#]/g, '')));
+    const u = new SpeechSynthesisUtterance(text.replace(/[*_#]/g, '').replace(URL_RE, ''));
+    u.onend = () => setSpeaking(false);
+    u.onerror = () => setSpeaking(false);
+    setSpeaking(true);
+    window.speechSynthesis.speak(u);
   };
 
   const startVoice = () => {
@@ -176,7 +259,21 @@ export function SupportChat() {
     rec.start();
   };
 
+  const endAll = async () => {
+    stopSpeaking();
+    setSpeaking(false);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) await (supabase as any).from('chat_conversations').update({ status: 'closed' }).eq('user_id', user.id);
+    } catch { /* best-effort */ }
+    window.localStorage.removeItem(STORAGE_KEY);
+    reset();
+    toast({ title: 'All chat sessions ended' });
+  };
+
   const reset = () => {
+    stopSpeaking();
+    setSpeaking(false);
     setMessages([]);
     setConversationId(null);
     setMemory({});
@@ -211,7 +308,7 @@ export function SupportChat() {
           </div>
         )}
 
-        {messages.map((m) => (
+        {messages.map((m, idx) => (
           <div key={m.id} className={`flex gap-2 ${m.role === 'user' ? 'justify-end' : ''}`}>
             {m.role === 'assistant' && (
               <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center shrink-0">
@@ -226,7 +323,7 @@ export function SupportChat() {
                     : 'text-sm text-foreground whitespace-pre-wrap leading-relaxed'
                 }
               >
-                {m.content}
+                {m.role === 'assistant' ? <MessageContent text={m.content} /> : m.content}
               </div>
               {m.role === 'assistant' && (
                 <div className="flex items-center gap-1 mt-1">
@@ -256,6 +353,7 @@ export function SupportChat() {
                   )}
                 </div>
               )}
+              {m.role === 'assistant' && idx === messages.length - 1 && !sending && <FaqList faqs={faqs} />}
             </div>
             {m.role === 'user' && (
               <div className="w-8 h-8 rounded-full bg-[hsl(var(--glass-bg))] flex items-center justify-center shrink-0">
@@ -301,8 +399,16 @@ export function SupportChat() {
             <Button type="button" variant="ghost" size="sm" onClick={startVoice} disabled={listening}>
               <Mic className={`w-4 h-4 ${listening ? 'text-primary animate-pulse' : ''}`} />
             </Button>
+            {speaking && (
+              <Button type="button" variant="ghost" size="sm" onClick={() => { stopSpeaking(); setSpeaking(false); }} title="Stop reading">
+                <VolumeX className="w-4 h-4 text-primary" />
+              </Button>
+            )}
             <Button type="button" variant="ghost" size="sm" onClick={reset} title="New conversation">
               <RotateCcw className="w-4 h-4" />
+            </Button>
+            <Button type="button" variant="ghost" size="sm" onClick={endAll} title="End all chat sessions">
+              <Power className="w-4 h-4" /><span className="ml-1 text-xs hidden sm:inline">End all chats</span>
             </Button>
           </div>
           <Button type="submit" size="sm" disabled={sending || !input.trim()} className="gradient-primary">

@@ -1,0 +1,2 @@
+CREATE POLICY "Anyone can read active FAQs" ON public.ai_faq FOR SELECT TO anon, authenticated USING (is_active = true);
+GRANT SELECT (id, question, answer, category, priority, is_active) ON public.ai_faq TO anon, authenticated;
