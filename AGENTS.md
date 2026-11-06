@@ -1,5 +1,7 @@
 # Project Architecture Rules
 
+- Paginate the Submit for Author profile query with stable name/id ordering before local filtering, because a single Data API response omits authors beyond its row cap.
+
 - Build WWJMRD `authors`/`references` arrays only via publish-to-wwjmrd/wwjmrdPayload.ts (co-authors ordered by co_authors.sort_order, references from saved formatted_content) and send them as JSON strings inside the existing form-urlencoded request, because the PHP API reads form fields and batch-inserted co-authors share created_at.
 
 - Store acceptance letters as immutable server-generated PDFs with owner/admin read access and server-validated admin generation; downloads reuse get-document-url to prevent public document access.

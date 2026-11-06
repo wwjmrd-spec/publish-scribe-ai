@@ -85,12 +85,21 @@ export default function AdminSubmitForAuthor() {
   const { data: authors } = useQuery({
     queryKey: ['admin-all-authors-min'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, full_name, email, affiliation')
-        .order('full_name');
-      if (error) throw error;
-      return data;
+      // PostgREST caps each response; fetch every page before searching locally.
+      const authors: { id: string; full_name: string; email: string; affiliation: string | null }[] = [];
+      const pageSize = 500;
+      for (let offset = 0; ; offset += pageSize) {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, full_name, email, affiliation')
+          .order('full_name')
+          .order('id')
+          .range(offset, offset + pageSize - 1);
+        if (error) throw error;
+        authors.push(...(data || []));
+        if (!data || data.length < pageSize) break;
+      }
+      return authors;
     },
   });
 
