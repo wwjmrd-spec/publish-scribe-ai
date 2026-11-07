@@ -17,6 +17,7 @@ import {
 'lucide-react';
 import { useEffect } from 'react';
 import { RecentPublicationsSection } from './PublicPublications';
+import { HelpButton } from '@/components/help/HelpButton';
 
 const features = [
 {
@@ -298,6 +299,7 @@ export default function Index() {
           </p>
         </div>
       </footer>
+      <HelpButton />
     </PageLayout>);
 
 }
