@@ -7,7 +7,8 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { SupportChat } from './SupportChat';
+import { SupportChat, FaqList, useFaqs, stopSpeaking } from './SupportChat';
+import { useNavigate } from 'react-router-dom';
 
 export function HelpButton() {
   const { user, profile } = useAuth() as any;
@@ -17,10 +18,20 @@ export function HelpButton() {
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [guest, setGuest] = useState(false);
+  const [guestName, setGuestName] = useState('');
+  const [guestEmail, setGuestEmail] = useState('');
+  const navigate = useNavigate();
+  const faqs = useFaqs();
+  const close = () => { stopSpeaking(); setOpen(false); };
 
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user && (!guestName.trim() || !/^\S+@\S+\.\S+$/.test(guestEmail.trim()))) {
+      toast({ title: 'Please enter your name and a valid email', variant: 'destructive' });
+      return;
+    }
     if (!subject.trim() || !message.trim()) {
       toast({ title: 'Please fill subject and message', variant: 'destructive' });
       return;
@@ -28,8 +39,8 @@ export function HelpButton() {
     setSending(true);
     try {
       const { error } = await (supabase as any).from('contact_questions').insert({
-        name: (profile?.full_name || user?.email || 'Author').slice(0, 100),
-        email: (user?.email || '').slice(0, 200),
+        name: (user ? profile?.full_name || user?.email || 'Author' : guestName.trim()).slice(0, 100),
+        email: (user ? user.email || '' : guestEmail.trim()).slice(0, 200),
         subject: subject.trim().slice(0, 200),
         message: message.trim().slice(0, 4000),
         user_agent: navigator.userAgent.slice(0, 500),
@@ -38,7 +49,7 @@ export function HelpButton() {
       toast({ title: 'Message sent', description: 'Our team will get back to you shortly.' });
       setSubject('');
       setMessage('');
-      setOpen(false);
+      close();
     } catch (err: any) {
       toast({ title: 'Failed to send', description: err?.message || 'Try again later', variant: 'destructive' });
     } finally {
@@ -60,7 +71,7 @@ export function HelpButton() {
       {open && (
         <div
           className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-          onClick={() => setOpen(false)}
+          onClick={close}
         >
           <div
             className="w-full max-w-lg rounded-2xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] p-6 shadow-2xl"
@@ -69,7 +80,7 @@ export function HelpButton() {
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-display text-lg font-semibold">WWJMRD Support</h3>
               <button
-                onClick={() => setOpen(false)}
+                onClick={close}
                 className="p-1 rounded-full hover:bg-[hsl(var(--glass-bg))]"
                 aria-label="Close"
               >
@@ -77,6 +88,31 @@ export function HelpButton() {
               </button>
             </div>
 
+            {!user && !guest ? (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">How would you like to continue?</p>
+                <Button className="gradient-primary w-full" onClick={() => { close(); navigate('/auth'); }}>
+                  Login to chat about your account
+                </Button>
+                <Button variant="outline" className="w-full" onClick={() => setGuest(true)}>
+                  Continue without login
+                </Button>
+              </div>
+            ) : !user ? (
+              <div className="space-y-3 max-h-[70vh] overflow-y-auto">
+                <FaqList faqs={faqs} defaultOpen />
+                <p className="text-sm text-muted-foreground">Didn't find your answer? Send us a message and we'll reply by email.</p>
+                <form onSubmit={submit} className="space-y-2">
+                  <Input value={guestName} onChange={(e) => setGuestName(e.target.value)} placeholder="Your name *" className="glass-input" />
+                  <Input type="email" value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} placeholder="Your email *" className="glass-input" />
+                  <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Subject *" className="glass-input" />
+                  <Textarea rows={4} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Your question *" className="glass-input" />
+                  <Button type="submit" disabled={sending} className="gradient-primary w-full">
+                    <Send className="w-4 h-4 mr-2" />{sending ? 'Sending…' : 'Send Message'}
+                  </Button>
+                </form>
+              </div>
+            ) : (<>
             <div className="flex gap-1 p-1 mb-4 rounded-lg bg-[hsl(var(--glass-bg))]">
               <button
                 onClick={() => setTab('chat')}
@@ -126,6 +162,7 @@ export function HelpButton() {
                 </form>
               </>
             )}
+            </>)}
           </div>
 
         </div>
