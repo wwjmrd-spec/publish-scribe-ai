@@ -1,5 +1,7 @@
 # Project Architecture Rules
 
+- Keep publication and article-linked DOI selections independent in Cart, and stop checkbox clicks propagating to the clickable article row, because bubbling toggled publication twice and DOI-only selections must reach checkout.
+
 - Paginate the Submit for Author profile query with stable name/id ordering before local filtering, because a single Data API response omits authors beyond its row cap.
 
 - Build WWJMRD `authors`/`references` arrays only via publish-to-wwjmrd/wwjmrdPayload.ts (co-authors ordered by co_authors.sort_order, references from saved formatted_content) and send them as JSON strings inside the existing form-urlencoded request, because the PHP API reads form fields and batch-inserted co-authors share created_at.
