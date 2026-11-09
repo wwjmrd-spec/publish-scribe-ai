@@ -329,11 +329,10 @@ export default function Cart() {
     return selectedArticles.length * feePerArticle;
   }, [selectedArticles.length, feePerArticle]);
 
-  // DOI add-ons chosen for the pending articles selected above
+  // DOI selection is independent of publication-fee selection.
   const doiSubtotal = useMemo(() => {
-    const count = doiArticles.filter((id) => selectedArticles.includes(id)).length;
-    return count * doiFee;
-  }, [doiArticles, selectedArticles, doiFee]);
+    return doiArticles.length * doiFee;
+  }, [doiArticles, doiFee]);
 
   const cartItemsSubtotal = useMemo(() => {
     if (preferredCurrency === 'USDT' && fees) {
@@ -391,11 +390,11 @@ export default function Cart() {
         (a, b) => new Date(a.created_at as string).getTime() - new Date(b.created_at as string).getTime(),
       );
       return ordered
-        .filter((a, idx) => selectedArticles.includes(a.id) && positionAllowed(idx, positionLimit))
+        .filter((a, idx) => (selectedArticles.includes(a.id) || doiArticles.includes(a.id)) && positionAllowed(idx, positionLimit))
         .filter((a) => !specificIds?.length || specificIds.includes(a.id))
         .map((a) => a.id);
     },
-    [pendingArticles, selectedArticles],
+    [pendingArticles, selectedArticles, doiArticles],
   );
 
   /** Discountable amount for a code, honouring Applies To + article position limits. */
@@ -404,7 +403,7 @@ export default function Cart() {
       const parts = parseAppliesTo(appliesTo);
       const eligibleIds = eligibleArticleIdsFor(positionLimit, specificIds);
       return parts.reduce((sum, p) => {
-        if (p === 'article_fee') return sum + eligibleIds.length * feePerArticle;
+        if (p === 'article_fee') return sum + eligibleIds.filter((id) => selectedArticles.includes(id)).length * feePerArticle;
         if (p === 'doi') {
           const doiCount = eligibleIds.filter((id) => doiArticles.includes(id)).length;
           const cartDoi = validCartItems.filter((i) => i.type === 'doi' || i.type === 'legacy_doi').length;
@@ -415,7 +414,7 @@ export default function Cart() {
         return sum + (categoryTotals[p] ?? 0);
       }, 0);
     },
-    [eligibleArticleIdsFor, feePerArticle, doiArticles, doiFee, validCartItems, categoryTotals],
+    [eligibleArticleIdsFor, selectedArticles, feePerArticle, doiArticles, doiFee, validCartItems, categoryTotals],
   );
 
   const discountBase = useMemo(() => {
@@ -433,7 +432,7 @@ export default function Cart() {
   }, [appliedDiscount, discountBase]);
 
   const total = subtotal - discountAmountValue;
-  const totalItemCount = selectedArticles.length + validCartItems.length;
+  const totalItemCount = selectedArticles.length + doiArticles.length + validCartItems.length;
 
   // Old-price savings for each selected article (publication fee + its DOI add-on).
   const oldPriceSavings = useMemo(() => {
@@ -444,11 +443,11 @@ export default function Cart() {
     const feeSaving = Math.max(0, feeOld - feePerArticle);
     const doiSaving = Math.max(0, doiOld - doiFee);
     return (pendingArticles || [])
-      .filter((a) => selectedArticles.includes(a.id))
+      .filter((a) => selectedArticles.includes(a.id) || doiArticles.includes(a.id))
       .map((a) => ({
         id: a.id,
         title: a.title,
-        saving: feeSaving + (doiArticles.includes(a.id) ? doiSaving : 0),
+        saving: (selectedArticles.includes(a.id) ? feeSaving : 0) + (doiArticles.includes(a.id) ? doiSaving : 0),
       }));
   }, [pendingArticles, selectedArticles, doiArticles, fees, preferredCurrency, useIndianFees, feePerArticle, doiFee]);
 
@@ -630,7 +629,7 @@ export default function Cart() {
     const items = [
       ...selectedArticles.map(id => ({ type: 'article_fee' as const, articleId: id })),
       ...doiArticles
-        .filter(id => selectedArticles.includes(id))
+        .filter(id => !validCartItems.some((item) => item.type === 'doi' && item.articleId === id))
         .map(id => ({ type: 'doi' as const, articleId: id })),
       ...validCartItems.map(item => ({
         type: item.type as 'pro_subscription' | 'coauthor_certificate' | 'review_report' | 'article_edit' | 'doi' | 'legacy_doi',
@@ -972,7 +971,9 @@ export default function Cart() {
                       >
                         <Checkbox
                           checked={selectedArticles.includes(article.id)}
+                          onClick={(event) => event.stopPropagation()}
                           onCheckedChange={() => toggleArticle(article.id)}
+                          aria-label={`Publication fee for ${article.reference_number}`}
                           className="data-[state=checked]:bg-primary data-[state=checked]:border-primary mt-1 shrink-0"
                         />
                         <div className="hidden sm:flex w-10 h-10 rounded-lg bg-[hsl(var(--glass-bg-strong))] items-center justify-center shrink-0">
@@ -991,6 +992,7 @@ export default function Cart() {
                             >
                               <Checkbox
                                 checked={doiArticles.includes(article.id)}
+                                aria-label={`DOI fee for ${article.reference_number}`}
                                 onCheckedChange={(c) =>
                                   setDoiArticles((prev) =>
                                     c ? [...prev, article.id] : prev.filter((id) => id !== article.id),
@@ -1082,7 +1084,7 @@ export default function Cart() {
                       <div className="space-y-1.5">
                         <p className="text-xs text-muted-foreground">Available codes — tap to apply</p>
                         <div className="flex flex-wrap gap-1.5">
-                          {availableCodes!.map((c: any) => (
+                          {availableCodes?.map((c: any) => (
                             <button
                               key={c.id}
                               type="button"
@@ -1117,7 +1119,7 @@ export default function Cart() {
                     {doiSubtotal > 0 && (
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">
-                          DOI ({doiArticles.filter((id) => selectedArticles.includes(id)).length})
+                          DOI ({doiArticles.length})
                         </span>
                         <span>{currencySymbol}{doiSubtotal.toLocaleString()}</span>
                       </div>
