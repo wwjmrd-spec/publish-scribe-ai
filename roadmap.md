@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Fix cart publication/DOI totals and selection; verify DOI-only checkout payload without charging a live payment.
+
 - [x] Fix "Failed to send a request": FTP host was Cloudflare-proxied (now direct server IP), Deno FTPS compatibility patched, certificate name configured; errors now explain the fix.
 - [ ] Journal PDF FTP upload working; blocked on the hosting FTP account: server answers "530 User cannot log in, home directory inaccessible" (fix FTP user/home folder in GoDaddy control panel).
 - [x] Fast Track total includes DOI fee (ticked by default, can be unticked) with polite no-DOI notice; DOI fee linked to the new article after payment.
