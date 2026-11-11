@@ -1366,12 +1366,12 @@ serve(async (req) => {
       }
       if (!docUrl) {
         await supabase.from("articles").update({ formatting_status: "failed" }).eq("id", articleId);
-        return jsonResponse({ error: "This article has no manuscript file attached." }, 422);
+        return jsonResponse({ error: "This article has no manuscript file attached.", code: "MISSING_SOURCE_FILE" }, 200);
       }
       const { data: probe, error: probeErr } = await supabase.storage.from("documents").download(docUrl);
       if (probeErr || !probe) {
         await supabase.from("articles").update({ formatting_status: "failed" }).eq("id", articleId);
-        return jsonResponse({ error: "The manuscript file could not be downloaded from storage." }, 422);
+        return jsonResponse({ error: "The manuscript file could not be downloaded from storage.", code: "SOURCE_DOWNLOAD_FAILED" }, 200);
       }
       const head = new Uint8Array(await probe.slice(0, 8).arrayBuffer());
       const isZip = head[0] === 0x50 && head[1] === 0x4b;
@@ -1386,7 +1386,8 @@ serve(async (req) => {
               : "This manuscript file is not a readable .docx document (it may be damaged or in an unsupported format). Use \"Ask Author to Resubmit File\" so the author uploads a valid .docx version.",
             code: "UNREADABLE_SOURCE_FILE",
           },
-          422,
+          // 200 + error body: an expected editorial condition, handled by callers via data.error
+          200,
         );
       }
     }
