@@ -116,12 +116,6 @@ export default function AdminArticleDetail() {
         .eq('id', articleId!)
         .single();
       if (error) throw error;
-      if (status === 'paid') {
-        const formatResult = await supabase.functions.invoke('format-article', { body: { articleId } });
-        if (formatResult.error || formatResult.data?.error) {
-          throw new Error(formatResult.data?.error || formatResult.error?.message || 'Formatting could not start');
-        }
-      }
       return data;
     },
     enabled: !!articleId,
