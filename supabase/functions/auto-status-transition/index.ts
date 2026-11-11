@@ -416,8 +416,10 @@ serve(async (req: Request) => {
               headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceRoleKey}` },
               body: JSON.stringify({ articleId: article.id }),
             });
-            if (!response.ok) {
-              const detail = await response.text();
+            const detail = await response.text();
+            let body: any = null;
+            try { body = JSON.parse(detail); } catch { /* not JSON */ }
+            if (!response.ok || body?.error) {
               results.errors.push(`Step2c ${article.id}: ${detail}`);
             } else {
               results.step_paidFormattingTriggered++;

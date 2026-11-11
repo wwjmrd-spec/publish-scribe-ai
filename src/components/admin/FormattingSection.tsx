@@ -71,7 +71,14 @@ export function FormattingSection({ articleId }: Props) {
       qc.invalidateQueries({ queryKey: ['admin-article-detail', articleId] });
       toast.success('Formatting started — this may take a minute.');
     },
-    onError: (e: any) => toast.error('Formatting failed: ' + e.message),
+    onError: (e: any) => {
+      const msg = String(e?.message || '');
+      if (/\.doc\b|Word 97-2003|UNREADABLE_SOURCE_FILE/i.test(msg)) {
+        toast.warning('This manuscript is an old Word (.doc) file and cannot be formatted. Use "Ask Author to Resubmit File" to request a .docx version.', { duration: 10000 });
+        return;
+      }
+      toast.error('Formatting failed: ' + msg);
+    },
   });
   const orcidMut = useMutation({
     mutationFn: async () => {
