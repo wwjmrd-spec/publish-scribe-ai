@@ -360,6 +360,34 @@ async function extractMetadata(rawText: string, cfg: AiGatewayConfig, fallbackTi
   return meta;
 }
 
+// Translate front-matter fields (title, abstract, affiliations) into English.
+// Returns the input unchanged for fields already in English or when AI fails.
+async function translateFieldsToEnglish(cfg: AiGatewayConfig, fields: string[]): Promise<string[]> {
+  const idx = fields.map((f, i) => (f && f.trim() ? i : -1)).filter((i) => i >= 0);
+  if (!idx.length) return fields;
+  try {
+    const resp = await aiChatCompletion(cfg, {
+      messages: [
+        { role: "system", content: "You translate academic manuscript front matter into formal academic English. For each input string: if it is already English, return it exactly unchanged; otherwise translate it faithfully into English. Keep scientific names, chemical formulas, acronyms, numbers, emails, ORCID IDs and proper nouns (person, institution, place names may be given their official English name). Do not add, summarize or omit content. Return the same number of items in the same order." },
+        { role: "user", content: JSON.stringify(idx.map((i) => fields[i])) },
+      ],
+      tools: [{ type: "function", function: { name: "return_translations", parameters: { type: "object", properties: { items: { type: "array", items: { type: "string" } } }, required: ["items"] } } }],
+      tool_choice: { type: "function", function: { name: "return_translations" } },
+    });
+    if (!resp.ok) { console.error("Translation failed:", resp.status, await resp.text()); return fields; }
+    const data = await resp.json();
+    const args = data.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
+    const items: unknown = args ? JSON.parse(args).items : null;
+    if (!Array.isArray(items) || items.length !== idx.length) return fields;
+    const out = [...fields];
+    idx.forEach((i, k) => { const t = items[k]; if (typeof t === "string" && t.trim()) out[i] = t.trim(); });
+    return out;
+  } catch (e) {
+    console.error("Translation skipped:", e instanceof Error ? e.message : e);
+    return fields;
+  }
+}
+
 function extractSection(rawText: string, start: RegExp, end: RegExp): string {
   const startMatch = rawText.match(start);
   if (!startMatch?.index) return "";
@@ -1433,6 +1461,17 @@ serve(async (req) => {
           );
         }
 
+        // Title and abstract must be in English in the formatted article.
+        {
+          const [t, ab] = await translateFieldsToEnglish(aiGateway, [meta.title || "", meta.abstract || ""]);
+          if (t && t !== meta.title) {
+            meta.suggestions = meta.suggestions || [];
+            meta.suggestions.push({ type: "translation", message: `Title translated to English: "${t}".`, severity: "info" });
+          }
+          meta.title = t || meta.title;
+          meta.abstract = ab || meta.abstract;
+        }
+
         // Apply the journal's title capitalization policy to the formatted output.
         // The author's stored title is not changed; editors accept/restore it in the
         // Title Capitalization panel.
@@ -1480,8 +1519,13 @@ serve(async (req) => {
             designation: [c.affiliation, c.orcid ? `ORCID: ${c.orcid}` : ""].filter(Boolean).join(", "),
           });
         }
+        {
+          const tr = await translateFieldsToEnglish(aiGateway, overrideAuthors.map((x) => x.designation || ""));
+          overrideAuthors.forEach((x, i) => { x.designation = tr[i] ?? x.designation; });
+        }
         meta.authors = overrideAuthors;
-        meta.correspondence = { name: primaryName, designation: primaryDesignation };
+        const primaryDesignationEn = overrideAuthors[0].designation;
+        meta.correspondence = { name: primaryName, designation: primaryDesignationEn };
 
         const _now = new Date();
         const _currentMonth = String(_now.getMonth() + 1).padStart(2, "0");
