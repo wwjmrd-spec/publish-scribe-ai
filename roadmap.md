@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Release 1 signup security: schema inspected; 1,327 accounts confirmed. Await release-scope decision: Cloud has no documented trusted client-IP signal or direct recovery/resend enforcement control. Do not ship bypassable protection as complete; preserve Google/existing/admin accounts.
+
 - [x] Fix cart publication/DOI totals and selection; regression tests confirm $39 combined and $10 DOI-only checkout payload without charging a live payment.
 
 - [x] Fix "Failed to send a request": FTP host was Cloudflare-proxied (now direct server IP), Deno FTPS compatibility patched, certificate name configured; errors now explain the fix.
