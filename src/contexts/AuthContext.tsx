@@ -1,22 +1,8 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useMauticSync } from '@/hooks/useMautic';
-
-type UserRole = 'author' | 'admin' | null;
-
-interface AuthContextType {
-  user: User | null;
-  session: Session | null;
-  userRole: UserRole;
-  isIndian: boolean;
-  loading: boolean;
-  signUp: (email: string, password: string, fullName: string, country: string, affiliation: string, captchaToken: string) => Promise<{ error: Error | null }>;
-  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signOut: () => Promise<void>;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+import { AuthContext, type UserRole } from './authState';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);

@@ -1,6 +1,8 @@
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthProvider, useAuth } from './AuthContext';
+import { AuthContext } from './authState';
+import { useContext } from 'react';
 
 const mocks = vi.hoisted(() => ({ invoke: vi.fn(), signIn: vi.fn(), sync: vi.fn(), segment: vi.fn() }));
 vi.mock('@/integrations/supabase/client', () => ({ supabase: {
@@ -19,6 +21,15 @@ function Probe() {
 beforeEach(() => { vi.clearAllMocks(); mocks.sync.mockResolvedValue({}); mocks.segment.mockResolvedValue({}); mocks.signIn.mockResolvedValue({ error: null }); });
 afterEach(cleanup);
 describe('guarded registration preserves existing auth', () => {
+  it('provider and hook share the stable context used by global consumers', async () => {
+    function GlobalConsumer() {
+      const state = useContext(AuthContext);
+      const auth = useAuth();
+      return <output>{state === auth ? 'same auth state' : 'disconnected'}</output>;
+    }
+    render(<AuthProvider><GlobalConsumer /></AuthProvider>);
+    await waitFor(() => expect(screen.getByText('same auth state')).toBeInTheDocument());
+  });
   it('submits CAPTCHA to server and retains Mautic registration sync without signing in', async () => {
     mocks.invoke.mockResolvedValue({ data: { ok: true }, error: null });
     render(<AuthProvider><Probe /></AuthProvider>); fireEvent.click(screen.getByText('Register'));

@@ -1,5 +1,7 @@
 # Project Architecture Rules
 
+- Keep auth context identity in authState.ts, outside the provider/hook module, so live-refresh updates cannot disconnect mounted providers from consumers.
+
 - Route the email-registration form through signup-guard (Siteverify + disposable-domain check + standard unconfirmed Auth signup); keep managed OAuth/login/recovery unchanged and explicitly treat direct Auth API bypass/IP limits as pending because Cloud enforcement capabilities are unverified.
 - Keep signup security events service-written and admin-readable, logging only bounded event/provider/domain codes; never log credentials, tokens, full emails or client-supplied IPs.
 
