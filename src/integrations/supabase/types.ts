@@ -1414,6 +1414,24 @@ export type Database = {
           },
         ]
       }
+      disposable_email_domains: {
+        Row: {
+          domain: string
+          source: string
+          updated_at: string
+        }
+        Insert: {
+          domain: string
+          source?: string
+          updated_at?: string
+        }
+        Update: {
+          domain?: string
+          source?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       email_log: {
         Row: {
           created_at: string
@@ -2322,6 +2340,33 @@ export type Database = {
           status?: string
           title?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      signup_security_events: {
+        Row: {
+          created_at: string
+          email_domain: string | null
+          event_type: string
+          id: string
+          provider: string
+          reason: string | null
+        }
+        Insert: {
+          created_at?: string
+          email_domain?: string | null
+          event_type: string
+          id?: string
+          provider?: string
+          reason?: string | null
+        }
+        Update: {
+          created_at?: string
+          email_domain?: string | null
+          event_type?: string
+          id?: string
+          provider?: string
+          reason?: string | null
         }
         Relationships: []
       }

@@ -11,7 +11,7 @@ interface AuthContextType {
   userRole: UserRole;
   isIndian: boolean;
   loading: boolean;
-  signUp: (email: string, password: string, fullName: string, country: string, affiliation: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, fullName: string, country: string, affiliation: string, captchaToken: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
@@ -110,27 +110,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     password: string, 
     fullName: string, 
     country: string,
-    affiliation: string
+    affiliation: string,
+    captchaToken: string
   ) => {
-    const redirectUrl = `${window.location.origin}/`;
-    const isIndianUser = country.toLowerCase() === 'india';
-
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          full_name: fullName,
-          country,
-          affiliation,
-        }
-      }
+    const { data, error } = await supabase.functions.invoke('signup-guard', {
+      body: { email, password, fullName, country, affiliation, captchaToken },
     });
-
     if (error) {
-      return { error };
+      let message = 'Registration is temporarily unavailable. Please try again later.';
+      if ('context' in error && error.context instanceof Response) {
+        try { message = (await error.context.json()).error || message; } catch { /* safe default */ }
+      }
+      return { error: new Error(message) };
     }
+    if (!data?.ok) return { error: new Error(data?.error || 'Unable to complete registration.') };
 
     // Sync contact to Mautic (fire and forget)
     const nameParts = fullName.trim().split(' ');

@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
 import { lovable } from '@/integrations/lovable';
 import { isHoneypotFilled, isSubmissionTooFast } from '@/lib/antispam';
+import { TurnstileSignup } from '@/components/auth/TurnstileSignup';
 
 const signInSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -34,6 +35,8 @@ export default function Auth() {
   const [forgotOpen, setForgotOpen] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotLoading, setForgotLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState('');
+  const [captchaResetKey, setCaptchaResetKey] = useState(0);
 
   // Form fields
   const [email, setEmail] = useState('');
@@ -123,9 +126,11 @@ export default function Auth() {
           return;
         }
 
-        const { error } = await signUp(email, password, fullName, country, affiliation);
+        const { error } = await signUp(email, password, fullName, country, affiliation, captchaToken);
+        setCaptchaToken('');
+        setCaptchaResetKey(key => key + 1);
         if (error) {
-          setError('Unable to complete registration. Please check your details and try again.');
+          setError(error.message);
         } else {
           toast({
             title: 'Account created!',
@@ -400,9 +405,11 @@ export default function Auth() {
               />
             </div>
 
+            {isSignUp && <TurnstileSignup onToken={setCaptchaToken} resetKey={captchaResetKey} />}
+
             <Button
               type="submit"
-              disabled={loading}
+              disabled={loading || (isSignUp && !captchaToken)}
               className="w-full h-11 bg-foreground text-background hover:bg-foreground/90 font-medium">
 
               {loading ?

@@ -1,6 +1,8 @@
 # Roadmap
 
-- [ ] Release 1 signup security: schema inspected; 1,327 accounts confirmed. Await release-scope decision: Cloud has no documented trusted client-IP signal or direct recovery/resend enforcement control. Do not ship bypassable protection as complete; preserve Google/existing/admin accounts.
+- [x] Partial Release 1 implemented: guarded signup, 100-provider maintained-source seed, private events, 22 passing automated checks, live missing/invalid CAPTCHA denial and report; existing author session works.
+- [ ] Production verification pending: rotate pasted private Turnstile secret and confirm authorized-host challenge/signup/email confirmation; real credential/recovery/resend/admin-submission checks need authorized test flows.
+- [ ] Full-release controls pending: trusted-IP registration limits and direct auth/recovery/resend enforcement require managed platform capabilities not documented here.
 
 - [x] Fix cart publication/DOI totals and selection; regression tests confirm $39 combined and $10 DOI-only checkout payload without charging a live payment.
 

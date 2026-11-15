@@ -134,6 +134,20 @@
       "when": 1793952009030,
       "tag": "0018_migration",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1794775847098,
+      "tag": "0019_signup_security_partial_release",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1794775946401,
+      "tag": "0020_restrict_signup_security_grants",
+      "breakpoints": true
     }
   ]
 }
