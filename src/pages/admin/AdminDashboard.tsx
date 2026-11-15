@@ -26,6 +26,7 @@ import { useDashboardRange } from '@/hooks/useDashboardRange';
 import { RANGES, getRangeStart, inRange } from '@/lib/timeRange';
 import { RecentPublicationsSection } from '@/pages/PublicPublications';
 import { queryTimeout } from '@/lib/queryTimeout';
+import { fetchAdminAuthorProfiles } from '@/lib/adminAuthorProfiles';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -47,15 +48,7 @@ export default function AdminDashboard() {
 
   const { data: profiles, isLoading: profilesLoading } = useQuery({
     queryKey: ['admin-profiles-count'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, created_at')
-        .abortSignal(queryTimeout());
-      
-      if (error) throw error;
-      return data;
-    },
+    queryFn: fetchAdminAuthorProfiles,
   });
 
   const { data: payments } = useQuery({

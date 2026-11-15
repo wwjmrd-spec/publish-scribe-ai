@@ -1,5 +1,9 @@
 # Roadmap
 
+- [x] Fix only Total Authors truncation in admin views; both admin views show 1,326 profiles, two pagination tests pass, time filters retained.
+- [x] Deliver next-phase security feasibility report without production deployment or auth changes; 25 tests pass, admin session verified; quality-dashboard author regression explicitly unverified.
+- [ ] Next-phase live security certification blocked on supported native signup/recovery interception, external Turnstile rotation and authorized test flows.
+
 - [x] Partial Release 1 implemented: guarded signup, 100-provider maintained-source seed, private events, 22 passing automated checks, live missing/invalid CAPTCHA denial and report; existing author session works.
 - [ ] Production verification pending: rotate pasted private Turnstile secret and confirm authorized-host challenge/signup/email confirmation; real credential/recovery/resend/admin-submission checks need authorized test flows.
 - [ ] Full-release controls pending: trusted-IP registration limits and direct auth/recovery/resend enforcement require managed platform capabilities not documented here.

@@ -42,6 +42,7 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { SimplePager } from '@/components/ui/SimplePager';
+import { fetchAdminAuthorProfiles } from '@/lib/adminAuthorProfiles';
 
 const PAGE_SIZE = 10;
 
@@ -61,15 +62,7 @@ export default function AdminAuthors() {
 
   const { data: authors, isLoading } = useQuery({
     queryKey: ['admin-authors'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      return data;
-    },
+    queryFn: fetchAdminAuthorProfiles,
   });
 
   const { data: articleCounts } = useQuery({
